@@ -23,6 +23,7 @@ import (
 	"debug/elf"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"os"
 )
 
@@ -80,7 +81,7 @@ type codeBuilder struct {
 	externBLs []externBLRecord // extern BL calls (for ET_REL mode only)
 }
 
-func newCodeBuilder(globals []IRGlobal, strLits []IRStrLit) *codeBuilder {
+func newCodeBuilder(globals []IRGlobal, strLits []IRStrLit, fconsts []IRFConst) *codeBuilder {
 	cb := &codeBuilder{
 		labels:  make(map[string]int),
 		poolIdx: make(map[string]int),
@@ -94,9 +95,21 @@ func newCodeBuilder(globals []IRGlobal, strLits []IRStrLit) *codeBuilder {
 		cb.poolIdx[s.Label] = i
 		i++
 	}
-	// Reserve space for the literal pool: 2 uint32 words per 8-byte address.
+	for _, fc := range fconsts {
+		cb.poolIdx[fc.Label] = i
+		i++
+	}
+	// Reserve space for the literal pool: 2 uint32 words per 8-byte value.
 	for j := 0; j < i; j++ {
 		cb.instrs = append(cb.instrs, 0, 0)
+	}
+	// Pre-fill FP constant slots with IEEE 754 bit patterns.
+	// patchPool will not touch these (their labels are not in globalAddrs).
+	for _, fc := range fconsts {
+		k := cb.poolIdx[fc.Label]
+		bits := math.Float64bits(fc.Value)
+		cb.instrs[k*2] = uint32(bits)
+		cb.instrs[k*2+1] = uint32(bits >> 32)
 	}
 	return cb
 }
@@ -163,6 +176,14 @@ func (cb *codeBuilder) emitLDRglobal(name string) {
 	k := cb.poolIdx[name]
 	imm19 := 2*k - len(cb.instrs)
 	cb.emit(encLDRlit(regX9, imm19))
+}
+
+// emitLDRFPconst emits a PC-relative LDR literal that loads the 8-byte double
+// value of a named FP constant from the pool directly into FP register fd.
+func (cb *codeBuilder) emitLDRFPconst(label string, fd int) {
+	k := cb.poolIdx[label]
+	imm19 := 2*k - len(cb.instrs)
+	cb.emit(encLDRDlit(fd, imm19))
 }
 
 // ── label / branch helpers ────────────────────────────────────────────────────
@@ -259,11 +280,12 @@ func (cb *codeBuilder) patchPool(globalAddrs map[string]uint64) {
 // elfGen translates one IRProgram to binary ARM64 code.
 type elfGen struct {
 	cb            *codeBuilder
-	pendingParams []IRAddr
-	cmpN          int // counter for synthetic comparison labels
+	pendingParams []paramArg      // params accumulate before each IRCall
+	cmpN          int             // counter for synthetic comparison labels
 	fn            *IRFunc
 	fr            *frame
 	isGlobalPtr   map[string]bool // global variables that are pointers (TypeIntPtr/TypeCharPtr)
+	funcRetType   map[string]TypeKind // function name → return type (for FP return detection)
 	// ET_REL object-file mode:
 	isObjMode  bool
 	localFuncs map[string]bool // functions defined in this compilation unit
@@ -312,6 +334,44 @@ func (g *elfGen) store(rd int, dst IRAddr) {
 	}
 }
 
+// fpLoad emits instructions to load an FP value into D register fd (0..7).
+// The stack slot layout is the same 8-byte slot as for integers; only the
+// instruction differs (LDR Dt vs LDR Xt).
+func (g *elfGen) fpLoad(addr IRAddr, fd int) {
+	switch addr.Kind {
+	case AddrFConst:
+		g.cb.emitLDRFPconst(addr.Name, fd)
+	case AddrTemp, AddrLocal:
+		off := g.fr.offsets[addr.Name]
+		g.cb.emit(encLDRDuoff(fd, regSP, off))
+	case AddrGlobal:
+		g.cb.emitLDRglobal(addr.Name)         // X9 = &global
+		g.cb.emit(encLDRDuoff(fd, regX9, 0))  // Dfd = *X9
+	}
+}
+
+// fpStore emits instructions to store D register fd into an FP stack/global slot.
+func (g *elfGen) fpStore(fd int, dst IRAddr) {
+	switch dst.Kind {
+	case AddrTemp, AddrLocal:
+		off := g.fr.offsets[dst.Name]
+		g.cb.emit(encSTRDuoff(fd, regSP, off))
+	case AddrGlobal:
+		g.cb.emitLDRglobal(dst.Name)           // X9 = &global
+		g.cb.emit(encSTRDuoff(fd, regX9, 0))   // *X9 = Dfd
+	}
+}
+
+// emitFPCmpBool emits: Dst = (Src1 cond Src2) as integer 0 or 1.
+// FCMP D0, D1 computes D0 − D1 and sets NZCV flags.
+func (g *elfGen) emitFPCmpBool(q Quad, cond int) {
+	g.fpLoad(q.Src1, 0)
+	g.fpLoad(q.Src2, 1)
+	g.cb.emit(encFCMPD(0, 1)) // FCMP D0, D1 → flags based on D0 − D1
+	g.cb.emit(encCSET(regX0, cond))
+	g.store(regX0, q.Dst)
+}
+
 // arrayBase emits instructions to load the base address of an array into rd.
 func (g *elfGen) arrayBase(addr IRAddr, rd int) {
 	switch addr.Kind {
@@ -343,11 +403,23 @@ func (g *elfGen) emitPrologue(fn *IRFunc) {
 	g.cb.emit(encSUBimm(regSP, regSP, f.frameSize))
 	g.cb.emit(encSTP(regFP, regLR, regSP, 0))
 	g.cb.emit(encADDimm(regFP, regSP, 0)) // FP = SP
+	// AAPCS64: integer params arrive in X0–X7, FP params in D0–D7 (separate banks).
+	iIdx, fIdx := 0, 0
 	for i, name := range fn.Params {
-		if i >= 8 {
+		if i >= len(fn.ParamType) {
 			break
 		}
-		g.cb.emit(encSTRuoff(i, regSP, f.offsets[name]))
+		if isFPType(fn.ParamType[i]) {
+			if fIdx < 8 {
+				g.cb.emit(encSTRDuoff(fIdx, regSP, f.offsets[name]))
+				fIdx++
+			}
+		} else {
+			if iIdx < 8 {
+				g.cb.emit(encSTRuoff(iIdx, regSP, f.offsets[name]))
+				iIdx++
+			}
+		}
 	}
 }
 
@@ -471,15 +543,71 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 			g.load(q.Src1, regX1)                           // X1 = value
 			g.cb.emit(encSTRuoff(regX1, regX0, 0))         // *X0 = X1
 
+		// ── floating-point operations ────────────────────────────────────
+		case IRFAdd:
+			g.fpLoad(q.Src1, 0)
+			g.fpLoad(q.Src2, 1)
+			g.cb.emit(encFADDD(0, 0, 1))
+			g.fpStore(0, q.Dst)
+		case IRFSub:
+			g.fpLoad(q.Src1, 0)
+			g.fpLoad(q.Src2, 1)
+			g.cb.emit(encFSUBD(0, 0, 1))
+			g.fpStore(0, q.Dst)
+		case IRFMul:
+			g.fpLoad(q.Src1, 0)
+			g.fpLoad(q.Src2, 1)
+			g.cb.emit(encFMULD(0, 0, 1))
+			g.fpStore(0, q.Dst)
+		case IRFDiv:
+			g.fpLoad(q.Src1, 0)
+			g.fpLoad(q.Src2, 1)
+			g.cb.emit(encFDIVD(0, 0, 1))
+			g.fpStore(0, q.Dst)
+		case IRFNeg:
+			g.fpLoad(q.Src1, 0)
+			g.cb.emit(encFNEGD(0, 0))
+			g.fpStore(0, q.Dst)
+		case IRFCopy:
+			g.fpLoad(q.Src1, 0)
+			g.fpStore(0, q.Dst)
+		case IRFLt:
+			g.emitFPCmpBool(q, condLT)
+		case IRFLe:
+			g.emitFPCmpBool(q, condLE)
+		case IRFGt:
+			g.emitFPCmpBool(q, condGT)
+		case IRFGe:
+			g.emitFPCmpBool(q, condGE)
+		case IRFEq:
+			g.emitFPCmpBool(q, condEQ)
+		case IRFNe:
+			g.emitFPCmpBool(q, condNE)
+		case IRIntToDouble:
+			g.load(q.Src1, regX0)
+			g.cb.emit(encSCVTFD(0, regX0)) // SCVTF D0, X0
+			g.fpStore(0, q.Dst)
+		case IRDoubleToInt:
+			g.fpLoad(q.Src1, 0)
+			g.cb.emit(encFCVTZSD(regX0, 0)) // FCVTZS X0, D0
+			g.store(regX0, q.Dst)
+
 		case IRParam:
-			g.pendingParams = append(g.pendingParams, q.Src1)
+			g.pendingParams = append(g.pendingParams, paramArg{addr: q.Src1, isFP: false})
+
+		case IRFParam:
+			g.pendingParams = append(g.pendingParams, paramArg{addr: q.Src1, isFP: true})
 
 		case IRCall:
 			g.emitCall(q)
 
 		case IRReturn:
 			if q.Src1.Kind != AddrNone {
-				g.load(q.Src1, regX0)
+				if isFPType(g.fn.ReturnType) {
+					g.fpLoad(q.Src1, 0) // FP return value in D0
+				} else {
+					g.load(q.Src1, regX0)
+				}
 			}
 			g.emitEpilogue()
 		}
@@ -538,17 +666,25 @@ func (g *elfGen) emitArrayStore(q Quad) {
 }
 
 func (g *elfGen) emitCall(q Quad) {
-	for i, p := range g.pendingParams {
-		if i >= 8 {
-			break
+	// Route integer params to X0–X7 and FP params to D0–D7 (separate counters,
+	// per AAPCS64: each register class has its own next-register index).
+	iIdx, fIdx := 0, 0
+	for _, p := range g.pendingParams {
+		if p.isFP {
+			if fIdx < 8 {
+				g.fpLoad(p.addr, fIdx)
+				fIdx++
+			}
+		} else {
+			if iIdx < 8 {
+				g.load(p.addr, iIdx)
+				iIdx++
+			}
 		}
-		g.load(p, i) // load into Xi
 	}
 	g.pendingParams = g.pendingParams[:0]
 
 	if g.isObjMode {
-		// In object-file mode every call to a non-locally-defined function
-		// becomes an extern BL (resolved by the linker via CALL26 relocation).
 		switch q.Extra {
 		case "input":
 			g.cb.emitBLextern("gaston_input")
@@ -558,6 +694,8 @@ func (g *elfGen) emitCall(q Quad) {
 			g.cb.emitBLextern("gaston_print_char")
 		case "print_string":
 			g.cb.emitBLextern("gaston_print_string")
+		case "print_double":
+			g.cb.emitBLextern("gaston_print_double")
 		case "malloc":
 			g.cb.emitBLextern("gaston_malloc")
 		case "free":
@@ -580,6 +718,8 @@ func (g *elfGen) emitCall(q Quad) {
 			g.cb.emitBL("gaston_print_char")
 		case "print_string":
 			g.cb.emitBL("gaston_print_string")
+		case "print_double":
+			g.cb.emitBL("gaston_print_double")
 		case "malloc":
 			g.cb.emitBL("gaston_malloc")
 		case "free":
@@ -590,7 +730,11 @@ func (g *elfGen) emitCall(q Quad) {
 	}
 
 	if q.Dst.Kind != AddrNone {
-		g.store(regX0, q.Dst)
+		if isFPType(g.funcRetType[q.Extra]) {
+			g.fpStore(0, q.Dst) // FP return value from D0
+		} else {
+			g.store(regX0, q.Dst)
+		}
 	}
 }
 
@@ -860,6 +1004,135 @@ func (g *elfGen) emitPrintStringFn() {
 	cb.emit(encLDP(regX19, regX20, regSP, 16))
 	cb.emit(encLDP(regFP, regLR, regSP, 0))
 	cb.emit(encADDimm(regSP, regSP, 48))
+	cb.emit(encRET())
+}
+
+// emitPrintDoubleFn emits gaston_print_double(D0 = double value).
+//
+// Prints the value as "[-]integer.fraction\n" with 6 decimal places.
+//
+// Frame layout (80 bytes):
+//   SP+0:  FP       SP+8:  LR
+//   SP+16: X19 (integer part of |D0|)
+//   SP+24: X20 (fractional part scaled to 6 digits)
+//   SP+32: X21 (digit buffer pointer)
+//   SP+40: X22 (digit loop counter)
+//   SP+48..SP+79: 32-byte scratch buffer
+//     SP+48:       1-byte scratch (sign char, '.', '\n')
+//     SP+49..SP+79: 31-byte integer digit buffer (built right-to-left)
+//     SP+48..SP+53: 6-byte fractional digit buffer (reused after int write)
+func (g *elfGen) emitPrintDoubleFn() {
+	cb := g.cb
+	cb.defineLabel("gaston_print_double")
+
+	// Prologue.
+	cb.emit(encSUBimm(regSP, regSP, 80))
+	cb.emit(encSTP(regFP, regLR, regSP, 0))
+	cb.emit(encSTP(regX19, regX20, regSP, 16))
+	cb.emit(encSTP(regX21, 22, regSP, 32)) // X21, X22
+	cb.emit(encADDimm(regFP, regSP, 0))
+
+	// Step 1: handle sign — FCMP D0, #0.0; if ≥ 0 skip sign printing.
+	cb.emit(encFCMPDzero(0))
+	cb.emitBcond(condGE, "pd_pos")
+	cb.emitMOVimm(regX0, '-')
+	cb.emit(encSTRBuoff(regX0, regSP, 48))
+	cb.emitMOVimm(regX0, 1)
+	cb.emit(encADDimm(regX1, regSP, 48))
+	cb.emitMOVimm(regX2, 1)
+	cb.emitMOVimm(regX8, 64)
+	cb.emit(encSVC(0))
+	cb.emit(encFNEGD(0, 0)) // D0 = |D0|
+	cb.defineLabel("pd_pos")
+
+	// Step 2: extract integer part into X19.
+	cb.emit(encFCVTZSD(regX19, 0)) // X19 = (int64)D0
+
+	// Step 3: compute fractional part in D1 = D0 − (double)X19.
+	cb.emit(encSCVTFD(1, regX19)) // D1 = (double)X19
+	cb.emit(encFSUBD(1, 0, 1))   // D1 = D0 − D1
+
+	// Step 4: scale fractional to 6 digits in X20.
+	cb.emitMOVimm(regX0, 1000000)
+	cb.emit(encSCVTFD(2, regX0))   // D2 = 1000000.0
+	cb.emit(encFMULD(1, 1, 2))     // D1 = D1 * 1000000.0
+	cb.emit(encFCVTZSD(regX20, 1)) // X20 = 6-digit fractional
+
+	// Step 5: print integer part (X19) — build digits backward into SP+49..SP+79.
+	cb.emit(encADDimm(regX21, regSP, 79)) // X21 = &buf[31]
+	cb.emitCBNZ(regX19, "pd_int_nonzero")
+	// X19 == 0: emit single '0'.
+	cb.emitMOVimm(regX0, '0')
+	cb.emit(encSTRBuoff(regX0, regX21, 0))
+	cb.emit(encSUBimm(regX21, regX21, 1))
+	cb.emitB("pd_int_done")
+	// X19 != 0: digit-extract loop.
+	cb.defineLabel("pd_int_nonzero")
+	cb.emitMOVimm(regX0, 10) // divisor in X0 (constant through loop)
+	cb.defineLabel("pd_int_loop")
+	cb.emit(encUDIV(regX2, regX19, regX0))    // X2  = X19 / 10
+	cb.emit(encMUL(3, regX2, regX0))          // X3  = quotient * 10
+	cb.emit(encSUBreg(3, regX19, 3))          // X3  = X19 mod 10
+	cb.emit(encADDimm(3, 3, '0'))             // X3  = ASCII digit
+	cb.emit(encSTRBuoff(3, regX21, 0))        // *X21 = digit
+	cb.emit(encSUBimm(regX21, regX21, 1))     // X21--
+	cb.emit(encMOVreg(regX19, regX2))         // X19 = X19 / 10
+	cb.emitCBNZ(regX19, "pd_int_loop")
+	cb.defineLabel("pd_int_done")
+	cb.emit(encADDimm(regX21, regX21, 1)) // X21 = first digit
+	// write(1, X21, SP+80 − X21)
+	cb.emit(encMOVreg(regX1, regX21))
+	cb.emit(encADDimm(regX2, regSP, 80))
+	cb.emit(encSUBreg(regX2, regX2, regX1))
+	cb.emitMOVimm(regX0, 1)
+	cb.emitMOVimm(regX8, 64)
+	cb.emit(encSVC(0))
+
+	// Step 6: print '.'.
+	cb.emitMOVimm(regX0, '.')
+	cb.emit(encSTRBuoff(regX0, regSP, 48))
+	cb.emitMOVimm(regX0, 1)
+	cb.emit(encADDimm(regX1, regSP, 48))
+	cb.emitMOVimm(regX2, 1)
+	cb.emitMOVimm(regX8, 64)
+	cb.emit(encSVC(0))
+
+	// Step 7: print 6 fractional digits (zero-padded) from X20.
+	// Build backward into SP+48..SP+53 (least-significant digit at SP+53).
+	cb.emit(encADDimm(regX21, regSP, 53)) // X21 = SP+53 (last slot)
+	cb.emitMOVimm(22, 6)                  // X22 = 6 (counter)
+	cb.emitMOVimm(regX0, 10)
+	cb.defineLabel("pd_frac_loop")
+	cb.emit(encUDIV(regX2, regX20, regX0))  // X2  = X20 / 10
+	cb.emit(encMUL(3, regX2, regX0))        // X3  = quotient * 10
+	cb.emit(encSUBreg(3, regX20, 3))        // X3  = X20 mod 10
+	cb.emit(encADDimm(3, 3, '0'))           // X3  = ASCII digit
+	cb.emit(encSTRBuoff(3, regX21, 0))      // *X21 = digit
+	cb.emit(encSUBimm(regX21, regX21, 1))   // X21--
+	cb.emit(encMOVreg(regX20, regX2))       // X20 = X20 / 10
+	cb.emit(encSUBimm(22, 22, 1))           // X22--
+	cb.emitCBNZ(22, "pd_frac_loop")
+	// write(1, SP+48, 6)
+	cb.emitMOVimm(regX0, 1)
+	cb.emit(encADDimm(regX1, regSP, 48))
+	cb.emitMOVimm(regX2, 6)
+	cb.emitMOVimm(regX8, 64)
+	cb.emit(encSVC(0))
+
+	// Step 8: print '\n'.
+	cb.emitMOVimm(regX0, '\n')
+	cb.emit(encSTRBuoff(regX0, regSP, 48))
+	cb.emitMOVimm(regX0, 1)
+	cb.emit(encADDimm(regX1, regSP, 48))
+	cb.emitMOVimm(regX2, 1)
+	cb.emitMOVimm(regX8, 64)
+	cb.emit(encSVC(0))
+
+	// Epilogue.
+	cb.emit(encLDP(regX21, 22, regSP, 32))
+	cb.emit(encLDP(regX19, regX20, regSP, 16))
+	cb.emit(encLDP(regFP, regLR, regSP, 0))
+	cb.emit(encADDimm(regSP, regSP, 80))
 	cb.emit(encRET())
 }
 
@@ -1255,14 +1528,26 @@ func genELF(irp *IRProgram, outpath string) error {
 	bssTotal += 8
 	allPoolGlobals := append(definedGlobals, freeListSynth)
 
-	cb := newCodeBuilder(allPoolGlobals, irp.StrLits)
-	gen := &elfGen{cb: cb, pendingParams: make([]IRAddr, 0, 8), isGlobalPtr: isGlobalPtr}
+	// Build function return-type map for FP return detection in emitCall.
+	funcRetType := make(map[string]TypeKind, len(irp.Funcs))
+	for _, fn := range irp.Funcs {
+		funcRetType[fn.Name] = fn.ReturnType
+	}
+
+	cb := newCodeBuilder(allPoolGlobals, irp.StrLits, irp.FConsts)
+	gen := &elfGen{
+		cb:            cb,
+		pendingParams: make([]paramArg, 0, 8),
+		isGlobalPtr:   isGlobalPtr,
+		funcRetType:   funcRetType,
+	}
 
 	gen.emitStart(definedGlobals)
 	gen.emitOutputFn()
 	gen.emitInputFn()
 	gen.emitPrintCharFn()
 	gen.emitPrintStringFn()
+	gen.emitPrintDoubleFn()
 	gen.emitMallocFn()
 	gen.emitFreeFn()
 	for _, fn := range irp.Funcs {

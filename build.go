@@ -58,6 +58,20 @@ func gaston_input() int64 {
 	return v
 }
 
+//go:linkname gaston_print_char gaston_print_char
+func gaston_print_char(c int64) {
+	os.Stdout.Write([]byte{byte(c)})
+}
+
+//go:linkname gaston_print_string gaston_print_string
+func gaston_print_string(ptr int64) {
+	// ptr is a raw address into the process's address space.
+	// In the Plan 9 / Go build we can't easily dereference it;
+	// this stub exists so the generated .s file links without errors.
+	// Real use requires the ELF path where the runtime is inline assembly.
+	_ = ptr
+}
+
 func main() { gaston_main() }
 `)
 }

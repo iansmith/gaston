@@ -41,6 +41,7 @@ func newSymTable() *symTable {
 	st.funcs["print_string"] = &FuncSig{Name: "print_string", ReturnType: TypeVoid, Params: []TypeKind{TypeInt}}
 	st.funcs["malloc"] = &FuncSig{Name: "malloc", ReturnType: TypeIntPtr, Params: []TypeKind{TypeInt}}
 	st.funcs["free"] = &FuncSig{Name: "free", ReturnType: TypeVoid, Params: []TypeKind{TypeIntPtr}}
+	st.funcs["print_double"] = &FuncSig{Name: "print_double", ReturnType: TypeVoid, Params: []TypeKind{TypeDouble}}
 	return st
 }
 
@@ -262,6 +263,10 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		n.Type = TypeInt
 		return TypeInt
 
+	case KindFNum:
+		n.Type = TypeDouble
+		return TypeDouble
+
 	case KindCharLit:
 		n.Type = TypeInt // char literals are int-valued
 		return TypeInt
@@ -344,8 +349,11 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		case "<", "<=", ">", ">=", "==", "!=":
 			n.Type = TypeInt
 		default:
-			// Arithmetic: unsigned "infects" — if either operand is unsigned, result is unsigned.
-			if isUnsignedType(lt) || isUnsignedType(rt) {
+			// FP "infects" — if either operand is FP, result is double.
+			if isFPType(lt) || isFPType(rt) {
+				n.Type = TypeDouble
+			} else if isUnsignedType(lt) || isUnsignedType(rt) {
+				// Arithmetic: unsigned "infects" — if either operand is unsigned, result is unsigned.
 				n.Type = TypeUnsignedInt
 			} else {
 				n.Type = TypeInt
@@ -358,8 +366,14 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		switch n.Op {
 		case "!":
 			n.Type = TypeInt // logical-not always yields int
-		default: // "-", "~"
-			n.Type = t // preserve signedness
+		case "~":
+			n.Type = t // preserve type
+		default: // "-"
+			if isFPType(t) {
+				n.Type = TypeDouble
+			} else {
+				n.Type = t // preserve signedness
+			}
 		}
 		return n.Type
 
@@ -371,7 +385,8 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			return TypeInt
 		}
 		// Variadic built-ins skip arity check.
-		if n.Name != "input" && n.Name != "output" && n.Name != "print_char" && n.Name != "print_string" {
+		if n.Name != "input" && n.Name != "output" && n.Name != "print_char" &&
+			n.Name != "print_string" && n.Name != "print_double" {
 			if len(n.Children) != len(sig.Params) {
 				*errs = append(*errs, fmt.Sprintf("'%s' expects %d args, got %d",
 					n.Name, len(sig.Params), len(n.Children)))

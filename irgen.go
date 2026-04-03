@@ -105,7 +105,7 @@ func genIR(prog *Node) *IRProgram {
 }
 
 func (g *irGen) genFunc(n *Node) {
-	g.fn = &IRFunc{Name: n.Name}
+	g.fn = &IRFunc{Name: n.Name, ReturnType: n.Type}
 	g.tempN = 0
 	g.labelN = 0
 	g.locals = make(map[string]localInfo)
@@ -152,7 +152,12 @@ func (g *irGen) genCompound(n *Node) {
 			if len(child.Children) > 0 && !isArr {
 				initVal := g.genExpr(child.Children[0])
 				dst := g.addrOf(child.Name)
-				g.emit(Quad{Op: IRCopy, Dst: dst, Src1: initVal})
+				if isFPType(child.Type) {
+					initVal = g.coerceToFP(initVal, child.Children[0].Type)
+					g.emit(Quad{Op: IRFCopy, Dst: dst, Src1: initVal})
+				} else {
+					g.emit(Quad{Op: IRCopy, Dst: dst, Src1: initVal})
+				}
 			}
 		} else {
 			g.genStmt(child)
@@ -192,6 +197,9 @@ func (g *irGen) genStmt(n *Node) {
 	case KindReturn:
 		if len(n.Children) > 0 {
 			v := g.genExpr(n.Children[0])
+			if isFPType(g.fn.ReturnType) {
+				v = g.coerceToFP(v, n.Children[0].Type)
+			}
 			g.emit(Quad{Op: IRReturn, Src1: v})
 		} else {
 			g.emit(Quad{Op: IRReturn})
@@ -290,6 +298,11 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 	case KindCharLit:
 		return IRAddr{Kind: AddrConst, IVal: n.Val}
 
+	case KindFNum:
+		label := fmt.Sprintf("fc%d", len(g.prog.FConsts))
+		g.prog.FConsts = append(g.prog.FConsts, IRFConst{Label: label, Value: n.FVal})
+		return IRAddr{Kind: AddrFConst, FVal: n.FVal, Name: label}
+
 	case KindStrLit:
 		label := fmt.Sprintf("str%d", len(g.prog.StrLits))
 		g.prog.StrLits = append(g.prog.StrLits, IRStrLit{Label: label, Content: n.Name})
@@ -325,11 +338,26 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 	case KindAssign:
 		lhs := n.Children[0]
 		rhs := g.genExpr(n.Children[1])
+		lhsType := n.Children[0].Type
+		rhsType := n.Children[1].Type
+
+		if isFPType(lhsType) {
+			rhs = g.coerceToFP(rhs, rhsType)
+		}
 
 		switch lhs.Kind {
 		case KindVar:
 			addr := g.addrOf(lhs.Name)
-			g.emit(Quad{Op: IRCopy, Dst: addr, Src1: rhs})
+			if isFPType(lhsType) {
+				g.emit(Quad{Op: IRFCopy, Dst: addr, Src1: rhs})
+			} else if isFPType(rhsType) {
+				// Implicit double/float → int truncation (C semantics).
+				tmp := g.newTemp()
+				g.emit(Quad{Op: IRDoubleToInt, Dst: tmp, Src1: rhs})
+				g.emit(Quad{Op: IRCopy, Dst: addr, Src1: tmp})
+			} else {
+				g.emit(Quad{Op: IRCopy, Dst: addr, Src1: rhs})
+			}
 			return addr
 		case KindArrayVar:
 			base := g.addrOf(lhs.Name)
@@ -373,6 +401,9 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 
 
 	case KindBinOp:
+		if isFPType(n.Type) || isFPType(n.Children[0].Type) || isFPType(n.Children[1].Type) {
+			return g.genFPBinOp(n)
+		}
 		left := g.genExpr(n.Children[0])
 		right := g.genExpr(n.Children[1])
 		dst := g.newTemp()
@@ -384,6 +415,17 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 		operand := g.genExpr(n.Children[0])
 		dst := g.newTemp()
 		zero := IRAddr{Kind: AddrConst, IVal: 0}
+		if isFPType(n.Children[0].Type) {
+			switch n.Op {
+			case "-":
+				g.emit(Quad{Op: IRFNeg, Dst: dst, Src1: operand})
+			case "!":
+				// !fp: fp == 0.0
+				zeroFP := g.fpZero()
+				g.emit(Quad{Op: IRFEq, Dst: dst, Src1: operand, Src2: zeroFP})
+			}
+			return dst
+		}
 		switch n.Op {
 		case "-": // 0 - operand
 			g.emit(Quad{Op: IRSub, Dst: dst, Src1: zero, Src2: operand})
@@ -411,13 +453,73 @@ func (g *irGen) genCall(n *Node) IRAddr {
 		} else {
 			val = g.genExpr(arg)
 		}
-		g.emit(Quad{Op: IRParam, Src1: val})
+		if isFPType(arg.Type) {
+			g.emit(Quad{Op: IRFParam, Src1: val})
+		} else {
+			g.emit(Quad{Op: IRParam, Src1: val})
+		}
 	}
 
 	nargs := IRAddr{Kind: AddrConst, IVal: len(n.Children)}
 	dst := g.newTemp()
 	g.emit(Quad{Op: IRCall, Dst: dst, Src1: nargs, Extra: n.Name})
 	return dst
+}
+
+// coerceToFP ensures val is an FP IR address; emits IRIntToDouble if needed.
+func (g *irGen) coerceToFP(val IRAddr, fromType TypeKind) IRAddr {
+	if isFPType(fromType) || val.Kind == AddrFConst {
+		return val
+	}
+	tmp := g.newTemp()
+	g.emit(Quad{Op: IRIntToDouble, Dst: tmp, Src1: val})
+	return tmp
+}
+
+// fpZero returns an IR address for the floating-point constant 0.0.
+func (g *irGen) fpZero() IRAddr {
+	label := fmt.Sprintf("fc%d", len(g.prog.FConsts))
+	g.prog.FConsts = append(g.prog.FConsts, IRFConst{Label: label, Value: 0.0})
+	return IRAddr{Kind: AddrFConst, FVal: 0.0, Name: label}
+}
+
+// genFPBinOp generates IR for a binary operation involving at least one FP operand.
+func (g *irGen) genFPBinOp(n *Node) IRAddr {
+	left := g.genExpr(n.Children[0])
+	left = g.coerceToFP(left, n.Children[0].Type)
+	right := g.genExpr(n.Children[1])
+	right = g.coerceToFP(right, n.Children[1].Type)
+	dst := g.newTemp()
+	op := fpBinOpToIR(n.Op)
+	g.emit(Quad{Op: op, Dst: dst, Src1: left, Src2: right})
+	return dst
+}
+
+// fpBinOpToIR maps a binary operator string to the corresponding FP IR opcode.
+func fpBinOpToIR(op string) IROpCode {
+	switch op {
+	case "+":
+		return IRFAdd
+	case "-":
+		return IRFSub
+	case "*":
+		return IRFMul
+	case "/":
+		return IRFDiv
+	case "<":
+		return IRFLt
+	case "<=":
+		return IRFLe
+	case ">":
+		return IRFGt
+	case ">=":
+		return IRFGe
+	case "==":
+		return IRFEq
+	case "!=":
+		return IRFNe
+	}
+	panic("unknown FP op: " + op)
 }
 
 // binOpToIRTyped maps a binary operator to the correct IR opcode,

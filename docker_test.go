@@ -76,6 +76,28 @@ var featureTests = []dockerTest{
 	// short_types: 1000, 20000, 100, compound: 150,50, unsigned short: 700
 	{name: "short_types", want: "1000\n20000\n100\n150\n50\n700\n"},
 
+	// ── Feature 10: float / double ───────────────────────────────────────
+	// float_basic: literal, assignment, int conversion
+	{name: "float_basic", want: "1\n3\n2\n1\n"},
+	// float_arith: +, -, *, / with exact binary fractions
+	{name: "float_arith", want: "5\n2\n6\n3\n3\n"},
+	// float_cmp: <, <=, >, >=, ==, != operators
+	{name: "float_cmp", want: "1\n1\n0\n0\n0\n1\n1\n0\n"},
+	// float_neg: unary negation
+	{name: "float_neg", want: "3\n1\n7\n"},
+	// float_conv: double→int (truncation) and int→double
+	{name: "float_conv", want: "7\n15\n3\n-2\n"},
+	// float_global: global double variables
+	{name: "float_global", want: "10\n5\n18\n8\n"},
+	// float_loop: accumulation and multiplication in loops
+	{name: "float_loop", want: "4\n16\n"},
+	// float_if: FP comparisons controlling if/while
+	{name: "float_if", want: "1\n0\n1\n3\n"},
+	// float_func: double function parameters and return values
+	{name: "float_func", want: "6\n2\n5\n4\n"},
+	// float_print: print_double runtime (integer-valued and fractional doubles)
+	{name: "float_print", want: "3.000000\n0.500000\n-1.250000\n100.000000\n"},
+
 	// ── Integration ──────────────────────────────────────────────────────
 	{name: "combo_all", want: "63\nABC\nok\n"},
 }

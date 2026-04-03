@@ -18,6 +18,7 @@ const (
 	regX21 = 21
 	regX22 = 22
 	regX23 = 23
+	regX24 = 24
 	regFP  = 29 // X29 — frame pointer
 	regLR  = 30 // X30 — link register
 	regXZR = 31 // zero register (source / result-discard context)
@@ -30,12 +31,14 @@ const (
 	condNE = 1  // not equal          (Z=0)
 	condHS = 2  // unsigned ≥  (CS)   (C=1)
 	condLO = 3  // unsigned <  (CC)   (C=0)
+	condVS = 6  // overflow set (V=1)  — unordered after FCMP (NaN)
+	condVC = 7  // overflow clear (V=0) — ordered after FCMP (not NaN)
+	condHI = 8  // unsigned >          (C=1, Z=0)
+	condLS = 9  // unsigned ≤          (C=0 or Z=1)
 	condGE = 10 // signed ≥           (N=V)
 	condLT = 11 // signed <            (N≠V)
 	condGT = 12 // signed >            (Z=0, N=V)
 	condLE = 13 // signed ≤            (Z=1 or N≠V)
-	condHI = 8  // unsigned >          (C=1, Z=0)
-	condLS = 9  // unsigned ≤          (C=0 or Z=1)
 )
 
 // encMOVZ encodes MOVZ Xd, #imm16, LSL #shift.
@@ -272,4 +275,88 @@ func encLDRH(rt, rn, byteOff int) uint32 {
 // encLDRSH encodes LDRSH Xt, [Xn, #byteOff] (unsigned 12-bit halfword offset; sign-extends to 64 bits).
 func encLDRSH(rt, rn, byteOff int) uint32 {
 	return 0x79800000 | uint32(byteOff/2)<<10 | uint32(rn)<<5 | uint32(rt)
+}
+
+// ── floating-point instruction encoders (double precision, scalar) ─────────────
+
+// encFADDD encodes FADD Dd, Dn, Dm (64-bit double precision addition).
+func encFADDD(rd, rn, rm int) uint32 {
+	return 0x1E602800 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encFSUBD encodes FSUB Dd, Dn, Dm.
+func encFSUBD(rd, rn, rm int) uint32 {
+	return 0x1E603800 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encFMULD encodes FMUL Dd, Dn, Dm.
+func encFMULD(rd, rn, rm int) uint32 {
+	return 0x1E600800 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encFDIVD encodes FDIV Dd, Dn, Dm.
+func encFDIVD(rd, rn, rm int) uint32 {
+	return 0x1E601800 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encFNEGD encodes FNEG Dd, Dn (negate).
+func encFNEGD(rd, rn int) uint32 {
+	return 0x1E614000 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encFABSD encodes FABS Dd, Dn (absolute value).
+func encFABSD(rd, rn int) uint32 {
+	return 0x1E60C000 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encFMOVDD encodes FMOV Dd, Dn (FP register copy).
+func encFMOVDD(rd, rn int) uint32 {
+	return 0x1E604000 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encFCMPD encodes FCMP Dn, Dm (sets flags; V=1 if either is NaN).
+func encFCMPD(rn, rm int) uint32 {
+	return 0x1E602000 | uint32(rm)<<16 | uint32(rn)<<5
+}
+
+// encFCMPDzero encodes FCMP Dn, #0.0.
+func encFCMPDzero(rn int) uint32 {
+	return 0x1E602008 | uint32(rn)<<5
+}
+
+// encSCVTFD encodes SCVTF Dd, Xn (signed int64 → double).
+func encSCVTFD(rd, rn int) uint32 {
+	return 0x9E620000 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encFCVTZSD encodes FCVTZS Xd, Dn (double → signed int64, truncate toward zero).
+func encFCVTZSD(rd, rn int) uint32 {
+	return 0x9E780000 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encFMOVtoGP encodes FMOV Xd, Dn (move from FP register to GP register).
+func encFMOVtoGP(rd, rn int) uint32 {
+	return 0x9E660000 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encFMOVfromGP encodes FMOV Dd, Xn (move from GP register to FP register).
+func encFMOVfromGP(rd, rn int) uint32 {
+	return 0x9E670000 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encLDRDuoff encodes LDR Dt, [Xn, #byteOff] (double, unsigned 12-bit scaled offset).
+// byteOff must be 0..32760 and divisible by 8.
+func encLDRDuoff(rt, rn, byteOff int) uint32 {
+	return 0xFD400000 | uint32(byteOff/8)<<10 | uint32(rn)<<5 | uint32(rt)
+}
+
+// encSTRDuoff encodes STR Dt, [Xn, #byteOff] (double, unsigned 12-bit scaled offset).
+func encSTRDuoff(rt, rn, byteOff int) uint32 {
+	return 0xFD000000 | uint32(byteOff/8)<<10 | uint32(rn)<<5 | uint32(rt)
+}
+
+// encLDRDlit encodes LDR Dt, [PC, #(imm19*4)] (PC-relative literal load, 64-bit double).
+// imm19 is the signed word offset from the instruction to the 8-byte-aligned literal.
+func encLDRDlit(rt, imm19 int) uint32 {
+	return 0x5C000000 | uint32(imm19&0x7FFFF)<<5 | uint32(rt)
 }

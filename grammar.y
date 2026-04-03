@@ -10,6 +10,7 @@ package main
 
 %union {
 	ival  int
+	fval  float64
 	sval  string
 	node  *Node
 	nodes []*Node
@@ -18,11 +19,12 @@ package main
 
 // Literals
 %token <ival> NUM CHAR_LIT
+%token <fval> FNUM
 %token <sval> ID STRING_LIT
 
 // Keywords
 %token INT VOID IF ELSE WHILE RETURN FOR DO BREAK CONTINUE CONST CHAR EXTERN
-%token LONG UNSIGNED SHORT
+%token LONG UNSIGNED SHORT FLOAT DOUBLE
 
 // Multi-character operators
 %token LE GE EQ NE LSHIFT RSHIFT
@@ -115,6 +117,8 @@ type_specifier
 	| UNSIGNED CHAR      { $$ = TypeUnsignedChar }
 	| UNSIGNED SHORT     { $$ = TypeUnsignedShort }
 	| UNSIGNED SHORT INT { $$ = TypeUnsignedShort }
+	| FLOAT              { $$ = TypeFloat }
+	| DOUBLE             { $$ = TypeDouble }
 	;
 
 fun_declaration
@@ -327,6 +331,7 @@ factor
 	| var                 { $$ = $1 }
 	| call                { $$ = $1 }
 	| NUM                 { $$ = &Node{Kind: KindNum, Val: $1} }
+	| FNUM                { $$ = &Node{Kind: KindFNum, FVal: $1, Type: TypeDouble} }
 	| CHAR_LIT            { $$ = &Node{Kind: KindCharLit, Val: $1, Type: TypeInt} }
 	| STRING_LIT          { $$ = &Node{Kind: KindStrLit, Name: $1, Type: TypeCharPtr} }
 	| '-' factor          { $$ = &Node{Kind: KindUnary, Op: "-", Children: []*Node{$2}} }

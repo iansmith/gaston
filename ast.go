@@ -16,11 +16,18 @@ const (
 	TypeUnsignedChar          // unsigned char
 	TypeShort                 // short (16-bit signed; stored as 64-bit in frame)
 	TypeUnsignedShort         // unsigned short
+	TypeFloat                 // float (32-bit IEEE 754; stored as 64-bit double internally)
+	TypeDouble                // double (64-bit IEEE 754)
 )
 
 // isUnsignedType reports whether t is an unsigned integer type.
 func isUnsignedType(t TypeKind) bool {
 	return t == TypeUnsignedInt || t == TypeUnsignedChar || t == TypeUnsignedShort
+}
+
+// isFPType reports whether t is a floating-point type (float or double).
+func isFPType(t TypeKind) bool {
+	return t == TypeFloat || t == TypeDouble
 }
 
 // isPtrType reports whether t is a pointer type (holds an address).
@@ -39,6 +46,7 @@ const (
 	KindVarDecl // int x; or int x[N];
 	KindFunDecl // type f(params) { body }
 	KindParam   // int p or int p[]
+	KindFNum    // floating-point literal: FVal = value
 
 	// Statements
 	KindCompound  // { decls... stmts... }
@@ -108,6 +116,7 @@ type Node struct {
 	Type     TypeKind // resolved type (filled by semcheck)
 	Name     string   // identifier
 	Val      int      // numeric literal or array size
+	FVal     float64  // floating-point literal value (KindFNum)
 	Op       string   // binary operator string: "+", "-", "*", "/", "<", "<=", ">", ">=", "==", "!="
 	Children []*Node
 	Line     int

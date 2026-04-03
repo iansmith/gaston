@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // lexer implements the yyLexer interface required by the goyacc-generated parser.
@@ -38,6 +39,8 @@ var keywords = map[string]int{
 	"long":     LONG,
 	"unsigned": UNSIGNED,
 	"short":    SHORT,
+	"float":    FLOAT,
+	"double":   DOUBLE,
 }
 
 // Lex scans and returns the next token, filling lval with the token's value.
@@ -65,6 +68,36 @@ func (l *lexer) Lex(lval *yySymType) int {
 scan:
 	c := l.src[l.pos]
 
+	// Float literal starting with '.': e.g. .5, .25e-3
+	if c == '.' && l.pos+1 < len(l.src) && isDigit(l.src[l.pos+1]) {
+		start := l.pos
+		l.pos++ // consume '.'
+		for l.pos < len(l.src) && isDigit(l.src[l.pos]) {
+			l.pos++
+		}
+		end := l.pos
+		if l.pos < len(l.src) && (l.src[l.pos] == 'e' || l.src[l.pos] == 'E') {
+			l.pos++
+			if l.pos < len(l.src) && (l.src[l.pos] == '+' || l.src[l.pos] == '-') {
+				l.pos++
+			}
+			for l.pos < len(l.src) && isDigit(l.src[l.pos]) {
+				l.pos++
+			}
+			end = l.pos
+		}
+		if l.pos < len(l.src) && (l.src[l.pos] == 'f' || l.src[l.pos] == 'F') {
+			l.pos++ // consume suffix but exclude from parse
+		}
+		v, err := strconv.ParseFloat(l.src[start:end], 64)
+		if err != nil {
+			l.Error(fmt.Sprintf("invalid float literal: %s", l.src[start:l.pos]))
+			return 0
+		}
+		lval.fval = v
+		return FNUM
+	}
+
 	// Integer literals: decimal, hex (0x/0X), octal (0…).
 	if isDigit(c) {
 		start := l.pos
@@ -73,10 +106,56 @@ scan:
 			for l.pos < len(l.src) && isHexDigit(l.src[l.pos]) {
 				l.pos++
 			}
-		} else {
+			// Hex literals are always integers.
+			v, err := strconv.ParseInt(l.src[start:l.pos], 0, 64)
+			if err != nil {
+				l.Error(fmt.Sprintf("invalid integer literal: %s", l.src[start:l.pos]))
+				return 0
+			}
+			lval.ival = int(v)
+			return NUM
+		}
+		// Decimal: scan digits first.
+		for l.pos < len(l.src) && isDigit(l.src[l.pos]) {
+			l.pos++
+		}
+		// Check for float indicators: decimal point or exponent.
+		isFloat := false
+		end := l.pos
+		if l.pos < len(l.src) && l.src[l.pos] == '.' {
+			isFloat = true
+			l.pos++ // consume '.'
 			for l.pos < len(l.src) && isDigit(l.src[l.pos]) {
 				l.pos++
 			}
+			end = l.pos
+		}
+		if l.pos < len(l.src) && (l.src[l.pos] == 'e' || l.src[l.pos] == 'E') {
+			isFloat = true
+			l.pos++
+			if l.pos < len(l.src) && (l.src[l.pos] == '+' || l.src[l.pos] == '-') {
+				l.pos++
+			}
+			for l.pos < len(l.src) && isDigit(l.src[l.pos]) {
+				l.pos++
+			}
+			end = l.pos
+		}
+		if l.pos < len(l.src) && (l.src[l.pos] == 'f' || l.src[l.pos] == 'F') {
+			isFloat = true
+			l.pos++ // consume suffix but exclude from numeric parse
+		}
+		if isFloat {
+			s := l.src[start:end]
+			s = strings.TrimSuffix(s, "f")
+			s = strings.TrimSuffix(s, "F")
+			v, err := strconv.ParseFloat(s, 64)
+			if err != nil {
+				l.Error(fmt.Sprintf("invalid float literal: %s", l.src[start:l.pos]))
+				return 0
+			}
+			lval.fval = v
+			return FNUM
 		}
 		v, err := strconv.ParseInt(l.src[start:l.pos], 0, 64)
 		if err != nil {

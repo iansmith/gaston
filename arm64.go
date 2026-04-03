@@ -26,6 +26,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"math"
 	"strings"
 )
 
@@ -38,11 +39,17 @@ type frame struct {
 	frameSize int
 }
 
+// paramArg is one pending call argument (accumulated between IRParam/IRFParam and IRCall).
+type paramArg struct {
+	addr IRAddr
+	isFP bool // true → FP argument (goes to F0–F7); false → integer (goes to R0–R7)
+}
+
 // arm64Gen emits Plan 9 ARM64 assembly for an IRProgram.
 type arm64Gen struct {
 	w             io.Writer
-	pendingParams []IRAddr // params accumulate before each IRCall
-	localLabelN   int      // counter for synthetic comparison labels
+	pendingParams []paramArg // params accumulate before each IRCall
+	localLabelN   int        // counter for synthetic comparison labels
 }
 
 // genARM64 is the entry point: writes a complete .s file to w.
@@ -77,6 +84,16 @@ func genARM64(irp *IRProgram, w io.Writer) {
 		}
 	}
 	if len(irp.StrLits) > 0 {
+		g.line("")
+	}
+
+	// FP constant literal pool (Plan 9: DATA + GLOBL, 8 bytes each).
+	for _, fc := range irp.FConsts {
+		bits := math.Float64bits(fc.Value)
+		g.linef("GLOBL gaston_%s(SB), RODATA, $8", fc.Label)
+		g.linef("DATA gaston_%s+0(SB)/8, $0x%016X", fc.Label, bits)
+	}
+	if len(irp.FConsts) > 0 {
 		g.line("")
 	}
 
@@ -283,8 +300,53 @@ func (g *arm64Gen) genFunc(fn *IRFunc) {
 			g.emit_load(f, q.Src1, "R1") // R1 = value
 			g.insn("MOVD R1, (R0)")
 
+		// ── floating-point operations ────────────────────────────────────
+		case IRFAdd:
+			g.emitFPArith(f, q, "FADDD")
+		case IRFSub:
+			g.emitFPArith(f, q, "FSUBD")
+		case IRFMul:
+			g.emitFPArith(f, q, "FMULD")
+		case IRFDiv:
+			g.emitFPArith(f, q, "FDIVD")
+
+		case IRFNeg:
+			g.emit_fp_load(f, q.Src1, "F0")
+			g.insn("FNEGD F0, F0")
+			g.emit_fp_store(f, "F0", q.Dst)
+
+		case IRFCopy:
+			g.emit_fp_load(f, q.Src1, "F0")
+			g.emit_fp_store(f, "F0", q.Dst)
+
+		case IRFLt:
+			g.emitFPCmpBool(f, fn, q, "BLT")
+		case IRFLe:
+			g.emitFPCmpBool(f, fn, q, "BLE")
+		case IRFGt:
+			g.emitFPCmpBool(f, fn, q, "BGT")
+		case IRFGe:
+			g.emitFPCmpBool(f, fn, q, "BGE")
+		case IRFEq:
+			g.emitFPCmpBool(f, fn, q, "BEQ")
+		case IRFNe:
+			g.emitFPCmpBool(f, fn, q, "BNE")
+
+		case IRIntToDouble:
+			g.emit_load(f, q.Src1, "R0")
+			g.insn("SCVTFD R0, F0")
+			g.emit_fp_store(f, "F0", q.Dst)
+
+		case IRDoubleToInt:
+			g.emit_fp_load(f, q.Src1, "F0")
+			g.insn("FCVTZSD F0, R0")
+			g.emit_store(f, "R0", q.Dst)
+
 		case IRParam:
-			g.pendingParams = append(g.pendingParams, q.Src1)
+			g.pendingParams = append(g.pendingParams, paramArg{addr: q.Src1, isFP: false})
+
+		case IRFParam:
+			g.pendingParams = append(g.pendingParams, paramArg{addr: q.Src1, isFP: true})
 
 		case IRCall:
 			g.emitCall(f, fn, q)
@@ -316,6 +378,8 @@ func (g *arm64Gen) emit_load(f *frame, addr IRAddr, reg string) {
 		g.insnf("MOVD %d(RSP), %s", off, reg)
 	case AddrGlobal:
 		g.insnf("MOVD gaston_%s(SB), %s", addr.Name, reg)
+	case AddrFConst:
+		g.insnf("FMOVD gaston_%s(SB), %s", addr.Name, reg)
 	default:
 		g.insn("// emit_load: AddrNone")
 	}
@@ -332,6 +396,72 @@ func (g *arm64Gen) emit_store(f *frame, reg string, dst IRAddr) {
 	default:
 		g.insn("// emit_store: unsupported dst kind")
 	}
+}
+
+// ── FP load / store helpers ───────────────────────────────────────────────────
+
+// emit_fp_load loads an FP value into fpreg (e.g. "F0").
+// Stack slots for FP values are the same 8-byte slots used for integers —
+// only the instruction differs (FMOVD vs MOVD).
+func (g *arm64Gen) emit_fp_load(f *frame, addr IRAddr, fpreg string) {
+	switch addr.Kind {
+	case AddrFConst:
+		g.insnf("FMOVD gaston_%s(SB), %s", addr.Name, fpreg)
+	case AddrTemp, AddrLocal:
+		off, ok := f.offsets[addr.Name]
+		if !ok {
+			g.insnf("// BUG: no offset for FP %s", addr.Name)
+			return
+		}
+		g.insnf("FMOVD %d(RSP), %s", off, fpreg)
+	case AddrGlobal:
+		g.insnf("FMOVD gaston_%s(SB), %s", addr.Name, fpreg)
+	default:
+		g.insn("// emit_fp_load: AddrNone")
+	}
+}
+
+// emit_fp_store stores fpreg (e.g. "F0") into an FP stack/global slot.
+func (g *arm64Gen) emit_fp_store(f *frame, fpreg string, dst IRAddr) {
+	switch dst.Kind {
+	case AddrTemp, AddrLocal:
+		off := f.offsets[dst.Name]
+		g.insnf("FMOVD %s, %d(RSP)", fpreg, off)
+	case AddrGlobal:
+		g.insnf("FMOVD %s, gaston_%s(SB)", fpreg, dst.Name)
+	default:
+		g.insn("// emit_fp_store: unsupported dst kind")
+	}
+}
+
+// ── FP arithmetic / comparison ────────────────────────────────────────────────
+
+// emitFPArith emits: Dst = Src1 op Src2 using F0, F1.
+// Plan 9 ARM64 ternary form: OP Fm, Fn, Fd  means  Fd = Fn OP Fm
+func (g *arm64Gen) emitFPArith(f *frame, q Quad, op string) {
+	g.emit_fp_load(f, q.Src1, "F0") // F0 = Src1
+	g.emit_fp_load(f, q.Src2, "F1") // F1 = Src2
+	g.insnf("%s F1, F0, F0", op)    // F0 = F0 op F1
+	g.emit_fp_store(f, "F0", q.Dst)
+}
+
+// emitFPCmpBool emits: Dst = (Src1 bop Src2) as integer 0 or 1.
+// FCMPD F1, F0 computes F0 − F1 and sets NZCV.
+func (g *arm64Gen) emitFPCmpBool(f *frame, fn *IRFunc, q Quad, bop string) {
+	g.emit_fp_load(f, q.Src1, "F0")
+	g.emit_fp_load(f, q.Src2, "F1")
+	g.insn("FCMPD F1, F0")
+
+	trueL := g.newCmpLabel(fn)
+	endL := g.newCmpLabel(fn)
+
+	g.insnf("%s %s", bop, trueL)
+	g.insn("MOVD $0, R0")
+	g.insnf("B %s", endL)
+	g.linef("%s:", trueL)
+	g.insn("MOVD $1, R0")
+	g.linef("%s:", endL)
+	g.emit_store(f, "R0", q.Dst)
 }
 
 // ── arithmetic ───────────────────────────────────────────────────────────────
@@ -441,14 +571,26 @@ func (g *arm64Gen) emitAddrOf(f *frame, q Quad) {
 // ── function calls ────────────────────────────────────────────────────────────
 
 // emitCall emits argument moves and a CALL instruction, storing the result.
-// Pending params (accumulated from IRParam quads) are moved into R0–R7.
+// Integer params go into R0–R7; FP params go into F0–F7 (separate counters,
+// per AAPCS64: each class has its own next-register index).
 func (g *arm64Gen) emitCall(f *frame, fn *IRFunc, q Quad) {
-	for i, param := range g.pendingParams {
-		if i >= 8 {
-			g.insn("// WARNING: >8 args, extra args dropped")
-			break
+	iIdx, fIdx := 0, 0
+	for _, p := range g.pendingParams {
+		if p.isFP {
+			if fIdx >= 8 {
+				g.insn("// WARNING: >8 FP args, extra dropped")
+				continue
+			}
+			g.emit_fp_load(f, p.addr, fmt.Sprintf("F%d", fIdx))
+			fIdx++
+		} else {
+			if iIdx >= 8 {
+				g.insn("// WARNING: >8 int args, extra dropped")
+				continue
+			}
+			g.emit_load(f, p.addr, fmt.Sprintf("R%d", iIdx))
+			iIdx++
 		}
-		g.emit_load(f, param, fmt.Sprintf("R%d", i))
 	}
 	g.pendingParams = g.pendingParams[:0]
 
