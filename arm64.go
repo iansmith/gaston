@@ -34,6 +34,7 @@ type frame struct {
 	offsets   map[string]int  // name → byte offset from RSP
 	isArrPtr  map[string]bool // true if the name is an array-param (pointer slot)
 	isArrBase map[string]bool // true if the name is a local array (inline storage)
+	isPtrVar  map[string]bool // true if the name is a pointer variable (int* or char*)
 	frameSize int
 }
 
@@ -67,6 +68,18 @@ func genARM64(irp *IRProgram, w io.Writer) {
 		g.line("")
 	}
 
+	// String literal rodata (Plan 9: DATA + GLOBL).
+	for _, sl := range irp.StrLits {
+		content := sl.Content + "\x00" // NUL-terminate
+		g.linef("GLOBL gaston_%s(SB), RODATA, $%d", sl.Label, len(content))
+		for i := 0; i < len(content); i++ {
+			g.linef("DATA gaston_%s+%d(SB)/1, $0x%02X", sl.Label, i, content[i])
+		}
+	}
+	if len(irp.StrLits) > 0 {
+		g.line("")
+	}
+
 	// Functions.
 	for _, fn := range irp.Funcs {
 		g.genFunc(fn)
@@ -93,14 +106,20 @@ func buildFrame(fn *IRFunc) *frame {
 		offsets:   make(map[string]int),
 		isArrPtr:  make(map[string]bool),
 		isArrBase: make(map[string]bool),
+		isPtrVar:  make(map[string]bool),
 	}
 	offset := 16 // RSP+0 = LR, RSP+8 = FP, locals start at 16.
 
 	// Parameters: always 8 bytes (scalar int or array pointer).
 	for i, name := range fn.Params {
 		f.offsets[name] = offset
-		if i < len(fn.ParamType) && fn.ParamType[i] == TypeIntArray {
-			f.isArrPtr[name] = true
+		if i < len(fn.ParamType) {
+			switch fn.ParamType[i] {
+			case TypeIntArray:
+				f.isArrPtr[name] = true
+			case TypeIntPtr, TypeCharPtr:
+				f.isPtrVar[name] = true
+			}
 		}
 		offset += 8
 	}
@@ -112,6 +131,9 @@ func buildFrame(fn *IRFunc) *frame {
 			f.isArrBase[loc.Name] = true
 			offset += loc.ArrSize * 8
 		} else {
+			if loc.IsPtr {
+				f.isPtrVar[loc.Name] = true
+			}
 			offset += 8
 		}
 	}
@@ -195,6 +217,10 @@ func (g *arm64Gen) genFunc(fn *IRFunc) {
 			g.emitArith(f, q, "SDIV")
 		case IRMod:
 			g.emitMod(f, q)
+		case IRUDiv:
+			g.emitArith(f, q, "UDIV")
+		case IRUMod:
+			g.emitUMod(f, q)
 		case IRBitAnd:
 			g.emitArith(f, q, "AND")
 		case IRBitOr:
@@ -205,6 +231,8 @@ func (g *arm64Gen) genFunc(fn *IRFunc) {
 			g.emitArith(f, q, "LSL")
 		case IRShr:
 			g.emitArith(f, q, "ASR")
+		case IRUShr:
+			g.emitArith(f, q, "LSR")
 		case IRBitNot:
 			g.emit_load(f, q.Src1, "R0")
 			g.insn("MVN R0, R0")
@@ -222,6 +250,14 @@ func (g *arm64Gen) genFunc(fn *IRFunc) {
 			g.emitCmpBool(f, fn, q, "BEQ")
 		case IRNe:
 			g.emitCmpBool(f, fn, q, "BNE")
+		case IRULt:
+			g.emitCmpBool(f, fn, q, "BLO")
+		case IRULe:
+			g.emitCmpBool(f, fn, q, "BLS")
+		case IRUGt:
+			g.emitCmpBool(f, fn, q, "BHI")
+		case IRUGe:
+			g.emitCmpBool(f, fn, q, "BHS")
 
 		case IRLoad:
 			g.emitArrayLoad(f, q)
@@ -229,6 +265,23 @@ func (g *arm64Gen) genFunc(fn *IRFunc) {
 			g.emitArrayStore(f, q)
 		case IRGetAddr:
 			g.emitAddrOf(f, q)
+
+		case IRStrAddr:
+			// Plan 9 path: load address of a rodata symbol.
+			g.insnf("MOVD $gaston_%s(SB), R0", q.Extra)
+			g.emit_store(f, "R0", q.Dst)
+
+		case IRDerefLoad:
+			// R0 = *Src1 (load via pointer)
+			g.emit_load(f, q.Src1, "R0")
+			g.insn("MOVD (R0), R0")
+			g.emit_store(f, "R0", q.Dst)
+
+		case IRDerefStore:
+			// *Dst = Src1
+			g.emit_load(f, q.Dst, "R0")  // R0 = pointer
+			g.emit_load(f, q.Src1, "R1") // R1 = value
+			g.insn("MOVD R1, (R0)")
 
 		case IRParam:
 			g.pendingParams = append(g.pendingParams, q.Src1)
@@ -296,9 +349,19 @@ func (g *arm64Gen) emitArith(f *frame, q Quad, op string) {
 func (g *arm64Gen) emitMod(f *frame, q Quad) {
 	g.emit_load(f, q.Src1, "R0")  // R0 = a
 	g.emit_load(f, q.Src2, "R1")  // R1 = b
-	g.insn("SDIV R1, R0, R2")     // R2 = a / b
-	g.insn("MUL  R1, R2, R2")     // R2 = R2 * R1 = quotient * b
-	g.insn("SUB  R2, R0, R0")     // R0 = a - quotient*b = a % b
+	g.insn("SDIV R1, R0, R2")     // R2 = a / b (signed)
+	g.insn("MUL  R1, R2, R2")     // R2 = quotient * b
+	g.insn("SUB  R2, R0, R0")     // R0 = a - quotient*b
+	g.emit_store(f, "R0", q.Dst)
+}
+
+// emitUMod emits: Dst = Src1 % Src2 (unsigned) using UDIV + MUL + SUB.
+func (g *arm64Gen) emitUMod(f *frame, q Quad) {
+	g.emit_load(f, q.Src1, "R0")  // R0 = a
+	g.emit_load(f, q.Src2, "R1")  // R1 = b
+	g.insn("UDIV R1, R0, R2")     // R2 = a / b (unsigned)
+	g.insn("MUL  R1, R2, R2")     // R2 = quotient * b
+	g.insn("SUB  R2, R0, R0")     // R0 = a - quotient*b
 	g.emit_store(f, "R0", q.Dst)
 }
 
@@ -394,6 +457,10 @@ func (g *arm64Gen) emitCall(f *frame, fn *IRFunc, q Quad) {
 		g.insn("CALL gaston_input(SB)")
 	case "output":
 		g.insn("CALL gaston_output(SB)")
+	case "print_char":
+		g.insn("CALL gaston_print_char(SB)")
+	case "print_string":
+		g.insn("CALL gaston_print_string(SB)")
 	default:
 		g.insnf("CALL gaston_%s(SB)", q.Extra)
 	}

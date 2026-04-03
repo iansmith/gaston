@@ -10,6 +10,7 @@ type FuncSig struct {
 	Name       string
 	ReturnType TypeKind
 	Params     []TypeKind
+	IsExtern   bool // true for extern function declarations (no body)
 }
 
 // symTable is a two-level symbol table: globals + per-function locals.
@@ -20,10 +21,12 @@ type symTable struct {
 }
 
 type symEntry struct {
-	name     string
-	typ      TypeKind
-	isParam  bool
-	isGlobal bool
+	name      string
+	typ       TypeKind
+	isParam   bool
+	isGlobal  bool
+	isConst   bool
+	constVal  int
 }
 
 func newSymTable() *symTable {
@@ -34,6 +37,10 @@ func newSymTable() *symTable {
 	// Built-in functions.
 	st.funcs["input"] = &FuncSig{Name: "input", ReturnType: TypeInt}
 	st.funcs["output"] = &FuncSig{Name: "output", ReturnType: TypeVoid, Params: []TypeKind{TypeInt}}
+	st.funcs["print_char"] = &FuncSig{Name: "print_char", ReturnType: TypeVoid, Params: []TypeKind{TypeInt}}
+	st.funcs["print_string"] = &FuncSig{Name: "print_string", ReturnType: TypeVoid, Params: []TypeKind{TypeInt}}
+	st.funcs["malloc"] = &FuncSig{Name: "malloc", ReturnType: TypeIntPtr, Params: []TypeKind{TypeInt}}
+	st.funcs["free"] = &FuncSig{Name: "free", ReturnType: TypeVoid, Params: []TypeKind{TypeIntPtr}}
 	return st
 }
 
@@ -48,6 +55,21 @@ func (st *symTable) declareGlobal(name string, typ TypeKind) error {
 	return nil
 }
 
+func (st *symTable) declareConst(name string, typ TypeKind, val int, isGlobal bool) error {
+	if isGlobal {
+		if _, ok := st.globals[name]; ok {
+			return fmt.Errorf("redeclaration of global '%s'", name)
+		}
+		st.globals[name] = &symEntry{name: name, typ: typ, isGlobal: true, isConst: true, constVal: val}
+	} else {
+		if _, ok := st.locals[name]; ok {
+			return fmt.Errorf("redeclaration of '%s'", name)
+		}
+		st.locals[name] = &symEntry{name: name, typ: typ, isConst: true, constVal: val}
+	}
+	return nil
+}
+
 func (st *symTable) declareLocal(name string, typ TypeKind, isParam bool) error {
 	if _, ok := st.locals[name]; ok {
 		return fmt.Errorf("redeclaration of '%s'", name)
@@ -57,8 +79,15 @@ func (st *symTable) declareLocal(name string, typ TypeKind, isParam bool) error 
 }
 
 func (st *symTable) declareFunc(sig *FuncSig) error {
-	if _, ok := st.funcs[sig.Name]; ok {
-		return fmt.Errorf("redeclaration of function '%s'", sig.Name)
+	if existing, ok := st.funcs[sig.Name]; ok {
+		// Allow replacing an extern declaration with a full definition.
+		if existing.IsExtern && !sig.IsExtern {
+			st.funcs[sig.Name] = sig
+			return nil
+		}
+		if !existing.IsExtern {
+			return fmt.Errorf("redeclaration of function '%s'", sig.Name)
+		}
 	}
 	st.funcs[sig.Name] = sig
 	return nil
@@ -74,29 +103,41 @@ func (st *symTable) lookup(name string) *symEntry {
 }
 
 // semCheck type-checks the AST rooted at prog.
+// requireMain: when false (library / -c compile), skip the 'main' requirement.
 // Returns a multi-line error string if any errors are found.
-func semCheck(prog *Node) error {
+func semCheck(prog *Node, requireMain bool) error {
 	st := newSymTable()
 	var errs []string
 
 	for _, decl := range prog.Children {
 		switch decl.Kind {
 		case KindVarDecl:
-			if err := st.declareGlobal(decl.Name, decl.Type); err != nil {
-				errs = append(errs, err.Error())
-			}
-			if len(decl.Children) > 0 {
-				if decl.Children[0].Kind != KindNum {
-					errs = append(errs, fmt.Sprintf("global '%s': initializer must be a constant", decl.Name))
-				} else if decl.Type == TypeIntArray {
-					errs = append(errs, fmt.Sprintf("global array '%s' cannot have a scalar initializer", decl.Name))
+			if decl.IsExtern {
+				// Extern variable: register in symbol table, no storage.
+				if err := st.declareGlobal(decl.Name, decl.Type); err != nil {
+					errs = append(errs, err.Error())
+				}
+			} else if decl.IsConst {
+				if err := st.declareConst(decl.Name, decl.Type, decl.Val, true); err != nil {
+					errs = append(errs, err.Error())
+				}
+			} else {
+				if err := st.declareGlobal(decl.Name, decl.Type); err != nil {
+					errs = append(errs, err.Error())
+				}
+				if len(decl.Children) > 0 {
+					if decl.Children[0].Kind != KindNum {
+						errs = append(errs, fmt.Sprintf("global '%s': initializer must be a constant", decl.Name))
+					} else if decl.Type == TypeIntArray {
+						errs = append(errs, fmt.Sprintf("global array '%s' cannot have a scalar initializer", decl.Name))
+					}
 				}
 			}
 		case KindFunDecl:
 			checkFunDecl(decl, st, &errs)
 		}
 	}
-	if st.funcs["main"] == nil {
+	if requireMain && st.funcs["main"] == nil {
 		errs = append(errs, "no 'main' function defined")
 	}
 	if len(errs) > 0 {
@@ -106,6 +147,18 @@ func semCheck(prog *Node) error {
 }
 
 func checkFunDecl(n *Node, st *symTable, errs *[]string) {
+	if n.IsExtern {
+		// Extern function prototype: register signature only, no body check.
+		sig := &FuncSig{Name: n.Name, ReturnType: n.Type, IsExtern: true}
+		for _, p := range n.Children {
+			sig.Params = append(sig.Params, p.Type)
+		}
+		if err := st.declareFunc(sig); err != nil {
+			*errs = append(*errs, err.Error())
+		}
+		return
+	}
+
 	nparams := len(n.Children) - 1 // last child is the body
 	sig := &FuncSig{Name: n.Name, ReturnType: n.Type}
 	for i := 0; i < nparams; i++ {
@@ -133,11 +186,17 @@ func checkCompound(n *Node, st *symTable, fn *Node, errs *[]string) {
 	for _, child := range n.Children {
 		switch child.Kind {
 		case KindVarDecl:
-			if err := st.declareLocal(child.Name, child.Type, false); err != nil {
-				*errs = append(*errs, err.Error())
-			}
-			if len(child.Children) > 0 {
-				checkExpr(child.Children[0], st, errs)
+			if child.IsConst {
+				if err := st.declareConst(child.Name, child.Type, child.Val, false); err != nil {
+					*errs = append(*errs, err.Error())
+				}
+			} else {
+				if err := st.declareLocal(child.Name, child.Type, false); err != nil {
+					*errs = append(*errs, err.Error())
+				}
+				if len(child.Children) > 0 {
+					checkExpr(child.Children[0], st, errs)
+				}
 			}
 		default:
 			checkStmt(child, st, fn, errs)
@@ -203,10 +262,45 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		n.Type = TypeInt
 		return TypeInt
 
+	case KindCharLit:
+		n.Type = TypeInt // char literals are int-valued
+		return TypeInt
+
+	case KindStrLit:
+		n.Type = TypeCharPtr
+		return TypeCharPtr
+
+	case KindAddrOf:
+		t := checkExpr(n.Children[0], st, errs)
+		switch t {
+		case TypeChar:
+			n.Type = TypeCharPtr
+		default:
+			n.Type = TypeIntPtr
+		}
+		return n.Type
+
+	case KindDeref:
+		t := checkExpr(n.Children[0], st, errs)
+		switch t {
+		case TypeCharPtr:
+			n.Type = TypeChar
+		default:
+			n.Type = TypeInt
+		}
+		return n.Type
+
 	case KindVar:
 		e := st.lookup(n.Name)
 		if e == nil {
 			*errs = append(*errs, fmt.Sprintf("undefined variable '%s'", n.Name))
+			n.Type = TypeInt
+			return TypeInt
+		}
+		if e.isConst {
+			// Fold const reference to a numeric literal.
+			n.Kind = KindNum
+			n.Val = e.constVal
 			n.Type = TypeInt
 			return TypeInt
 		}
@@ -220,8 +314,8 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			n.Type = TypeInt
 			return TypeInt
 		}
-		if e.typ != TypeIntArray {
-			*errs = append(*errs, fmt.Sprintf("'%s' is not an array", n.Name))
+		if e.typ != TypeIntArray && e.typ != TypeIntPtr {
+			*errs = append(*errs, fmt.Sprintf("'%s' is not an array or pointer", n.Name))
 		}
 		checkExpr(n.Children[0], st, errs)
 		n.Type = TypeInt
@@ -229,28 +323,45 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 
 	case KindAssign:
 		t := checkExpr(n.Children[1], st, errs)
-		checkExpr(n.Children[0], st, errs)
+		checkExpr(n.Children[0], st, errs) // lhs: KindVar, KindArrayVar, or KindDeref
 		n.Type = t
 		return t
 
 	case KindCompoundAssign:
-		checkExpr(n.Children[0], st, errs)
+		lt := checkExpr(n.Children[0], st, errs)
 		if n.Children[1] != nil {
 			checkExpr(n.Children[1], st, errs)
 		}
-		n.Type = TypeInt
-		return TypeInt
+		n.Type = lt // result type matches lhs (e.g. unsigned int x += y stays unsigned)
+		return lt
 
 	case KindBinOp:
-		checkExpr(n.Children[0], st, errs)
-		checkExpr(n.Children[1], st, errs)
-		n.Type = TypeInt
-		return TypeInt
+		lt := checkExpr(n.Children[0], st, errs)
+		rt := checkExpr(n.Children[1], st, errs)
+		// Comparison operators always yield int (0 or 1); the operand types
+		// determine signed vs unsigned comparison in irgen via Children[0].Type.
+		switch n.Op {
+		case "<", "<=", ">", ">=", "==", "!=":
+			n.Type = TypeInt
+		default:
+			// Arithmetic: unsigned "infects" — if either operand is unsigned, result is unsigned.
+			if isUnsignedType(lt) || isUnsignedType(rt) {
+				n.Type = TypeUnsignedInt
+			} else {
+				n.Type = TypeInt
+			}
+		}
+		return n.Type
 
 	case KindUnary:
-		checkExpr(n.Children[0], st, errs)
-		n.Type = TypeInt
-		return TypeInt
+		t := checkExpr(n.Children[0], st, errs)
+		switch n.Op {
+		case "!":
+			n.Type = TypeInt // logical-not always yields int
+		default: // "-", "~"
+			n.Type = t // preserve signedness
+		}
+		return n.Type
 
 	case KindCall:
 		sig := st.funcs[n.Name]
@@ -260,7 +371,7 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			return TypeInt
 		}
 		// Variadic built-ins skip arity check.
-		if n.Name != "input" && n.Name != "output" {
+		if n.Name != "input" && n.Name != "output" && n.Name != "print_char" && n.Name != "print_string" {
 			if len(n.Children) != len(sig.Params) {
 				*errs = append(*errs, fmt.Sprintf("'%s' expects %d args, got %d",
 					n.Name, len(sig.Params), len(n.Children)))

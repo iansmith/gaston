@@ -32,6 +32,12 @@ var keywords = map[string]int{
 	"do":       DO,
 	"break":    BREAK,
 	"continue": CONTINUE,
+	"const":    CONST,
+	"char":     CHAR,
+	"extern":   EXTERN,
+	"long":     LONG,
+	"unsigned": UNSIGNED,
+	"short":    SHORT,
 }
 
 // Lex scans and returns the next token, filling lval with the token's value.
@@ -79,6 +85,99 @@ scan:
 		}
 		lval.ival = int(v)
 		return NUM
+	}
+
+	// Character literals: 'x' or '\n' etc.
+	if c == '\'' {
+		l.pos++ // consume opening quote
+		if l.pos >= len(l.src) {
+			l.Error("unterminated character literal")
+			return 0
+		}
+		var val int
+		if l.src[l.pos] == '\\' {
+			l.pos++
+			if l.pos >= len(l.src) {
+				l.Error("unterminated escape in char literal")
+				return 0
+			}
+			switch l.src[l.pos] {
+			case 'n':
+				val = '\n'
+			case 't':
+				val = '\t'
+			case 'r':
+				val = '\r'
+			case '0':
+				val = 0
+			case '\\':
+				val = '\\'
+			case '\'':
+				val = '\''
+			default:
+				l.Error(fmt.Sprintf("unknown escape '\\%c'", l.src[l.pos]))
+			}
+			l.pos++
+		} else {
+			val = int(l.src[l.pos])
+			l.pos++
+		}
+		if l.pos >= len(l.src) || l.src[l.pos] != '\'' {
+			l.Error("unterminated character literal")
+			return 0
+		}
+		l.pos++ // consume closing quote
+		lval.ival = val
+		return CHAR_LIT
+	}
+
+	// String literals: "...".
+	if c == '"' {
+		l.pos++ // consume opening quote
+		start := l.pos
+		var buf []byte
+		for l.pos < len(l.src) && l.src[l.pos] != '"' {
+			ch := l.src[l.pos]
+			if ch == '\n' {
+				l.Error("newline in string literal")
+				return 0
+			}
+			if ch == '\\' {
+				l.pos++
+				if l.pos >= len(l.src) {
+					l.Error("unterminated escape in string literal")
+					return 0
+				}
+				switch l.src[l.pos] {
+				case 'n':
+					buf = append(buf, '\n')
+				case 't':
+					buf = append(buf, '\t')
+				case 'r':
+					buf = append(buf, '\r')
+				case '0':
+					buf = append(buf, 0)
+				case '\\':
+					buf = append(buf, '\\')
+				case '"':
+					buf = append(buf, '"')
+				default:
+					l.Error(fmt.Sprintf("unknown escape '\\%c'", l.src[l.pos]))
+				}
+				l.pos++
+			} else {
+				buf = append(buf, ch)
+				l.pos++
+			}
+			_ = start
+		}
+		if l.pos >= len(l.src) {
+			l.Error("unterminated string literal")
+			return 0
+		}
+		l.pos++ // consume closing quote
+		lval.sval = string(buf)
+		return STRING_LIT
 	}
 
 	// Identifiers and keywords.

@@ -1,8 +1,9 @@
 // grammar.y — C-minus grammar for the gaston compiler.
 // Generate the parser with:  goyacc -o parser.go grammar.y
 //
-// Expect 0 shift/reduce conflicts (dangling-else resolved via %prec).
-// The var/assignment ambiguity is handled by shift-default (correct).
+// S/R conflicts: ~8 from multi-keyword type specifiers (LONG LONG, UNSIGNED INT, etc.),
+// all resolved correctly by default shift preference.
+// Dangling-else resolved via %prec LOWER_THAN_ELSE.
 %{
 package main
 %}
@@ -16,19 +17,20 @@ package main
 }
 
 // Literals
-%token <ival> NUM
-%token <sval> ID
+%token <ival> NUM CHAR_LIT
+%token <sval> ID STRING_LIT
 
 // Keywords
-%token INT VOID IF ELSE WHILE RETURN FOR DO BREAK CONTINUE
+%token INT VOID IF ELSE WHILE RETURN FOR DO BREAK CONTINUE CONST CHAR EXTERN
+%token LONG UNSIGNED SHORT
 
 // Multi-character operators
 %token LE GE EQ NE LSHIFT RSHIFT
 %token INC DEC PLUSEQ MINUSEQ STAREQ DIVEQ MODEQ
 
 // Types for non-terminals
-%type <node>  program declaration var_declaration fun_declaration
-%type <nodes> declaration_list params param_list
+%type <node>  program fun_declaration
+%type <nodes> declaration var_declaration const_declaration extern_declaration declaration_list params param_list id_list
 %type <node>  param compound_stmt
 %type <nodes> local_declarations statement_list
 %type <node>  statement expression_stmt selection_stmt iteration_stmt for_stmt do_while_stmt return_stmt break_stmt continue_stmt
@@ -51,28 +53,68 @@ program
 
 declaration_list
 	: declaration_list declaration
-		{ $$ = append($1, $2) }
+		{ $$ = append($1, $2...) }
 	| declaration
-		{ $$ = []*Node{$1} }
+		{ $$ = $1 }
 	;
 
 declaration
-	: var_declaration { $$ = $1 }
-	| fun_declaration { $$ = $1 }
+	: var_declaration    { $$ = $1 }
+	| const_declaration  { $$ = $1 }
+	| fun_declaration    { $$ = []*Node{$1} }
+	| extern_declaration { $$ = $1 }
+	;
+
+extern_declaration
+	: EXTERN type_specifier ID ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: $2, Name: $3, IsExtern: true}} }
+	| EXTERN type_specifier ID '[' ']' ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, IsExtern: true}} }
+	| EXTERN type_specifier '*' ID ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: ptrType($2), Name: $4, IsExtern: true}} }
+	| EXTERN type_specifier ID '(' params ')' ';'
+		{
+			n := &Node{Kind: KindFunDecl, Type: $2, Name: $3, IsExtern: true}
+			n.Children = $5
+			$$ = []*Node{n}
+		}
 	;
 
 var_declaration
 	: type_specifier ID ';'
-		{ $$ = &Node{Kind: KindVarDecl, Type: $1, Name: $2} }
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: $1, Name: $2}} }
 	| type_specifier ID '[' NUM ']' ';'
-		{ $$ = &Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: $4} }
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: $4}} }
 	| type_specifier ID '=' expression ';'
-		{ n := &Node{Kind: KindVarDecl, Type: $1, Name: $2}; n.Children = []*Node{$4}; $$ = n }
+		{ n := &Node{Kind: KindVarDecl, Type: $1, Name: $2}; n.Children = []*Node{$4}; $$ = []*Node{n} }
+	| type_specifier id_list ';'
+		{ $$ = makeMultiDecl($1, $2) }
+	| type_specifier '*' ID ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: ptrType($1), Name: $3}} }
+	| type_specifier '*' ID '=' expression ';'
+		{ n := &Node{Kind: KindVarDecl, Type: ptrType($1), Name: $3}; n.Children = []*Node{$5}; $$ = []*Node{n} }
+	;
+
+const_declaration
+	: CONST type_specifier ID '=' NUM ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: $2, Name: $3, Val: $5, IsConst: true}} }
 	;
 
 type_specifier
-	: INT  { $$ = TypeInt }
-	| VOID { $$ = TypeVoid }
+	: INT                { $$ = TypeInt }
+	| VOID               { $$ = TypeVoid }
+	| CHAR               { $$ = TypeChar }
+	| LONG               { $$ = TypeInt }
+	| LONG LONG          { $$ = TypeInt }
+	| SHORT              { $$ = TypeShort }
+	| SHORT INT          { $$ = TypeShort }
+	| UNSIGNED           { $$ = TypeUnsignedInt }
+	| UNSIGNED INT       { $$ = TypeUnsignedInt }
+	| UNSIGNED LONG      { $$ = TypeUnsignedInt }
+	| UNSIGNED LONG LONG { $$ = TypeUnsignedInt }
+	| UNSIGNED CHAR      { $$ = TypeUnsignedChar }
+	| UNSIGNED SHORT     { $$ = TypeUnsignedShort }
+	| UNSIGNED SHORT INT { $$ = TypeUnsignedShort }
 	;
 
 fun_declaration
@@ -97,10 +139,12 @@ param_list
 	;
 
 param
-	: INT ID
-		{ $$ = &Node{Kind: KindParam, Type: TypeInt, Name: $2} }
-	| INT ID '[' ']'
+	: type_specifier ID
+		{ $$ = &Node{Kind: KindParam, Type: $1, Name: $2} }
+	| type_specifier ID '[' ']'
 		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $2} }
+	| type_specifier '*' ID
+		{ $$ = &Node{Kind: KindParam, Type: ptrType($1), Name: $3} }
 	;
 
 compound_stmt
@@ -110,9 +154,18 @@ compound_stmt
 
 local_declarations
 	: local_declarations var_declaration
-		{ $$ = append($1, $2) }
+		{ $$ = append($1, $2...) }
+	| local_declarations const_declaration
+		{ $$ = append($1, $2...) }
 	| /* empty */
 		{ $$ = nil }
+	;
+
+id_list
+	: id_list ',' ID
+		{ $$ = append($1, &Node{Kind: KindVar, Name: $3}) }
+	| ID ',' ID
+		{ $$ = []*Node{{Kind: KindVar, Name: $1}, {Kind: KindVar, Name: $3}} }
 	;
 
 statement_list
@@ -186,6 +239,8 @@ return_stmt
 expression
 	: var '=' expression
 		{ $$ = &Node{Kind: KindAssign, Children: []*Node{$1, $3}} }
+	| '*' factor '=' expression
+		{ lhs := &Node{Kind: KindDeref, Children: []*Node{$2}}; $$ = &Node{Kind: KindAssign, Children: []*Node{lhs, $4}} }
 	| var INC
 		{ $$ = &Node{Kind: KindCompoundAssign, Op: "+", Val: 1, Children: []*Node{$1, nil}} }
 	| var DEC
@@ -272,9 +327,13 @@ factor
 	| var                 { $$ = $1 }
 	| call                { $$ = $1 }
 	| NUM                 { $$ = &Node{Kind: KindNum, Val: $1} }
+	| CHAR_LIT            { $$ = &Node{Kind: KindCharLit, Val: $1, Type: TypeInt} }
+	| STRING_LIT          { $$ = &Node{Kind: KindStrLit, Name: $1, Type: TypeCharPtr} }
 	| '-' factor          { $$ = &Node{Kind: KindUnary, Op: "-", Children: []*Node{$2}} }
 	| '!' factor          { $$ = &Node{Kind: KindUnary, Op: "!", Children: []*Node{$2}} }
 	| '~' factor          { $$ = &Node{Kind: KindUnary, Op: "~", Children: []*Node{$2}} }
+	| '&' var             { $$ = &Node{Kind: KindAddrOf, Children: []*Node{$2}} }
+	| '*' factor          { $$ = &Node{Kind: KindDeref, Children: []*Node{$2}} }
 	;
 
 call

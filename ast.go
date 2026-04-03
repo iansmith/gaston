@@ -6,10 +6,27 @@ package main
 type TypeKind int
 
 const (
-	TypeVoid     TypeKind = iota
-	TypeInt               // int scalar
-	TypeIntArray          // int[] — pointer when a param, inline storage when a local
+	TypeVoid         TypeKind = iota
+	TypeInt                   // int / long / long long scalar (all 64-bit on ARM64)
+	TypeIntArray              // int[] — pointer when a param, inline storage when a local
+	TypeChar                  // char scalar (1-byte integer)
+	TypeCharPtr               // char* — pointer to char (used for string literals)
+	TypeIntPtr                // int*  — pointer to int
+	TypeUnsignedInt           // unsigned int / unsigned long (64-bit, unsigned)
+	TypeUnsignedChar          // unsigned char
+	TypeShort                 // short (16-bit signed; stored as 64-bit in frame)
+	TypeUnsignedShort         // unsigned short
 )
+
+// isUnsignedType reports whether t is an unsigned integer type.
+func isUnsignedType(t TypeKind) bool {
+	return t == TypeUnsignedInt || t == TypeUnsignedChar || t == TypeUnsignedShort
+}
+
+// isPtrType reports whether t is a pointer type (holds an address).
+func isPtrType(t TypeKind) bool {
+	return t == TypeIntPtr || t == TypeCharPtr
+}
 
 // NodeKind identifies the kind of an AST node.
 type NodeKind int
@@ -43,7 +60,30 @@ const (
 	KindCall     // ID(args...)
 	KindNum      // integer literal
 	KindUnary    // unary operator: Op = "-" or "!"
+	KindCharLit  // character literal: Val = rune value (e.g. 'A' = 65)
+	KindStrLit   // string literal: Name = string content (NUL not included)
+	KindDeref    // *expr  (pointer dereference, as lvalue or rvalue); Children[0] = pointer expr
+	KindAddrOf   // &var   (address-of scalar or array); Children[0] = KindVar
 )
+
+// ptrType returns the pointer type corresponding to a base type.
+func ptrType(base TypeKind) TypeKind {
+	switch base {
+	case TypeChar, TypeUnsignedChar:
+		return TypeCharPtr
+	default: // TypeInt, TypeUnsignedInt, TypeShort, TypeUnsignedShort, TypeVoid → int*
+		return TypeIntPtr
+	}
+}
+
+// makeMultiDecl builds one KindVarDecl per name from an id_list of KindVar nodes.
+func makeMultiDecl(typ TypeKind, names []*Node) []*Node {
+	out := make([]*Node, len(names))
+	for i, n := range names {
+		out[i] = &Node{Kind: KindVarDecl, Type: typ, Name: n.Name}
+	}
+	return out
+}
 
 // Node is a generic AST node.  Not every field is used by every kind;
 // see the comment on each kind in the const block above.
@@ -71,4 +111,6 @@ type Node struct {
 	Op       string   // binary operator string: "+", "-", "*", "/", "<", "<=", ">", ">=", "==", "!="
 	Children []*Node
 	Line     int
+	IsConst  bool // true for KindVarDecl declared with const
+	IsExtern bool // true for extern declarations (var or fun)
 }

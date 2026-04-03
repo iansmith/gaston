@@ -72,14 +72,21 @@ func genIR(prog *Node) *IRProgram {
 
 	// First pass: register global variable declarations.
 	for _, decl := range prog.Children {
-		if decl.Kind == KindVarDecl {
+		if decl.Kind == KindVarDecl && !decl.IsConst {
 			isArr := decl.Type == TypeIntArray
+			isPtr := decl.Type == TypeIntPtr || decl.Type == TypeCharPtr
 			sz := 1
 			if isArr {
 				sz = decl.Val
 			}
-			gbl := &IRGlobal{Name: decl.Name, IsArr: isArr, Size: sz}
-			if len(decl.Children) > 0 && decl.Children[0].Kind == KindNum {
+			gbl := &IRGlobal{
+				Name:     decl.Name,
+				IsArr:    isArr,
+				IsPtr:    isPtr,
+				IsExtern: decl.IsExtern,
+				Size:     sz,
+			}
+			if !decl.IsExtern && len(decl.Children) > 0 && decl.Children[0].Kind == KindNum {
 				gbl.HasInitVal = true
 				gbl.InitVal = decl.Children[0].Val
 			}
@@ -90,7 +97,7 @@ func genIR(prog *Node) *IRProgram {
 
 	// Second pass: generate IR for each function.
 	for _, decl := range prog.Children {
-		if decl.Kind == KindFunDecl {
+		if decl.Kind == KindFunDecl && !decl.IsExtern {
 			g.genFunc(decl)
 		}
 	}
@@ -125,8 +132,12 @@ func (g *irGen) genFunc(n *Node) {
 
 func (g *irGen) genCompound(n *Node) {
 	for _, child := range n.Children {
+		if child.Kind == KindVarDecl && child.IsConst {
+			continue // const locals are folded away by semcheck; no storage needed
+		}
 		if child.Kind == KindVarDecl {
 			isArr := child.Type == TypeIntArray
+			isPtr := child.Type == TypeIntPtr || child.Type == TypeCharPtr
 			sz := 1
 			if isArr {
 				sz = child.Val
@@ -135,6 +146,7 @@ func (g *irGen) genCompound(n *Node) {
 			g.fn.Locals = append(g.fn.Locals, IRLocal{
 				Name:    child.Name,
 				IsArray: isArr,
+				IsPtr:   isPtr,
 				ArrSize: sz,
 			})
 			if len(child.Children) > 0 && !isArr {
@@ -275,6 +287,31 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 	case KindNum:
 		return IRAddr{Kind: AddrConst, IVal: n.Val}
 
+	case KindCharLit:
+		return IRAddr{Kind: AddrConst, IVal: n.Val}
+
+	case KindStrLit:
+		label := fmt.Sprintf("str%d", len(g.prog.StrLits))
+		g.prog.StrLits = append(g.prog.StrLits, IRStrLit{Label: label, Content: n.Name})
+		dst := g.newTemp()
+		g.emit(Quad{Op: IRStrAddr, Dst: dst, Extra: label})
+		return dst
+
+	case KindAddrOf:
+		// &var → get the address of the variable
+		varNode := n.Children[0]
+		src := g.addrOf(varNode.Name)
+		dst := g.newTemp()
+		g.emit(Quad{Op: IRGetAddr, Dst: dst, Src1: src})
+		return dst
+
+	case KindDeref:
+		// *ptr → load from the pointer value
+		ptr := g.genExpr(n.Children[0])
+		dst := g.newTemp()
+		g.emit(Quad{Op: IRDerefLoad, Dst: dst, Src1: ptr})
+		return dst
+
 	case KindVar:
 		return g.addrOf(n.Name)
 
@@ -299,6 +336,11 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 			idx := g.genExpr(lhs.Children[0])
 			g.emit(Quad{Op: IRStore, Dst: base, Src1: idx, Src2: rhs})
 			return rhs
+		case KindDeref:
+			// *ptr = rhs
+			ptr := g.genExpr(lhs.Children[0])
+			g.emit(Quad{Op: IRDerefStore, Dst: ptr, Src1: rhs})
+			return rhs
 		}
 
 	case KindCompoundAssign:
@@ -310,7 +352,7 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 		} else {
 			rhsAddr = IRAddr{Kind: AddrConst, IVal: n.Val}
 		}
-		irOp := binOpToIR(n.Op)
+		irOp := binOpToIRTyped(n.Op, n.Children[0].Type)
 		tmp := g.newTemp()
 
 		switch lhs.Kind {
@@ -329,11 +371,12 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 			return tmp
 		}
 
+
 	case KindBinOp:
 		left := g.genExpr(n.Children[0])
 		right := g.genExpr(n.Children[1])
 		dst := g.newTemp()
-		op := binOpToIR(n.Op)
+		op := binOpToIRTyped(n.Op, n.Children[0].Type)
 		g.emit(Quad{Op: op, Dst: dst, Src1: left, Src2: right})
 		return dst
 
@@ -377,7 +420,10 @@ func (g *irGen) genCall(n *Node) IRAddr {
 	return dst
 }
 
-func binOpToIR(op string) IROpCode {
+// binOpToIRTyped maps a binary operator to the correct IR opcode,
+// choosing signed vs unsigned variants based on the left-operand type.
+func binOpToIRTyped(op string, leftType TypeKind) IROpCode {
+	u := isUnsignedType(leftType)
 	switch op {
 	case "+":
 		return IRAdd
@@ -386,8 +432,14 @@ func binOpToIR(op string) IROpCode {
 	case "*":
 		return IRMul
 	case "/":
+		if u {
+			return IRUDiv
+		}
 		return IRDiv
 	case "%":
+		if u {
+			return IRUMod
+		}
 		return IRMod
 	case "&":
 		return IRBitAnd
@@ -398,19 +450,36 @@ func binOpToIR(op string) IROpCode {
 	case "<<":
 		return IRShl
 	case ">>":
+		if u {
+			return IRUShr
+		}
 		return IRShr
 	case "<":
+		if u {
+			return IRULt
+		}
 		return IRLt
 	case "<=":
+		if u {
+			return IRULe
+		}
 		return IRLe
 	case ">":
+		if u {
+			return IRUGt
+		}
 		return IRGt
 	case ">=":
+		if u {
+			return IRUGe
+		}
 		return IRGe
 	case "==":
-		return IREq
+		return IREq // sign-independent
 	case "!=":
-		return IRNe
+		return IRNe // sign-independent
 	}
 	panic("unknown op: " + op)
 }
+
+func binOpToIR(op string) IROpCode { return binOpToIRTyped(op, TypeInt) }

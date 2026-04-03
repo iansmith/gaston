@@ -16,6 +16,8 @@ const (
 	regX19 = 19 // callee-saved (used inside helper functions)
 	regX20 = 20
 	regX21 = 21
+	regX22 = 22
+	regX23 = 23
 	regFP  = 29 // X29 — frame pointer
 	regLR  = 30 // X30 — link register
 	regXZR = 31 // zero register (source / result-discard context)
@@ -24,12 +26,16 @@ const (
 
 // ARM64 condition codes for B.cond and CSET.
 const (
-	condEQ = 0  // equal         (Z=1)
-	condNE = 1  // not equal     (Z=0)
-	condGE = 10 // signed ≥      (N=V)
-	condLT = 11 // signed <      (N≠V)
-	condGT = 12 // signed >      (Z=0, N=V)
-	condLE = 13 // signed ≤      (Z=1 or N≠V)
+	condEQ = 0  // equal              (Z=1)
+	condNE = 1  // not equal          (Z=0)
+	condHS = 2  // unsigned ≥  (CS)   (C=1)
+	condLO = 3  // unsigned <  (CC)   (C=0)
+	condGE = 10 // signed ≥           (N=V)
+	condLT = 11 // signed <            (N≠V)
+	condGT = 12 // signed >            (Z=0, N=V)
+	condLE = 13 // signed ≤            (Z=1 or N≠V)
+	condHI = 8  // unsigned >          (C=1, Z=0)
+	condLS = 9  // unsigned ≤          (C=0 or Z=1)
 )
 
 // encMOVZ encodes MOVZ Xd, #imm16, LSL #shift.
@@ -224,4 +230,46 @@ func encLSLV(rd, rn, rm int) uint32 {
 // encASRV encodes ASR Xd, Xn, Xm (arithmetic right shift, variable).
 func encASRV(rd, rn, rm int) uint32 {
 	return 0x9AC02800 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encMOVN encodes MOVN Xd, #imm16, LSL #shift (move NOT of immediate).
+// Result = ~(imm16 << (hw*16)). MOVN Xd, #0 → Xd = -1.
+func encMOVN(rd, imm16, shift int) uint32 {
+	hw := shift / 16
+	return 0x92800000 | uint32(hw)<<21 | uint32(imm16&0xFFFF)<<5 | uint32(rd)
+}
+
+// encADR encodes ADR Xd, #byteOff (PC-relative address, ±1 MB).
+// byteOff is the signed byte offset from the ADR instruction to the target.
+// The target must be 4-byte aligned (so byteOff is always a multiple of 4
+// when pointing at instruction-stream labels, making immlo always 0).
+func encADR(rd, byteOff int) uint32 {
+	immlo := byteOff & 3
+	immhi := (byteOff >> 2) & 0x7FFFF
+	return 0x10000000 | uint32(immlo)<<29 | uint32(immhi)<<5 | uint32(rd)
+}
+
+// encLSRimm encodes LSR Xd, Xn, #shift (= UBFM Xd, Xn, #shift, #63).
+func encLSRimm(rd, rn, shift int) uint32 {
+	return 0xD3400000 | uint32(shift)<<16 | uint32(63)<<10 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encLSRV encodes LSR Xd, Xn, Xm (logical shift right, variable; unsigned >>).
+func encLSRV(rd, rn, rm int) uint32 {
+	return 0x9AC02400 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encSTRH encodes STRH Wt, [Xn, #byteOff] (unsigned 12-bit halfword offset).
+func encSTRH(rt, rn, byteOff int) uint32 {
+	return 0x79000000 | uint32(byteOff/2)<<10 | uint32(rn)<<5 | uint32(rt)
+}
+
+// encLDRH encodes LDRH Wt, [Xn, #byteOff] (unsigned 12-bit halfword offset; zero-extends).
+func encLDRH(rt, rn, byteOff int) uint32 {
+	return 0x79400000 | uint32(byteOff/2)<<10 | uint32(rn)<<5 | uint32(rt)
+}
+
+// encLDRSH encodes LDRSH Xt, [Xn, #byteOff] (unsigned 12-bit halfword offset; sign-extends to 64 bits).
+func encLDRSH(rt, rn, byteOff int) uint32 {
+	return 0x79800000 | uint32(byteOff/2)<<10 | uint32(rn)<<5 | uint32(rt)
 }

@@ -4,10 +4,12 @@
 //
 // Usage:
 //
-//	gaston <file.cm>           — compile to ELF binary <file>
-//	gaston -asm <file.cm>      — compile to Plan 9 .s + Go bridge _rt.go (legacy)
+//	gaston <file.cm>                    — compile to ELF binary <file>
+//	gaston -c <file.cm>                 — compile to relocatable object <file.o>
+//	gaston -link -o <out> a.o b.o …    — link object files to ELF binary
+//	gaston -asm <file.cm>               — emit Plan 9 .s + Go bridge (legacy)
 //
-//go:generate goyacc -o parser.go grammar.y
+//go:generate go tool golang.org/x/tools/cmd/goyacc -o parser.go grammar.y
 package main
 
 import (
@@ -19,14 +21,39 @@ import (
 )
 
 func main() {
-	asmMode := flag.Bool("asm", false, "emit Plan 9 ARM64 assembly + Go bridge instead of ELF")
+	asmMode  := flag.Bool("asm", false, "emit Plan 9 ARM64 assembly + Go bridge instead of ELF")
+	compOnly := flag.Bool("c", false, "compile to relocatable object (.o) only; do not link")
+	linkMode := flag.Bool("link", false, "link mode: combine .o files into an ELF executable")
+	outFlag  := flag.String("o", "", "output file name (used with -c or -link)")
+
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: gaston [-asm] <file.cm>\n")
-		fmt.Fprintf(os.Stderr, "Compiles C-minus source to a Linux ARM64 ELF binary (default)\n")
-		fmt.Fprintf(os.Stderr, "or Plan 9 ARM64 assembly + Go bridge (-asm).\n")
+		fmt.Fprintf(os.Stderr, "usage:\n")
+		fmt.Fprintf(os.Stderr, "  gaston <file.cm>                  — compile to ELF binary\n")
+		fmt.Fprintf(os.Stderr, "  gaston -c [-o out.o] <file.cm>    — compile to object file\n")
+		fmt.Fprintf(os.Stderr, "  gaston -link -o out a.o b.o …     — link object files\n")
+		fmt.Fprintf(os.Stderr, "  gaston -asm <file.cm>             — emit Plan 9 assembly (legacy)\n")
 	}
 	flag.Parse()
 
+	// ── linker mode ───────────────────────────────────────────────────────
+	if *linkMode {
+		if flag.NArg() == 0 {
+			fmt.Fprintf(os.Stderr, "gaston: -link requires one or more .o files\n")
+			os.Exit(1)
+		}
+		outFile := *outFlag
+		if outFile == "" {
+			outFile = "a.out"
+		}
+		if err := link(outFile, flag.Args()); err != nil {
+			fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Fprintf(os.Stderr, "gaston: linked %s\n", outFile)
+		return
+	}
+
+	// ── compiler mode ─────────────────────────────────────────────────────
 	if flag.NArg() != 1 {
 		flag.Usage()
 		os.Exit(1)
@@ -56,8 +83,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Semantic analysis.
-	if err := semCheck(lex.result); err != nil {
+	// Semantic analysis. In -c mode, main() is not required.
+	if err := semCheck(lex.result, !*compOnly); err != nil {
 		fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
 		os.Exit(1)
 	}
@@ -83,8 +110,25 @@ func main() {
 		return
 	}
 
+	if *compOnly {
+		// Compile-only: emit ET_REL object file.
+		outFile := *outFlag
+		if outFile == "" {
+			outFile = filepath.Join(dir, base+".o")
+		}
+		if err := genObjectFile(irp, outFile); err != nil {
+			fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Fprintf(os.Stderr, "gaston: wrote %s\n", outFile)
+		return
+	}
+
 	// Default: emit Linux ARM64 ELF binary.
-	outFile := filepath.Join(dir, base)
+	outFile := *outFlag
+	if outFile == "" {
+		outFile = filepath.Join(dir, base)
+	}
 	if err := genELF(irp, outFile); err != nil {
 		fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
 		os.Exit(1)

@@ -32,9 +32,9 @@ const (
 	elfLoadBase  = uint64(0x400000) // standard Linux ARM64 load address
 	elfHdrSize   = 64               // sizeof(elf.Header64)
 	elfPhdrSize  = 56               // sizeof(elf.Prog64)
-	elfNumPhdrs  = 2
-	elfHeaderEnd = elfHdrSize + elfNumPhdrs*elfPhdrSize // 0xB0
-	codeBase     = elfLoadBase + elfHeaderEnd           // 0x4000B0
+	elfNumPhdrs  = 3                // code + rodata + BSS
+	elfHeaderEnd = elfHdrSize + elfNumPhdrs*elfPhdrSize // 0xC8
+	codeBase     = elfLoadBase + elfHeaderEnd           // 0x4000C8
 	pageSize     = uint64(4096)
 )
 
@@ -50,6 +50,7 @@ const (
 	fixBcond                  // conditional branch (19-bit imm in [23:5])
 	fixCBZ                    // CBZ  (19-bit imm in [23:5])
 	fixCBNZ                   // CBNZ (19-bit imm in [23:5])
+	fixADR                    // ADR  (21-bit byte offset, immlo in [30:29] + immhi in [23:5])
 )
 
 type branchFixup struct {
@@ -60,26 +61,41 @@ type branchFixup struct {
 
 // ── codeBuilder ───────────────────────────────────────────────────────────────
 
-// codeBuilder accumulates ARM64 machine-code words, label locations, and
-// branch fixup requests. The literal pool for global addresses occupies the
-// first poolCount*2 slots of instrs (two uint32 words per 8-byte address).
-type codeBuilder struct {
-	instrs   []uint32
-	labels   map[string]int // label name → instruction index
-	fixups   []branchFixup
-	poolIdx  map[string]int // global name → pool entry index (0-based)
+// externBLRecord records a BL instruction that references an external symbol
+// (used in ET_REL object file mode to generate CALL26 relocations).
+type externBLRecord struct {
+	at  int    // instruction index
+	sym string // symbol name (e.g. "gaston_input")
 }
 
-func newCodeBuilder(globals []IRGlobal) *codeBuilder {
+// codeBuilder accumulates ARM64 machine-code words, label locations, and
+// branch fixup requests. The literal pool occupies the first poolCount*2 slots
+// of instrs (two uint32 words per 8-byte address). The pool holds both global
+// variable VAs and string literal VAs.
+type codeBuilder struct {
+	instrs    []uint32
+	labels    map[string]int // label name → instruction index
+	fixups    []branchFixup
+	poolIdx   map[string]int  // name/label → pool entry index (0-based)
+	externBLs []externBLRecord // extern BL calls (for ET_REL mode only)
+}
+
+func newCodeBuilder(globals []IRGlobal, strLits []IRStrLit) *codeBuilder {
 	cb := &codeBuilder{
 		labels:  make(map[string]int),
 		poolIdx: make(map[string]int),
 	}
-	for i, g := range globals {
+	i := 0
+	for _, g := range globals {
 		cb.poolIdx[g.Name] = i
+		i++
+	}
+	for _, s := range strLits {
+		cb.poolIdx[s.Label] = i
+		i++
 	}
 	// Reserve space for the literal pool: 2 uint32 words per 8-byte address.
-	for range globals {
+	for j := 0; j < i; j++ {
 		cb.instrs = append(cb.instrs, 0, 0)
 	}
 	return cb
@@ -165,6 +181,13 @@ func (cb *codeBuilder) emitBL(label string) {
 	cb.emit(0x94000000)
 }
 
+// emitBLextern emits a BL placeholder for an external symbol.
+// Used in ET_REL mode; the linker fills in the final offset via R_AARCH64_CALL26.
+func (cb *codeBuilder) emitBLextern(sym string) {
+	cb.externBLs = append(cb.externBLs, externBLRecord{len(cb.instrs), sym})
+	cb.emit(0x94000000)
+}
+
 func (cb *codeBuilder) emitBcond(cond int, label string) {
 	cb.fixups = append(cb.fixups, branchFixup{len(cb.instrs), label, fixBcond})
 	cb.emit(uint32(0x54000000 | cond))
@@ -178,6 +201,13 @@ func (cb *codeBuilder) emitCBZ(rt int, label string) {
 func (cb *codeBuilder) emitCBNZ(rt int, label string) {
 	cb.fixups = append(cb.fixups, branchFixup{len(cb.instrs), label, fixCBNZ})
 	cb.emit(uint32(0xB5000000 | rt))
+}
+
+// emitADR emits ADR Xd, <label> (PC-relative address load, ±1MB).
+// The label must resolve to a word-aligned address in the same codeBuilder.
+func (cb *codeBuilder) emitADR(rd int, label string) {
+	cb.fixups = append(cb.fixups, branchFixup{len(cb.instrs), label, fixADR})
+	cb.emit(0x10000000 | uint32(rd)) // ADR Xd, #0 placeholder
 }
 
 // applyFixups patches all recorded branch placeholders with correct offsets.
@@ -200,6 +230,16 @@ func (cb *codeBuilder) applyFixups() error {
 				return fmt.Errorf("branch to %q: offset %d out of 19-bit range", fx.label, offset)
 			}
 			cb.instrs[fx.at] = (old & 0xFF00001F) | (uint32(offset)&0x7FFFF)<<5
+		case fixADR:
+			// offset is in words; ADR encodes a *byte* offset.
+			byteOff := offset * 4
+			if byteOff < -(1<<20) || byteOff >= (1<<20) {
+				return fmt.Errorf("ADR to %q: byte offset %d out of ±1MB range", fx.label, byteOff)
+			}
+			immlo := byteOff & 3
+			immhi := (byteOff >> 2) & 0x7FFFF
+			// Preserve opcode (bits 31, 28) and Rd (bits 4:0); patch immlo [30:29] + immhi [23:5].
+			cb.instrs[fx.at] = (old & 0x9000001F) | uint32(immlo)<<29 | uint32(immhi)<<5
 		}
 	}
 	return nil
@@ -223,6 +263,10 @@ type elfGen struct {
 	cmpN          int // counter for synthetic comparison labels
 	fn            *IRFunc
 	fr            *frame
+	isGlobalPtr   map[string]bool // global variables that are pointers (TypeIntPtr/TypeCharPtr)
+	// ET_REL object-file mode:
+	isObjMode  bool
+	localFuncs map[string]bool // functions defined in this compilation unit
 }
 
 // newLabel returns a unique internal label for comparison temporaries.
@@ -272,12 +316,18 @@ func (g *elfGen) store(rd int, dst IRAddr) {
 func (g *elfGen) arrayBase(addr IRAddr, rd int) {
 	switch addr.Kind {
 	case AddrGlobal:
-		g.cb.emitLDRglobal(addr.Name) // X9 = &global (IS the base address)
-		g.cb.emit(encMOVreg(rd, regX9))
+		g.cb.emitLDRglobal(addr.Name) // X9 = &global
+		if g.isGlobalPtr[addr.Name] {
+			// Pointer variable: the global slot holds an address; load it.
+			g.cb.emit(encLDRuoff(rd, regX9, 0)) // rd = *X9 (pointer value)
+		} else {
+			// Array: &global IS the base address of the elements.
+			g.cb.emit(encMOVreg(rd, regX9))
+		}
 	case AddrLocal, AddrTemp:
 		off := g.fr.offsets[addr.Name]
-		if g.fr.isArrPtr[addr.Name] {
-			// Array parameter: the frame slot holds a pointer.
+		if g.fr.isArrPtr[addr.Name] || g.fr.isPtrVar[addr.Name] {
+			// Array param or pointer variable: frame slot holds a pointer.
 			g.cb.emitLDRsp(rd, off)
 		} else {
 			// Local array: its elements are inline in the frame.
@@ -353,6 +403,10 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 			g.emitArith(q, encSDIV)
 		case IRMod:
 			g.emitMod(q)
+		case IRUDiv:
+			g.emitArith(q, encUDIV)
+		case IRUMod:
+			g.emitUMod(q)
 		case IRBitAnd:
 			g.emitArith(q, encAND)
 		case IRBitOr:
@@ -363,6 +417,8 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 			g.emitArith(q, encLSLV)
 		case IRShr:
 			g.emitArith(q, encASRV)
+		case IRUShr:
+			g.emitArith(q, encLSRV)
 		case IRBitNot:
 			g.load(q.Src1, regX0)
 			g.cb.emit(encMVN(regX0, regX0))
@@ -380,6 +436,14 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 			g.emitCmpBool(q, condEQ)
 		case IRNe:
 			g.emitCmpBool(q, condNE)
+		case IRULt:
+			g.emitCmpBool(q, condLO)
+		case IRULe:
+			g.emitCmpBool(q, condLS)
+		case IRUGt:
+			g.emitCmpBool(q, condHI)
+		case IRUGe:
+			g.emitCmpBool(q, condHS)
 
 		case IRLoad:
 			g.emitArrayLoad(q)
@@ -388,6 +452,24 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 		case IRGetAddr:
 			g.arrayBase(q.Src1, regX0)
 			g.store(regX0, q.Dst)
+
+		case IRStrAddr:
+			// Load the address of a string literal via the pool.
+			g.cb.emitLDRglobal(q.Extra)              // X9 = VA of string literal
+			g.cb.emit(encMOVreg(regX0, regX9))       // X0 = X9
+			g.store(regX0, q.Dst)
+
+		case IRDerefLoad:
+			// Dst = *Src1 (load 8 bytes via pointer in Src1)
+			g.load(q.Src1, regX0)                           // X0 = pointer
+			g.cb.emit(encLDRuoff(regX0, regX0, 0))         // X0 = *X0
+			g.store(regX0, q.Dst)
+
+		case IRDerefStore:
+			// *Dst = Src1 (store 8 bytes via pointer in Dst)
+			g.load(q.Dst, regX0)                            // X0 = pointer
+			g.load(q.Src1, regX1)                           // X1 = value
+			g.cb.emit(encSTRuoff(regX1, regX0, 0))         // *X0 = X1
 
 		case IRParam:
 			g.pendingParams = append(g.pendingParams, q.Src1)
@@ -415,8 +497,17 @@ func (g *elfGen) emitArith(q Quad, enc func(rd, rn, rm int) uint32) {
 func (g *elfGen) emitMod(q Quad) {
 	g.load(q.Src1, regX0)                                 // X0 = a
 	g.load(q.Src2, regX1)                                 // X1 = b
-	g.cb.emit(encSDIV(regX2, regX0, regX1))              // X2 = a / b
+	g.cb.emit(encSDIV(regX2, regX0, regX1))              // X2 = a / b (signed)
 	g.cb.emit(encMSUB(regX0, regX2, regX1, regX0))       // X0 = a - X2*b
+	g.store(regX0, q.Dst)
+}
+
+// emitUMod emits: Dst = Src1 % Src2 (unsigned) using UDIV + MSUB.
+func (g *elfGen) emitUMod(q Quad) {
+	g.load(q.Src1, regX0)
+	g.load(q.Src2, regX1)
+	g.cb.emit(encUDIV(regX2, regX0, regX1))             // X2 = a / b (unsigned)
+	g.cb.emit(encMSUB(regX0, regX2, regX1, regX0))      // X0 = a - X2*b
 	g.store(regX0, q.Dst)
 }
 
@@ -455,13 +546,47 @@ func (g *elfGen) emitCall(q Quad) {
 	}
 	g.pendingParams = g.pendingParams[:0]
 
-	switch q.Extra {
-	case "input":
-		g.cb.emitBL("gaston_input")
-	case "output":
-		g.cb.emitBL("gaston_output")
-	default:
-		g.cb.emitBL(funcLabel(q.Extra))
+	if g.isObjMode {
+		// In object-file mode every call to a non-locally-defined function
+		// becomes an extern BL (resolved by the linker via CALL26 relocation).
+		switch q.Extra {
+		case "input":
+			g.cb.emitBLextern("gaston_input")
+		case "output":
+			g.cb.emitBLextern("gaston_output")
+		case "print_char":
+			g.cb.emitBLextern("gaston_print_char")
+		case "print_string":
+			g.cb.emitBLextern("gaston_print_string")
+		case "malloc":
+			g.cb.emitBLextern("gaston_malloc")
+		case "free":
+			g.cb.emitBLextern("gaston_free")
+		default:
+			label := funcLabel(q.Extra)
+			if g.localFuncs[q.Extra] {
+				g.cb.emitBL(label)
+			} else {
+				g.cb.emitBLextern(label)
+			}
+		}
+	} else {
+		switch q.Extra {
+		case "input":
+			g.cb.emitBL("gaston_input")
+		case "output":
+			g.cb.emitBL("gaston_output")
+		case "print_char":
+			g.cb.emitBL("gaston_print_char")
+		case "print_string":
+			g.cb.emitBL("gaston_print_string")
+		case "malloc":
+			g.cb.emitBL("gaston_malloc")
+		case "free":
+			g.cb.emitBL("gaston_free")
+		default:
+			g.cb.emitBL(funcLabel(q.Extra))
+		}
 	}
 
 	if q.Dst.Kind != AddrNone {
@@ -671,6 +796,402 @@ func (g *elfGen) emitInputFn() {
 	cb.emit(encRET())
 }
 
+// emitPrintCharFn emits gaston_print_char(X0 = character as int64).
+//
+// Writes the low byte of X0 to stdout via write(1, &buf, 1).
+// Frame layout (32 bytes): SP+0: FP, SP+8: LR, SP+16: 1-byte buf, SP+17..31: pad.
+func (g *elfGen) emitPrintCharFn() {
+	cb := g.cb
+	cb.defineLabel("gaston_print_char")
+
+	cb.emit(encSUBimm(regSP, regSP, 32))
+	cb.emit(encSTP(regFP, regLR, regSP, 0))
+	cb.emit(encADDimm(regFP, regSP, 0))
+
+	// Store low byte of X0 into buf at SP+16.
+	cb.emit(encSTRBuoff(regX0, regSP, 16))
+
+	// write(1, SP+16, 1)
+	cb.emitMOVimm(regX0, 1)                   // fd = stdout
+	cb.emit(encADDimm(regX1, regSP, 16))      // buf = &SP[16]
+	cb.emitMOVimm(regX2, 1)                   // count = 1
+	cb.emitMOVimm(regX8, 64)                  // sys_write
+	cb.emit(encSVC(0))
+
+	cb.emit(encLDP(regFP, regLR, regSP, 0))
+	cb.emit(encADDimm(regSP, regSP, 32))
+	cb.emit(encRET())
+}
+
+// emitPrintStringFn emits gaston_print_string(X0 = pointer to null-terminated string).
+//
+// Scans forward from X0 to find the null terminator, then calls write(1, X0, len).
+// Frame layout (48 bytes): SP+0: FP, SP+8: LR, SP+16: X19 (base ptr), SP+24: X20 (scan ptr).
+func (g *elfGen) emitPrintStringFn() {
+	cb := g.cb
+	cb.defineLabel("gaston_print_string")
+
+	cb.emit(encSUBimm(regSP, regSP, 48))
+	cb.emit(encSTP(regFP, regLR, regSP, 0))
+	cb.emit(encSTP(regX19, regX20, regSP, 16))
+	cb.emit(encADDimm(regFP, regSP, 0))
+
+	// X19 = base (start of string), X20 = scan pointer.
+	cb.emit(encMOVreg(regX19, regX0))
+	cb.emit(encMOVreg(regX20, regX0))
+
+	// Scan loop: load byte at X20, if zero stop, else X20++.
+	cb.defineLabel("ps_scan")
+	cb.emit(encLDRBuoff(regX0, regX20, 0))    // X0 = *X20
+	cb.emitCBZ(regX0, "ps_write")             // if zero → done
+	cb.emit(encADDimm(regX20, regX20, 1))     // X20++
+	cb.emitB("ps_scan")
+
+	// write(1, X19, X20-X19).
+	cb.defineLabel("ps_write")
+	cb.emit(encSUBreg(regX2, regX20, regX19)) // X2 = length
+	cb.emitCBZ(regX2, "ps_ret")               // skip write if empty
+	cb.emitMOVimm(regX0, 1)                   // fd = stdout
+	cb.emit(encMOVreg(regX1, regX19))         // buf = base
+	cb.emitMOVimm(regX8, 64)                  // sys_write
+	cb.emit(encSVC(0))
+
+	cb.defineLabel("ps_ret")
+	cb.emit(encLDP(regX19, regX20, regSP, 16))
+	cb.emit(encLDP(regFP, regLR, regSP, 0))
+	cb.emit(encADDimm(regSP, regSP, 48))
+	cb.emit(encRET())
+}
+
+// freeListGlobalName is the synthetic BSS global used as the allocator's
+// free-list head pointer.  It is registered in the literal pool so that
+// emitMallocFn / emitFreeFn can load its address via emitLDRglobal, just
+// like any user-declared global.  The slot is zero-initialised by the OS
+// because it lives in the BSS segment.
+const freeListGlobalName = "gaston_free_list_head"
+
+// ── boundary-tag coalescing allocator ─────────────────────────────────────────
+//
+// Block layout (every block, free or allocated):
+//
+//	[+0]  header  8 bytes: (block_size | alloc_bit)
+//	              block_size includes header + payload + footer, always ≥ 32,
+//	              always a multiple of 8.  alloc_bit = bit 0: 1=allocated, 0=free.
+//	[+8]  payload (or, when free: next_free ptr 8 bytes)
+//	[+16] …       (or, when free: prev_free ptr 8 bytes)
+//	…
+//	[size-8]  footer 8 bytes: identical to header
+//
+// The user pointer returned by malloc points to [+8] (payload start).
+//
+// Each 1 MB slab is initialised with:
+//   [+0..+15]   prologue  (allocated sentinel, size=16, alloc=1)
+//   [+16..end-9] one big free block
+//   [end-8..end-1] epilogue (allocated sentinel, size=0, alloc=1)
+//
+// The prologue prevents backward coalescing past the slab start; the
+// epilogue (size=0) stops forward coalescing at the slab end.
+//
+// Register conventions inside malloc/free:
+//   X19 = n_bytes (malloc) / block_ptr (free)
+//   X20 = block_size_needed (malloc) / current coalesced size (free)
+//   X21 = &gaston_free_list_slot  (constant throughout the function)
+//   X22 = current/chosen block pointer
+//   X23 = confirmed block size (malloc found_block section)
+
+const allocSlabSize = 1 << 20 // 1 MB
+
+// emitMallocFn emits gaston_malloc(X0 = n_bytes) → X0 = user_ptr.
+//
+// First-fit search of the explicit free list; splits large blocks; lazy-mmaps
+// a new 1 MB slab when the list has no block large enough.
+func (g *elfGen) emitMallocFn() {
+	cb := g.cb
+	cb.defineLabel("gaston_malloc")
+
+	// ── prologue (64-byte frame, save X19-X23) ────────────────────────────
+	cb.emit(encSUBimm(regSP, regSP, 64))
+	cb.emit(encSTP(regFP, regLR, regSP, 0))
+	cb.emit(encSTP(regX19, regX20, regSP, 16))
+	cb.emit(encSTP(regX21, regX22, regSP, 32))
+	cb.emit(encSTP(regX23, 24 /*X24*/, regSP, 48)) // save X24 as spare callee pair
+	cb.emit(encADDimm(regFP, regSP, 0))
+
+	cb.emit(encMOVreg(regX19, regX0)) // X19 = n_bytes
+
+	// ── compute block_size_needed → X20 ──────────────────────────────────
+	// payload  = max(roundup8(n_bytes), 16)
+	// block_sz = payload + 16  (header + footer)
+	cb.emitMOVimm(regX1, 16)
+	cb.emit(encCMPreg(regX19, regX1))
+	cb.emitBcond(condGE, "gaston_malloc_size_ok")
+	cb.emit(encMOVreg(regX0, regX1)) // X0 = 16 (minimum payload)
+	cb.emitB("gaston_malloc_size_done")
+	cb.defineLabel("gaston_malloc_size_ok")
+	cb.emit(encMOVreg(regX0, regX19)) // X0 = n_bytes
+	cb.defineLabel("gaston_malloc_size_done")
+	cb.emit(encADDimm(regX0, regX0, 7))   // X0 += 7
+	cb.emit(encLSRimm(regX0, regX0, 3))   // X0 >>= 3
+	cb.emit(encLSLimm(regX0, regX0, 3))   // X0 <<= 3  → roundup8(payload)
+	cb.emit(encADDimm(regX20, regX0, 16)) // X20 = block_size_needed
+
+	// ── load free-list head address ───────────────────────────────────────
+	// gaston_free_list_head lives in the BSS segment (RW); load its VA via
+	// the literal pool, then read the current head pointer.
+	cb.emitLDRglobal(freeListGlobalName)        // X9 = &gaston_free_list_head
+	cb.emit(encMOVreg(regX21, regX9))           // X21 = &gaston_free_list_head
+	cb.emit(encLDRuoff(regX22, regX21, 0))      // X22 = *X21 = free_list_head
+
+	// ── first-fit search ──────────────────────────────────────────────────
+	cb.defineLabel("gaston_malloc_search")
+	cb.emitCBZ(regX22, "gaston_malloc_new_slab")
+	cb.emit(encLDRuoff(regX0, regX22, 0)) // X0 = header
+	cb.emit(encLSRimm(regX1, regX0, 1))   // X1 = header >> 1
+	cb.emit(encLSLimm(regX1, regX1, 1))   // X1 = block_size (alloc bit cleared)
+	cb.emit(encCMPreg(regX1, regX20))
+	cb.emitBcond(condGE, "gaston_malloc_found")
+	cb.emit(encLDRuoff(regX22, regX22, 8)) // X22 = X22.next
+	cb.emitB("gaston_malloc_search")
+
+	// ── found a fitting block ─────────────────────────────────────────────
+	// X22 = block ptr,  X1 = block_size
+	cb.defineLabel("gaston_malloc_found")
+	cb.emit(encMOVreg(regX23, regX1)) // X23 = block_size (save)
+
+	// Check split condition: remainder = block_size - block_size_needed ≥ 32
+	cb.emit(encSUBreg(regX2, regX23, regX20)) // X2 = remainder
+	cb.emitMOVimm(regX0, 32)
+	cb.emit(encCMPreg(regX2, regX0))
+	cb.emitBcond(condLT, "gaston_malloc_use_whole")
+
+	// ── split: carve X20-byte block from front, leave X2-byte block ──────
+	cb.emit(encADDreg(regX3, regX22, regX20)) // X3 = new free block ptr
+
+	// new free block header + footer
+	cb.emit(encSTRuoff(regX2, regX3, 0)) // new.header = X2
+	cb.emit(encADDreg(regX0, regX3, regX2))
+	cb.emit(encSUBimm(regX0, regX0, 8))
+	cb.emit(encSTRuoff(regX2, regX0, 0)) // new.footer = X2
+
+	// new.next = X22.next;  new.prev = X22.prev
+	cb.emit(encLDRuoff(regX0, regX22, 8))  // X0 = X22.next
+	cb.emit(encLDRuoff(regX1, regX22, 16)) // X1 = X22.prev
+	cb.emit(encSTRuoff(regX0, regX3, 8))   // new.next = X0
+	cb.emit(encSTRuoff(regX1, regX3, 16))  // new.prev = X1
+
+	// fix up prev.next → X3 (or free_list_head → X3)
+	cb.emitCBZ(regX1, "gaston_malloc_split_fix_head")
+	cb.emit(encSTRuoff(regX3, regX1, 8)) // prev.next = X3
+	cb.emitB("gaston_malloc_split_fix_next")
+	cb.defineLabel("gaston_malloc_split_fix_head")
+	cb.emit(encSTRuoff(regX3, regX21, 0)) // free_list_head = X3
+	cb.defineLabel("gaston_malloc_split_fix_next")
+	// fix up next.prev → X3 (if next != 0)
+	cb.emitCBZ(regX0, "gaston_malloc_split_alloc")
+	cb.emit(encSTRuoff(regX3, regX0, 16)) // next.prev = X3
+
+	// mark X22 as allocated (size = X20)
+	cb.defineLabel("gaston_malloc_split_alloc")
+	cb.emit(encADDimm(regX0, regX20, 1))        // X0 = X20 | 1
+	cb.emit(encSTRuoff(regX0, regX22, 0))        // X22.header = X20|1
+	cb.emit(encADDreg(regX1, regX22, regX20))
+	cb.emit(encSUBimm(regX1, regX1, 8))
+	cb.emit(encSTRuoff(regX0, regX1, 0)) // X22.footer = X20|1
+	cb.emitB("gaston_malloc_ret")
+
+	// ── use whole block (no split) ────────────────────────────────────────
+	cb.defineLabel("gaston_malloc_use_whole")
+	// mark as allocated (size = X23)
+	cb.emit(encADDimm(regX0, regX23, 1))  // X0 = X23 | 1
+	cb.emit(encSTRuoff(regX0, regX22, 0)) // header
+	cb.emit(encADDreg(regX1, regX22, regX23))
+	cb.emit(encSUBimm(regX1, regX1, 8))
+	cb.emit(encSTRuoff(regX0, regX1, 0)) // footer
+
+	// remove X22 from free list
+	cb.emit(encLDRuoff(regX0, regX22, 8))  // X0 = next
+	cb.emit(encLDRuoff(regX1, regX22, 16)) // X1 = prev
+	cb.emitCBZ(regX1, "gaston_malloc_whole_fix_head")
+	cb.emit(encSTRuoff(regX0, regX1, 8)) // prev.next = next
+	cb.emitB("gaston_malloc_whole_fix_next")
+	cb.defineLabel("gaston_malloc_whole_fix_head")
+	cb.emit(encSTRuoff(regX0, regX21, 0)) // free_list_head = next
+	cb.defineLabel("gaston_malloc_whole_fix_next")
+	cb.emitCBZ(regX0, "gaston_malloc_ret")
+	cb.emit(encSTRuoff(regX1, regX0, 16)) // next.prev = prev
+
+	// ── return user pointer ───────────────────────────────────────────────
+	cb.defineLabel("gaston_malloc_ret")
+	cb.emit(encADDimm(regX0, regX22, 8)) // X0 = block + 8 (skip header)
+
+	// ── epilogue ──────────────────────────────────────────────────────────
+	cb.defineLabel("gaston_malloc_epi")
+	cb.emit(encLDP(regX23, 24, regSP, 48))
+	cb.emit(encLDP(regX21, regX22, regSP, 32))
+	cb.emit(encLDP(regX19, regX20, regSP, 16))
+	cb.emit(encLDP(regFP, regLR, regSP, 0))
+	cb.emit(encADDimm(regSP, regSP, 64))
+	cb.emit(encRET())
+
+	// ── new slab: mmap 1 MB, initialise, prepend to free list ────────────
+	cb.defineLabel("gaston_malloc_new_slab")
+	cb.emitMOVimm(regX0, 0)
+	cb.emitMOVimm(regX1, allocSlabSize)
+	cb.emitMOVimm(regX2, 3)    // PROT_READ|PROT_WRITE
+	cb.emitMOVimm(regX3, 0x22) // MAP_PRIVATE|MAP_ANONYMOUS
+	cb.emit(encMOVN(regX4, 0, 0))
+	cb.emitMOVimm(regX5, 0)
+	cb.emitMOVimm(regX8, 222) // SYS_MMAP
+	cb.emit(encSVC(0))
+	// X0 = slab_base
+	cb.emit(encMOVreg(regX23, regX0)) // X23 = slab_base
+
+	// prologue: [+0]=16|1, [+8]=16|1
+	cb.emitMOVimm(regX0, 17) // 16 | 1
+	cb.emit(encSTRuoff(regX0, regX23, 0))
+	cb.emit(encSTRuoff(regX0, regX23, 8))
+
+	// first free block at slab_base+16, size = allocSlabSize−24
+	cb.emit(encADDimm(regX3, regX23, 16)) // X3 = first free block ptr
+	cb.emitMOVimm(regX0, allocSlabSize-24)
+	cb.emit(encSTRuoff(regX0, regX3, 0)) // header = size
+	// footer at X3 + size − 8
+	cb.emit(encADDreg(regX1, regX3, regX0))
+	cb.emit(encSUBimm(regX1, regX1, 8))
+	cb.emit(encSTRuoff(regX0, regX1, 0)) // footer = size
+	// next = old head; prev = 0
+	cb.emit(encLDRuoff(regX1, regX21, 0))                   // X1 = old head
+	cb.emit(encSTRuoff(regX1, regX3, 8))                    // new.next = old head
+	cb.emit(encSTRuoff(regXZR, regX3, 16))                  // new.prev = 0
+	cb.emitCBZ(regX1, "gaston_malloc_slab_fix_head")
+	cb.emit(encSTRuoff(regX3, regX1, 16)) // old_head.prev = X3
+	cb.defineLabel("gaston_malloc_slab_fix_head")
+	cb.emit(encSTRuoff(regX3, regX21, 0)) // free_list_head = X3
+
+	// epilogue sentinel at slab_base + allocSlabSize − 8
+	cb.emitMOVimm(regX0, 1) // size=0, alloc=1
+	cb.emitMOVimm(regX1, allocSlabSize-8)
+	cb.emit(encADDreg(regX1, regX23, regX1))
+	cb.emit(encSTRuoff(regX0, regX1, 0)) // epilogue header
+
+	// retry search with X22 = new block
+	cb.emit(encMOVreg(regX22, regX3))
+	cb.emitB("gaston_malloc_search")
+}
+
+// emitFreeFn emits gaston_free(X0 = user_ptr).
+//
+// Marks the block free, coalesces with adjacent free neighbours (O(1) via
+// boundary tags), then prepends the result to the free list.
+func (g *elfGen) emitFreeFn() {
+	cb := g.cb
+	cb.defineLabel("gaston_free")
+
+	// ── prologue ──────────────────────────────────────────────────────────
+	cb.emit(encSUBimm(regSP, regSP, 64))
+	cb.emit(encSTP(regFP, regLR, regSP, 0))
+	cb.emit(encSTP(regX19, regX20, regSP, 16))
+	cb.emit(encSTP(regX21, regX22, regSP, 32))
+	cb.emit(encSTP(regX23, 24 /*X24*/, regSP, 48))
+	cb.emit(encADDimm(regFP, regSP, 0))
+
+	cb.emitLDRglobal(freeListGlobalName)    // X9 = &gaston_free_list_head
+	cb.emit(encMOVreg(regX21, regX9))      // X21 = &gaston_free_list_head
+	cb.emit(encSUBimm(regX19, regX0, 8))        // X19 = block_ptr = user_ptr − 8
+
+	// load header, extract size into X20
+	cb.emit(encLDRuoff(regX0, regX19, 0))
+	cb.emit(encLSRimm(regX20, regX0, 1))
+	cb.emit(encLSLimm(regX20, regX20, 1)) // X20 = block_size
+
+	// mark block free (write size with alloc=0 to header and footer)
+	cb.emit(encSTRuoff(regX20, regX19, 0)) // header = size
+	cb.emit(encADDreg(regX0, regX19, regX20))
+	cb.emit(encSUBimm(regX0, regX0, 8))
+	cb.emit(encSTRuoff(regX20, regX0, 0)) // footer = size
+
+	// ── coalesce right ─────────────────────────────────────────────────────
+	cb.emit(encADDreg(regX0, regX19, regX20)) // X0 = next_block
+	cb.emit(encLDRuoff(regX1, regX0, 0))      // X1 = next.header
+	cb.emit(encLSRimm(regX2, regX1, 1))
+	cb.emit(encLSLimm(regX2, regX2, 1))   // X2 = next_size (alloc bit cleared)
+	cb.emit(encCMPreg(regX1, regX2))
+	cb.emitBcond(condNE, "gaston_free_cl") // next is allocated → skip
+	cb.emitCBZ(regX2, "gaston_free_cl")   // epilogue sentinel (size=0) → skip
+
+	// remove next_block (X0) from free list
+	cb.emit(encLDRuoff(regX22, regX0, 8))  // X22 = next.next
+	cb.emit(encLDRuoff(regX23, regX0, 16)) // X23 = next.prev
+	cb.emitCBZ(regX23, "gaston_free_cr_head")
+	cb.emit(encSTRuoff(regX22, regX23, 8)) // prev.next = next.next
+	cb.emitB("gaston_free_cr_next")
+	cb.defineLabel("gaston_free_cr_head")
+	cb.emit(encSTRuoff(regX22, regX21, 0)) // free_list_head = next.next
+	cb.defineLabel("gaston_free_cr_next")
+	cb.emitCBZ(regX22, "gaston_free_cr_done")
+	cb.emit(encSTRuoff(regX23, regX22, 16)) // next.next.prev = next.prev
+	cb.defineLabel("gaston_free_cr_done")
+
+	// extend current block
+	cb.emit(encADDreg(regX20, regX20, regX2)) // X20 += next_size
+	cb.emit(encSTRuoff(regX20, regX19, 0))    // update header
+	cb.emit(encADDreg(regX0, regX19, regX20))
+	cb.emit(encSUBimm(regX0, regX0, 8))
+	cb.emit(encSTRuoff(regX20, regX0, 0)) // update footer
+
+	// ── coalesce left ──────────────────────────────────────────────────────
+	cb.defineLabel("gaston_free_cl")
+	cb.emit(encSUBimm(regX0, regX19, 8))  // X0 = prev footer addr
+	cb.emit(encLDRuoff(regX1, regX0, 0))  // X1 = prev.footer value
+	cb.emit(encLSRimm(regX2, regX1, 1))
+	cb.emit(encLSLimm(regX2, regX2, 1))  // X2 = prev_size (alloc bit cleared)
+	cb.emit(encCMPreg(regX1, regX2))
+	cb.emitBcond(condNE, "gaston_free_add") // prev is allocated → skip
+	cb.emitCBZ(regX2, "gaston_free_add")   // prev_size=0? (shouldn't happen, safety)
+
+	// prev_block = X19 − prev_size
+	cb.emit(encSUBreg(regX0, regX19, regX2)) // X0 = prev_block ptr
+
+	// remove prev_block (X0) from free list
+	cb.emit(encLDRuoff(regX22, regX0, 8))  // X22 = prev.next
+	cb.emit(encLDRuoff(regX23, regX0, 16)) // X23 = prev.prev
+	cb.emitCBZ(regX23, "gaston_free_cl_head")
+	cb.emit(encSTRuoff(regX22, regX23, 8)) // prev.prev.next = prev.next
+	cb.emitB("gaston_free_cl_next")
+	cb.defineLabel("gaston_free_cl_head")
+	cb.emit(encSTRuoff(regX22, regX21, 0)) // free_list_head = prev.next
+	cb.defineLabel("gaston_free_cl_next")
+	cb.emitCBZ(regX22, "gaston_free_cl_done")
+	cb.emit(encSTRuoff(regX23, regX22, 16)) // prev.next.prev = prev.prev
+	cb.defineLabel("gaston_free_cl_done")
+
+	// merge current block into prev
+	cb.emit(encADDreg(regX20, regX20, regX2)) // X20 += prev_size
+	cb.emit(encMOVreg(regX19, regX0))         // X19 = prev_block
+	cb.emit(encSTRuoff(regX20, regX19, 0))    // update header
+	cb.emit(encADDreg(regX0, regX19, regX20))
+	cb.emit(encSUBimm(regX0, regX0, 8))
+	cb.emit(encSTRuoff(regX20, regX0, 0)) // update footer
+
+	// ── prepend to free list ───────────────────────────────────────────────
+	cb.defineLabel("gaston_free_add")
+	cb.emit(encLDRuoff(regX0, regX21, 0))     // X0 = old_head
+	cb.emit(encSTRuoff(regX0, regX19, 8))     // new.next = old_head
+	cb.emit(encSTRuoff(regXZR, regX19, 16))   // new.prev = 0
+	cb.emitCBZ(regX0, "gaston_free_add_head")
+	cb.emit(encSTRuoff(regX19, regX0, 16)) // old_head.prev = new_block
+	cb.defineLabel("gaston_free_add_head")
+	cb.emit(encSTRuoff(regX19, regX21, 0)) // free_list_head = new_block
+
+	// ── epilogue ──────────────────────────────────────────────────────────
+	cb.emit(encLDP(regX23, 24, regSP, 48))
+	cb.emit(encLDP(regX21, regX22, regSP, 32))
+	cb.emit(encLDP(regX19, regX20, regSP, 16))
+	cb.emit(encLDP(regFP, regLR, regSP, 0))
+	cb.emit(encADDimm(regSP, regSP, 64))
+	cb.emit(encRET())
+}
+
 // ── genELF entry point ────────────────────────────────────────────────────────
 
 // genELF compiles irp to a Linux ARM64 static ELF binary and writes it to
@@ -686,19 +1207,64 @@ func genELF(irp *IRProgram, outpath string) error {
 	var bssTotal uint64
 	bssOffset := make(map[string]uint64)
 	for _, gbl := range irp.Globals {
+		if gbl.IsExtern {
+			continue // extern globals have no local storage
+		}
 		sz := uint64(gbl.Size) * 8
 		bssOffset[gbl.Name] = bssTotal
 		bssList = append(bssList, globalInfo{gbl.Name, bssTotal})
 		bssTotal += sz
 	}
 
-	// --- Phase 2: emit machine code ----------------------------------------
-	cb := newCodeBuilder(irp.Globals)
-	gen := &elfGen{cb: cb, pendingParams: make([]IRAddr, 0, 8)}
+	// --- Phase 1b: build rodata layout (string literals) ------------------
+	type rodataEntry struct {
+		label  string
+		bytes  []byte // content + NUL
+		offset uint64 // byte offset in rodata
+	}
+	var rodataList []rodataEntry
+	var rodataTotal uint64
+	for _, sl := range irp.StrLits {
+		b := append([]byte(sl.Content), 0) // NUL-terminate
+		rodataList = append(rodataList, rodataEntry{sl.Label, b, rodataTotal})
+		rodataTotal += uint64(len(b))
+	}
 
-	gen.emitStart(irp.Globals)
+	// --- Phase 2: emit machine code ----------------------------------------
+	// Build the isGlobalPtr map for pointer global variables.
+	isGlobalPtr := make(map[string]bool)
+	for _, gbl := range irp.Globals {
+		if gbl.IsPtr {
+			isGlobalPtr[gbl.Name] = true
+		}
+	}
+
+	// Only include non-extern globals in the pool (extern globals are resolved
+	// by the linker; in single-file ELF mode they would not exist anyway).
+	// Also add a synthetic global for the allocator's free-list head (BSS, 8 bytes).
+	definedGlobals := make([]IRGlobal, 0, len(irp.Globals))
+	for _, gbl := range irp.Globals {
+		if !gbl.IsExtern {
+			definedGlobals = append(definedGlobals, gbl)
+		}
+	}
+	// Synthetic global: malloc's free-list head pointer (lives in BSS, zero-init).
+	freeListSynth := IRGlobal{Name: freeListGlobalName, Size: 1}
+	bssOffset[freeListGlobalName] = bssTotal
+	bssList = append(bssList, globalInfo{freeListGlobalName, bssTotal})
+	bssTotal += 8
+	allPoolGlobals := append(definedGlobals, freeListSynth)
+
+	cb := newCodeBuilder(allPoolGlobals, irp.StrLits)
+	gen := &elfGen{cb: cb, pendingParams: make([]IRAddr, 0, 8), isGlobalPtr: isGlobalPtr}
+
+	gen.emitStart(definedGlobals)
 	gen.emitOutputFn()
 	gen.emitInputFn()
+	gen.emitPrintCharFn()
+	gen.emitPrintStringFn()
+	gen.emitMallocFn()
+	gen.emitFreeFn()
 	for _, fn := range irp.Funcs {
 		gen.genFunc(fn)
 	}
@@ -710,16 +1276,24 @@ func genELF(irp *IRProgram, outpath string) error {
 
 	// --- Phase 4: compute virtual addresses and patch pool -----------------
 	codeBytes := uint64(len(cb.instrs)) * 4
-	bssBase := nextPage(codeBase + codeBytes)
+	// Linux requires (file_offset % page_size) == (vaddr % page_size) for
+	// each PT_LOAD.  rodataBase is page-aligned (vaddr%page==0), so the file
+	// offset must be too.  Pad the file between code and rodata with zeros.
+	rodataFileOff := nextPage(elfHeaderEnd + codeBytes)
+	rodataBase := nextPage(codeBase + codeBytes)
+	bssBase := nextPage(rodataBase + rodataTotal)
 
-	globalAddrs := make(map[string]uint64, len(bssList))
+	poolAddrs := make(map[string]uint64, len(bssList)+len(rodataList))
 	for _, gi := range bssList {
-		globalAddrs[gi.name] = bssBase + gi.offset
+		poolAddrs[gi.name] = bssBase + gi.offset
 	}
-	cb.patchPool(globalAddrs)
+	for _, ri := range rodataList {
+		poolAddrs[ri.label] = rodataBase + ri.offset
+	}
+	cb.patchPool(poolAddrs)
 
 	// --- Phase 5: write ELF ------------------------------------------------
-	fileSize := elfHeaderEnd + codeBytes // header + code; BSS is memory-only
+	fileSize := rodataFileOff + rodataTotal // header + code + pad + rodata
 	entryVaddr := uint64(0)
 	if idx, ok := cb.labels["_start"]; ok {
 		entryVaddr = codeBase + uint64(idx)*4
@@ -759,22 +1333,38 @@ func genELF(irp *IRProgram, outpath string) error {
 		return fmt.Errorf("genELF: write header: %w", err)
 	}
 
-	// PT_LOAD — code (maps entire file: ELF header + code).
+	// PT_LOAD — code (maps ELF header + code).
+	codeFileSz := elfHeaderEnd + codeBytes
 	codePhdr := elf.Prog64{
 		Type:   uint32(elf.PT_LOAD),
 		Flags:  uint32(elf.PF_R | elf.PF_X),
 		Off:    0,
 		Vaddr:  elfLoadBase,
 		Paddr:  elfLoadBase,
-		Filesz: fileSize,
-		Memsz:  fileSize,
+		Filesz: codeFileSz,
+		Memsz:  codeFileSz,
 		Align:  pageSize,
 	}
 	if err := binary.Write(f, binary.LittleEndian, codePhdr); err != nil {
 		return fmt.Errorf("genELF: write code phdr: %w", err)
 	}
 
-	// PT_LOAD — BSS (memory-only; filesz=0 so offset is irrelevant).
+	// PT_LOAD — rodata (read-only; filesz = rodataTotal, or 0 if no strings).
+	rodataPhdr := elf.Prog64{
+		Type:   uint32(elf.PT_LOAD),
+		Flags:  uint32(elf.PF_R),
+		Off:    rodataFileOff,
+		Vaddr:  rodataBase,
+		Paddr:  rodataBase,
+		Filesz: rodataTotal,
+		Memsz:  rodataTotal,
+		Align:  pageSize,
+	}
+	if err := binary.Write(f, binary.LittleEndian, rodataPhdr); err != nil {
+		return fmt.Errorf("genELF: write rodata phdr: %w", err)
+	}
+
+	// PT_LOAD — BSS (memory-only; filesz=0).
 	bssPhdr := elf.Prog64{
 		Type:   uint32(elf.PT_LOAD),
 		Flags:  uint32(elf.PF_R | elf.PF_W),
@@ -794,5 +1384,21 @@ func genELF(irp *IRProgram, outpath string) error {
 		return fmt.Errorf("genELF: write code: %w", err)
 	}
 
+	// Padding: zero-fill from end of code to rodataFileOff.
+	codeEnd := elfHeaderEnd + codeBytes
+	if pad := rodataFileOff - codeEnd; pad > 0 {
+		if _, err := f.Write(make([]byte, pad)); err != nil {
+			return fmt.Errorf("genELF: write rodata padding: %w", err)
+		}
+	}
+
+	// Rodata section (string literals, NUL-terminated).
+	for _, ri := range rodataList {
+		if _, err := f.Write(ri.bytes); err != nil {
+			return fmt.Errorf("genELF: write rodata: %w", err)
+		}
+	}
+
+	_ = fileSize
 	return nil
 }
