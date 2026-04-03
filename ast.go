@@ -1,0 +1,68 @@
+// Package main implements the gaston C-minus compiler.
+// It reads a .cm source file and emits Plan 9 ARM64 assembly (.s).
+package main
+
+// TypeKind is the C-minus type system (int, void, int[]).
+type TypeKind int
+
+const (
+	TypeVoid     TypeKind = iota
+	TypeInt               // int scalar
+	TypeIntArray          // int[] — pointer when a param, inline storage when a local
+)
+
+// NodeKind identifies the kind of an AST node.
+type NodeKind int
+
+const (
+	// Top-level
+	KindProgram NodeKind = iota
+
+	// Declarations
+	KindVarDecl // int x; or int x[N];
+	KindFunDecl // type f(params) { body }
+	KindParam   // int p or int p[]
+
+	// Statements
+	KindCompound  // { decls... stmts... }
+	KindExprStmt  // expr; or ;
+	KindSelection // if (cond) then [else alt]
+	KindIteration // while (cond) body
+	KindReturn    // return [expr];
+
+	// Expressions
+	KindAssign   // var = expr
+	KindBinOp    // expr op expr
+	KindVar      // ID  (scalar or array-base reference)
+	KindArrayVar // ID[expr]
+	KindCall     // ID(args...)
+	KindNum      // integer literal
+)
+
+// Node is a generic AST node.  Not every field is used by every kind;
+// see the comment on each kind in the const block above.
+//
+//	KindProgram:    Children = declarations
+//	KindVarDecl:    Type, Name; Val = array size (0 for scalar)
+//	KindFunDecl:    Type (return type), Name; Children = params... + compound
+//	KindParam:      Type (TypeInt or TypeIntArray), Name
+//	KindCompound:   Children = var_decls... + statements...
+//	KindExprStmt:   Children[0] = expr (may be nil)
+//	KindSelection:  Children[0]=cond [1]=then [2]=else (optional)
+//	KindIteration:  Children[0]=cond [1]=body
+//	KindReturn:     Children[0]=expr (optional)
+//	KindAssign:     Children[0]=lvar [1]=rexpr
+//	KindBinOp:      Op, Children[0]=left [1]=right
+//	KindVar:        Name
+//	KindArrayVar:   Name, Children[0]=index
+//	KindCall:       Name, Children = args
+//	KindNum:        Val
+type Node struct {
+	Kind     NodeKind
+	Type     TypeKind // resolved type (filled by semcheck)
+	Name     string   // identifier
+	Val      int      // numeric literal or array size
+	Op       string   // binary operator string: "+", "-", "*", "/", "<", "<=", ">", ">=", "==", "!="
+	Children []*Node
+	Line     int
+}

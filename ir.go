@@ -1,0 +1,98 @@
+package main
+
+import "fmt"
+
+// IROpCode is a three-address IR instruction opcode.
+type IROpCode int
+
+const (
+	IRAdd  IROpCode = iota // Dst = Src1 + Src2
+	IRSub                  // Dst = Src1 - Src2
+	IRMul                  // Dst = Src1 * Src2
+	IRDiv                  // Dst = Src1 / Src2
+	IRCopy                 // Dst = Src1
+	IRLoad                 // Dst = Src1[Src2]   (array element load)
+	IRStore                // Dst[Src1] = Src2   (array element store)
+	IRGetAddr              // Dst = &Src1        (base address of array)
+	IRLabel                // Extra: label name
+	IRJump                 // goto Extra
+	IRJumpT                // if Src1 != 0 goto Extra
+	IRJumpF                // if Src1 == 0 goto Extra
+	IRLt                   // Dst = (Src1 < Src2)
+	IRLe                   // Dst = (Src1 <= Src2)
+	IRGt                   // Dst = (Src1 > Src2)
+	IRGe                   // Dst = (Src1 >= Src2)
+	IREq                   // Dst = (Src1 == Src2)
+	IRNe                   // Dst = (Src1 != Src2)
+	IRParam                // push Src1 as next call argument
+	IRCall                 // Dst = Extra(Src1.IVal args)
+	IRReturn               // return Src1 (Src1.Kind==AddrNone → void)
+	IREnter                // function entry marker; Extra = name
+)
+
+// AddrKind identifies what an IR address refers to.
+type AddrKind int
+
+const (
+	AddrNone   AddrKind = iota // unused / void
+	AddrConst                  // integer constant (IVal)
+	AddrTemp                   // compiler-generated temporary (Name = "tN")
+	AddrLocal                  // local variable or parameter (Name = identifier)
+	AddrGlobal                 // global variable (Name = identifier)
+)
+
+// IRAddr is one operand in a three-address IR instruction.
+type IRAddr struct {
+	Kind AddrKind
+	IVal int    // for AddrConst
+	Name string // for AddrTemp, AddrLocal, AddrGlobal
+}
+
+func (a IRAddr) String() string {
+	switch a.Kind {
+	case AddrNone:
+		return "_"
+	case AddrConst:
+		return fmt.Sprintf("%d", a.IVal)
+	default:
+		return a.Name
+	}
+}
+
+// Quad is one three-address IR instruction.
+type Quad struct {
+	Op    IROpCode
+	Dst   IRAddr
+	Src1  IRAddr
+	Src2  IRAddr
+	Extra string // label name (IRLabel/IRJump/IRJumpT/IRJumpF) or function name (IRCall/IREnter)
+}
+
+// IRGlobal describes one global variable declaration.
+type IRGlobal struct {
+	Name  string
+	IsArr bool
+	Size  int // 1 for scalar, N for array[N]
+}
+
+// IRLocal describes one local variable in a function (not a parameter).
+type IRLocal struct {
+	Name    string
+	IsArray bool
+	ArrSize int // 1 for scalar, N for int x[N]
+}
+
+// IRFunc is the IR for one function.
+type IRFunc struct {
+	Name      string
+	Params    []string   // parameter names in declaration order
+	ParamType []TypeKind // corresponding types
+	Locals    []IRLocal  // local variables declared inside the function body
+	Quads     []Quad
+}
+
+// IRProgram is the complete IR for a program.
+type IRProgram struct {
+	Globals []IRGlobal
+	Funcs   []*IRFunc
+}
