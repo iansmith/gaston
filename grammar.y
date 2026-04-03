@@ -20,21 +20,23 @@ package main
 %token <sval> ID
 
 // Keywords
-%token INT VOID IF ELSE WHILE RETURN
+%token INT VOID IF ELSE WHILE RETURN FOR DO BREAK CONTINUE
 
 // Multi-character operators
-%token LE GE EQ NE
+%token LE GE EQ NE LSHIFT RSHIFT
+%token INC DEC PLUSEQ MINUSEQ STAREQ DIVEQ MODEQ
 
 // Types for non-terminals
 %type <node>  program declaration var_declaration fun_declaration
 %type <nodes> declaration_list params param_list
 %type <node>  param compound_stmt
 %type <nodes> local_declarations statement_list
-%type <node>  statement expression_stmt selection_stmt iteration_stmt return_stmt
-%type <node>  expression var simple_expression additive_expression term factor call
+%type <node>  statement expression_stmt selection_stmt iteration_stmt for_stmt do_while_stmt return_stmt break_stmt continue_stmt
+%type <node>  opt_expression
+%type <node>  expression var simple_expression bitwise_expression additive_expression term factor call
 %type <nodes> args arg_list
 %type <typ>   type_specifier
-%type <sval>  relop addop mulop
+%type <sval>  relop addop mulop bitwiseop
 
 // Resolve dangling-else: ELSE binds to the nearest IF.
 %nonassoc LOWER_THAN_ELSE
@@ -64,6 +66,8 @@ var_declaration
 		{ $$ = &Node{Kind: KindVarDecl, Type: $1, Name: $2} }
 	| type_specifier ID '[' NUM ']' ';'
 		{ $$ = &Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: $4} }
+	| type_specifier ID '=' expression ';'
+		{ n := &Node{Kind: KindVarDecl, Type: $1, Name: $2}; n.Children = []*Node{$4}; $$ = n }
 	;
 
 type_specifier
@@ -123,7 +127,11 @@ statement
 	| compound_stmt   { $$ = $1 }
 	| selection_stmt  { $$ = $1 }
 	| iteration_stmt  { $$ = $1 }
+	| for_stmt        { $$ = $1 }
+	| do_while_stmt   { $$ = $1 }
 	| return_stmt     { $$ = $1 }
+	| break_stmt      { $$ = $1 }
+	| continue_stmt   { $$ = $1 }
 	;
 
 expression_stmt
@@ -143,6 +151,31 @@ iteration_stmt
 		{ $$ = &Node{Kind: KindIteration, Children: []*Node{$3, $5}} }
 	;
 
+for_stmt
+	: FOR '(' opt_expression ';' opt_expression ';' opt_expression ')' statement
+		{ $$ = &Node{Kind: KindFor, Children: []*Node{$3, $5, $7, $9}} }
+	;
+
+do_while_stmt
+	: DO statement WHILE '(' expression ')' ';'
+		{ $$ = &Node{Kind: KindDoWhile, Children: []*Node{$2, $5}} }
+	;
+
+break_stmt
+	: BREAK ';'
+		{ $$ = &Node{Kind: KindBreak} }
+	;
+
+continue_stmt
+	: CONTINUE ';'
+		{ $$ = &Node{Kind: KindContinue} }
+	;
+
+opt_expression
+	: expression { $$ = $1 }
+	| /* empty */ { $$ = nil }
+	;
+
 return_stmt
 	: RETURN ';'
 		{ $$ = &Node{Kind: KindReturn} }
@@ -153,6 +186,20 @@ return_stmt
 expression
 	: var '=' expression
 		{ $$ = &Node{Kind: KindAssign, Children: []*Node{$1, $3}} }
+	| var INC
+		{ $$ = &Node{Kind: KindCompoundAssign, Op: "+", Val: 1, Children: []*Node{$1, nil}} }
+	| var DEC
+		{ $$ = &Node{Kind: KindCompoundAssign, Op: "-", Val: 1, Children: []*Node{$1, nil}} }
+	| var PLUSEQ expression
+		{ $$ = &Node{Kind: KindCompoundAssign, Op: "+", Children: []*Node{$1, $3}} }
+	| var MINUSEQ expression
+		{ $$ = &Node{Kind: KindCompoundAssign, Op: "-", Children: []*Node{$1, $3}} }
+	| var STAREQ expression
+		{ $$ = &Node{Kind: KindCompoundAssign, Op: "*", Children: []*Node{$1, $3}} }
+	| var DIVEQ expression
+		{ $$ = &Node{Kind: KindCompoundAssign, Op: "/", Children: []*Node{$1, $3}} }
+	| var MODEQ expression
+		{ $$ = &Node{Kind: KindCompoundAssign, Op: "%", Children: []*Node{$1, $3}} }
 	| simple_expression
 		{ $$ = $1 }
 	;
@@ -165,10 +212,25 @@ var
 	;
 
 simple_expression
-	: additive_expression relop additive_expression
+	: bitwise_expression relop bitwise_expression
+		{ $$ = &Node{Kind: KindBinOp, Op: $2, Children: []*Node{$1, $3}} }
+	| bitwise_expression
+		{ $$ = $1 }
+	;
+
+bitwise_expression
+	: bitwise_expression bitwiseop additive_expression
 		{ $$ = &Node{Kind: KindBinOp, Op: $2, Children: []*Node{$1, $3}} }
 	| additive_expression
 		{ $$ = $1 }
+	;
+
+bitwiseop
+	: '&'    { $$ = "&" }
+	| '|'    { $$ = "|" }
+	| '^'    { $$ = "^" }
+	| LSHIFT { $$ = "<<" }
+	| RSHIFT { $$ = ">>" }
 	;
 
 relop
@@ -202,6 +264,7 @@ term
 mulop
 	: '*' { $$ = "*" }
 	| '/' { $$ = "/" }
+	| '%' { $$ = "%" }
 	;
 
 factor
@@ -209,6 +272,9 @@ factor
 	| var                 { $$ = $1 }
 	| call                { $$ = $1 }
 	| NUM                 { $$ = &Node{Kind: KindNum, Val: $1} }
+	| '-' factor          { $$ = &Node{Kind: KindUnary, Op: "-", Children: []*Node{$2}} }
+	| '!' factor          { $$ = &Node{Kind: KindUnary, Op: "!", Children: []*Node{$2}} }
+	| '~' factor          { $$ = &Node{Kind: KindUnary, Op: "~", Children: []*Node{$2}} }
 	;
 
 call

@@ -77,6 +77,11 @@ func encMUL(rd, rn, rm int) uint32 {
 	return 0x9B000000 | uint32(rm)<<16 | uint32(regXZR)<<10 | uint32(rn)<<5 | uint32(rd)
 }
 
+// encMSUB encodes MSUB Xd, Xn, Xm, Xa (Xd = Xa - Xn*Xm).
+func encMSUB(rd, rn, rm, ra int) uint32 {
+	return 0x9B008000 | uint32(rm)<<16 | uint32(ra)<<10 | uint32(rn)<<5 | uint32(rd)
+}
+
 // encSDIV encodes SDIV Xd, Xn, Xm (signed divide, Xd = Xn / Xm).
 func encSDIV(rd, rn, rm int) uint32 {
 	return 0x9AC00C00 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
@@ -189,4 +194,34 @@ func encADDimm(rd, rn, imm12 int) uint32 {
 // encSUBimm encodes SUB Xd, Xn, #imm12 (no shift).
 func encSUBimm(rd, rn, imm12 int) uint32 {
 	return 0xD1000000 | uint32(imm12)<<10 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encAND encodes AND Xd, Xn, Xm (shifted register, LSL #0).
+func encAND(rd, rn, rm int) uint32 {
+	return 0x8A000000 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encORR encodes ORR Xd, Xn, Xm (shifted register, LSL #0).
+func encORR(rd, rn, rm int) uint32 {
+	return 0xAA000000 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encEOR encodes EOR Xd, Xn, Xm (shifted register, LSL #0).
+func encEOR(rd, rn, rm int) uint32 {
+	return 0xCA000000 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encMVN encodes MVN Xd, Xm (= ORN Xd, XZR, Xm; bitwise NOT).
+func encMVN(rd, rm int) uint32 {
+	return 0xAA2003E0 | uint32(rm)<<16 | uint32(rd)
+}
+
+// encLSLV encodes LSL Xd, Xn, Xm (variable left shift).
+func encLSLV(rd, rn, rm int) uint32 {
+	return 0x9AC02000 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encASRV encodes ASR Xd, Xn, Xm (arithmetic right shift, variable).
+func encASRV(rd, rn, rm int) uint32 {
+	return 0x9AC02800 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
 }

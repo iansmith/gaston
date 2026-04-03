@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
 // lexer implements the yyLexer interface required by the goyacc-generated parser.
@@ -21,12 +22,16 @@ func newLexer(src, file string) *lexer {
 
 // keywords maps reserved words to their goyacc token constants.
 var keywords = map[string]int{
-	"int":    INT,
-	"void":   VOID,
-	"if":     IF,
-	"else":   ELSE,
-	"while":  WHILE,
-	"return": RETURN,
+	"int":      INT,
+	"void":     VOID,
+	"if":       IF,
+	"else":     ELSE,
+	"while":    WHILE,
+	"return":   RETURN,
+	"for":      FOR,
+	"do":       DO,
+	"break":    BREAK,
+	"continue": CONTINUE,
 }
 
 // Lex scans and returns the next token, filling lval with the token's value.
@@ -54,14 +59,25 @@ func (l *lexer) Lex(lval *yySymType) int {
 scan:
 	c := l.src[l.pos]
 
-	// Integer literals.
+	// Integer literals: decimal, hex (0x/0X), octal (0…).
 	if isDigit(c) {
-		v := 0
-		for l.pos < len(l.src) && isDigit(l.src[l.pos]) {
-			v = v*10 + int(l.src[l.pos]-'0')
-			l.pos++
+		start := l.pos
+		if c == '0' && l.pos+1 < len(l.src) && (l.src[l.pos+1] == 'x' || l.src[l.pos+1] == 'X') {
+			l.pos += 2 // skip 0x
+			for l.pos < len(l.src) && isHexDigit(l.src[l.pos]) {
+				l.pos++
+			}
+		} else {
+			for l.pos < len(l.src) && isDigit(l.src[l.pos]) {
+				l.pos++
+			}
 		}
-		lval.ival = v
+		v, err := strconv.ParseInt(l.src[start:l.pos], 0, 64)
+		if err != nil {
+			l.Error(fmt.Sprintf("invalid integer literal: %s", l.src[start:l.pos]))
+			return 0
+		}
+		lval.ival = int(v)
 		return NUM
 	}
 
@@ -79,16 +95,62 @@ scan:
 		return ID
 	}
 
-	// Single- and double-character punctuation / operators.
+	// Single- and two-character operators.
 	l.pos++
 	switch c {
+	case '+':
+		if l.pos < len(l.src) && l.src[l.pos] == '+' {
+			l.pos++
+			return INC
+		}
+		if l.pos < len(l.src) && l.src[l.pos] == '=' {
+			l.pos++
+			return PLUSEQ
+		}
+		return int('+')
+	case '-':
+		if l.pos < len(l.src) && l.src[l.pos] == '-' {
+			l.pos++
+			return DEC
+		}
+		if l.pos < len(l.src) && l.src[l.pos] == '=' {
+			l.pos++
+			return MINUSEQ
+		}
+		return int('-')
+	case '*':
+		if l.pos < len(l.src) && l.src[l.pos] == '=' {
+			l.pos++
+			return STAREQ
+		}
+		return int('*')
+	case '/':
+		if l.pos < len(l.src) && l.src[l.pos] == '=' {
+			l.pos++
+			return DIVEQ
+		}
+		return int('/')
+	case '%':
+		if l.pos < len(l.src) && l.src[l.pos] == '=' {
+			l.pos++
+			return MODEQ
+		}
+		return int('%')
 	case '<':
+		if l.pos < len(l.src) && l.src[l.pos] == '<' {
+			l.pos++
+			return LSHIFT
+		}
 		if l.pos < len(l.src) && l.src[l.pos] == '=' {
 			l.pos++
 			return LE
 		}
 		return int('<')
 	case '>':
+		if l.pos < len(l.src) && l.src[l.pos] == '>' {
+			l.pos++
+			return RSHIFT
+		}
 		if l.pos < len(l.src) && l.src[l.pos] == '=' {
 			l.pos++
 			return GE
@@ -105,8 +167,7 @@ scan:
 			l.pos++
 			return NE
 		}
-		l.Error("unexpected '!'")
-		return 0
+		return int('!')
 	default:
 		return int(c)
 	}
@@ -142,4 +203,8 @@ func isLetter(c byte) bool {
 
 func isDigit(c byte) bool {
 	return c >= '0' && c <= '9'
+}
+
+func isHexDigit(c byte) bool {
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
 }

@@ -2,14 +2,21 @@ package main
 
 import "fmt"
 
+// loopLabels holds the break/continue targets for one loop level.
+type loopLabels struct {
+	breakLabel    string
+	continueLabel string
+}
+
 // irGen holds state for IR generation from a type-checked AST.
 type irGen struct {
-	prog    *IRProgram
-	fn      *IRFunc   // current function being generated
-	globals map[string]*IRGlobal
-	locals  map[string]localInfo
-	tempN   int
-	labelN  int
+	prog      *IRProgram
+	fn        *IRFunc   // current function being generated
+	globals   map[string]*IRGlobal
+	locals    map[string]localInfo
+	tempN     int
+	labelN    int
+	loopStack []loopLabels
 }
 
 // localInfo tracks what we know about a local name during IR gen.
@@ -72,6 +79,10 @@ func genIR(prog *Node) *IRProgram {
 				sz = decl.Val
 			}
 			gbl := &IRGlobal{Name: decl.Name, IsArr: isArr, Size: sz}
+			if len(decl.Children) > 0 && decl.Children[0].Kind == KindNum {
+				gbl.HasInitVal = true
+				gbl.InitVal = decl.Children[0].Val
+			}
 			g.prog.Globals = append(g.prog.Globals, *gbl)
 			g.globals[decl.Name] = gbl
 		}
@@ -126,6 +137,11 @@ func (g *irGen) genCompound(n *Node) {
 				IsArray: isArr,
 				ArrSize: sz,
 			})
+			if len(child.Children) > 0 && !isArr {
+				initVal := g.genExpr(child.Children[0])
+				dst := g.addrOf(child.Name)
+				g.emit(Quad{Op: IRCopy, Dst: dst, Src1: initVal})
+			}
 		} else {
 			g.genStmt(child)
 		}
@@ -147,6 +163,20 @@ func (g *irGen) genStmt(n *Node) {
 		g.genIf(n)
 	case KindIteration:
 		g.genWhile(n)
+	case KindFor:
+		g.genFor(n)
+	case KindDoWhile:
+		g.genDoWhile(n)
+	case KindBreak:
+		if len(g.loopStack) == 0 {
+			panic("break outside loop")
+		}
+		g.emitJump(g.loopStack[len(g.loopStack)-1].breakLabel)
+	case KindContinue:
+		if len(g.loopStack) == 0 {
+			panic("continue outside loop")
+		}
+		g.emitJump(g.loopStack[len(g.loopStack)-1].continueLabel)
 	case KindReturn:
 		if len(n.Children) > 0 {
 			v := g.genExpr(n.Children[0])
@@ -178,12 +208,64 @@ func (g *irGen) genWhile(n *Node) {
 	startLabel := g.newLabel()
 	endLabel := g.newLabel()
 
+	g.loopStack = append(g.loopStack, loopLabels{breakLabel: endLabel, continueLabel: startLabel})
 	g.emitLabel(startLabel)
 	cond := g.genExpr(n.Children[0])
 	g.emit(Quad{Op: IRJumpF, Src1: cond, Extra: endLabel})
 	g.genStmt(n.Children[1])
 	g.emitJump(startLabel)
 	g.emitLabel(endLabel)
+	g.loopStack = g.loopStack[:len(g.loopStack)-1]
+}
+
+func (g *irGen) genFor(n *Node) {
+	// Children: [init|nil, cond|nil, post|nil, body]
+	condLabel := g.newLabel()
+	postLabel := g.newLabel()
+	endLabel := g.newLabel()
+
+	// init
+	if n.Children[0] != nil {
+		g.genExpr(n.Children[0])
+	}
+
+	g.loopStack = append(g.loopStack, loopLabels{breakLabel: endLabel, continueLabel: postLabel})
+	g.emitLabel(condLabel)
+
+	// cond (nil = loop forever)
+	if n.Children[1] != nil {
+		cond := g.genExpr(n.Children[1])
+		g.emit(Quad{Op: IRJumpF, Src1: cond, Extra: endLabel})
+	}
+
+	// body
+	g.genStmt(n.Children[3])
+
+	// post
+	g.emitLabel(postLabel)
+	if n.Children[2] != nil {
+		g.genExpr(n.Children[2])
+	}
+
+	g.emitJump(condLabel)
+	g.emitLabel(endLabel)
+	g.loopStack = g.loopStack[:len(g.loopStack)-1]
+}
+
+func (g *irGen) genDoWhile(n *Node) {
+	// Children: [body, cond]
+	startLabel := g.newLabel()
+	contLabel := g.newLabel()
+	endLabel := g.newLabel()
+
+	g.loopStack = append(g.loopStack, loopLabels{breakLabel: endLabel, continueLabel: contLabel})
+	g.emitLabel(startLabel)
+	g.genStmt(n.Children[0]) // body
+	g.emitLabel(contLabel)
+	cond := g.genExpr(n.Children[1])
+	g.emit(Quad{Op: IRJumpT, Src1: cond, Extra: startLabel})
+	g.emitLabel(endLabel)
+	g.loopStack = g.loopStack[:len(g.loopStack)-1]
 }
 
 // genExpr generates IR for an expression and returns the address of its result.
@@ -219,12 +301,54 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 			return rhs
 		}
 
+	case KindCompoundAssign:
+		// Desugar: lhs op= rhs  →  lhs = lhs op rhs
+		lhs := n.Children[0]
+		var rhsAddr IRAddr
+		if n.Children[1] != nil {
+			rhsAddr = g.genExpr(n.Children[1])
+		} else {
+			rhsAddr = IRAddr{Kind: AddrConst, IVal: n.Val}
+		}
+		irOp := binOpToIR(n.Op)
+		tmp := g.newTemp()
+
+		switch lhs.Kind {
+		case KindVar:
+			lhsAddr := g.addrOf(lhs.Name)
+			g.emit(Quad{Op: irOp, Dst: tmp, Src1: lhsAddr, Src2: rhsAddr})
+			g.emit(Quad{Op: IRCopy, Dst: lhsAddr, Src1: tmp})
+			return lhsAddr
+		case KindArrayVar:
+			base := g.addrOf(lhs.Name)
+			idx := g.genExpr(lhs.Children[0])
+			elem := g.newTemp()
+			g.emit(Quad{Op: IRLoad, Dst: elem, Src1: base, Src2: idx})
+			g.emit(Quad{Op: irOp, Dst: tmp, Src1: elem, Src2: rhsAddr})
+			g.emit(Quad{Op: IRStore, Dst: base, Src1: idx, Src2: tmp})
+			return tmp
+		}
+
 	case KindBinOp:
 		left := g.genExpr(n.Children[0])
 		right := g.genExpr(n.Children[1])
 		dst := g.newTemp()
 		op := binOpToIR(n.Op)
 		g.emit(Quad{Op: op, Dst: dst, Src1: left, Src2: right})
+		return dst
+
+	case KindUnary:
+		operand := g.genExpr(n.Children[0])
+		dst := g.newTemp()
+		zero := IRAddr{Kind: AddrConst, IVal: 0}
+		switch n.Op {
+		case "-": // 0 - operand
+			g.emit(Quad{Op: IRSub, Dst: dst, Src1: zero, Src2: operand})
+		case "!": // operand == 0
+			g.emit(Quad{Op: IREq, Dst: dst, Src1: operand, Src2: zero})
+		case "~": // bitwise NOT
+			g.emit(Quad{Op: IRBitNot, Dst: dst, Src1: operand})
+		}
 		return dst
 
 	case KindCall:
@@ -263,6 +387,18 @@ func binOpToIR(op string) IROpCode {
 		return IRMul
 	case "/":
 		return IRDiv
+	case "%":
+		return IRMod
+	case "&":
+		return IRBitAnd
+	case "|":
+		return IRBitOr
+	case "^":
+		return IRBitXor
+	case "<<":
+		return IRShl
+	case ">>":
+		return IRShr
 	case "<":
 		return IRLt
 	case "<=":

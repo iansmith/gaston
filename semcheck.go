@@ -85,6 +85,13 @@ func semCheck(prog *Node) error {
 			if err := st.declareGlobal(decl.Name, decl.Type); err != nil {
 				errs = append(errs, err.Error())
 			}
+			if len(decl.Children) > 0 {
+				if decl.Children[0].Kind != KindNum {
+					errs = append(errs, fmt.Sprintf("global '%s': initializer must be a constant", decl.Name))
+				} else if decl.Type == TypeIntArray {
+					errs = append(errs, fmt.Sprintf("global array '%s' cannot have a scalar initializer", decl.Name))
+				}
+			}
 		case KindFunDecl:
 			checkFunDecl(decl, st, &errs)
 		}
@@ -129,6 +136,9 @@ func checkCompound(n *Node, st *symTable, fn *Node, errs *[]string) {
 			if err := st.declareLocal(child.Name, child.Type, false); err != nil {
 				*errs = append(*errs, err.Error())
 			}
+			if len(child.Children) > 0 {
+				checkExpr(child.Children[0], st, errs)
+			}
 		default:
 			checkStmt(child, st, fn, errs)
 		}
@@ -155,6 +165,22 @@ func checkStmt(n *Node, st *symTable, fn *Node, errs *[]string) {
 	case KindIteration:
 		checkExpr(n.Children[0], st, errs)
 		checkStmt(n.Children[1], st, fn, errs)
+	case KindFor:
+		if n.Children[0] != nil {
+			checkExpr(n.Children[0], st, errs)
+		}
+		if n.Children[1] != nil {
+			checkExpr(n.Children[1], st, errs)
+		}
+		if n.Children[2] != nil {
+			checkExpr(n.Children[2], st, errs)
+		}
+		checkStmt(n.Children[3], st, fn, errs)
+	case KindDoWhile:
+		checkStmt(n.Children[0], st, fn, errs)
+		checkExpr(n.Children[1], st, errs)
+	case KindBreak, KindContinue:
+		// valid anywhere inside a loop; runtime check in irgen
 	case KindReturn:
 		if fn.Type == TypeVoid && len(n.Children) > 0 {
 			*errs = append(*errs, fmt.Sprintf("void function '%s' cannot return a value", fn.Name))
@@ -207,9 +233,22 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		n.Type = t
 		return t
 
+	case KindCompoundAssign:
+		checkExpr(n.Children[0], st, errs)
+		if n.Children[1] != nil {
+			checkExpr(n.Children[1], st, errs)
+		}
+		n.Type = TypeInt
+		return TypeInt
+
 	case KindBinOp:
 		checkExpr(n.Children[0], st, errs)
 		checkExpr(n.Children[1], st, errs)
+		n.Type = TypeInt
+		return TypeInt
+
+	case KindUnary:
+		checkExpr(n.Children[0], st, errs)
 		n.Type = TypeInt
 		return TypeInt
 

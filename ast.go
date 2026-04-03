@@ -28,15 +28,21 @@ const (
 	KindExprStmt  // expr; or ;
 	KindSelection // if (cond) then [else alt]
 	KindIteration // while (cond) body
+	KindFor       // for (init; cond; post) body — Children: [init|nil, cond|nil, post|nil, body]
+	KindDoWhile   // do body while (cond); — Children: [body, cond]
 	KindReturn    // return [expr];
+	KindBreak     // break;
+	KindContinue  // continue;
 
 	// Expressions
-	KindAssign   // var = expr
-	KindBinOp    // expr op expr
+	KindAssign         // var = expr
+	KindCompoundAssign // var op= expr  (also x++/x--: Children[1]=nil, Val=1)
+	KindBinOp          // expr op expr
 	KindVar      // ID  (scalar or array-base reference)
 	KindArrayVar // ID[expr]
 	KindCall     // ID(args...)
 	KindNum      // integer literal
+	KindUnary    // unary operator: Op = "-" or "!"
 )
 
 // Node is a generic AST node.  Not every field is used by every kind;

@@ -193,6 +193,22 @@ func (g *arm64Gen) genFunc(fn *IRFunc) {
 			g.emitArith(f, q, "MUL")
 		case IRDiv:
 			g.emitArith(f, q, "SDIV")
+		case IRMod:
+			g.emitMod(f, q)
+		case IRBitAnd:
+			g.emitArith(f, q, "AND")
+		case IRBitOr:
+			g.emitArith(f, q, "ORR")
+		case IRBitXor:
+			g.emitArith(f, q, "EOR")
+		case IRShl:
+			g.emitArith(f, q, "LSL")
+		case IRShr:
+			g.emitArith(f, q, "ASR")
+		case IRBitNot:
+			g.emit_load(f, q.Src1, "R0")
+			g.insn("MVN R0, R0")
+			g.emit_store(f, "R0", q.Dst)
 
 		case IRLt:
 			g.emitCmpBool(f, fn, q, "BLT")
@@ -273,6 +289,16 @@ func (g *arm64Gen) emitArith(f *frame, q Quad, op string) {
 	g.emit_load(f, q.Src1, "R0") // R0 = Src1
 	g.emit_load(f, q.Src2, "R1") // R1 = Src2
 	g.insnf("%s R1, R0, R0", op) // R0 = R0 op R1
+	g.emit_store(f, "R0", q.Dst)
+}
+
+// emitMod emits: Dst = Src1 % Src2 using SDIV + MUL + SUB.
+func (g *arm64Gen) emitMod(f *frame, q Quad) {
+	g.emit_load(f, q.Src1, "R0")  // R0 = a
+	g.emit_load(f, q.Src2, "R1")  // R1 = b
+	g.insn("SDIV R1, R0, R2")     // R2 = a / b
+	g.insn("MUL  R1, R2, R2")     // R2 = R2 * R1 = quotient * b
+	g.insn("SUB  R2, R0, R0")     // R0 = a - quotient*b = a % b
 	g.emit_store(f, "R0", q.Dst)
 }
 

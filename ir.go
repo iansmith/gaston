@@ -10,6 +10,13 @@ const (
 	IRSub                  // Dst = Src1 - Src2
 	IRMul                  // Dst = Src1 * Src2
 	IRDiv                  // Dst = Src1 / Src2
+	IRMod                  // Dst = Src1 % Src2
+	IRBitAnd               // Dst = Src1 & Src2
+	IRBitOr                // Dst = Src1 | Src2
+	IRBitXor               // Dst = Src1 ^ Src2
+	IRBitNot               // Dst = ~Src1
+	IRShl                  // Dst = Src1 << Src2
+	IRShr                  // Dst = Src1 >> Src2 (arithmetic)
 	IRCopy                 // Dst = Src1
 	IRLoad                 // Dst = Src1[Src2]   (array element load)
 	IRStore                // Dst[Src1] = Src2   (array element store)
@@ -70,9 +77,11 @@ type Quad struct {
 
 // IRGlobal describes one global variable declaration.
 type IRGlobal struct {
-	Name  string
-	IsArr bool
-	Size  int // 1 for scalar, N for array[N]
+	Name       string
+	IsArr      bool
+	Size       int // 1 for scalar, N for array[N]
+	HasInitVal bool
+	InitVal    int // constant initializer value (only when HasInitVal && !IsArr)
 }
 
 // IRLocal describes one local variable in a function (not a parameter).

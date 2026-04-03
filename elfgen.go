@@ -351,6 +351,22 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 			g.emitArith(q, encMUL)
 		case IRDiv:
 			g.emitArith(q, encSDIV)
+		case IRMod:
+			g.emitMod(q)
+		case IRBitAnd:
+			g.emitArith(q, encAND)
+		case IRBitOr:
+			g.emitArith(q, encORR)
+		case IRBitXor:
+			g.emitArith(q, encEOR)
+		case IRShl:
+			g.emitArith(q, encLSLV)
+		case IRShr:
+			g.emitArith(q, encASRV)
+		case IRBitNot:
+			g.load(q.Src1, regX0)
+			g.cb.emit(encMVN(regX0, regX0))
+			g.store(regX0, q.Dst)
 
 		case IRLt:
 			g.emitCmpBool(q, condLT)
@@ -392,6 +408,15 @@ func (g *elfGen) emitArith(q Quad, enc func(rd, rn, rm int) uint32) {
 	g.load(q.Src1, regX0)
 	g.load(q.Src2, regX1)
 	g.cb.emit(enc(regX0, regX0, regX1))
+	g.store(regX0, q.Dst)
+}
+
+// emitMod emits: Dst = Src1 % Src2 using SDIV + MSUB.
+func (g *elfGen) emitMod(q Quad) {
+	g.load(q.Src1, regX0)                                 // X0 = a
+	g.load(q.Src2, regX1)                                 // X1 = b
+	g.cb.emit(encSDIV(regX2, regX0, regX1))              // X2 = a / b
+	g.cb.emit(encMSUB(regX0, regX2, regX1, regX0))       // X0 = a - X2*b
 	g.store(regX0, q.Dst)
 }
 
@@ -447,10 +472,20 @@ func (g *elfGen) emitCall(q Quad) {
 // ── runtime helper functions ──────────────────────────────────────────────────
 
 // emitStart emits the _start entry point:
+//   [global initializer stores]
 //   BL gaston_main
 //   MOV X0, #0 / MOV X8, #94 / SVC #0  (exit_group(0))
-func (g *elfGen) emitStart() {
+func (g *elfGen) emitStart(globals []IRGlobal) {
 	g.cb.defineLabel("_start")
+	// Initialize globals that have a constant initializer.
+	for _, gbl := range globals {
+		if !gbl.HasInitVal || gbl.IsArr {
+			continue
+		}
+		g.cb.emitMOVimm(regX0, int64(gbl.InitVal)) // value → X0
+		g.cb.emitLDRglobal(gbl.Name)               // X9 = &global
+		g.cb.emit(encSTRuoff(regX0, regX9, 0))     // *X9 = value
+	}
 	g.cb.emitBL(funcLabel("main"))
 	g.cb.emitMOVimm(regX0, 0)  // exit code 0
 	g.cb.emitMOVimm(regX8, 94) // exit_group
@@ -539,12 +574,17 @@ func (g *elfGen) emitOutputFn() {
 
 // emitInputFn emits gaston_input() → X0 = int64 read from stdin.
 //
+// Reads one byte at a time so that sequential calls to gaston_input()
+// each consume exactly the bytes they use, leaving the file offset
+// positioned correctly for the next call.
+//
 // Frame layout (64 bytes):
 //   SP+0: FP, SP+8: LR
 //   SP+16: X19 (result accumulator)
-//   SP+24: X20 (sign flag)
-//   SP+32: X21 (char pointer into buffer)
-//   SP+40..SP+63: 24-byte read buffer
+//   SP+24: X20 (sign flag: 0=positive, 1=negative)
+//   SP+32: X21 (address of the single-byte read buffer at SP+40)
+//   SP+40: 1-byte read buffer
+//   SP+41..SP+63: padding
 func (g *elfGen) emitInputFn() {
 	cb := g.cb
 	cb.defineLabel("gaston_input")
@@ -557,54 +597,64 @@ func (g *elfGen) emitInputFn() {
 	cb.emit(encADDimm(regFP, regSP, 0))
 
 	// Initialise state.
-	cb.emitMOVimm(regX19, 0)                         // result = 0
-	cb.emitMOVimm(regX20, 0)                         // sign = positive
-	cb.emit(encADDimm(regX21, regSP, 40))            // X21 = &buf[0]
+	cb.emitMOVimm(regX19, 0)              // result = 0
+	cb.emitMOVimm(regX20, 0)              // sign = positive
+	cb.emit(encADDimm(regX21, regSP, 40)) // X21 = &buf[0]  (1-byte buffer)
 
-	// read(0, buf, 23).
-	cb.emitMOVimm(regX0, 0)                          // fd = stdin
-	cb.emit(encMOVreg(regX1, regX21))               // buf
-	cb.emitMOVimm(regX2, 23)                        // max bytes
-	cb.emitMOVimm(regX8, 63)                        // read syscall
-	cb.emit(encSVC(0))
-
-	// Scan past non-digit, non-sign characters (whitespace etc.).
+	// Skip non-digit, non-sign characters (whitespace, newlines, etc.).
+	// Each iteration reads exactly one byte from stdin.
 	cb.defineLabel("in_scan")
-	cb.emit(encLDRBuoff(regX2, regX21, 0))          // W2 = *X21
-	cb.emit(encCMPimm0(regX2))
-	cb.emitBcond(condEQ, "in_done")                  // null byte → done
+	cb.emitMOVimm(regX0, 0)              // fd = stdin
+	cb.emit(encMOVreg(regX1, regX21))    // buf = &buf[0]
+	cb.emitMOVimm(regX2, 1)             // count = 1
+	cb.emitMOVimm(regX8, 63)            // sys_read
+	cb.emit(encSVC(0))
+	cb.emitCBZ(regX0, "in_done")         // 0 bytes read = EOF
+
+	cb.emit(encLDRBuoff(regX2, regX21, 0)) // X2 = byte read
 	// Check for '-'
 	cb.emitMOVimm(regX3, '-')
 	cb.emit(encCMPreg(regX2, regX3))
 	cb.emitBcond(condEQ, "in_minus")
-	// Check if digit.
+	// Check if >= '0' (potential digit)
 	cb.emitMOVimm(regX3, '0')
 	cb.emit(encCMPreg(regX2, regX3))
-	cb.emitBcond(condGE, "in_digit_loop") // W2 >= '0': start parsing
-	// Not a digit or '-': advance.
-	cb.emit(encADDimm(regX21, regX21, 1))
+	cb.emitBcond(condGE, "in_digit") // W2 >= '0': try digit
+	// Not digit, not '-': skip and read next byte.
 	cb.emitB("in_scan")
 
-	// Found '-': set sign flag, advance.
+	// Found '-': set sign flag, continue scanning for first digit.
 	cb.defineLabel("in_minus")
 	cb.emitMOVimm(regX20, 1)
-	cb.emit(encADDimm(regX21, regX21, 1))
+	cb.emitB("in_scan")
 
-	// Digit-parse loop (re-reads W2 at top, including first digit).
-	cb.defineLabel("in_digit_loop")
-	cb.emit(encLDRBuoff(regX2, regX21, 0))          // W2 = *X21
-	cb.emitMOVimm(regX3, '0')
-	cb.emit(encCMPreg(regX2, regX3))
-	cb.emitBcond(condLT, "in_done")                  // < '0' → stop
+	// in_digit: X2 holds current char, already checked >= '0'.
+	// Validate <= '9' then accumulate; then read the next byte and loop.
+	cb.defineLabel("in_digit")
 	cb.emitMOVimm(regX3, '9')
 	cb.emit(encCMPreg(regX2, regX3))
-	cb.emitBcond(condGT, "in_done")                  // > '9' → stop
-	cb.emit(encSUBimm(regX2, regX2, '0'))           // digit value
+	cb.emitBcond(condGT, "in_done")      // > '9': stop (not a real digit)
+	cb.emit(encSUBimm(regX2, regX2, '0')) // digit value
 	cb.emitMOVimm(regX3, 10)
-	cb.emit(encMUL(regX19, regX19, regX3))          // result *= 10
-	cb.emit(encADDreg(regX19, regX19, regX2))       // result += digit
-	cb.emit(encADDimm(regX21, regX21, 1))
-	cb.emitB("in_digit_loop")
+	cb.emit(encMUL(regX19, regX19, regX3))  // result *= 10
+	cb.emit(encADDreg(regX19, regX19, regX2)) // result += digit
+
+	// Read the next byte for the next iteration.
+	cb.emitMOVimm(regX0, 0)
+	cb.emit(encMOVreg(regX1, regX21))
+	cb.emitMOVimm(regX2, 1)
+	cb.emitMOVimm(regX8, 63)
+	cb.emit(encSVC(0))
+	cb.emitCBZ(regX0, "in_done") // EOF: stop
+
+	cb.emit(encLDRBuoff(regX2, regX21, 0)) // X2 = next byte
+	cb.emitMOVimm(regX3, '0')
+	cb.emit(encCMPreg(regX2, regX3))
+	cb.emitBcond(condLT, "in_done") // < '0': stop
+	cb.emitMOVimm(regX3, '9')
+	cb.emit(encCMPreg(regX2, regX3))
+	cb.emitBcond(condGT, "in_done") // > '9': stop
+	cb.emitB("in_digit")             // continue accumulating
 
 	cb.defineLabel("in_done")
 	cb.emitCBZ(regX20, "in_return")
@@ -646,7 +696,7 @@ func genELF(irp *IRProgram, outpath string) error {
 	cb := newCodeBuilder(irp.Globals)
 	gen := &elfGen{cb: cb, pendingParams: make([]IRAddr, 0, 8)}
 
-	gen.emitStart()
+	gen.emitStart(irp.Globals)
 	gen.emitOutputFn()
 	gen.emitInputFn()
 	for _, fn := range irp.Funcs {
