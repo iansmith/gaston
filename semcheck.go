@@ -250,6 +250,8 @@ func checkCompound(n *Node, st *symTable, fn *Node, errs *[]string) {
 					*errs = append(*errs, err.Error())
 				}
 				if len(child.Children) > 0 {
+					// For VLA: Children[0] is the size variable expression.
+					// For non-VLA: Children[0] is the initializer expression.
 					checkExpr(child.Children[0], st, errs)
 				}
 			}
@@ -295,6 +297,10 @@ func checkStmt(n *Node, st *symTable, fn *Node, errs *[]string) {
 		checkExpr(n.Children[1], st, errs)
 	case KindBreak, KindContinue:
 		// valid anywhere inside a loop; runtime check in irgen
+	case KindGoto:
+		// target label is function-scoped; validated at assembly time
+	case KindLabel:
+		checkStmt(n.Children[0], st, fn, errs)
 	case KindReturn:
 		if fn.Type == TypeVoid && len(n.Children) > 0 {
 			*errs = append(*errs, fmt.Sprintf("void function '%s' cannot return a value", fn.Name))

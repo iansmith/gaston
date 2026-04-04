@@ -59,6 +59,8 @@ const (
 	KindReturn    // return [expr];
 	KindBreak     // break;
 	KindContinue  // continue;
+	KindGoto      // goto label;   Name = label name
+	KindLabel     // label: stmt   Name = label name; Children[0] = statement
 
 	// Expressions
 	KindAssign         // var = expr
@@ -126,6 +128,7 @@ type Node struct {
 	Line      int
 	IsConst   bool // true for KindVarDecl declared with const
 	IsExtern  bool // true for extern declarations (var or fun)
+	IsVLA     bool // true for variable-length array: type ID '[' ID ']'
 }
 
 // StructField is one field in a struct definition.

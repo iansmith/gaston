@@ -175,30 +175,45 @@ func (g *irGen) genCompound(n *Node) {
 			isPtr := child.Type == TypeIntPtr || child.Type == TypeCharPtr
 			isStruct := child.Type == TypeStruct
 			sz := 1
-			if isArr {
+			if isArr && !child.IsVLA {
 				sz = child.Val
 			} else if isStruct {
 				if sd, ok := g.prog.StructDefs[child.StructTag]; ok {
 					sz = len(sd.Fields)
 				}
 			}
-			g.locals[child.Name] = localInfo{isArray: isArr || isStruct, arrSize: sz}
-			g.fn.Locals = append(g.fn.Locals, IRLocal{
-				Name:      child.Name,
-				IsArray:   isArr,
-				IsPtr:     isPtr,
-				IsStruct:  isStruct,
-				StructTag: child.StructTag,
-				ArrSize:   sz,
-			})
-			if len(child.Children) > 0 && !isArr && !isStruct {
-				initVal := g.genExpr(child.Children[0])
+			if child.IsVLA {
+				// VLA: allocate a pointer-sized slot; emit IRVLAAlloc at runtime.
+				g.fn.HasVLA = true
+				g.locals[child.Name] = localInfo{isArray: true, arrSize: 0}
+				g.fn.Locals = append(g.fn.Locals, IRLocal{
+					Name:    child.Name,
+					IsArray: true,
+					IsVLA:   true,
+					ArrSize: 0,
+				})
+				sizeVal := g.genExpr(child.Children[0])
 				dst := g.addrOf(child.Name)
-				if isFPType(child.Type) {
-					initVal = g.coerceToFP(initVal, child.Children[0].Type)
-					g.emit(Quad{Op: IRFCopy, Dst: dst, Src1: initVal})
-				} else {
-					g.emit(Quad{Op: IRCopy, Dst: dst, Src1: initVal})
+				g.emit(Quad{Op: IRVLAAlloc, Dst: dst, Src1: sizeVal})
+			} else {
+				g.locals[child.Name] = localInfo{isArray: isArr || isStruct, arrSize: sz}
+				g.fn.Locals = append(g.fn.Locals, IRLocal{
+					Name:      child.Name,
+					IsArray:   isArr,
+					IsPtr:     isPtr,
+					IsStruct:  isStruct,
+					StructTag: child.StructTag,
+					ArrSize:   sz,
+				})
+				if len(child.Children) > 0 && !isArr && !isStruct {
+					initVal := g.genExpr(child.Children[0])
+					dst := g.addrOf(child.Name)
+					if isFPType(child.Type) {
+						initVal = g.coerceToFP(initVal, child.Children[0].Type)
+						g.emit(Quad{Op: IRFCopy, Dst: dst, Src1: initVal})
+					} else {
+						g.emit(Quad{Op: IRCopy, Dst: dst, Src1: initVal})
+					}
 				}
 			}
 		} else {
@@ -236,6 +251,11 @@ func (g *irGen) genStmt(n *Node) {
 			panic("continue outside loop")
 		}
 		g.emitJump(g.loopStack[len(g.loopStack)-1].continueLabel)
+	case KindGoto:
+		g.emitJump("user_" + n.Name)
+	case KindLabel:
+		g.emitLabel("user_" + n.Name)
+		g.genStmt(n.Children[0])
 	case KindReturn:
 		if len(n.Children) > 0 {
 			v := g.genExpr(n.Children[0])

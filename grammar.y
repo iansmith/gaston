@@ -23,7 +23,7 @@ package main
 %token <sval> ID STRING_LIT
 
 // Keywords
-%token INT VOID IF ELSE WHILE RETURN FOR DO BREAK CONTINUE CONST CHAR EXTERN
+%token INT VOID IF ELSE WHILE RETURN FOR DO BREAK CONTINUE CONST CHAR EXTERN GOTO
 %token LONG UNSIGNED SHORT FLOAT DOUBLE STRUCT
 
 // Multi-character operators
@@ -37,7 +37,7 @@ package main
 %type <nodes> struct_declaration field_list
 %type <node>  field param compound_stmt postfix_expr
 %type <nodes> local_declarations statement_list
-%type <node>  statement expression_stmt selection_stmt iteration_stmt for_stmt do_while_stmt return_stmt break_stmt continue_stmt
+%type <node>  statement expression_stmt selection_stmt iteration_stmt for_stmt do_while_stmt return_stmt break_stmt continue_stmt goto_stmt
 %type <node>  opt_expression
 %type <node>  expression var simple_expression bitwise_expression additive_expression term factor call
 %type <nodes> args arg_list
@@ -98,6 +98,12 @@ var_declaration
 		{ $$ = []*Node{{Kind: KindVarDecl, Type: $1, Name: $2}} }
 	| type_specifier ID '[' NUM ']' ';'
 		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: $4}} }
+	| type_specifier ID '[' ID ']' ';'
+		{
+			n := &Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, IsVLA: true}
+			n.Children = []*Node{{Kind: KindVar, Name: $4}}
+			$$ = []*Node{n}
+		}
 	| type_specifier ID '=' expression ';'
 		{ n := &Node{Kind: KindVarDecl, Type: $1, Name: $2}; n.Children = []*Node{$4}; $$ = []*Node{n} }
 	| type_specifier id_list ';'
@@ -217,6 +223,9 @@ statement
 	| return_stmt     { $$ = $1 }
 	| break_stmt      { $$ = $1 }
 	| continue_stmt   { $$ = $1 }
+	| goto_stmt       { $$ = $1 }
+	| ID ':' statement
+		{ $$ = &Node{Kind: KindLabel, Name: $1, Children: []*Node{$3}} }
 	;
 
 expression_stmt
@@ -244,6 +253,11 @@ for_stmt
 do_while_stmt
 	: DO statement WHILE '(' expression ')' ';'
 		{ $$ = &Node{Kind: KindDoWhile, Children: []*Node{$2, $5}} }
+	;
+
+goto_stmt
+	: GOTO ID ';'
+		{ $$ = &Node{Kind: KindGoto, Name: $2} }
 	;
 
 break_stmt

@@ -98,6 +98,16 @@ var featureTests = []dockerTest{
 	// float_print: print_double runtime (integer-valued and fractional doubles)
 	{name: "float_print", want: "3.000000\n0.500000\n-1.250000\n100.000000\n"},
 
+	// ── Feature: goto / labeled statements ──────────────────────────────
+	// goto_basic: loop with goto, outputs 0–4 then 99
+	{name: "goto_basic", want: "0\n1\n2\n3\n4\n99\n"},
+
+	// ── Feature: variable-length arrays (VLAs) ───────────────────────────
+	// vla_basic: int[n] with runtime n=5 → sum(0+2+4+6+8)=20; n=4 → sum(0+2+4+6)=12
+	{name: "vla_basic", want: "20\n12\n"},
+	// vla_param: VLA inside function; dot-product: 3→14 (1+4+9), 4→30 (1+4+9+16)
+	{name: "vla_param", want: "14\n30\n"},
+
 	// ── Integration ──────────────────────────────────────────────────────
 	{name: "combo_all", want: "63\nABC\nok\n"},
 
@@ -283,6 +293,8 @@ var libcTests = []libcTest{
 	{name: "hello_world", want: "Hello, world!\n"},
 	{name: "printf_fmt",  want: "count=42\nstr=hello!\nchar=A\n3+4=7\n"},
 	{name: "puts_test",   want: "one\ntwo\nthree\n"},
+	// ── Feature 14: libc sscanf ───────────────────────────────────────────
+	{name: "sscanf_basic", want: "n=42 r=1\ns=hello r=1\na=-7 b=99 r=2\nc=X r=1\n"},
 }
 
 // buildLibgastonc compiles libc/stdio.cm to stdio.o, then archives it into

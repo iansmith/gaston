@@ -72,6 +72,13 @@ const (
 	// IRFieldStore: *(Dst + Src2.IVal) = Src1  — store value Src1 at field byte offset Src2.IVal
 	IRFieldLoad  // Dst = field load: base ptr in Src1, byte offset in Src2.IVal
 	IRFieldStore // field store: base ptr in Dst, value in Src1, byte offset in Src2.IVal
+
+	// Variable-length array allocation.
+	// IRVLAAlloc: Dst = alloca(Src1 * 8) — allocate Src1 elements on the stack,
+	// store the base pointer in the frame slot Dst.  The function must use
+	// FP-relative addressing for all static frame slots once any VLA has been
+	// allocated (SP may differ from FP after this point).
+	IRVLAAlloc
 )
 
 // AddrKind identifies what an IR address refers to.
@@ -135,8 +142,9 @@ type IRLocal struct {
 	IsArray   bool
 	IsPtr     bool   // true for TypeIntPtr or TypeCharPtr locals
 	IsStruct  bool   // true for TypeStruct locals
+	IsVLA     bool   // true for variable-length array (runtime size; pointer slot in frame)
 	StructTag string // struct type name (when IsStruct)
-	ArrSize   int    // 1 for scalar, N for int x[N]; for struct: number of fields
+	ArrSize   int    // 1 for scalar, N for int x[N]; for struct: number of fields; 0 for VLA
 }
 
 // IRFunc is the IR for one function.
@@ -146,6 +154,7 @@ type IRFunc struct {
 	Params     []string   // parameter names in declaration order (no "..." marker)
 	ParamType  []TypeKind // corresponding types
 	IsVariadic bool       // true if this function accepts variadic arguments
+	HasVLA     bool       // true if any local is a VLA (requires FP-relative frame addressing)
 	Locals     []IRLocal  // local variables declared inside the function body
 	Quads      []Quad
 }

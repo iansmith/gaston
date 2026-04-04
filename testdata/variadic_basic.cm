@@ -1,0 +1,22 @@
+/* variadic_basic.cm — variadic function summing N integer args */
+
+long sum_n(long n, ...) {
+    long* ap;
+    long total;
+    long i;
+    ap = __va_start();
+    total = 0;
+    i = 0;
+    while (i < n) {
+        total = total + *ap;
+        ap = ap + 8;
+        i = i + 1;
+    }
+    return total;
+}
+
+void main(void) {
+    output(sum_n(3, 10, 20, 30));
+    output(sum_n(1, 100));
+    output(sum_n(4, 1, 2, 3, 4));
+}

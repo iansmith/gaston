@@ -309,6 +309,15 @@ func (g *elfGen) irLabel(extra string) string {
 
 // ── load / store helpers ──────────────────────────────────────────────────────
 
+// frameBase returns the frame-base register: regFP when the function has VLAs
+// (SP may move), regSP otherwise.
+func (g *elfGen) frameBase() int {
+	if g.fr.hasVLA {
+		return regFP
+	}
+	return regSP
+}
+
 // load emits instructions to load addr into register rd (0..7).
 func (g *elfGen) load(addr IRAddr, rd int) {
 	switch addr.Kind {
@@ -316,7 +325,11 @@ func (g *elfGen) load(addr IRAddr, rd int) {
 		g.cb.emitMOVimm(rd, int64(addr.IVal))
 	case AddrTemp, AddrLocal:
 		off := g.fr.offsets[addr.Name]
-		g.cb.emitLDRsp(rd, off)
+		if g.fr.hasVLA {
+			g.cb.emit(encLDRuoff(rd, regFP, off))
+		} else {
+			g.cb.emitLDRsp(rd, off)
+		}
 	case AddrGlobal:
 		g.cb.emitLDRglobal(addr.Name)                    // X9 = &global
 		g.cb.emit(encLDRuoff(rd, regX9, 0))              // rd = *X9
@@ -328,7 +341,7 @@ func (g *elfGen) store(rd int, dst IRAddr) {
 	switch dst.Kind {
 	case AddrTemp, AddrLocal:
 		off := g.fr.offsets[dst.Name]
-		g.cb.emit(encSTRuoff(rd, regSP, off))
+		g.cb.emit(encSTRuoff(rd, g.frameBase(), off))
 	case AddrGlobal:
 		g.cb.emitLDRglobal(dst.Name)                     // X9 = &global
 		g.cb.emit(encSTRuoff(rd, regX9, 0))              // *X9 = rd
@@ -344,7 +357,7 @@ func (g *elfGen) fpLoad(addr IRAddr, fd int) {
 		g.cb.emitLDRFPconst(addr.Name, fd)
 	case AddrTemp, AddrLocal:
 		off := g.fr.offsets[addr.Name]
-		g.cb.emit(encLDRDuoff(fd, regSP, off))
+		g.cb.emit(encLDRDuoff(fd, g.frameBase(), off))
 	case AddrGlobal:
 		g.cb.emitLDRglobal(addr.Name)         // X9 = &global
 		g.cb.emit(encLDRDuoff(fd, regX9, 0))  // Dfd = *X9
@@ -356,7 +369,7 @@ func (g *elfGen) fpStore(fd int, dst IRAddr) {
 	switch dst.Kind {
 	case AddrTemp, AddrLocal:
 		off := g.fr.offsets[dst.Name]
-		g.cb.emit(encSTRDuoff(fd, regSP, off))
+		g.cb.emit(encSTRDuoff(fd, g.frameBase(), off))
 	case AddrGlobal:
 		g.cb.emitLDRglobal(dst.Name)           // X9 = &global
 		g.cb.emit(encSTRDuoff(fd, regX9, 0))   // *X9 = Dfd
@@ -387,12 +400,17 @@ func (g *elfGen) arrayBase(addr IRAddr, rd int) {
 		}
 	case AddrLocal, AddrTemp:
 		off := g.fr.offsets[addr.Name]
+		base := g.frameBase()
 		if g.fr.isArrPtr[addr.Name] || g.fr.isPtrVar[addr.Name] {
-			// Array param or pointer variable: frame slot holds a pointer.
-			g.cb.emitLDRsp(rd, off)
+			// Array param, pointer variable, or VLA: frame slot holds a pointer.
+			if g.fr.hasVLA {
+				g.cb.emit(encLDRuoff(rd, regFP, off))
+			} else {
+				g.cb.emitLDRsp(rd, off)
+			}
 		} else {
 			// Local array: its elements are inline in the frame.
-			g.cb.emit(encADDimm(rd, regSP, off))
+			g.cb.emit(encADDimm(rd, base, off))
 		}
 	}
 }
@@ -431,6 +449,11 @@ func (g *elfGen) emitPrologue(fn *IRFunc) {
 }
 
 func (g *elfGen) emitEpilogue() {
+	if g.fr.hasVLA {
+		// SP may have moved below FP due to VLA allocation.
+		// Restore SP = FP so the saved FP/LR are at [SP, #0].
+		g.cb.emit(encADDimm(regSP, regFP, 0))
+	}
 	g.cb.emit(encLDP(regFP, regLR, regSP, 0))
 	g.cb.emit(encADDimm(regSP, regSP, g.fr.frameSize))
 	g.cb.emit(encRET())
@@ -623,6 +646,19 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 
 		case IRCall:
 			g.emitCall(q)
+
+		case IRVLAAlloc:
+			// Allocate Src1*8 bytes on the stack (16-byte aligned).
+			// Store the resulting stack pointer (VLA base) in the Dst frame slot.
+			// The function uses FP-relative addressing so static slots stay valid.
+			g.load(q.Src1, regX0)
+			g.cb.emit(encLSLimm(regX0, regX0, 3))         // X0 = n * 8
+			g.cb.emit(encADDimm(regX0, regX0, 15))         // X0 += 15 (round-up bias)
+			g.cb.emitMOVimm(regX1, -16)                    // X1 = 0xFFFF…FFF0
+			g.cb.emit(encAND(regX0, regX0, regX1))         // X0 &= ~15 (align to 16)
+			g.cb.emit(encSUBreg(regSP, regSP, regX0))      // SP -= aligned_size
+			g.cb.emit(encADDimm(regX0, regSP, 0))          // X0 = SP (VLA base)
+			g.store(regX0, q.Dst)                          // save base in FP-relative slot
 
 		case IRReturn:
 			if q.Src1.Kind != AddrNone {

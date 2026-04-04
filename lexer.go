@@ -42,6 +42,7 @@ var keywords = map[string]int{
 	"float":    FLOAT,
 	"double":   DOUBLE,
 	"struct":   STRUCT,
+	"goto":     GOTO,
 }
 
 // Lex scans and returns the next token, filling lval with the token's value.

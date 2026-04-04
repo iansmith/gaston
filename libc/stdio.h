@@ -13,6 +13,9 @@ extern int puts(char* s);
    Returns 0. */
 extern int printf(char* fmt, ...);
 
-/* sscanf — not yet implemented */
+/* sscanf: scan formatted input from string str according to fmt.
+   Supported conversions: %d (long decimal into long*), %s (word into char*),
+   %c (single char into long*).  Returns number of items successfully read. */
+extern int sscanf(char* str, char* fmt, ...);
 
 #endif /* GASTON_STDIO_H */

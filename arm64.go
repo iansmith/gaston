@@ -32,10 +32,11 @@ import (
 
 // frame holds the computed stack layout for one function.
 type frame struct {
-	offsets   map[string]int  // name → byte offset from RSP
+	offsets   map[string]int  // name → byte offset from RSP (or RFP when hasVLA)
 	isArrPtr  map[string]bool // true if the name is an array-param (pointer slot)
 	isArrBase map[string]bool // true if the name is a local array (inline storage)
 	isPtrVar  map[string]bool // true if the name is a pointer variable (int* or char*)
+	hasVLA    bool            // true if function contains any VLA — use FP-relative addressing
 	frameSize int
 }
 
@@ -124,6 +125,7 @@ func buildFrame(fn *IRFunc, structDefs map[string]*StructDef) *frame {
 		isArrPtr:  make(map[string]bool),
 		isArrBase: make(map[string]bool),
 		isPtrVar:  make(map[string]bool),
+		hasVLA:    fn.HasVLA,
 	}
 	offset := 16 // RSP+0 = LR, RSP+8 = FP, locals start at 16.
 
@@ -152,7 +154,12 @@ func buildFrame(fn *IRFunc, structDefs map[string]*StructDef) *frame {
 	// Local variables (declared in function body).
 	for _, loc := range fn.Locals {
 		f.offsets[loc.Name] = offset
-		if loc.IsArray {
+		if loc.IsVLA {
+			// VLA: the frame slot holds the runtime base pointer (8 bytes).
+			// The actual array lives below FP on the stack after IRVLAAlloc.
+			f.isArrPtr[loc.Name] = true
+			offset += 8
+		} else if loc.IsArray {
 			f.isArrBase[loc.Name] = true
 			offset += loc.ArrSize * 8
 		} else if loc.IsStruct {
@@ -397,6 +404,17 @@ func (g *arm64Gen) genFunc(fn *IRFunc, structDefs map[string]*StructDef) {
 			g.insn("ADD R1, R0, R0")
 			g.emit_load(f, q.Src1, "R2")
 			g.insn("MOVD R2, (R0)")
+
+		case IRVLAAlloc:
+			// Allocate Src1*8 bytes on the stack (16-byte aligned), store base in Dst.
+			// Plan 9 assembly: R0 = size, compute aligned bytes, SUB from RSP.
+			g.emit_load(f, q.Src1, "R0")
+			g.insn("LSL $3, R0, R0")          // R0 = n * 8
+			g.insn("ADD $15, R0, R0")          // R0 += 15 (round-up bias)
+			g.insn("AND $-16, R0, R0")         // R0 &= ~15 (align to 16)
+			g.insn("SUB R0, RSP, RSP")         // SP -= aligned_size
+			g.insn("MOVD RSP, R0")             // R0 = new SP (VLA base)
+			g.emit_store(f, "R0", q.Dst)       // store VLA base pointer in frame slot
 
 		case IRReturn:
 			if q.Src1.Kind != AddrNone {
