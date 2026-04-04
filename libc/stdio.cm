@@ -1,0 +1,69 @@
+/* stdio.cm — gaston C standard I/O library
+   Compile:  gaston -c -o stdio.o stdio.cm
+   Link with user program:  gaston -link -o prog main.o stdio.o
+*/
+
+/* putchar: write one character to stdout */
+int putchar(int c) {
+    print_char(c);
+    return c;
+}
+
+/* puts: write string followed by newline */
+int puts(char* s) {
+    print_string(s);
+    print_char('\n');
+    return 0;
+}
+
+/* __stdio_print_pos: print non-negative long without newline (recursive) */
+void __stdio_print_pos(long n) {
+    if (n >= 10) {
+        __stdio_print_pos(n / 10);
+    }
+    print_char(n % 10 + 48);
+}
+
+/* __stdio_print_long: print long decimal without newline */
+void __stdio_print_long(long n) {
+    if (n < 0) {
+        print_char('-');
+        __stdio_print_pos(0 - n);
+    } else {
+        __stdio_print_pos(n);
+    }
+}
+
+/* printf: minimal format-string printer.
+   Handles: %d (long), %s (string), %c (char), %% (literal percent).
+   All other format specifiers are passed through unchanged. */
+int printf(char* fmt, ...) {
+    long* ap;
+    int i;
+    ap = __va_start();
+    i = 0;
+    while (fmt[i] != 0) {
+        if (fmt[i] == '%') {
+            i = i + 1;
+            if (fmt[i] == 'd') {
+                __stdio_print_long(*ap);
+                ap = ap + 8;
+            } else if (fmt[i] == 's') {
+                print_string(*ap);
+                ap = ap + 8;
+            } else if (fmt[i] == 'c') {
+                print_char(*ap);
+                ap = ap + 8;
+            } else if (fmt[i] == '%') {
+                print_char('%');
+            } else {
+                print_char('%');
+                print_char(fmt[i]);
+            }
+        } else {
+            print_char(fmt[i]);
+        }
+        i = i + 1;
+    }
+    return 0;
+}

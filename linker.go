@@ -14,10 +14,12 @@
 package main
 
 import (
+	"bytes"
 	"debug/elf"
 	"encoding/binary"
 	"fmt"
 	"os"
+	"strings"
 )
 
 // linkerLoadBase is the virtual base address for the output ET_EXEC.
@@ -58,19 +60,35 @@ type lnkRela struct {
 	addend int64
 }
 
-// loadObjFile reads and parses an ET_REL file.
+// loadObjFile reads and parses an ET_REL file from disk.
 func loadObjFile(path string) (*objFile, error) {
 	f, err := elf.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("linker: open %s: %w", path, err)
 	}
 	defer f.Close()
+	return parseObjELF(path, f)
+}
 
+// loadObjFromBytes parses an ET_REL object from an in-memory byte slice
+// (used when extracting members from an ar archive).
+func loadObjFromBytes(name string, data []byte) (*objFile, error) {
+	f, err := elf.NewFile(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("linker: parse %s: %w", name, err)
+	}
+	defer f.Close()
+	return parseObjELF(name, f)
+}
+
+// parseObjELF extracts sections, symbols, and relocations from an open ELF file.
+func parseObjELF(path string, f *elf.File) (*objFile, error) {
 	if f.Type != elf.ET_REL {
 		return nil, fmt.Errorf("linker: %s is not an ET_REL object file", path)
 	}
 
 	obj := &objFile{path: path}
+	var err error
 
 	// Read section data.
 	readSec := func(name string) ([]byte, error) {
@@ -182,16 +200,82 @@ func loadObjFile(path string) (*objFile, error) {
 	return obj, nil
 }
 
-// link reads the object files at objpaths, links them, and writes ET_EXEC to outpath.
-func link(outpath string, objpaths []string) error {
-	// ── load all .o files ─────────────────────────────────────────────────
-	objs := make([]*objFile, len(objpaths))
-	for i, p := range objpaths {
-		obj, err := loadObjFile(p)
-		if err != nil {
-			return err
+// link reads the object and archive files at inputpaths, links them, and
+// writes ET_EXEC to outpath.  Files ending in ".a" are treated as ar archives
+// and their members are lazy-linked (only included when they resolve an
+// otherwise-undefined symbol).
+func link(outpath string, inputpaths []string) error {
+	// ── phase 1: load .o files; collect .a archives ────────────────────────
+	var objs []*objFile
+	type archiveState struct {
+		members []arMember
+		symMap  map[string]int // symbol name → member index
+		used    []bool         // which members have been pulled in
+	}
+	var archives []archiveState
+
+	for _, p := range inputpaths {
+		if strings.HasSuffix(p, ".a") {
+			members, symMap, err := archiveRead(p)
+			if err != nil {
+				return err
+			}
+			archives = append(archives, archiveState{
+				members: members,
+				symMap:  symMap,
+				used:    make([]bool, len(members)),
+			})
+		} else {
+			obj, err := loadObjFile(p)
+			if err != nil {
+				return err
+			}
+			objs = append(objs, obj)
 		}
-		objs[i] = obj
+	}
+
+	// ── phase 2: lazy-link archive members ────────────────────────────────
+	// Repeatedly scan undefined symbols in already-loaded objects; pull in any
+	// archive member that defines one.  Repeat until stable.
+	for {
+		defined := make(map[string]bool)
+		for _, obj := range objs {
+			for _, sym := range obj.syms {
+				if sym.binding == elf.STB_GLOBAL && sym.secName != "" && sym.name != "" {
+					defined[sym.name] = true
+				}
+			}
+		}
+
+		added := false
+		for _, obj := range objs {
+			for _, sym := range obj.syms {
+				if sym.binding != elf.STB_GLOBAL || sym.secName != "" || sym.name == "" {
+					continue
+				}
+				if defined[sym.name] {
+					continue
+				}
+				// Undefined symbol — search archives.
+				for ai := range archives {
+					mi, ok := archives[ai].symMap[sym.name]
+					if !ok || archives[ai].used[mi] {
+						continue
+					}
+					archives[ai].used[mi] = true
+					m := archives[ai].members[mi]
+					pulled, err := loadObjFromBytes(m.name, m.data)
+					if err != nil {
+						return fmt.Errorf("link: archive member %s: %w", m.name, err)
+					}
+					objs = append(objs, pulled)
+					added = true
+				}
+			}
+		}
+		if !added {
+			break
+		}
 	}
 
 	// ── emit runtime helper code ───────────────────────────────────────────

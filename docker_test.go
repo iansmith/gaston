@@ -100,6 +100,22 @@ var featureTests = []dockerTest{
 
 	// ── Integration ──────────────────────────────────────────────────────
 	{name: "combo_all", want: "63\nABC\nok\n"},
+
+	// ── Feature 11: structs ──────────────────────────────────────────────
+	// struct_basic: local struct, assign and read fields
+	{name: "struct_basic", want: "10\n20\n30\n"},
+	// struct_ptr: pointer to struct, -> access, pass to function
+	{name: "struct_ptr", want: "3\n7\n10\n"},
+	// struct_global: global struct variable, function modifies via . access
+	{name: "struct_global", want: "3\n60\n"},
+	// struct_nested: 4-field struct, larger offsets, pass by pointer to function
+	{name: "struct_nested", want: "1\n2\n10\n20\n200\n"},
+
+	// ── Feature 12: variadic functions ───────────────────────────────────
+	// variadic_basic: variadic sum of N integer args
+	{name: "variadic_basic", want: "60\n100\n10\n"},
+	// variadic_ptr: variadic function reading string pointer args
+	{name: "variadic_ptr", want: "hello\nworld\ndone\n"},
 }
 
 // sepTest describes a separate-compilation test: compile multiple .cm files
@@ -126,11 +142,16 @@ var sepTests = []sepTest{
 // compileObj compiles testdata/<name>.cm to an ET_REL object at outPath.
 func compileObj(name, outPath string) error {
 	srcPath := fmt.Sprintf("testdata/%s.cm", name)
-	src, err := os.ReadFile(srcPath)
+	raw, err := os.ReadFile(srcPath)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", srcPath, err)
 	}
-	lex := newLexer(string(src), srcPath)
+	pp := newPreprocessor(nil)
+	src, err := pp.Preprocess(string(raw), srcPath)
+	if err != nil {
+		return fmt.Errorf("preprocess %s: %w", srcPath, err)
+	}
+	lex := newLexer(src, srcPath)
 	yyParse(lex)
 	if lex.errors > 0 {
 		return fmt.Errorf("%s: %d parse error(s)", name, lex.errors)
@@ -200,11 +221,16 @@ func TestSepCompile(t *testing.T) {
 // gaston's internal pipeline (no subprocess).
 func compileTest(name, outPath string) error {
 	srcPath := fmt.Sprintf("testdata/%s.cm", name)
-	src, err := os.ReadFile(srcPath)
+	raw, err := os.ReadFile(srcPath)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", srcPath, err)
 	}
-	lex := newLexer(string(src), srcPath)
+	pp := newPreprocessor(nil)
+	src, err := pp.Preprocess(string(raw), srcPath)
+	if err != nil {
+		return fmt.Errorf("preprocess %s: %w", srcPath, err)
+	}
+	lex := newLexer(src, srcPath)
 	yyParse(lex)
 	if lex.errors > 0 {
 		return fmt.Errorf("%s: %d parse error(s)", name, lex.errors)
@@ -217,6 +243,116 @@ func compileTest(name, outPath string) error {
 	}
 	irp := genIR(lex.result)
 	return genELF(irp, outPath)
+}
+
+// compileObjPath compiles a .cm file at srcPath to an ET_REL object at outPath,
+// using the given include search paths.
+func compileObjPath(srcPath, outPath string, includePaths []string) error {
+	raw, err := os.ReadFile(srcPath)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", srcPath, err)
+	}
+	pp := newPreprocessor(includePaths)
+	src, err := pp.Preprocess(string(raw), srcPath)
+	if err != nil {
+		return fmt.Errorf("preprocess %s: %w", srcPath, err)
+	}
+	lex := newLexer(src, srcPath)
+	yyParse(lex)
+	if lex.errors > 0 {
+		return fmt.Errorf("%s: %d parse error(s)", srcPath, lex.errors)
+	}
+	if lex.result == nil {
+		return fmt.Errorf("%s: empty program", srcPath)
+	}
+	if err := semCheck(lex.result, false); err != nil {
+		return fmt.Errorf("%s: %w", srcPath, err)
+	}
+	irp := genIR(lex.result)
+	return genObjectFile(irp, outPath)
+}
+
+// libcTest describes a test that links against the gaston libc (libc/stdio.cm).
+type libcTest struct {
+	name string // testdata/<name>.cm is the main program
+	want string // expected stdout
+}
+
+var libcTests = []libcTest{
+	// ── Feature 13: libc printf / puts / putchar ──────────────────────────
+	{name: "hello_world", want: "Hello, world!\n"},
+	{name: "printf_fmt",  want: "count=42\nstr=hello!\nchar=A\n3+4=7\n"},
+	{name: "puts_test",   want: "one\ntwo\nthree\n"},
+}
+
+// buildLibgastonc compiles libc/stdio.cm to stdio.o, then archives it into
+// libgastonc.a, returning the archive path.  The caller must clean up both.
+func buildLibgastonc(t *testing.T) (libPath, objPath string) {
+	t.Helper()
+	objPath = "/tmp/gaston-test-libgastonc-stdio.o"
+	libPath = "/tmp/gaston-test-libgastonc.a"
+	t.Cleanup(func() { os.Remove(objPath); os.Remove(libPath) })
+
+	if err := compileObjPath("libc/stdio.cm", objPath, nil); err != nil {
+		t.Fatalf("compile stdio.cm: %v", err)
+	}
+	if err := archiveCreate(libPath, []string{objPath}); err != nil {
+		t.Fatalf("archive libgastonc.a: %v", err)
+	}
+	return libPath, objPath
+}
+
+// TestLibc compiles programs against libgastonc.a (the gaston standard C library)
+// and runs them in an Alpine ARM64 container.
+func TestLibc(t *testing.T) {
+	if _, err := exec.LookPath("docker"); err != nil {
+		t.Skip("docker not found in PATH; skipping container tests")
+	}
+
+	libPath, _ := buildLibgastonc(t)
+	includePaths := []string{"libc"}
+
+	for _, tt := range libcTests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			// Compile the main program with the libc include path.
+			mainSrc := fmt.Sprintf("testdata/%s.cm", tt.name)
+			mainObj := fmt.Sprintf("/tmp/gaston-test-%s.o", tt.name)
+			t.Cleanup(func() { os.Remove(mainObj) })
+			if err := compileObjPath(mainSrc, mainObj, includePaths); err != nil {
+				t.Fatalf("compile %s: %v", tt.name, err)
+			}
+
+			// Link: main.o + libgastonc.a → binary (lazy linking).
+			binPath := fmt.Sprintf("/tmp/gaston-test-%s", tt.name)
+			t.Cleanup(func() { os.Remove(binPath) })
+			if err := link(binPath, []string{mainObj, libPath}); err != nil {
+				t.Fatalf("link: %v", err)
+			}
+
+			// Run in Alpine ARM64 container.
+			cmd := exec.Command("docker", "run", "--rm",
+				"--platform", "linux/arm64",
+				"-i",
+				"-v", binPath+":/prog",
+				"alpine:latest",
+				"/prog",
+			)
+			out, err := cmd.Output()
+			if err != nil {
+				if ee, ok := err.(*exec.ExitError); ok {
+					t.Fatalf("docker run failed (exit %d):\nstderr: %s",
+						ee.ExitCode(), string(ee.Stderr))
+				}
+				t.Fatalf("docker run: %v", err)
+			}
+
+			got := string(out)
+			if got != tt.want {
+				t.Errorf("output mismatch:\n  got  %q\n  want %q", got, tt.want)
+			}
+		})
+	}
 }
 
 // TestDockerRun compiles each test program and runs it in an Alpine ARM64

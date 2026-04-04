@@ -280,12 +280,13 @@ func (cb *codeBuilder) patchPool(globalAddrs map[string]uint64) {
 // elfGen translates one IRProgram to binary ARM64 code.
 type elfGen struct {
 	cb            *codeBuilder
-	pendingParams []paramArg      // params accumulate before each IRCall
-	cmpN          int             // counter for synthetic comparison labels
+	pendingParams []paramArg         // params accumulate before each IRCall
+	cmpN          int                // counter for synthetic comparison labels
 	fn            *IRFunc
 	fr            *frame
-	isGlobalPtr   map[string]bool // global variables that are pointers (TypeIntPtr/TypeCharPtr)
+	isGlobalPtr   map[string]bool    // global variables that are pointers (TypeIntPtr/TypeCharPtr)
 	funcRetType   map[string]TypeKind // function name → return type (for FP return detection)
+	structDefs    map[string]*StructDef // struct type definitions
 	// ET_REL object-file mode:
 	isObjMode  bool
 	localFuncs map[string]bool // functions defined in this compilation unit
@@ -421,6 +422,12 @@ func (g *elfGen) emitPrologue(fn *IRFunc) {
 			}
 		}
 	}
+	// Variadic: save X1..X7 to frame slots SP+24..SP+72.
+	if fn.IsVariadic {
+		for i := 1; i <= 7; i++ {
+			g.cb.emit(encSTRuoff(i, regSP, 16+8*i))
+		}
+	}
 }
 
 func (g *elfGen) emitEpilogue() {
@@ -433,7 +440,7 @@ func (g *elfGen) emitEpilogue() {
 
 func (g *elfGen) genFunc(fn *IRFunc) {
 	g.fn = fn
-	g.fr = buildFrame(fn)
+	g.fr = buildFrame(fn, g.structDefs)
 	g.cmpN = 0
 	g.pendingParams = g.pendingParams[:0]
 
@@ -521,6 +528,10 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 			g.emitArrayLoad(q)
 		case IRStore:
 			g.emitArrayStore(q)
+		case IRCharLoad:
+			g.emitCharArrayLoad(q)
+		case IRCharStore:
+			g.emitCharArrayStore(q)
 		case IRGetAddr:
 			g.arrayBase(q.Src1, regX0)
 			g.store(regX0, q.Dst)
@@ -533,15 +544,27 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 
 		case IRDerefLoad:
 			// Dst = *Src1 (load 8 bytes via pointer in Src1)
-			g.load(q.Src1, regX0)                           // X0 = pointer
-			g.cb.emit(encLDRuoff(regX0, regX0, 0))         // X0 = *X0
+			g.load(q.Src1, regX0)
+			g.cb.emit(encLDRuoff(regX0, regX0, 0))
 			g.store(regX0, q.Dst)
 
 		case IRDerefStore:
 			// *Dst = Src1 (store 8 bytes via pointer in Dst)
-			g.load(q.Dst, regX0)                            // X0 = pointer
-			g.load(q.Src1, regX1)                           // X1 = value
-			g.cb.emit(encSTRuoff(regX1, regX0, 0))         // *X0 = X1
+			g.load(q.Dst, regX0)
+			g.load(q.Src1, regX1)
+			g.cb.emit(encSTRuoff(regX1, regX0, 0))
+
+		case IRFieldLoad:
+			// Dst = *(Src1 + Src2.IVal) — struct field load
+			g.load(q.Src1, regX0)                              // X0 = base ptr
+			g.cb.emit(encLDRuoff(regX0, regX0, q.Src2.IVal))  // X0 = *(X0 + offset)
+			g.store(regX0, q.Dst)
+
+		case IRFieldStore:
+			// *(Dst + Src2.IVal) = Src1 — struct field store
+			g.load(q.Dst, regX0)                              // X0 = base ptr
+			g.load(q.Src1, regX1)                             // X1 = value
+			g.cb.emit(encSTRuoff(regX1, regX0, q.Src2.IVal)) // *(X0 + offset) = X1
 
 		// ── floating-point operations ────────────────────────────────────
 		case IRFAdd:
@@ -665,7 +688,36 @@ func (g *elfGen) emitArrayStore(q Quad) {
 	g.cb.emit(encSTRuoff(regX2, regX0, 0)) // *X0 = X2
 }
 
+// emitCharArrayLoad emits: Dst = Src1[Src2]  (char* byte-level load, no stride scaling)
+func (g *elfGen) emitCharArrayLoad(q Quad) {
+	g.arrayBase(q.Src1, regX0)               // X0 = base address
+	g.load(q.Src2, regX1)                    // X1 = byte index (no scaling)
+	g.cb.emit(encADDreg(regX0, regX0, regX1))
+	g.cb.emit(encLDRBuoff(regX0, regX0, 0)) // X0 = byte (zero-extended)
+	g.store(regX0, q.Dst)
+}
+
+// emitCharArrayStore emits: Dst[Src1] = Src2  (char* byte-level store, no stride scaling)
+func (g *elfGen) emitCharArrayStore(q Quad) {
+	g.arrayBase(q.Dst, regX0)                // X0 = base address
+	g.load(q.Src1, regX1)                    // X1 = byte index (no scaling)
+	g.cb.emit(encADDreg(regX0, regX0, regX1))
+	g.load(q.Src2, regX2)                    // X2 = value (low byte stored)
+	g.cb.emit(encSTRBuoff(regX2, regX0, 0)) // store byte
+}
+
 func (g *elfGen) emitCall(q Quad) {
+	// __va_start builtin: returns SP + (16 + 8*nnamedParams) without a real call.
+	if q.Extra == "__va_start" {
+		g.pendingParams = g.pendingParams[:0]
+		offset := 16 + 8*len(g.fn.Params)
+		g.cb.emit(encADDimm(regX0, regSP, offset))
+		if q.Dst.Kind != AddrNone {
+			g.store(regX0, q.Dst)
+		}
+		return
+	}
+
 	// Route integer params to X0–X7 and FP params to D0–D7 (separate counters,
 	// per AAPCS64: each register class has its own next-register index).
 	iIdx, fIdx := 0, 0
@@ -1540,6 +1592,7 @@ func genELF(irp *IRProgram, outpath string) error {
 		pendingParams: make([]paramArg, 0, 8),
 		isGlobalPtr:   isGlobalPtr,
 		funcRetType:   funcRetType,
+		structDefs:    irp.StructDefs,
 	}
 
 	gen.emitStart(definedGlobals)

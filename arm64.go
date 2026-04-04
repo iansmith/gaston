@@ -99,7 +99,7 @@ func genARM64(irp *IRProgram, w io.Writer) {
 
 	// Functions.
 	for _, fn := range irp.Funcs {
-		g.genFunc(fn)
+		g.genFunc(fn, irp.StructDefs)
 	}
 }
 
@@ -118,7 +118,7 @@ func (g *arm64Gen) newCmpLabel(fn *IRFunc) string {
 
 // ── frame layout ─────────────────────────────────────────────────────────────
 
-func buildFrame(fn *IRFunc) *frame {
+func buildFrame(fn *IRFunc, structDefs map[string]*StructDef) *frame {
 	f := &frame{
 		offsets:   make(map[string]int),
 		isArrPtr:  make(map[string]bool),
@@ -141,12 +141,33 @@ func buildFrame(fn *IRFunc) *frame {
 		offset += 8
 	}
 
+	// Variadic register save area: always reserve RSP+24..RSP+72 for X1..X7.
+	if fn.IsVariadic {
+		minOffset := 16 + 8*8 // = 80: enough space for X0..X7
+		if offset < minOffset {
+			offset = minOffset
+		}
+	}
+
 	// Local variables (declared in function body).
 	for _, loc := range fn.Locals {
 		f.offsets[loc.Name] = offset
 		if loc.IsArray {
 			f.isArrBase[loc.Name] = true
 			offset += loc.ArrSize * 8
+		} else if loc.IsStruct {
+			// Struct locals: inline storage, treated like an array base.
+			f.isArrBase[loc.Name] = true
+			nfields := loc.ArrSize
+			if nfields == 0 {
+				if sd, ok := structDefs[loc.StructTag]; ok {
+					nfields = len(sd.Fields)
+				}
+				if nfields == 0 {
+					nfields = 1
+				}
+			}
+			offset += nfields * 8
 		} else {
 			if loc.IsPtr {
 				f.isPtrVar[loc.Name] = true
@@ -177,8 +198,8 @@ func buildFrame(fn *IRFunc) *frame {
 
 // ── function emission ─────────────────────────────────────────────────────────
 
-func (g *arm64Gen) genFunc(fn *IRFunc) {
-	f := buildFrame(fn)
+func (g *arm64Gen) genFunc(fn *IRFunc, structDefs map[string]*StructDef) {
+	f := buildFrame(fn, structDefs)
 	g.localLabelN = 0
 
 	g.linef("// func %s(%s)", fn.Name, paramSig(fn))
@@ -194,6 +215,12 @@ func (g *arm64Gen) genFunc(fn *IRFunc) {
 			break
 		}
 		g.insnf("MOVD R%d, %d(RSP)", i, f.offsets[name])
+	}
+	// Variadic: save X1..X7 to frame slots RSP+24..RSP+72.
+	if fn.IsVariadic {
+		for i := 1; i <= 7; i++ {
+			g.insnf("MOVD R%d, %d(RSP)", i, 16+8*i)
+		}
 	}
 	g.line("")
 
@@ -280,6 +307,10 @@ func (g *arm64Gen) genFunc(fn *IRFunc) {
 			g.emitArrayLoad(f, q)
 		case IRStore:
 			g.emitArrayStore(f, q)
+		case IRCharLoad:
+			g.emitCharArrayLoad(f, q)
+		case IRCharStore:
+			g.emitCharArrayStore(f, q)
 		case IRGetAddr:
 			g.emitAddrOf(f, q)
 
@@ -350,6 +381,22 @@ func (g *arm64Gen) genFunc(fn *IRFunc) {
 
 		case IRCall:
 			g.emitCall(f, fn, q)
+
+		case IRFieldLoad:
+			// Dst = *(Src1 + Src2.IVal) — load field at byte offset
+			g.emit_load(f, q.Src1, "R0")
+			g.emit_load(f, q.Src2, "R1")
+			g.insn("ADD R1, R0, R0")
+			g.insn("MOVD (R0), R0")
+			g.emit_store(f, "R0", q.Dst)
+
+		case IRFieldStore:
+			// *(Dst + Src2.IVal) = Src1 — store to field at byte offset
+			g.emit_load(f, q.Dst, "R0")
+			g.emit_load(f, q.Src2, "R1")
+			g.insn("ADD R1, R0, R0")
+			g.emit_load(f, q.Src1, "R2")
+			g.insn("MOVD R2, (R0)")
 
 		case IRReturn:
 			if q.Src1.Kind != AddrNone {
@@ -562,6 +609,24 @@ func (g *arm64Gen) emitArrayStore(f *frame, q Quad) {
 	g.insn("MOVD R2, (R0)")       // *R0 = R2
 }
 
+// emitCharArrayLoad emits: Dst = Src1[Src2]  (char* byte-level load, no stride scaling)
+func (g *arm64Gen) emitCharArrayLoad(f *frame, q Quad) {
+	g.arrayBase(f, q.Src1, "R0")  // R0 = base address
+	g.emit_load(f, q.Src2, "R1")  // R1 = byte index (no scaling)
+	g.insn("ADD R1, R0, R0")      // R0 = base + index
+	g.insn("MOVBU (R0), R0")      // R0 = byte (zero-extended)
+	g.emit_store(f, "R0", q.Dst)
+}
+
+// emitCharArrayStore emits: Dst[Src1] = Src2  (char* byte-level store, no stride scaling)
+func (g *arm64Gen) emitCharArrayStore(f *frame, q Quad) {
+	g.arrayBase(f, q.Dst, "R0")   // R0 = base address
+	g.emit_load(f, q.Src1, "R1")  // R1 = byte index (no scaling)
+	g.insn("ADD R1, R0, R0")      // R0 = base + index
+	g.emit_load(f, q.Src2, "R2")  // R2 = value (low byte stored)
+	g.insn("MOVB R2, (R0)")       // store byte
+}
+
 // emitAddrOf emits: Dst = &Src1  (base address of array)
 func (g *arm64Gen) emitAddrOf(f *frame, q Quad) {
 	g.arrayBase(f, q.Src1, "R0")
@@ -574,6 +639,17 @@ func (g *arm64Gen) emitAddrOf(f *frame, q Quad) {
 // Integer params go into R0–R7; FP params go into F0–F7 (separate counters,
 // per AAPCS64: each class has its own next-register index).
 func (g *arm64Gen) emitCall(f *frame, fn *IRFunc, q Quad) {
+	// __va_start is a compiler builtin: returns RSP + (16 + 8*nnamedParams).
+	if q.Extra == "__va_start" {
+		g.pendingParams = g.pendingParams[:0]
+		offset := 16 + 8*len(fn.Params)
+		g.insnf("ADD $%d, RSP, R0", offset)
+		if q.Dst.Kind != AddrNone {
+			g.emit_store(f, "R0", q.Dst)
+		}
+		return
+	}
+
 	iIdx, fIdx := 0, 0
 	for _, p := range g.pendingParams {
 		if p.isFP {

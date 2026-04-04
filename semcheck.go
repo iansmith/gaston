@@ -11,18 +11,21 @@ type FuncSig struct {
 	ReturnType TypeKind
 	Params     []TypeKind
 	IsExtern   bool // true for extern function declarations (no body)
+	IsVariadic bool // true for variadic functions (last param is "...")
 }
 
 // symTable is a two-level symbol table: globals + per-function locals.
 type symTable struct {
-	globals map[string]*symEntry
-	locals  map[string]*symEntry // nil when not inside a function
-	funcs   map[string]*FuncSig
+	globals    map[string]*symEntry
+	locals     map[string]*symEntry // nil when not inside a function
+	funcs      map[string]*FuncSig
+	structDefs map[string]*StructDef // registered struct types
 }
 
 type symEntry struct {
 	name      string
 	typ       TypeKind
+	structTag string // for TypeStruct or TypeIntPtr-to-struct: the struct name
 	isParam   bool
 	isGlobal  bool
 	isConst   bool
@@ -31,8 +34,9 @@ type symEntry struct {
 
 func newSymTable() *symTable {
 	st := &symTable{
-		globals: make(map[string]*symEntry),
-		funcs:   make(map[string]*FuncSig),
+		globals:    make(map[string]*symEntry),
+		funcs:      make(map[string]*FuncSig),
+		structDefs: make(map[string]*StructDef),
 	}
 	// Built-in functions.
 	st.funcs["input"] = &FuncSig{Name: "input", ReturnType: TypeInt}
@@ -42,17 +46,23 @@ func newSymTable() *symTable {
 	st.funcs["malloc"] = &FuncSig{Name: "malloc", ReturnType: TypeIntPtr, Params: []TypeKind{TypeInt}}
 	st.funcs["free"] = &FuncSig{Name: "free", ReturnType: TypeVoid, Params: []TypeKind{TypeIntPtr}}
 	st.funcs["print_double"] = &FuncSig{Name: "print_double", ReturnType: TypeVoid, Params: []TypeKind{TypeDouble}}
+	// Compiler built-in: returns a pointer to the variadic register save area.
+	st.funcs["__va_start"] = &FuncSig{Name: "__va_start", ReturnType: TypeIntPtr}
 	return st
 }
 
 func (st *symTable) enterFunc() { st.locals = make(map[string]*symEntry) }
 func (st *symTable) leaveFunc() { st.locals = nil }
 
-func (st *symTable) declareGlobal(name string, typ TypeKind) error {
+func (st *symTable) declareGlobal(name string, typ TypeKind, structTag ...string) error {
 	if _, ok := st.globals[name]; ok {
 		return fmt.Errorf("redeclaration of global '%s'", name)
 	}
-	st.globals[name] = &symEntry{name: name, typ: typ, isGlobal: true}
+	e := &symEntry{name: name, typ: typ, isGlobal: true}
+	if len(structTag) > 0 {
+		e.structTag = structTag[0]
+	}
+	st.globals[name] = e
 	return nil
 }
 
@@ -71,11 +81,15 @@ func (st *symTable) declareConst(name string, typ TypeKind, val int, isGlobal bo
 	return nil
 }
 
-func (st *symTable) declareLocal(name string, typ TypeKind, isParam bool) error {
+func (st *symTable) declareLocal(name string, typ TypeKind, isParam bool, structTag ...string) error {
 	if _, ok := st.locals[name]; ok {
 		return fmt.Errorf("redeclaration of '%s'", name)
 	}
-	st.locals[name] = &symEntry{name: name, typ: typ, isParam: isParam}
+	e := &symEntry{name: name, typ: typ, isParam: isParam}
+	if len(structTag) > 0 {
+		e.structTag = structTag[0]
+	}
+	st.locals[name] = e
 	return nil
 }
 
@@ -112,10 +126,14 @@ func semCheck(prog *Node, requireMain bool) error {
 
 	for _, decl := range prog.Children {
 		switch decl.Kind {
+		case KindStructDef:
+			sd := buildStructDef(decl, &errs)
+			if sd != nil {
+				st.structDefs[sd.Name] = sd
+			}
 		case KindVarDecl:
 			if decl.IsExtern {
-				// Extern variable: register in symbol table, no storage.
-				if err := st.declareGlobal(decl.Name, decl.Type); err != nil {
+				if err := st.declareGlobal(decl.Name, decl.Type, decl.StructTag); err != nil {
 					errs = append(errs, err.Error())
 				}
 			} else if decl.IsConst {
@@ -123,7 +141,12 @@ func semCheck(prog *Node, requireMain bool) error {
 					errs = append(errs, err.Error())
 				}
 			} else {
-				if err := st.declareGlobal(decl.Name, decl.Type); err != nil {
+				if decl.Type == TypeStruct {
+					if _, ok := st.structDefs[decl.StructTag]; !ok {
+						errs = append(errs, fmt.Sprintf("undefined struct '%s'", decl.StructTag))
+					}
+				}
+				if err := st.declareGlobal(decl.Name, decl.Type, decl.StructTag); err != nil {
 					errs = append(errs, err.Error())
 				}
 				if len(decl.Children) > 0 {
@@ -147,11 +170,29 @@ func semCheck(prog *Node, requireMain bool) error {
 	return nil
 }
 
+// buildStructDef constructs a StructDef from a KindStructDef AST node.
+func buildStructDef(n *Node, errs *[]string) *StructDef {
+	sd := &StructDef{Name: n.Name}
+	for i, child := range n.Children {
+		sf := StructField{
+			Name:       child.Name,
+			Type:       child.Type,
+			StructTag:  child.StructTag,
+			ByteOffset: i * 8,
+		}
+		sd.Fields = append(sd.Fields, sf)
+	}
+	return sd
+}
+
 func checkFunDecl(n *Node, st *symTable, errs *[]string) {
 	if n.IsExtern {
-		// Extern function prototype: register signature only, no body check.
 		sig := &FuncSig{Name: n.Name, ReturnType: n.Type, IsExtern: true}
 		for _, p := range n.Children {
+			if p.Name == "..." {
+				sig.IsVariadic = true
+				continue
+			}
 			sig.Params = append(sig.Params, p.Type)
 		}
 		if err := st.declareFunc(sig); err != nil {
@@ -163,7 +204,12 @@ func checkFunDecl(n *Node, st *symTable, errs *[]string) {
 	nparams := len(n.Children) - 1 // last child is the body
 	sig := &FuncSig{Name: n.Name, ReturnType: n.Type}
 	for i := 0; i < nparams; i++ {
-		sig.Params = append(sig.Params, n.Children[i].Type)
+		p := n.Children[i]
+		if p.Name == "..." {
+			sig.IsVariadic = true
+			continue
+		}
+		sig.Params = append(sig.Params, p.Type)
 	}
 	if err := st.declareFunc(sig); err != nil {
 		*errs = append(*errs, err.Error())
@@ -175,7 +221,10 @@ func checkFunDecl(n *Node, st *symTable, errs *[]string) {
 
 	for i := 0; i < nparams; i++ {
 		p := n.Children[i]
-		if err := st.declareLocal(p.Name, p.Type, true); err != nil {
+		if p.Name == "..." {
+			continue
+		}
+		if err := st.declareLocal(p.Name, p.Type, true, p.StructTag); err != nil {
 			*errs = append(*errs, err.Error())
 		}
 	}
@@ -192,7 +241,12 @@ func checkCompound(n *Node, st *symTable, fn *Node, errs *[]string) {
 					*errs = append(*errs, err.Error())
 				}
 			} else {
-				if err := st.declareLocal(child.Name, child.Type, false); err != nil {
+				if child.Type == TypeStruct {
+					if _, ok := st.structDefs[child.StructTag]; !ok {
+						*errs = append(*errs, fmt.Sprintf("undefined struct '%s'", child.StructTag))
+					}
+				}
+				if err := st.declareLocal(child.Name, child.Type, false, child.StructTag); err != nil {
 					*errs = append(*errs, err.Error())
 				}
 				if len(child.Children) > 0 {
@@ -303,13 +357,13 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			return TypeInt
 		}
 		if e.isConst {
-			// Fold const reference to a numeric literal.
 			n.Kind = KindNum
 			n.Val = e.constVal
 			n.Type = TypeInt
 			return TypeInt
 		}
 		n.Type = e.typ
+		n.StructTag = e.structTag
 		return e.typ
 
 	case KindArrayVar:
@@ -319,10 +373,14 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			n.Type = TypeInt
 			return TypeInt
 		}
-		if e.typ != TypeIntArray && e.typ != TypeIntPtr {
+		if e.typ != TypeIntArray && e.typ != TypeIntPtr && e.typ != TypeCharPtr {
 			*errs = append(*errs, fmt.Sprintf("'%s' is not an array or pointer", n.Name))
 		}
 		checkExpr(n.Children[0], st, errs)
+		if e.typ == TypeCharPtr {
+			n.Type = TypeChar
+			return TypeChar
+		}
 		n.Type = TypeInt
 		return TypeInt
 
@@ -377,6 +435,30 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		}
 		return n.Type
 
+	case KindFieldAccess:
+		checkExpr(n.Children[0], st, errs)
+		baseTag := n.Children[0].StructTag
+		if baseTag == "" {
+			*errs = append(*errs, fmt.Sprintf("field access on non-struct expression"))
+			n.Type = TypeInt
+			return TypeInt
+		}
+		sd := st.structDefs[baseTag]
+		if sd == nil {
+			*errs = append(*errs, fmt.Sprintf("unknown struct '%s'", baseTag))
+			n.Type = TypeInt
+			return TypeInt
+		}
+		f := sd.FindField(n.Name)
+		if f == nil {
+			*errs = append(*errs, fmt.Sprintf("struct '%s' has no field '%s'", baseTag, n.Name))
+			n.Type = TypeInt
+			return TypeInt
+		}
+		n.Type = f.Type
+		n.StructTag = f.StructTag // propagate inner struct tag (for chained access)
+		return n.Type
+
 	case KindCall:
 		sig := st.funcs[n.Name]
 		if sig == nil {
@@ -384,10 +466,10 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			n.Type = TypeInt
 			return TypeInt
 		}
-		// Variadic built-ins skip arity check.
-		if n.Name != "input" && n.Name != "output" && n.Name != "print_char" &&
-			n.Name != "print_string" && n.Name != "print_double" {
-			if len(n.Children) != len(sig.Params) {
+		// Variadic and built-in functions skip strict arity check.
+		if !sig.IsVariadic && n.Name != "input" && n.Name != "output" &&
+			n.Name != "print_char" && n.Name != "print_string" && n.Name != "print_double" {
+			if len(n.Children) < len(sig.Params) {
 				*errs = append(*errs, fmt.Sprintf("'%s' expects %d args, got %d",
 					n.Name, len(sig.Params), len(n.Children)))
 			}

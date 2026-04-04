@@ -41,20 +41,23 @@ const UNSIGNED = 57365
 const SHORT = 57366
 const FLOAT = 57367
 const DOUBLE = 57368
-const LE = 57369
-const GE = 57370
-const EQ = 57371
-const NE = 57372
-const LSHIFT = 57373
-const RSHIFT = 57374
-const INC = 57375
-const DEC = 57376
-const PLUSEQ = 57377
-const MINUSEQ = 57378
-const STAREQ = 57379
-const DIVEQ = 57380
-const MODEQ = 57381
-const LOWER_THAN_ELSE = 57382
+const STRUCT = 57369
+const LE = 57370
+const GE = 57371
+const EQ = 57372
+const NE = 57373
+const LSHIFT = 57374
+const RSHIFT = 57375
+const INC = 57376
+const DEC = 57377
+const PLUSEQ = 57378
+const MINUSEQ = 57379
+const STAREQ = 57380
+const DIVEQ = 57381
+const MODEQ = 57382
+const ARROW = 57383
+const ELLIPSIS = 57384
+const LOWER_THAN_ELSE = 57385
 
 var yyToknames = [...]string{
 	"$end",
@@ -83,6 +86,7 @@ var yyToknames = [...]string{
 	"SHORT",
 	"FLOAT",
 	"DOUBLE",
+	"STRUCT",
 	"LE",
 	"GE",
 	"EQ",
@@ -96,6 +100,8 @@ var yyToknames = [...]string{
 	"STAREQ",
 	"DIVEQ",
 	"MODEQ",
+	"ARROW",
+	"ELLIPSIS",
 	"LOWER_THAN_ELSE",
 	"';'",
 	"'['",
@@ -103,10 +109,11 @@ var yyToknames = [...]string{
 	"'*'",
 	"'('",
 	"')'",
-	"'='",
 	"','",
+	"'='",
 	"'{'",
 	"'}'",
+	"'.'",
 	"'&'",
 	"'|'",
 	"'^'",
@@ -126,197 +133,226 @@ const yyEofCode = 1
 const yyErrCode = 2
 const yyInitialStackSize = 16
 
-//line cmd/gaston/grammar.y:361
+//line cmd/gaston/grammar.y:420
 
 //line yacctab:1
 var yyExca = [...]int8{
 	-1, 1,
 	1, -1,
 	-2, 0,
-	-1, 66,
-	46, 37,
-	-2, 20,
+	-1, 75,
+	49, 44,
+	-2, 26,
 }
 
 const yyPrivate = 57344
 
-const yyLast = 362
+const yyLast = 418
 
-var yyAct = [...]uint8{
-	178, 5, 4, 67, 168, 199, 68, 8, 170, 8,
-	52, 51, 64, 46, 110, 50, 23, 24, 95, 98,
-	99, 100, 104, 105, 107, 108, 31, 32, 111, 112,
-	104, 105, 33, 35, 45, 53, 147, 158, 120, 135,
-	73, 36, 101, 102, 103, 96, 97, 217, 37, 213,
-	101, 102, 103, 31, 32, 113, 71, 34, 206, 33,
-	35, 89, 72, 204, 81, 82, 83, 84, 85, 86,
-	87, 203, 157, 123, 89, 89, 89, 117, 80, 154,
-	145, 129, 119, 88, 130, 131, 132, 133, 134, 126,
-	74, 75, 137, 140, 76, 191, 114, 115, 116, 91,
-	190, 189, 92, 160, 89, 156, 142, 89, 89, 141,
-	187, 121, 40, 20, 125, 78, 149, 143, 91, 216,
-	89, 212, 205, 89, 148, 202, 136, 196, 146, 195,
-	56, 58, 57, 49, 59, 188, 155, 180, 161, 181,
-	184, 182, 183, 185, 186, 144, 42, 22, 122, 41,
-	22, 153, 152, 151, 128, 127, 79, 25, 201, 162,
-	211, 165, 164, 43, 26, 150, 166, 179, 118, 27,
-	47, 54, 77, 70, 69, 147, 167, 63, 39, 38,
-	29, 124, 28, 60, 30, 194, 61, 62, 192, 44,
-	197, 198, 200, 3, 94, 109, 19, 106, 93, 139,
-	138, 56, 58, 57, 49, 59, 200, 210, 207, 208,
-	55, 209, 48, 200, 177, 176, 214, 175, 215, 174,
-	173, 172, 218, 56, 58, 57, 49, 59, 171, 169,
-	180, 163, 181, 184, 182, 183, 185, 186, 193, 159,
-	21, 47, 54, 56, 58, 57, 49, 59, 63, 65,
-	2, 7, 6, 1, 60, 0, 0, 61, 62, 0,
-	179, 0, 0, 47, 54, 0, 0, 0, 147, 0,
-	63, 56, 58, 57, 49, 59, 60, 0, 0, 61,
-	62, 0, 0, 47, 54, 0, 0, 0, 0, 0,
-	63, 11, 12, 0, 0, 0, 60, 0, 0, 61,
-	62, 9, 13, 10, 14, 16, 15, 17, 18, 0,
-	0, 90, 54, 0, 0, 0, 0, 0, 63, 11,
-	12, 0, 0, 0, 60, 0, 0, 61, 62, 9,
-	13, 0, 14, 16, 15, 17, 18, 11, 12, 0,
-	0, 0, 0, 0, 11, 66, 0, 0, 13, 0,
-	14, 16, 15, 17, 18, 13, 0, 14, 16, 15,
-	17, 18,
+var yyAct = [...]int16{
+	228, 220, 76, 5, 218, 251, 77, 9, 4, 9,
+	54, 62, 59, 86, 178, 61, 63, 74, 26, 27,
+	73, 166, 57, 89, 129, 198, 112, 115, 116, 117,
+	121, 122, 193, 65, 67, 66, 60, 68, 53, 130,
+	131, 126, 127, 40, 121, 122, 139, 201, 258, 41,
+	97, 43, 87, 118, 119, 120, 113, 114, 65, 67,
+	66, 60, 68, 98, 144, 132, 108, 118, 119, 120,
+	269, 145, 107, 245, 265, 256, 55, 64, 81, 255,
+	108, 108, 108, 143, 72, 82, 133, 134, 135, 216,
+	69, 44, 87, 70, 71, 136, 45, 200, 197, 147,
+	160, 55, 64, 161, 162, 163, 164, 165, 192, 72,
+	154, 176, 138, 153, 123, 69, 243, 124, 70, 71,
+	108, 108, 108, 168, 170, 173, 167, 169, 35, 36,
+	242, 241, 38, 189, 39, 37, 108, 174, 183, 108,
+	177, 43, 180, 90, 91, 175, 185, 92, 94, 100,
+	101, 102, 103, 104, 105, 106, 97, 196, 152, 95,
+	237, 65, 67, 66, 60, 68, 99, 195, 230, 98,
+	231, 234, 232, 233, 235, 236, 65, 67, 66, 60,
+	68, 44, 181, 230, 123, 231, 234, 232, 233, 235,
+	236, 35, 36, 268, 148, 264, 180, 39, 37, 208,
+	24, 229, 214, 211, 55, 64, 212, 140, 210, 178,
+	217, 47, 72, 257, 254, 248, 229, 247, 69, 55,
+	64, 70, 71, 240, 178, 239, 22, 72, 65, 67,
+	66, 60, 68, 69, 149, 246, 70, 71, 244, 13,
+	14, 215, 249, 250, 252, 206, 204, 141, 50, 203,
+	15, 48, 16, 18, 17, 19, 20, 88, 252, 262,
+	259, 260, 194, 261, 191, 252, 24, 190, 266, 187,
+	267, 109, 64, 186, 270, 184, 157, 155, 96, 72,
+	13, 14, 83, 146, 29, 69, 253, 263, 70, 71,
+	51, 15, 31, 16, 18, 17, 19, 20, 78, 30,
+	238, 13, 14, 33, 205, 32, 202, 34, 151, 188,
+	13, 14, 15, 207, 16, 18, 17, 19, 20, 78,
+	11, 15, 12, 16, 18, 17, 19, 20, 10, 13,
+	14, 182, 159, 158, 179, 52, 156, 13, 75, 11,
+	15, 150, 16, 18, 17, 19, 20, 213, 15, 142,
+	16, 18, 17, 19, 20, 78, 13, 14, 137, 93,
+	84, 80, 111, 79, 13, 14, 49, 15, 46, 16,
+	18, 17, 19, 20, 88, 15, 42, 16, 18, 17,
+	19, 20, 28, 13, 14, 25, 3, 128, 125, 21,
+	110, 172, 171, 58, 15, 56, 16, 18, 17, 19,
+	20, 227, 226, 225, 224, 223, 222, 221, 219, 209,
+	199, 85, 8, 23, 2, 7, 6, 1,
 }
 
 var yyPact = [...]int16{
-	282, -1000, 282, -1000, -1000, -1000, -1000, -1000, 106, 328,
-	328, -1000, -1000, -1000, 135, 155, 160, -1000, -1000, -1000,
-	12, 0, 172, 171, 105, -1000, -1000, -1000, 124, -1000,
-	154, -1000, 185, 239, 335, 167, -1000, 166, 15, -7,
-	49, 165, -1000, -1000, 72, 115, 31, 267, -1000, 57,
-	-9, -32, -30, -1000, 239, -1000, -1000, -1000, -1000, -1000,
-	267, 267, 267, 161, 36, -10, -1000, -1000, 104, -1000,
-	-1000, -1000, 239, 177, -1000, 71, 335, 114, 113, -1000,
-	239, -1000, -1000, 239, 239, 239, 239, 239, -8, -1000,
-	267, 239, 239, 267, 267, -1000, -1000, -1000, -1000, -1000,
-	-1000, -1000, -1000, -1000, -1000, -1000, 267, -1000, -1000, 267,
-	-1000, -1000, -1000, 34, -1000, -1000, -1000, -1000, 76, -13,
-	328, 74, 158, 112, 111, 110, 33, -1000, -1000, -1000,
-	-1000, -1000, -1000, -1000, -1000, 239, -1000, 62, 26, -11,
-	-1000, -1, -32, -30, -1000, -1000, -1000, -1000, -1000, 60,
-	-1000, -1000, -1000, -1000, 97, -1000, -1000, -1000, 239, 310,
-	-1000, -1000, -1000, 126, -1000, -1000, 103, -1000, -1000, -1000,
-	-1000, -1000, -1000, -1000, -1000, -1000, -1000, -1000, 94, -1000,
-	56, 55, 50, 219, 197, 88, 86, -15, -1000, 239,
-	239, 239, 145, -1000, 84, -1000, -1000, 25, 17, 81,
-	-1000, 13, -1000, 219, 219, 239, 239, 148, -1000, 80,
-	3, 219, 239, 78, -1000, 1, -1000, 219, -1000,
+	301, -1000, 301, -1000, -1000, -1000, -1000, -1000, -1000, 219,
+	378, 374, 355, -1000, -1000, -1000, 262, 290, 283, -1000,
+	-1000, -1000, 84, -1, 369, 44, 361, 204, 359, -1000,
+	-1000, -1000, 226, -1000, 281, -1000, 331, 54, 328, 356,
+	-1000, 354, 34, 238, 353, 347, -28, 99, 352, 101,
+	-1000, -1000, 113, 234, 115, 224, -1000, -1000, -1000, -2,
+	69, -19, -23, -1000, 54, -1000, -1000, -1000, -1000, 224,
+	224, 224, 351, 63, -4, -1000, -1000, 200, 342, -1000,
+	-1000, -1000, 54, -1000, 20, 230, -1000, 187, 334, 304,
+	-1000, 112, 328, 233, 329, 232, -1000, 326, 325, 54,
+	-1000, -1000, 54, 54, 54, 54, 54, -30, 9, 224,
+	224, 224, -1000, -1000, -1000, -1000, -1000, -1000, -1000, -1000,
+	-1000, -1000, -1000, 54, 54, 224, -1000, -1000, 224, -1000,
+	-1000, -1000, 62, -1000, -1000, -1000, -1000, 139, -38, 292,
+	137, 324, 91, 231, -1000, 54, 229, -1000, 225, 302,
+	86, 223, 220, 59, -18, -1000, 218, -1000, -1000, -1000,
+	-1000, -1000, -1000, -1000, -1000, -1000, 54, -1000, 12, -19,
+	111, 49, -25, -1000, -23, -1000, -1000, -1000, -1000, 48,
+	-1000, 1, -1000, 299, -1000, 205, -1000, -1000, 202, 297,
+	-1000, -1000, 201, 271, -1000, -1000, -1000, -1000, 54, 320,
+	-38, -1000, -1000, -1000, -1000, 197, -1000, 40, -1000, 157,
+	-1000, -1000, 153, 293, -1000, -1000, 181, -1000, -1000, -1000,
+	-1000, -1000, -1000, -1000, -1000, -1000, -1000, -1000, 179, -1000,
+	83, 82, 68, 172, 29, 173, 171, 147, 134, -1000,
+	-1000, 54, 54, 54, 273, -1000, 170, -1000, -1000, 30,
+	26, 169, -1000, 0, -1000, 172, 172, 54, 54, 275,
+	-1000, 151, 25, 172, 54, 149, -1000, 21, -1000, 172,
+	-1000,
 }
 
-var yyPgo = [...]uint8{
-	0, 253, 252, 193, 2, 1, 251, 250, 12, 249,
-	240, 3, 8, 239, 231, 4, 229, 228, 221, 220,
-	219, 217, 215, 214, 5, 0, 13, 212, 15, 11,
-	10, 35, 210, 200, 199, 6, 198, 197, 195, 194,
+var yyPgo = [...]int16{
+	0, 417, 416, 386, 8, 3, 415, 414, 20, 17,
+	413, 412, 411, 13, 2, 1, 10, 410, 409, 4,
+	408, 407, 406, 405, 404, 403, 402, 401, 5, 0,
+	22, 395, 12, 15, 11, 16, 393, 392, 391, 6,
+	390, 388, 387, 362,
 }
 
 var yyR1 = [...]int8{
-	0, 1, 7, 7, 3, 3, 3, 3, 6, 6,
-	6, 6, 4, 4, 4, 4, 4, 4, 5, 35,
-	35, 35, 35, 35, 35, 35, 35, 35, 35, 35,
-	35, 35, 35, 35, 35, 2, 8, 8, 9, 9,
-	11, 11, 11, 12, 13, 13, 13, 10, 10, 14,
-	14, 15, 15, 15, 15, 15, 15, 15, 15, 15,
-	16, 16, 17, 17, 18, 19, 20, 22, 23, 24,
-	24, 21, 21, 25, 25, 25, 25, 25, 25, 25,
-	25, 25, 25, 26, 26, 27, 27, 28, 28, 39,
-	39, 39, 39, 39, 36, 36, 36, 36, 36, 36,
-	29, 29, 37, 37, 30, 30, 38, 38, 38, 31,
-	31, 31, 31, 31, 31, 31, 31, 31, 31, 31,
-	31, 32, 33, 33, 34, 34,
+	0, 1, 7, 7, 3, 3, 3, 3, 3, 6,
+	6, 6, 6, 6, 6, 4, 4, 4, 4, 4,
+	4, 4, 4, 4, 5, 39, 39, 39, 39, 39,
+	39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
+	39, 2, 2, 8, 8, 9, 9, 9, 14, 14,
+	14, 14, 15, 17, 17, 17, 10, 10, 18, 18,
+	19, 19, 19, 19, 19, 19, 19, 19, 19, 20,
+	20, 21, 21, 22, 23, 24, 26, 27, 28, 28,
+	25, 25, 16, 16, 16, 16, 29, 29, 29, 29,
+	29, 29, 29, 29, 29, 29, 30, 30, 31, 31,
+	32, 32, 43, 43, 43, 43, 43, 40, 40, 40,
+	40, 40, 40, 33, 33, 41, 41, 34, 34, 42,
+	42, 42, 35, 35, 35, 35, 35, 35, 35, 35,
+	35, 35, 35, 36, 37, 37, 38, 38, 11, 12,
+	12, 13, 13, 13,
 }
 
 var yyR2 = [...]int8{
-	0, 1, 2, 1, 1, 1, 1, 1, 4, 6,
-	5, 7, 3, 6, 5, 3, 4, 6, 6, 1,
-	1, 1, 1, 2, 1, 2, 1, 2, 2, 3,
-	2, 2, 3, 1, 1, 6, 1, 1, 3, 1,
-	2, 4, 3, 4, 2, 2, 0, 3, 3, 2,
-	0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-	2, 1, 5, 7, 5, 9, 7, 2, 2, 1,
-	0, 2, 3, 3, 4, 2, 2, 3, 3, 3,
-	3, 3, 1, 1, 4, 3, 1, 3, 1, 1,
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-	3, 1, 1, 1, 3, 1, 1, 1, 1, 3,
-	1, 1, 1, 1, 1, 1, 2, 2, 2, 2,
-	2, 4, 1, 0, 3, 1,
+	0, 1, 2, 1, 1, 1, 1, 1, 1, 4,
+	6, 5, 6, 7, 9, 3, 6, 5, 3, 4,
+	6, 4, 5, 7, 6, 1, 1, 1, 1, 2,
+	1, 2, 1, 2, 2, 3, 2, 2, 3, 1,
+	1, 6, 8, 1, 1, 3, 3, 1, 2, 4,
+	3, 4, 4, 2, 2, 0, 3, 3, 2, 0,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 2,
+	1, 5, 7, 5, 9, 7, 2, 2, 1, 0,
+	2, 3, 1, 1, 3, 3, 3, 4, 2, 2,
+	3, 3, 3, 3, 3, 1, 1, 4, 3, 1,
+	3, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 3, 1, 1, 1, 3, 1, 1,
+	1, 1, 3, 1, 1, 1, 1, 1, 2, 2,
+	2, 2, 2, 4, 1, 0, 3, 1, 6, 2,
+	1, 3, 4, 5,
 }
 
 var yyChk = [...]int16{
-	-1000, -1, -7, -3, -4, -5, -2, -6, -35, 19,
-	21, 9, 10, 20, 22, 24, 23, 25, 26, -3,
-	7, -10, 44, -35, -35, 22, 9, 9, 22, 20,
-	24, 41, 42, 47, 45, 48, 41, 48, 7, 7,
-	7, 44, 22, 9, 4, -25, -26, 44, -27, 7,
-	-28, -29, -30, -31, 45, -32, 4, 6, 5, 8,
-	57, 60, 61, 51, -8, -9, 10, -11, -35, 7,
-	7, 41, 47, 47, 41, 42, 45, 7, 43, 41,
-	47, 33, 34, 35, 36, 37, 38, 39, -31, -26,
-	44, 42, 45, -36, -39, 27, 54, 55, 28, 29,
-	30, 51, 52, 53, 31, 32, -37, 56, 57, -38,
-	44, 58, 59, -25, -31, -31, -31, -26, 7, 46,
-	48, 7, 44, -25, 4, 43, -8, 41, 41, -25,
-	-25, -25, -25, -25, -25, 47, -31, -25, -33, -34,
-	-25, -28, -29, -30, -31, 46, -12, 49, -11, 42,
-	7, 41, 41, 41, 46, -25, 43, 46, 48, -13,
-	43, 41, -25, -14, -4, -5, -35, 50, -15, -16,
-	-12, -17, -18, -19, -20, -21, -22, -23, -25, 41,
-	11, 13, 15, 16, 14, 17, 18, 7, 41, 45,
-	45, 45, -15, 41, -25, 41, 41, -25, -25, -24,
-	-25, 13, 41, 46, 46, 41, 45, -15, -15, -24,
-	-25, 12, 41, 46, -15, -24, 41, 46, -15,
+	-1000, -1, -7, -3, -4, -5, -2, -6, -11, -39,
+	27, 19, 21, 9, 10, 20, 22, 24, 23, 25,
+	26, -3, 7, -10, 47, 7, -39, -39, 27, 22,
+	9, 9, 22, 20, 24, 44, 45, 51, 48, 50,
+	44, 50, 7, 7, 47, 52, 7, 7, 47, 7,
+	22, 9, 4, -29, -16, 47, -31, -30, -36, -32,
+	7, -33, -34, -35, 48, 4, 6, 5, 8, 61,
+	64, 65, 55, -8, -9, 10, -14, -39, 27, 7,
+	7, 44, 51, 44, 7, -12, -13, -39, 27, 51,
+	44, 45, 48, 7, 47, 46, 44, 41, 54, 51,
+	34, 35, 36, 37, 38, 39, 40, -35, -16, 47,
+	-40, -43, 28, 58, 59, 29, 30, 31, 55, 56,
+	57, 32, 33, 45, 48, -41, 60, 61, -42, 47,
+	62, 63, -29, -35, -35, -35, -30, 7, 49, 50,
+	7, 47, 7, -29, 44, 51, 53, -13, 7, 47,
+	7, 4, 46, -8, -9, 44, 7, 44, 7, 7,
+	-29, -29, -29, -29, -29, -29, 51, -35, -32, -33,
+	-29, -37, -38, -29, -34, -35, 49, -15, 52, 42,
+	-14, 45, 7, 47, 44, -29, 44, 44, 7, 47,
+	44, 44, 49, 50, 44, -29, 46, 49, 50, -17,
+	49, 46, 7, 44, 44, 7, 44, 42, -29, -18,
+	-4, -5, -39, 27, -15, 44, 49, 53, -19, -20,
+	-15, -21, -22, -23, -24, -25, -26, -27, -29, 44,
+	11, 13, 15, 16, 14, 17, 18, 7, 7, 44,
+	44, 48, 48, 48, -19, 44, -29, 44, 44, -29,
+	-29, -28, -29, 13, 44, 49, 49, 44, 48, -19,
+	-19, -28, -29, 12, 44, 49, -19, -28, 44, 49,
+	-19,
 }
 
-var yyDef = [...]int8{
-	0, -2, 1, 3, 4, 5, 6, 7, 0, 0,
-	0, 19, 20, 21, 22, 24, 26, 33, 34, 2,
-	0, 0, 0, 0, 0, 23, 25, 27, 28, 30,
-	31, 12, 0, 0, 0, 0, 15, 0, 0, 0,
-	0, 0, 29, 32, 0, 0, 110, 0, 82, 83,
-	86, 88, 101, 105, 0, 111, 112, 113, 114, 115,
-	0, 0, 0, 0, 0, 36, -2, 39, 0, 48,
-	47, 16, 0, 0, 8, 0, 0, 0, 0, 14,
-	0, 75, 76, 0, 0, 0, 0, 0, 120, 110,
-	0, 0, 123, 0, 0, 94, 95, 96, 97, 98,
-	99, 89, 90, 91, 92, 93, 0, 102, 103, 0,
-	106, 107, 108, 0, 116, 117, 118, 119, 83, 0,
-	0, 40, 0, 0, 0, 0, 0, 10, 13, 73,
-	77, 78, 79, 80, 81, 0, 120, 0, 0, 122,
-	125, 85, 87, 100, 104, 109, 35, 46, 38, 0,
-	42, 17, 18, 9, 0, 74, 84, 121, 0, 50,
-	41, 11, 124, 0, 44, 45, 0, 43, 49, 51,
-	52, 53, 54, 55, 56, 57, 58, 59, 0, 61,
-	0, 0, 0, 0, 0, 0, 0, 0, 60, 0,
-	0, 70, 0, 71, 0, 67, 68, 0, 0, 0,
-	69, 0, 72, 0, 0, 70, 0, 62, 64, 0,
-	0, 0, 70, 0, 63, 0, 66, 0, 65,
+var yyDef = [...]int16{
+	0, -2, 1, 3, 4, 5, 6, 7, 8, 0,
+	0, 0, 0, 25, 26, 27, 28, 30, 32, 39,
+	40, 2, 0, 0, 0, 0, 0, 0, 0, 29,
+	31, 33, 34, 36, 37, 15, 0, 0, 0, 0,
+	18, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	35, 38, 0, 0, 123, 0, 95, 82, 83, 99,
+	96, 101, 114, 118, 0, 124, 125, 126, 127, 0,
+	0, 0, 0, 0, 43, -2, 47, 0, 0, 57,
+	56, 19, 0, 21, 0, 0, 140, 0, 0, 0,
+	9, 0, 0, 0, 0, 0, 17, 0, 0, 0,
+	88, 89, 0, 0, 0, 0, 0, 132, 123, 0,
+	0, 0, 107, 108, 109, 110, 111, 112, 102, 103,
+	104, 105, 106, 0, 135, 0, 115, 116, 0, 119,
+	120, 121, 0, 128, 129, 130, 131, 96, 0, 0,
+	48, 0, 0, 0, 22, 0, 0, 139, 0, 0,
+	0, 0, 0, 0, 43, 11, 0, 16, 84, 85,
+	86, 90, 91, 92, 93, 94, 0, 132, 98, 100,
+	0, 0, 134, 137, 113, 117, 122, 41, 55, 46,
+	45, 0, 50, 0, 20, 0, 138, 141, 0, 0,
+	24, 10, 0, 0, 12, 87, 97, 133, 0, 59,
+	0, 49, 51, 23, 142, 0, 13, 46, 136, 0,
+	53, 54, 0, 0, 42, 143, 0, 52, 58, 60,
+	61, 62, 63, 64, 65, 66, 67, 68, 0, 70,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 14,
+	69, 0, 0, 79, 0, 80, 0, 76, 77, 0,
+	0, 0, 78, 0, 81, 0, 0, 79, 0, 71,
+	73, 0, 0, 0, 79, 0, 72, 0, 75, 0,
+	74,
 }
 
 var yyTok1 = [...]int8{
 	1, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-	3, 3, 3, 60, 3, 3, 3, 59, 51, 3,
-	45, 46, 44, 56, 48, 57, 3, 58, 3, 3,
-	3, 3, 3, 3, 3, 3, 3, 3, 3, 41,
-	54, 47, 55, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 64, 3, 3, 3, 63, 55, 3,
+	48, 49, 47, 60, 50, 61, 54, 62, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 44,
+	58, 51, 59, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-	3, 42, 3, 43, 53, 3, 3, 3, 3, 3,
+	3, 45, 3, 46, 57, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-	3, 3, 3, 49, 52, 50, 61,
+	3, 3, 3, 52, 56, 53, 65,
 }
 
 var yyTok2 = [...]int8{
 	2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
 	12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
 	22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-	32, 33, 34, 35, 36, 37, 38, 39, 40,
+	32, 33, 34, 35, 36, 37, 38, 39, 40, 41,
+	42, 43,
 }
 
 var yyTok3 = [...]int8{
@@ -662,762 +698,877 @@ yydefault:
 
 	case 1:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:53
+//line cmd/gaston/grammar.y:55
 		{
 			yylex.(*lexer).result = &Node{Kind: KindProgram, Children: yyDollar[1].nodes}
 		}
 	case 2:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:58
+//line cmd/gaston/grammar.y:60
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, yyDollar[2].nodes...)
 		}
 	case 3:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:60
+//line cmd/gaston/grammar.y:62
 		{
 			yyVAL.nodes = yyDollar[1].nodes
 		}
 	case 4:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:64
+//line cmd/gaston/grammar.y:66
 		{
 			yyVAL.nodes = yyDollar[1].nodes
 		}
 	case 5:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:65
+//line cmd/gaston/grammar.y:67
 		{
 			yyVAL.nodes = yyDollar[1].nodes
 		}
 	case 6:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:66
+//line cmd/gaston/grammar.y:68
 		{
 			yyVAL.nodes = []*Node{yyDollar[1].node}
 		}
 	case 7:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:67
+//line cmd/gaston/grammar.y:69
 		{
 			yyVAL.nodes = yyDollar[1].nodes
 		}
 	case 8:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:70
+		{
+			yyVAL.nodes = yyDollar[1].nodes
+		}
+	case 9:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line cmd/gaston/grammar.y:72
+//line cmd/gaston/grammar.y:75
 		{
 			yyVAL.nodes = []*Node{{Kind: KindVarDecl, Type: yyDollar[2].typ, Name: yyDollar[3].sval, IsExtern: true}}
 		}
-	case 9:
+	case 10:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line cmd/gaston/grammar.y:74
+//line cmd/gaston/grammar.y:77
 		{
 			yyVAL.nodes = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: yyDollar[3].sval, IsExtern: true}}
 		}
-	case 10:
+	case 11:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line cmd/gaston/grammar.y:76
+//line cmd/gaston/grammar.y:79
 		{
 			yyVAL.nodes = []*Node{{Kind: KindVarDecl, Type: ptrType(yyDollar[2].typ), Name: yyDollar[4].sval, IsExtern: true}}
 		}
-	case 11:
+	case 12:
+		yyDollar = yyS[yypt-6 : yypt+1]
+//line cmd/gaston/grammar.y:81
+		{
+			yyVAL.nodes = []*Node{{Kind: KindVarDecl, Type: TypeIntPtr, Name: yyDollar[5].sval, IsExtern: true, StructTag: yyDollar[3].sval}}
+		}
+	case 13:
 		yyDollar = yyS[yypt-7 : yypt+1]
-//line cmd/gaston/grammar.y:78
+//line cmd/gaston/grammar.y:83
 		{
 			n := &Node{Kind: KindFunDecl, Type: yyDollar[2].typ, Name: yyDollar[3].sval, IsExtern: true}
 			n.Children = yyDollar[5].nodes
 			yyVAL.nodes = []*Node{n}
 		}
-	case 12:
+	case 14:
+		yyDollar = yyS[yypt-9 : yypt+1]
+//line cmd/gaston/grammar.y:89
+		{
+			n := &Node{Kind: KindFunDecl, Type: yyDollar[2].typ, Name: yyDollar[3].sval, IsExtern: true}
+			n.Children = append(yyDollar[5].nodes, &Node{Kind: KindParam, Type: TypeVoid, Name: "..."})
+			yyVAL.nodes = []*Node{n}
+		}
+	case 15:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:87
+//line cmd/gaston/grammar.y:98
 		{
 			yyVAL.nodes = []*Node{{Kind: KindVarDecl, Type: yyDollar[1].typ, Name: yyDollar[2].sval}}
 		}
-	case 13:
+	case 16:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line cmd/gaston/grammar.y:89
+//line cmd/gaston/grammar.y:100
 		{
 			yyVAL.nodes = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: yyDollar[2].sval, Val: yyDollar[4].ival}}
 		}
-	case 14:
+	case 17:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line cmd/gaston/grammar.y:91
+//line cmd/gaston/grammar.y:102
 		{
 			n := &Node{Kind: KindVarDecl, Type: yyDollar[1].typ, Name: yyDollar[2].sval}
 			n.Children = []*Node{yyDollar[4].node}
 			yyVAL.nodes = []*Node{n}
 		}
-	case 15:
+	case 18:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:93
+//line cmd/gaston/grammar.y:104
 		{
 			yyVAL.nodes = makeMultiDecl(yyDollar[1].typ, yyDollar[2].nodes)
 		}
-	case 16:
+	case 19:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line cmd/gaston/grammar.y:95
+//line cmd/gaston/grammar.y:106
 		{
 			yyVAL.nodes = []*Node{{Kind: KindVarDecl, Type: ptrType(yyDollar[1].typ), Name: yyDollar[3].sval}}
 		}
-	case 17:
+	case 20:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line cmd/gaston/grammar.y:97
+//line cmd/gaston/grammar.y:108
 		{
 			n := &Node{Kind: KindVarDecl, Type: ptrType(yyDollar[1].typ), Name: yyDollar[3].sval}
 			n.Children = []*Node{yyDollar[5].node}
 			yyVAL.nodes = []*Node{n}
 		}
-	case 18:
+	case 21:
+		yyDollar = yyS[yypt-4 : yypt+1]
+//line cmd/gaston/grammar.y:110
+		{
+			yyVAL.nodes = []*Node{{Kind: KindVarDecl, Type: TypeStruct, Name: yyDollar[3].sval, StructTag: yyDollar[2].sval}}
+		}
+	case 22:
+		yyDollar = yyS[yypt-5 : yypt+1]
+//line cmd/gaston/grammar.y:112
+		{
+			yyVAL.nodes = []*Node{{Kind: KindVarDecl, Type: TypeIntPtr, Name: yyDollar[4].sval, StructTag: yyDollar[2].sval}}
+		}
+	case 23:
+		yyDollar = yyS[yypt-7 : yypt+1]
+//line cmd/gaston/grammar.y:114
+		{
+			n := &Node{Kind: KindVarDecl, Type: TypeIntPtr, Name: yyDollar[4].sval, StructTag: yyDollar[2].sval}
+			n.Children = []*Node{yyDollar[6].node}
+			yyVAL.nodes = []*Node{n}
+		}
+	case 24:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line cmd/gaston/grammar.y:102
+//line cmd/gaston/grammar.y:119
 		{
 			yyVAL.nodes = []*Node{{Kind: KindVarDecl, Type: yyDollar[2].typ, Name: yyDollar[3].sval, Val: yyDollar[5].ival, IsConst: true}}
 		}
-	case 19:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:106
-		{
-			yyVAL.typ = TypeInt
-		}
-	case 20:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:107
-		{
-			yyVAL.typ = TypeVoid
-		}
-	case 21:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:108
-		{
-			yyVAL.typ = TypeChar
-		}
-	case 22:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:109
-		{
-			yyVAL.typ = TypeInt
-		}
-	case 23:
-		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:110
-		{
-			yyVAL.typ = TypeInt
-		}
-	case 24:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:111
-		{
-			yyVAL.typ = TypeShort
-		}
 	case 25:
-		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:112
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:123
 		{
-			yyVAL.typ = TypeShort
+			yyVAL.typ = TypeInt
 		}
 	case 26:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:113
+//line cmd/gaston/grammar.y:124
 		{
-			yyVAL.typ = TypeUnsignedInt
+			yyVAL.typ = TypeVoid
 		}
 	case 27:
-		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:114
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:125
 		{
-			yyVAL.typ = TypeUnsignedInt
+			yyVAL.typ = TypeChar
 		}
 	case 28:
-		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:115
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:126
 		{
-			yyVAL.typ = TypeUnsignedInt
+			yyVAL.typ = TypeInt
 		}
 	case 29:
-		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:116
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line cmd/gaston/grammar.y:127
 		{
-			yyVAL.typ = TypeUnsignedInt
+			yyVAL.typ = TypeInt
 		}
 	case 30:
-		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:117
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:128
 		{
-			yyVAL.typ = TypeUnsignedChar
+			yyVAL.typ = TypeShort
 		}
 	case 31:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:118
+//line cmd/gaston/grammar.y:129
 		{
-			yyVAL.typ = TypeUnsignedShort
+			yyVAL.typ = TypeShort
 		}
 	case 32:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:130
+		{
+			yyVAL.typ = TypeUnsignedInt
+		}
+	case 33:
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line cmd/gaston/grammar.y:131
+		{
+			yyVAL.typ = TypeUnsignedInt
+		}
+	case 34:
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line cmd/gaston/grammar.y:132
+		{
+			yyVAL.typ = TypeUnsignedInt
+		}
+	case 35:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:119
+//line cmd/gaston/grammar.y:133
+		{
+			yyVAL.typ = TypeUnsignedInt
+		}
+	case 36:
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line cmd/gaston/grammar.y:134
+		{
+			yyVAL.typ = TypeUnsignedChar
+		}
+	case 37:
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line cmd/gaston/grammar.y:135
 		{
 			yyVAL.typ = TypeUnsignedShort
 		}
-	case 33:
+	case 38:
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line cmd/gaston/grammar.y:136
+		{
+			yyVAL.typ = TypeUnsignedShort
+		}
+	case 39:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:120
+//line cmd/gaston/grammar.y:137
 		{
 			yyVAL.typ = TypeFloat
 		}
-	case 34:
+	case 40:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:121
+//line cmd/gaston/grammar.y:138
 		{
 			yyVAL.typ = TypeDouble
 		}
-	case 35:
+	case 41:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line cmd/gaston/grammar.y:126
+//line cmd/gaston/grammar.y:143
 		{
 			n := &Node{Kind: KindFunDecl, Type: yyDollar[1].typ, Name: yyDollar[2].sval}
 			n.Children = append(yyDollar[4].nodes, yyDollar[6].node)
 			yyVAL.node = n
 		}
-	case 36:
+	case 42:
+		yyDollar = yyS[yypt-8 : yypt+1]
+//line cmd/gaston/grammar.y:149
+		{
+			n := &Node{Kind: KindFunDecl, Type: yyDollar[1].typ, Name: yyDollar[2].sval}
+			params := append(yyDollar[4].nodes, &Node{Kind: KindParam, Type: TypeVoid, Name: "..."})
+			n.Children = append(params, yyDollar[8].node)
+			yyVAL.node = n
+		}
+	case 43:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:134
+//line cmd/gaston/grammar.y:158
 		{
 			yyVAL.nodes = yyDollar[1].nodes
 		}
-	case 37:
+	case 44:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:135
+//line cmd/gaston/grammar.y:159
 		{
 			yyVAL.nodes = nil
 		}
-	case 38:
+	case 45:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:140
+//line cmd/gaston/grammar.y:164
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, yyDollar[3].node)
 		}
-	case 39:
+	case 46:
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line cmd/gaston/grammar.y:166
+		{
+			yyVAL.nodes = append(yyDollar[1].nodes, &Node{Kind: KindParam, Type: TypeVoid, Name: "..."})
+		}
+	case 47:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:142
+//line cmd/gaston/grammar.y:168
 		{
 			yyVAL.nodes = []*Node{yyDollar[1].node}
 		}
-	case 40:
+	case 48:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:147
+//line cmd/gaston/grammar.y:173
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: yyDollar[1].typ, Name: yyDollar[2].sval}
 		}
-	case 41:
+	case 49:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line cmd/gaston/grammar.y:149
+//line cmd/gaston/grammar.y:175
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeIntArray, Name: yyDollar[2].sval}
 		}
-	case 42:
+	case 50:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:151
+//line cmd/gaston/grammar.y:177
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: ptrType(yyDollar[1].typ), Name: yyDollar[3].sval}
 		}
-	case 43:
+	case 51:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line cmd/gaston/grammar.y:156
+//line cmd/gaston/grammar.y:179
+		{
+			yyVAL.node = &Node{Kind: KindParam, Type: TypeIntPtr, Name: yyDollar[4].sval, StructTag: yyDollar[2].sval}
+		}
+	case 52:
+		yyDollar = yyS[yypt-4 : yypt+1]
+//line cmd/gaston/grammar.y:184
 		{
 			yyVAL.node = &Node{Kind: KindCompound, Children: append(yyDollar[2].nodes, yyDollar[3].nodes...)}
 		}
-	case 44:
+	case 53:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:161
+//line cmd/gaston/grammar.y:189
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, yyDollar[2].nodes...)
 		}
-	case 45:
+	case 54:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:163
+//line cmd/gaston/grammar.y:191
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, yyDollar[2].nodes...)
 		}
-	case 46:
+	case 55:
 		yyDollar = yyS[yypt-0 : yypt+1]
-//line cmd/gaston/grammar.y:165
+//line cmd/gaston/grammar.y:193
 		{
 			yyVAL.nodes = nil
 		}
-	case 47:
+	case 56:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:170
+//line cmd/gaston/grammar.y:198
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, &Node{Kind: KindVar, Name: yyDollar[3].sval})
 		}
-	case 48:
+	case 57:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:172
+//line cmd/gaston/grammar.y:200
 		{
 			yyVAL.nodes = []*Node{{Kind: KindVar, Name: yyDollar[1].sval}, {Kind: KindVar, Name: yyDollar[3].sval}}
 		}
-	case 49:
+	case 58:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:177
+//line cmd/gaston/grammar.y:205
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, yyDollar[2].node)
 		}
-	case 50:
+	case 59:
 		yyDollar = yyS[yypt-0 : yypt+1]
-//line cmd/gaston/grammar.y:179
+//line cmd/gaston/grammar.y:207
 		{
 			yyVAL.nodes = nil
 		}
-	case 51:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:183
-		{
-			yyVAL.node = yyDollar[1].node
-		}
-	case 52:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:184
-		{
-			yyVAL.node = yyDollar[1].node
-		}
-	case 53:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:185
-		{
-			yyVAL.node = yyDollar[1].node
-		}
-	case 54:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:186
-		{
-			yyVAL.node = yyDollar[1].node
-		}
-	case 55:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:187
-		{
-			yyVAL.node = yyDollar[1].node
-		}
-	case 56:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:188
-		{
-			yyVAL.node = yyDollar[1].node
-		}
-	case 57:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:189
-		{
-			yyVAL.node = yyDollar[1].node
-		}
-	case 58:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:190
-		{
-			yyVAL.node = yyDollar[1].node
-		}
-	case 59:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:191
-		{
-			yyVAL.node = yyDollar[1].node
-		}
 	case 60:
-		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:195
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:211
 		{
-			yyVAL.node = &Node{Kind: KindExprStmt, Children: []*Node{yyDollar[1].node}}
+			yyVAL.node = yyDollar[1].node
 		}
 	case 61:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:196
-		{
-			yyVAL.node = &Node{Kind: KindExprStmt}
-		}
-	case 62:
-		yyDollar = yyS[yypt-5 : yypt+1]
-//line cmd/gaston/grammar.y:201
-		{
-			yyVAL.node = &Node{Kind: KindSelection, Children: []*Node{yyDollar[3].node, yyDollar[5].node}}
-		}
-	case 63:
-		yyDollar = yyS[yypt-7 : yypt+1]
-//line cmd/gaston/grammar.y:203
-		{
-			yyVAL.node = &Node{Kind: KindSelection, Children: []*Node{yyDollar[3].node, yyDollar[5].node, yyDollar[7].node}}
-		}
-	case 64:
-		yyDollar = yyS[yypt-5 : yypt+1]
-//line cmd/gaston/grammar.y:208
-		{
-			yyVAL.node = &Node{Kind: KindIteration, Children: []*Node{yyDollar[3].node, yyDollar[5].node}}
-		}
-	case 65:
-		yyDollar = yyS[yypt-9 : yypt+1]
-//line cmd/gaston/grammar.y:213
-		{
-			yyVAL.node = &Node{Kind: KindFor, Children: []*Node{yyDollar[3].node, yyDollar[5].node, yyDollar[7].node, yyDollar[9].node}}
-		}
-	case 66:
-		yyDollar = yyS[yypt-7 : yypt+1]
-//line cmd/gaston/grammar.y:218
-		{
-			yyVAL.node = &Node{Kind: KindDoWhile, Children: []*Node{yyDollar[2].node, yyDollar[5].node}}
-		}
-	case 67:
-		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:223
-		{
-			yyVAL.node = &Node{Kind: KindBreak}
-		}
-	case 68:
-		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:228
-		{
-			yyVAL.node = &Node{Kind: KindContinue}
-		}
-	case 69:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:232
+//line cmd/gaston/grammar.y:212
 		{
 			yyVAL.node = yyDollar[1].node
 		}
-	case 70:
-		yyDollar = yyS[yypt-0 : yypt+1]
-//line cmd/gaston/grammar.y:233
+	case 62:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:213
 		{
-			yyVAL.node = nil
+			yyVAL.node = yyDollar[1].node
+		}
+	case 63:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:214
+		{
+			yyVAL.node = yyDollar[1].node
+		}
+	case 64:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:215
+		{
+			yyVAL.node = yyDollar[1].node
+		}
+	case 65:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:216
+		{
+			yyVAL.node = yyDollar[1].node
+		}
+	case 66:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:217
+		{
+			yyVAL.node = yyDollar[1].node
+		}
+	case 67:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:218
+		{
+			yyVAL.node = yyDollar[1].node
+		}
+	case 68:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:219
+		{
+			yyVAL.node = yyDollar[1].node
+		}
+	case 69:
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line cmd/gaston/grammar.y:223
+		{
+			yyVAL.node = &Node{Kind: KindExprStmt, Children: []*Node{yyDollar[1].node}}
+		}
+	case 70:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:224
+		{
+			yyVAL.node = &Node{Kind: KindExprStmt}
 		}
 	case 71:
-		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:238
+		yyDollar = yyS[yypt-5 : yypt+1]
+//line cmd/gaston/grammar.y:229
 		{
-			yyVAL.node = &Node{Kind: KindReturn}
+			yyVAL.node = &Node{Kind: KindSelection, Children: []*Node{yyDollar[3].node, yyDollar[5].node}}
 		}
 	case 72:
-		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:240
+		yyDollar = yyS[yypt-7 : yypt+1]
+//line cmd/gaston/grammar.y:231
 		{
-			yyVAL.node = &Node{Kind: KindReturn, Children: []*Node{yyDollar[2].node}}
+			yyVAL.node = &Node{Kind: KindSelection, Children: []*Node{yyDollar[3].node, yyDollar[5].node, yyDollar[7].node}}
 		}
 	case 73:
-		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:245
+		yyDollar = yyS[yypt-5 : yypt+1]
+//line cmd/gaston/grammar.y:236
 		{
-			yyVAL.node = &Node{Kind: KindAssign, Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
+			yyVAL.node = &Node{Kind: KindIteration, Children: []*Node{yyDollar[3].node, yyDollar[5].node}}
 		}
 	case 74:
-		yyDollar = yyS[yypt-4 : yypt+1]
-//line cmd/gaston/grammar.y:247
+		yyDollar = yyS[yypt-9 : yypt+1]
+//line cmd/gaston/grammar.y:241
 		{
-			lhs := &Node{Kind: KindDeref, Children: []*Node{yyDollar[2].node}}
-			yyVAL.node = &Node{Kind: KindAssign, Children: []*Node{lhs, yyDollar[4].node}}
+			yyVAL.node = &Node{Kind: KindFor, Children: []*Node{yyDollar[3].node, yyDollar[5].node, yyDollar[7].node, yyDollar[9].node}}
 		}
 	case 75:
-		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:249
+		yyDollar = yyS[yypt-7 : yypt+1]
+//line cmd/gaston/grammar.y:246
 		{
-			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "+", Val: 1, Children: []*Node{yyDollar[1].node, nil}}
+			yyVAL.node = &Node{Kind: KindDoWhile, Children: []*Node{yyDollar[2].node, yyDollar[5].node}}
 		}
 	case 76:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line cmd/gaston/grammar.y:251
 		{
-			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "-", Val: 1, Children: []*Node{yyDollar[1].node, nil}}
+			yyVAL.node = &Node{Kind: KindBreak}
 		}
 	case 77:
-		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:253
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line cmd/gaston/grammar.y:256
 		{
-			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "+", Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
+			yyVAL.node = &Node{Kind: KindContinue}
 		}
 	case 78:
-		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:255
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:260
 		{
-			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "-", Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
+			yyVAL.node = yyDollar[1].node
 		}
 	case 79:
-		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:257
+		yyDollar = yyS[yypt-0 : yypt+1]
+//line cmd/gaston/grammar.y:261
 		{
-			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "*", Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
+			yyVAL.node = nil
 		}
 	case 80:
-		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:259
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line cmd/gaston/grammar.y:266
 		{
-			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "/", Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
+			yyVAL.node = &Node{Kind: KindReturn}
 		}
 	case 81:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:261
+//line cmd/gaston/grammar.y:268
 		{
-			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "%", Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
+			yyVAL.node = &Node{Kind: KindReturn, Children: []*Node{yyDollar[2].node}}
 		}
 	case 82:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:263
+//line cmd/gaston/grammar.y:273
 		{
 			yyVAL.node = yyDollar[1].node
 		}
 	case 83:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:268
+//line cmd/gaston/grammar.y:275
 		{
-			yyVAL.node = &Node{Kind: KindVar, Name: yyDollar[1].sval}
+			yyVAL.node = yyDollar[1].node
 		}
 	case 84:
-		yyDollar = yyS[yypt-4 : yypt+1]
-//line cmd/gaston/grammar.y:270
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line cmd/gaston/grammar.y:277
 		{
-			yyVAL.node = &Node{Kind: KindArrayVar, Name: yyDollar[1].sval, Children: []*Node{yyDollar[3].node}}
+			yyVAL.node = &Node{Kind: KindFieldAccess, Op: "->", Name: yyDollar[3].sval, Children: []*Node{yyDollar[1].node}}
 		}
 	case 85:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:275
+//line cmd/gaston/grammar.y:279
 		{
-			yyVAL.node = &Node{Kind: KindBinOp, Op: yyDollar[2].sval, Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
+			yyVAL.node = &Node{Kind: KindFieldAccess, Op: ".", Name: yyDollar[3].sval, Children: []*Node{yyDollar[1].node}}
 		}
 	case 86:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:277
-		{
-			yyVAL.node = yyDollar[1].node
-		}
-	case 87:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:282
-		{
-			yyVAL.node = &Node{Kind: KindBinOp, Op: yyDollar[2].sval, Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
-		}
-	case 88:
-		yyDollar = yyS[yypt-1 : yypt+1]
 //line cmd/gaston/grammar.y:284
 		{
-			yyVAL.node = yyDollar[1].node
+			yyVAL.node = &Node{Kind: KindAssign, Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
-	case 89:
-		yyDollar = yyS[yypt-1 : yypt+1]
+	case 87:
+		yyDollar = yyS[yypt-4 : yypt+1]
+//line cmd/gaston/grammar.y:286
+		{
+			lhs := &Node{Kind: KindDeref, Children: []*Node{yyDollar[2].node}}
+			yyVAL.node = &Node{Kind: KindAssign, Children: []*Node{lhs, yyDollar[4].node}}
+		}
+	case 88:
+		yyDollar = yyS[yypt-2 : yypt+1]
 //line cmd/gaston/grammar.y:288
 		{
-			yyVAL.sval = "&"
+			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "+", Val: 1, Children: []*Node{yyDollar[1].node, nil}}
 		}
-	case 90:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:289
-		{
-			yyVAL.sval = "|"
-		}
-	case 91:
-		yyDollar = yyS[yypt-1 : yypt+1]
+	case 89:
+		yyDollar = yyS[yypt-2 : yypt+1]
 //line cmd/gaston/grammar.y:290
 		{
-			yyVAL.sval = "^"
+			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "-", Val: 1, Children: []*Node{yyDollar[1].node, nil}}
 		}
-	case 92:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:291
-		{
-			yyVAL.sval = "<<"
-		}
-	case 93:
-		yyDollar = yyS[yypt-1 : yypt+1]
+	case 90:
+		yyDollar = yyS[yypt-3 : yypt+1]
 //line cmd/gaston/grammar.y:292
 		{
-			yyVAL.sval = ">>"
+			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "+", Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
-	case 94:
-		yyDollar = yyS[yypt-1 : yypt+1]
+	case 91:
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line cmd/gaston/grammar.y:294
+		{
+			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "-", Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
+		}
+	case 92:
+		yyDollar = yyS[yypt-3 : yypt+1]
 //line cmd/gaston/grammar.y:296
 		{
-			yyVAL.sval = "<="
+			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "*", Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
+		}
+	case 93:
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line cmd/gaston/grammar.y:298
+		{
+			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "/", Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
+		}
+	case 94:
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line cmd/gaston/grammar.y:300
+		{
+			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "%", Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
 	case 95:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:297
+//line cmd/gaston/grammar.y:302
 		{
-			yyVAL.sval = "<"
+			yyVAL.node = yyDollar[1].node
 		}
 	case 96:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:298
+//line cmd/gaston/grammar.y:307
 		{
-			yyVAL.sval = ">"
+			yyVAL.node = &Node{Kind: KindVar, Name: yyDollar[1].sval}
 		}
 	case 97:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:299
+		yyDollar = yyS[yypt-4 : yypt+1]
+//line cmd/gaston/grammar.y:309
 		{
-			yyVAL.sval = ">="
+			yyVAL.node = &Node{Kind: KindArrayVar, Name: yyDollar[1].sval, Children: []*Node{yyDollar[3].node}}
 		}
 	case 98:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:300
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line cmd/gaston/grammar.y:314
 		{
-			yyVAL.sval = "=="
+			yyVAL.node = &Node{Kind: KindBinOp, Op: yyDollar[2].sval, Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
 	case 99:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:301
+//line cmd/gaston/grammar.y:316
 		{
-			yyVAL.sval = "!="
+			yyVAL.node = yyDollar[1].node
 		}
 	case 100:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:306
+//line cmd/gaston/grammar.y:321
 		{
 			yyVAL.node = &Node{Kind: KindBinOp, Op: yyDollar[2].sval, Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
 	case 101:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:308
+//line cmd/gaston/grammar.y:323
 		{
 			yyVAL.node = yyDollar[1].node
 		}
 	case 102:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:312
+//line cmd/gaston/grammar.y:327
 		{
-			yyVAL.sval = "+"
+			yyVAL.sval = "&"
 		}
 	case 103:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:313
+//line cmd/gaston/grammar.y:328
 		{
-			yyVAL.sval = "-"
+			yyVAL.sval = "|"
 		}
 	case 104:
-		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:318
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:329
 		{
-			yyVAL.node = &Node{Kind: KindBinOp, Op: yyDollar[2].sval, Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
+			yyVAL.sval = "^"
 		}
 	case 105:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:320
+//line cmd/gaston/grammar.y:330
 		{
-			yyVAL.node = yyDollar[1].node
+			yyVAL.sval = "<<"
 		}
 	case 106:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:324
+//line cmd/gaston/grammar.y:331
 		{
-			yyVAL.sval = "*"
+			yyVAL.sval = ">>"
 		}
 	case 107:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:325
+//line cmd/gaston/grammar.y:335
 		{
-			yyVAL.sval = "/"
+			yyVAL.sval = "<="
 		}
 	case 108:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:326
+//line cmd/gaston/grammar.y:336
 		{
-			yyVAL.sval = "%"
+			yyVAL.sval = "<"
 		}
 	case 109:
-		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:330
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:337
 		{
-			yyVAL.node = yyDollar[2].node
+			yyVAL.sval = ">"
 		}
 	case 110:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:331
+//line cmd/gaston/grammar.y:338
 		{
-			yyVAL.node = yyDollar[1].node
+			yyVAL.sval = ">="
 		}
 	case 111:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:332
+//line cmd/gaston/grammar.y:339
 		{
-			yyVAL.node = yyDollar[1].node
+			yyVAL.sval = "=="
 		}
 	case 112:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:333
+//line cmd/gaston/grammar.y:340
 		{
-			yyVAL.node = &Node{Kind: KindNum, Val: yyDollar[1].ival}
+			yyVAL.sval = "!="
 		}
 	case 113:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:334
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line cmd/gaston/grammar.y:345
 		{
-			yyVAL.node = &Node{Kind: KindFNum, FVal: yyDollar[1].fval, Type: TypeDouble}
+			yyVAL.node = &Node{Kind: KindBinOp, Op: yyDollar[2].sval, Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
 	case 114:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:335
+//line cmd/gaston/grammar.y:347
 		{
-			yyVAL.node = &Node{Kind: KindCharLit, Val: yyDollar[1].ival, Type: TypeInt}
+			yyVAL.node = yyDollar[1].node
 		}
 	case 115:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:336
-		{
-			yyVAL.node = &Node{Kind: KindStrLit, Name: yyDollar[1].sval, Type: TypeCharPtr}
-		}
-	case 116:
-		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:337
-		{
-			yyVAL.node = &Node{Kind: KindUnary, Op: "-", Children: []*Node{yyDollar[2].node}}
-		}
-	case 117:
-		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:338
-		{
-			yyVAL.node = &Node{Kind: KindUnary, Op: "!", Children: []*Node{yyDollar[2].node}}
-		}
-	case 118:
-		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:339
-		{
-			yyVAL.node = &Node{Kind: KindUnary, Op: "~", Children: []*Node{yyDollar[2].node}}
-		}
-	case 119:
-		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:340
-		{
-			yyVAL.node = &Node{Kind: KindAddrOf, Children: []*Node{yyDollar[2].node}}
-		}
-	case 120:
-		yyDollar = yyS[yypt-2 : yypt+1]
-//line cmd/gaston/grammar.y:341
-		{
-			yyVAL.node = &Node{Kind: KindDeref, Children: []*Node{yyDollar[2].node}}
-		}
-	case 121:
-		yyDollar = yyS[yypt-4 : yypt+1]
-//line cmd/gaston/grammar.y:346
-		{
-			yyVAL.node = &Node{Kind: KindCall, Name: yyDollar[1].sval, Children: yyDollar[3].nodes}
-		}
-	case 122:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:350
-		{
-			yyVAL.nodes = yyDollar[1].nodes
-		}
-	case 123:
-		yyDollar = yyS[yypt-0 : yypt+1]
 //line cmd/gaston/grammar.y:351
 		{
-			yyVAL.nodes = nil
+			yyVAL.sval = "+"
+		}
+	case 116:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:352
+		{
+			yyVAL.sval = "-"
+		}
+	case 117:
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line cmd/gaston/grammar.y:357
+		{
+			yyVAL.node = &Node{Kind: KindBinOp, Op: yyDollar[2].sval, Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
+		}
+	case 118:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:359
+		{
+			yyVAL.node = yyDollar[1].node
+		}
+	case 119:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:363
+		{
+			yyVAL.sval = "*"
+		}
+	case 120:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:364
+		{
+			yyVAL.sval = "/"
+		}
+	case 121:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:365
+		{
+			yyVAL.sval = "%"
+		}
+	case 122:
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line cmd/gaston/grammar.y:369
+		{
+			yyVAL.node = yyDollar[2].node
+		}
+	case 123:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:370
+		{
+			yyVAL.node = yyDollar[1].node
 		}
 	case 124:
-		yyDollar = yyS[yypt-3 : yypt+1]
-//line cmd/gaston/grammar.y:356
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:371
 		{
-			yyVAL.nodes = append(yyDollar[1].nodes, yyDollar[3].node)
+			yyVAL.node = &Node{Kind: KindNum, Val: yyDollar[1].ival}
 		}
 	case 125:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line cmd/gaston/grammar.y:358
+//line cmd/gaston/grammar.y:372
+		{
+			yyVAL.node = &Node{Kind: KindFNum, FVal: yyDollar[1].fval, Type: TypeDouble}
+		}
+	case 126:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:373
+		{
+			yyVAL.node = &Node{Kind: KindCharLit, Val: yyDollar[1].ival, Type: TypeInt}
+		}
+	case 127:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:374
+		{
+			yyVAL.node = &Node{Kind: KindStrLit, Name: yyDollar[1].sval, Type: TypeCharPtr}
+		}
+	case 128:
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line cmd/gaston/grammar.y:375
+		{
+			yyVAL.node = &Node{Kind: KindUnary, Op: "-", Children: []*Node{yyDollar[2].node}}
+		}
+	case 129:
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line cmd/gaston/grammar.y:376
+		{
+			yyVAL.node = &Node{Kind: KindUnary, Op: "!", Children: []*Node{yyDollar[2].node}}
+		}
+	case 130:
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line cmd/gaston/grammar.y:377
+		{
+			yyVAL.node = &Node{Kind: KindUnary, Op: "~", Children: []*Node{yyDollar[2].node}}
+		}
+	case 131:
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line cmd/gaston/grammar.y:378
+		{
+			yyVAL.node = &Node{Kind: KindAddrOf, Children: []*Node{yyDollar[2].node}}
+		}
+	case 132:
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line cmd/gaston/grammar.y:379
+		{
+			yyVAL.node = &Node{Kind: KindDeref, Children: []*Node{yyDollar[2].node}}
+		}
+	case 133:
+		yyDollar = yyS[yypt-4 : yypt+1]
+//line cmd/gaston/grammar.y:384
+		{
+			yyVAL.node = &Node{Kind: KindCall, Name: yyDollar[1].sval, Children: yyDollar[3].nodes}
+		}
+	case 134:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:388
+		{
+			yyVAL.nodes = yyDollar[1].nodes
+		}
+	case 135:
+		yyDollar = yyS[yypt-0 : yypt+1]
+//line cmd/gaston/grammar.y:389
+		{
+			yyVAL.nodes = nil
+		}
+	case 136:
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line cmd/gaston/grammar.y:394
+		{
+			yyVAL.nodes = append(yyDollar[1].nodes, yyDollar[3].node)
+		}
+	case 137:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:396
 		{
 			yyVAL.nodes = []*Node{yyDollar[1].node}
+		}
+	case 138:
+		yyDollar = yyS[yypt-6 : yypt+1]
+//line cmd/gaston/grammar.y:401
+		{
+			yyVAL.nodes = []*Node{{Kind: KindStructDef, Name: yyDollar[2].sval, Children: yyDollar[4].nodes}}
+		}
+	case 139:
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line cmd/gaston/grammar.y:406
+		{
+			yyVAL.nodes = append(yyDollar[1].nodes, yyDollar[2].node)
+		}
+	case 140:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line cmd/gaston/grammar.y:408
+		{
+			yyVAL.nodes = []*Node{yyDollar[1].node}
+		}
+	case 141:
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line cmd/gaston/grammar.y:413
+		{
+			yyVAL.node = &Node{Kind: KindVarDecl, Type: yyDollar[1].typ, Name: yyDollar[2].sval}
+		}
+	case 142:
+		yyDollar = yyS[yypt-4 : yypt+1]
+//line cmd/gaston/grammar.y:415
+		{
+			yyVAL.node = &Node{Kind: KindVarDecl, Type: ptrType(yyDollar[1].typ), Name: yyDollar[3].sval}
+		}
+	case 143:
+		yyDollar = yyS[yypt-5 : yypt+1]
+//line cmd/gaston/grammar.y:417
+		{
+			yyVAL.node = &Node{Kind: KindVarDecl, Type: TypeIntPtr, Name: yyDollar[4].sval, StructTag: yyDollar[2].sval}
 		}
 	}
 	goto yystack /* stack new state and value */

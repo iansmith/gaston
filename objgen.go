@@ -169,6 +169,7 @@ func genObjectFile(irp *IRProgram, outpath string) error {
 		isObjMode:     true,
 		localFuncs:    localFuncs,
 		funcRetType:   funcRetType,
+		structDefs:    irp.StructDefs,
 	}
 
 	// Emit code for each locally-defined function (no _start, no helpers).

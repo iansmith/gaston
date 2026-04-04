@@ -18,6 +18,7 @@ const (
 	TypeUnsignedShort         // unsigned short
 	TypeFloat                 // float (32-bit IEEE 754; stored as 64-bit double internally)
 	TypeDouble                // double (64-bit IEEE 754)
+	TypeStruct                // struct (paired with Node.StructTag for struct name)
 )
 
 // isUnsignedType reports whether t is an unsigned integer type.
@@ -70,8 +71,10 @@ const (
 	KindUnary    // unary operator: Op = "-" or "!"
 	KindCharLit  // character literal: Val = rune value (e.g. 'A' = 65)
 	KindStrLit   // string literal: Name = string content (NUL not included)
-	KindDeref    // *expr  (pointer dereference, as lvalue or rvalue); Children[0] = pointer expr
-	KindAddrOf   // &var   (address-of scalar or array); Children[0] = KindVar
+	KindDeref       // *expr  (pointer dereference, as lvalue or rvalue); Children[0] = pointer expr
+	KindAddrOf      // &var   (address-of scalar or array); Children[0] = KindVar
+	KindFieldAccess // expr->field or expr.field; Children[0]=base; Name=field; Op="->" or "."
+	KindStructDef   // struct TAG { fields }; Name=tag; Children=field KindVarDecl nodes
 )
 
 // ptrType returns the pointer type corresponding to a base type.
@@ -112,14 +115,42 @@ func makeMultiDecl(typ TypeKind, names []*Node) []*Node {
 //	KindCall:       Name, Children = args
 //	KindNum:        Val
 type Node struct {
-	Kind     NodeKind
-	Type     TypeKind // resolved type (filled by semcheck)
-	Name     string   // identifier
-	Val      int      // numeric literal or array size
-	FVal     float64  // floating-point literal value (KindFNum)
-	Op       string   // binary operator string: "+", "-", "*", "/", "<", "<=", ">", ">=", "==", "!="
-	Children []*Node
-	Line     int
-	IsConst  bool // true for KindVarDecl declared with const
-	IsExtern bool // true for extern declarations (var or fun)
+	Kind      NodeKind
+	Type      TypeKind // resolved type (filled by semcheck)
+	Name      string   // identifier
+	Val       int      // numeric literal or array size
+	FVal      float64  // floating-point literal value (KindFNum)
+	Op        string   // binary operator string: "+", "-", "*", "/", "<", "<=", ">", ">=", "==", "!="
+	StructTag string   // for TypeStruct/TypeIntPtr-to-struct: the struct type name
+	Children  []*Node
+	Line      int
+	IsConst   bool // true for KindVarDecl declared with const
+	IsExtern  bool // true for extern declarations (var or fun)
+}
+
+// StructField is one field in a struct definition.
+type StructField struct {
+	Name       string
+	Type       TypeKind
+	StructTag  string // non-empty when Type == TypeStruct or TypeIntPtr-to-struct
+	ByteOffset int    // byte offset within the struct (all fields are 8 bytes)
+}
+
+// StructDef describes one named struct type and its fields.
+type StructDef struct {
+	Name   string
+	Fields []StructField
+}
+
+// SizeBytes returns the total byte size of the struct (all fields are 8-byte aligned).
+func (sd *StructDef) SizeBytes() int { return len(sd.Fields) * 8 }
+
+// FindField returns the field with the given name, or nil if not found.
+func (sd *StructDef) FindField(name string) *StructField {
+	for i := range sd.Fields {
+		if sd.Fields[i].Name == name {
+			return &sd.Fields[i]
+		}
+	}
+	return nil
 }

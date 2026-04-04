@@ -38,6 +38,8 @@ const (
 	IRStrAddr              // Dst = address of string literal; Extra = label
 	IRDerefLoad            // Dst = *Src1  (load 8 bytes via pointer)
 	IRDerefStore           // *Dst = Src1  (store 8 bytes via pointer)
+	IRCharLoad             // Dst = Src1[Src2]  (char* subscript — byte load, no scaling)
+	IRCharStore            // Dst[Src1] = Src2  (char* subscript — byte store, no scaling)
 
 	// Unsigned integer operations (operands treated as unsigned).
 	IRUDiv  // Dst = Src1 / Src2   (unsigned divide)
@@ -64,6 +66,12 @@ const (
 	IRIntToDouble // Dst = (double)Src1   (int64 → double)
 	IRDoubleToInt // Dst = (int64)Src1    (double → int64, truncate toward zero)
 	IRFParam      // push Src1 as next FP call argument (into D0-D7)
+
+	// Struct field operations.
+	// IRFieldLoad:  Dst = *(Src1 + Src2.IVal)  — load field at byte offset Src2.IVal
+	// IRFieldStore: *(Dst + Src2.IVal) = Src1  — store value Src1 at field byte offset Src2.IVal
+	IRFieldLoad  // Dst = field load: base ptr in Src1, byte offset in Src2.IVal
+	IRFieldStore // field store: base ptr in Dst, value in Src1, byte offset in Src2.IVal
 )
 
 // AddrKind identifies what an IR address refers to.
@@ -112,27 +120,32 @@ type Quad struct {
 type IRGlobal struct {
 	Name       string
 	IsArr      bool
-	IsPtr      bool // true for TypeIntPtr or TypeCharPtr globals
-	IsExtern   bool // true for extern-declared globals (no storage allocated)
-	Size       int  // 1 for scalar, N for array[N]
+	IsPtr      bool   // true for TypeIntPtr or TypeCharPtr globals
+	IsStruct   bool   // true for TypeStruct globals
+	StructTag  string // struct type name (when IsStruct)
+	IsExtern   bool   // true for extern-declared globals (no storage allocated)
+	Size       int    // 1 for scalar, N for array[N] or struct (N = numFields)
 	HasInitVal bool
 	InitVal    int // constant initializer value (only when HasInitVal && !IsArr)
 }
 
 // IRLocal describes one local variable in a function (not a parameter).
 type IRLocal struct {
-	Name    string
-	IsArray bool
-	IsPtr   bool // true for TypeIntPtr or TypeCharPtr locals
-	ArrSize int  // 1 for scalar, N for int x[N]
+	Name      string
+	IsArray   bool
+	IsPtr     bool   // true for TypeIntPtr or TypeCharPtr locals
+	IsStruct  bool   // true for TypeStruct locals
+	StructTag string // struct type name (when IsStruct)
+	ArrSize   int    // 1 for scalar, N for int x[N]; for struct: number of fields
 }
 
 // IRFunc is the IR for one function.
 type IRFunc struct {
 	Name       string
 	ReturnType TypeKind   // return type (TypeVoid if void)
-	Params     []string   // parameter names in declaration order
+	Params     []string   // parameter names in declaration order (no "..." marker)
 	ParamType  []TypeKind // corresponding types
+	IsVariadic bool       // true if this function accepts variadic arguments
 	Locals     []IRLocal  // local variables declared inside the function body
 	Quads      []Quad
 }
@@ -151,8 +164,9 @@ type IRFConst struct {
 
 // IRProgram is the complete IR for a program.
 type IRProgram struct {
-	Globals []IRGlobal
-	Funcs   []*IRFunc
-	StrLits []IRStrLit // string literals (rodata)
-	FConsts []IRFConst // floating-point constants (literal pool entries)
+	Globals    []IRGlobal
+	Funcs      []*IRFunc
+	StrLits    []IRStrLit // string literals (rodata)
+	FConsts    []IRFConst // floating-point constants (literal pool entries)
+	StructDefs map[string]*StructDef // struct type definitions (from ast.go)
 }

@@ -23,22 +23,46 @@ import (
 func main() {
 	asmMode  := flag.Bool("asm", false, "emit Plan 9 ARM64 assembly + Go bridge instead of ELF")
 	compOnly := flag.Bool("c", false, "compile to relocatable object (.o) only; do not link")
-	linkMode := flag.Bool("link", false, "link mode: combine .o files into an ELF executable")
-	outFlag  := flag.String("o", "", "output file name (used with -c or -link)")
+	linkMode := flag.Bool("link", false, "link mode: combine .o/.a files into an ELF executable")
+	arMode   := flag.Bool("ar", false, "archive mode: package .o files into a static library (.a)")
+	outFlag  := flag.String("o", "", "output file name (used with -c, -link, or -ar)")
+	var includePaths includeFlags
+	flag.Var(&includePaths, "I", "add `directory` to the include search path (may be repeated)")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage:\n")
-		fmt.Fprintf(os.Stderr, "  gaston <file.cm>                  — compile to ELF binary\n")
-		fmt.Fprintf(os.Stderr, "  gaston -c [-o out.o] <file.cm>    — compile to object file\n")
-		fmt.Fprintf(os.Stderr, "  gaston -link -o out a.o b.o …     — link object files\n")
-		fmt.Fprintf(os.Stderr, "  gaston -asm <file.cm>             — emit Plan 9 assembly (legacy)\n")
+		fmt.Fprintf(os.Stderr, "  gaston <file.cm>                    — compile to ELF binary\n")
+		fmt.Fprintf(os.Stderr, "  gaston -c [-o out.o] <file.cm>      — compile to object file\n")
+		fmt.Fprintf(os.Stderr, "  gaston -link -o out a.o b.o …       — link objects/archives\n")
+		fmt.Fprintf(os.Stderr, "  gaston -ar -o libfoo.a a.o b.o …    — build static library\n")
+		fmt.Fprintf(os.Stderr, "  gaston -asm <file.cm>               — emit Plan 9 assembly (legacy)\n")
+		fmt.Fprintf(os.Stderr, "  gaston -I <dir> <file.cm>           — add include search path\n")
 	}
 	flag.Parse()
+
+	// ── archive mode ──────────────────────────────────────────────────────
+	if *arMode {
+		if flag.NArg() == 0 {
+			fmt.Fprintf(os.Stderr, "gaston: -ar requires one or more .o files\n")
+			os.Exit(1)
+		}
+		outFile := *outFlag
+		if outFile == "" {
+			fmt.Fprintf(os.Stderr, "gaston: -ar requires -o <output.a>\n")
+			os.Exit(1)
+		}
+		if err := archiveCreate(outFile, flag.Args()); err != nil {
+			fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Fprintf(os.Stderr, "gaston: archive %s\n", outFile)
+		return
+	}
 
 	// ── linker mode ───────────────────────────────────────────────────────
 	if *linkMode {
 		if flag.NArg() == 0 {
-			fmt.Fprintf(os.Stderr, "gaston: -link requires one or more .o files\n")
+			fmt.Fprintf(os.Stderr, "gaston: -link requires one or more .o/.a files\n")
 			os.Exit(1)
 		}
 		outFile := *outFlag
@@ -65,14 +89,22 @@ func main() {
 	dir := filepath.Dir(infile)
 
 	// Read source file.
-	src, err := os.ReadFile(infile)
+	rawSrc, err := os.ReadFile(infile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Preprocess.
+	pp := newPreprocessor([]string(includePaths))
+	src, err := pp.Preprocess(string(rawSrc), infile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
 		os.Exit(1)
 	}
 
 	// Parse.
-	lex := newLexer(string(src), infile)
+	lex := newLexer(src, infile)
 	yyParse(lex)
 	if lex.errors > 0 {
 		fmt.Fprintf(os.Stderr, "gaston: %d error(s), aborting\n", lex.errors)

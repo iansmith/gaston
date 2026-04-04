@@ -24,16 +24,18 @@ package main
 
 // Keywords
 %token INT VOID IF ELSE WHILE RETURN FOR DO BREAK CONTINUE CONST CHAR EXTERN
-%token LONG UNSIGNED SHORT FLOAT DOUBLE
+%token LONG UNSIGNED SHORT FLOAT DOUBLE STRUCT
 
 // Multi-character operators
 %token LE GE EQ NE LSHIFT RSHIFT
 %token INC DEC PLUSEQ MINUSEQ STAREQ DIVEQ MODEQ
+%token ARROW ELLIPSIS
 
 // Types for non-terminals
 %type <node>  program fun_declaration
 %type <nodes> declaration var_declaration const_declaration extern_declaration declaration_list params param_list id_list
-%type <node>  param compound_stmt
+%type <nodes> struct_declaration field_list
+%type <node>  field param compound_stmt postfix_expr
 %type <nodes> local_declarations statement_list
 %type <node>  statement expression_stmt selection_stmt iteration_stmt for_stmt do_while_stmt return_stmt break_stmt continue_stmt
 %type <node>  opt_expression
@@ -65,6 +67,7 @@ declaration
 	| const_declaration  { $$ = $1 }
 	| fun_declaration    { $$ = []*Node{$1} }
 	| extern_declaration { $$ = $1 }
+	| struct_declaration { $$ = $1 }
 	;
 
 extern_declaration
@@ -74,10 +77,18 @@ extern_declaration
 		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, IsExtern: true}} }
 	| EXTERN type_specifier '*' ID ';'
 		{ $$ = []*Node{{Kind: KindVarDecl, Type: ptrType($2), Name: $4, IsExtern: true}} }
+	| EXTERN STRUCT ID '*' ID ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntPtr, Name: $5, IsExtern: true, StructTag: $3}} }
 	| EXTERN type_specifier ID '(' params ')' ';'
 		{
 			n := &Node{Kind: KindFunDecl, Type: $2, Name: $3, IsExtern: true}
 			n.Children = $5
+			$$ = []*Node{n}
+		}
+	| EXTERN type_specifier ID '(' param_list ',' ELLIPSIS ')' ';'
+		{
+			n := &Node{Kind: KindFunDecl, Type: $2, Name: $3, IsExtern: true}
+			n.Children = append($5, &Node{Kind: KindParam, Type: TypeVoid, Name: "..."})
 			$$ = []*Node{n}
 		}
 	;
@@ -95,6 +106,12 @@ var_declaration
 		{ $$ = []*Node{{Kind: KindVarDecl, Type: ptrType($1), Name: $3}} }
 	| type_specifier '*' ID '=' expression ';'
 		{ n := &Node{Kind: KindVarDecl, Type: ptrType($1), Name: $3}; n.Children = []*Node{$5}; $$ = []*Node{n} }
+	| STRUCT ID ID ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeStruct, Name: $3, StructTag: $2}} }
+	| STRUCT ID '*' ID ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntPtr, Name: $4, StructTag: $2}} }
+	| STRUCT ID '*' ID '=' expression ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypeIntPtr, Name: $4, StructTag: $2}; n.Children = []*Node{$6}; $$ = []*Node{n} }
 	;
 
 const_declaration
@@ -128,6 +145,13 @@ fun_declaration
 			n.Children = append($4, $6)
 			$$ = n
 		}
+	| type_specifier ID '(' param_list ',' ELLIPSIS ')' compound_stmt
+		{
+			n := &Node{Kind: KindFunDecl, Type: $1, Name: $2}
+			params := append($4, &Node{Kind: KindParam, Type: TypeVoid, Name: "..."})
+			n.Children = append(params, $8)
+			$$ = n
+		}
 	;
 
 params
@@ -138,6 +162,8 @@ params
 param_list
 	: param_list ',' param
 		{ $$ = append($1, $3) }
+	| param_list ',' ELLIPSIS
+		{ $$ = append($1, &Node{Kind: KindParam, Type: TypeVoid, Name: "..."}) }
 	| param
 		{ $$ = []*Node{$1} }
 	;
@@ -149,6 +175,8 @@ param
 		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $2} }
 	| type_specifier '*' ID
 		{ $$ = &Node{Kind: KindParam, Type: ptrType($1), Name: $3} }
+	| STRUCT ID '*' ID
+		{ $$ = &Node{Kind: KindParam, Type: TypeIntPtr, Name: $4, StructTag: $2} }
 	;
 
 compound_stmt
@@ -240,24 +268,35 @@ return_stmt
 		{ $$ = &Node{Kind: KindReturn, Children: []*Node{$2}} }
 	;
 
+postfix_expr
+	: var
+		{ $$ = $1 }
+	| call
+		{ $$ = $1 }
+	| postfix_expr ARROW ID
+		{ $$ = &Node{Kind: KindFieldAccess, Op: "->", Name: $3, Children: []*Node{$1}} }
+	| postfix_expr '.' ID
+		{ $$ = &Node{Kind: KindFieldAccess, Op: ".", Name: $3, Children: []*Node{$1}} }
+	;
+
 expression
-	: var '=' expression
+	: postfix_expr '=' expression
 		{ $$ = &Node{Kind: KindAssign, Children: []*Node{$1, $3}} }
 	| '*' factor '=' expression
 		{ lhs := &Node{Kind: KindDeref, Children: []*Node{$2}}; $$ = &Node{Kind: KindAssign, Children: []*Node{lhs, $4}} }
-	| var INC
+	| postfix_expr INC
 		{ $$ = &Node{Kind: KindCompoundAssign, Op: "+", Val: 1, Children: []*Node{$1, nil}} }
-	| var DEC
+	| postfix_expr DEC
 		{ $$ = &Node{Kind: KindCompoundAssign, Op: "-", Val: 1, Children: []*Node{$1, nil}} }
-	| var PLUSEQ expression
+	| postfix_expr PLUSEQ expression
 		{ $$ = &Node{Kind: KindCompoundAssign, Op: "+", Children: []*Node{$1, $3}} }
-	| var MINUSEQ expression
+	| postfix_expr MINUSEQ expression
 		{ $$ = &Node{Kind: KindCompoundAssign, Op: "-", Children: []*Node{$1, $3}} }
-	| var STAREQ expression
+	| postfix_expr STAREQ expression
 		{ $$ = &Node{Kind: KindCompoundAssign, Op: "*", Children: []*Node{$1, $3}} }
-	| var DIVEQ expression
+	| postfix_expr DIVEQ expression
 		{ $$ = &Node{Kind: KindCompoundAssign, Op: "/", Children: []*Node{$1, $3}} }
-	| var MODEQ expression
+	| postfix_expr MODEQ expression
 		{ $$ = &Node{Kind: KindCompoundAssign, Op: "%", Children: []*Node{$1, $3}} }
 	| simple_expression
 		{ $$ = $1 }
@@ -328,8 +367,7 @@ mulop
 
 factor
 	: '(' expression ')' { $$ = $2 }
-	| var                 { $$ = $1 }
-	| call                { $$ = $1 }
+	| postfix_expr        { $$ = $1 }
 	| NUM                 { $$ = &Node{Kind: KindNum, Val: $1} }
 	| FNUM                { $$ = &Node{Kind: KindFNum, FVal: $1, Type: TypeDouble} }
 	| CHAR_LIT            { $$ = &Node{Kind: KindCharLit, Val: $1, Type: TypeInt} }
@@ -356,6 +394,27 @@ arg_list
 		{ $$ = append($1, $3) }
 	| expression
 		{ $$ = []*Node{$1} }
+	;
+
+struct_declaration
+	: STRUCT ID '{' field_list '}' ';'
+		{ $$ = []*Node{{Kind: KindStructDef, Name: $2, Children: $4}} }
+	;
+
+field_list
+	: field_list field
+		{ $$ = append($1, $2) }
+	| field
+		{ $$ = []*Node{$1} }
+	;
+
+field
+	: type_specifier ID ';'
+		{ $$ = &Node{Kind: KindVarDecl, Type: $1, Name: $2} }
+	| type_specifier '*' ID ';'
+		{ $$ = &Node{Kind: KindVarDecl, Type: ptrType($1), Name: $3} }
+	| STRUCT ID '*' ID ';'
+		{ $$ = &Node{Kind: KindVarDecl, Type: TypeIntPtr, Name: $4, StructTag: $2} }
 	;
 
 %%

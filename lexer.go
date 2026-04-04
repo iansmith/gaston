@@ -41,6 +41,7 @@ var keywords = map[string]int{
 	"short":    SHORT,
 	"float":    FLOAT,
 	"double":   DOUBLE,
+	"struct":   STRUCT,
 }
 
 // Lex scans and returns the next token, filling lval with the token's value.
@@ -286,7 +287,17 @@ scan:
 			return PLUSEQ
 		}
 		return int('+')
+	case '.':
+		if l.pos+1 < len(l.src) && l.src[l.pos] == '.' && l.src[l.pos+1] == '.' {
+			l.pos += 2
+			return ELLIPSIS
+		}
+		return int('.')
 	case '-':
+		if l.pos < len(l.src) && l.src[l.pos] == '>' {
+			l.pos++
+			return ARROW
+		}
 		if l.pos < len(l.src) && l.src[l.pos] == '-' {
 			l.pos++
 			return DEC
