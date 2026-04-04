@@ -114,18 +114,138 @@ var featureTests = []dockerTest{
 	// ── Feature 11: structs ──────────────────────────────────────────────
 	// struct_basic: local struct, assign and read fields
 	{name: "struct_basic", want: "10\n20\n30\n"},
+	// struct_short_field: struct with short field; verifies layout (short@0, int@8, sizeof=16)
+	{name: "struct_short_field", want: "1000\n42\n16\n32767\n9999\n"},
+	// struct_float_field: struct with float field (item 1+2); float@0, int@8, sizeof=16
+	{name: "struct_float_field", want: "3.500000\n100\n16\n9.750000\n100\n"},
 	// struct_ptr: pointer to struct, -> access, pass to function
 	{name: "struct_ptr", want: "3\n7\n10\n"},
 	// struct_global: global struct variable, function modifies via . access
 	{name: "struct_global", want: "3\n60\n"},
 	// struct_nested: 4-field struct, larger offsets, pass by pointer to function
 	{name: "struct_nested", want: "1\n2\n10\n20\n200\n"},
+	// struct_char_field: char+int struct; verifies ABI-aligned layout (char@0, int@8, size=16)
+	{name: "struct_char_field", want: "65\n42\n16\n"},
 
 	// ── Feature 12: variadic functions ───────────────────────────────────
 	// variadic_basic: variadic sum of N integer args
 	{name: "variadic_basic", want: "60\n100\n10\n"},
 	// variadic_ptr: variadic function reading string pointer args
 	{name: "variadic_ptr", want: "hello\nworld\ndone\n"},
+
+	// ── Feature 13: pointer arithmetic / void* / double pointers ─────────
+	// ptr_double: store and load double values via double* pointer
+	{name: "ptr_double", want: "3.000000\n7.000000\n7.000000\n"},
+	// ptr_float: store and load float values via float* pointer (item 1: TypeFloatPtr)
+	{name: "ptr_float", want: "2.500000\n7.250000\n7.250000\n"},
+	// ptr_arith: p+n auto-scales by 8; p-1 retreats one element
+	{name: "ptr_arith", want: "10\n20\n30\n40\n30\n20\n"},
+	// ptr_inc: p++/p--/p+=/p-= advance/retreat by element size
+	{name: "ptr_inc", want: "10\n20\n40\n30\n10\n"},
+	// ptr_void: void* accepts int* in assignment; malloc returns void*
+	{name: "ptr_void", want: "0\n2\n4\n"},
+	// ptr_ptr: int** double pointer dereference and assignment through
+	{name: "ptr_ptr", want: "42\n99\n99\n"},
+	// ptr_ptr_arr: int** subscript on malloc'd array of pointers
+	{name: "ptr_ptr_arr", want: "10\n20\n30\n20\n"},
+	// char_ptr_ptr: char** array of string pointers
+	{name: "char_ptr_ptr", want: "alpha\nbeta\ngamma\n"},
+
+	// ── Feature 14: pointer comparisons ──────────────────────────────────
+	// ptr_cmp: null check and same-type ordering comparisons
+	{name: "ptr_cmp", want: "0\n1\n0\n1\n"},
+
+	// ── Feature 15: sizeof operator ──────────────────────────────────────
+	// sizeof_basic: sizeof(type), sizeof(expr), sizeof(struct)
+	{name: "sizeof_basic", want: "8\n1\n8\n1\n8\n16\n16\n"},
+	// sizeof_array: sizeof(local_arr)=N×8, sizeof(arr_param)=8, sizeof(global_arr)=N×8
+	{name: "sizeof_array", want: "24\n40\n8\n"},
+	// sizeof_types: sizeof for float=4, double=8, short=2, unsigned short=2, unsigned char=1, int=8, char=1
+	{name: "sizeof_types", want: "4\n8\n2\n2\n1\n8\n1\n"},
+
+	// ── Feature 16: struct-by-value fields ───────────────────────────────
+	// struct_value: nested struct fields; chained dot access; recursive SizeBytes
+	{name: "struct_value", want: "1\n2\n10\n20\n12\n16\n32\n"},
+
+	// ── Feature 17: pointer assignment type checking ──────────────────────
+	// ptr_compat: void*↔any pointer, same-type, and null constant are all valid
+	{name: "ptr_compat", want: "99\n99\n"},
+
+	// ── Feature 18: integer promotion (char/short → int before arithmetic) ─
+	// int_promote: signed/unsigned char and short overflow, compound assign
+	{name: "int_promote", want: "-128\n-56\n-55\n200\n0\n-32768\n0\n"},
+	// int_promote_arith: cross-type char+short arithmetic; no intermediate overflow
+	{name: "int_promote_arith", want: "254\n-2\n30000\n30000\n0\n"},
+
+	// ── Item 9: enum / union / typedef / function pointers / const* ──────────
+	// enum_basic: enum constants auto-increment from 0; explicit value restarts counter
+	{name: "enum_basic", want: "0\n1\n2\n10\n11\n12\n"},
+	// union_basic: all fields share offset 0; sizeof = max field size rounded to alignment
+	{name: "union_basic", want: "1094861636\n65\n8\n"},
+	// typedef_basic: typedef creates an alias; variables declared with typedef'd name
+	{name: "typedef_basic", want: "42\n50\n"},
+	// funcptr_basic: function pointer assign and call
+	{name: "funcptr_basic", want: "7\n12\n30\n"},
+
+	// ── Integration tests: features used in combination ───────────────────
+	// deep_struct: 5-level nested struct; chained dot access; sizeof at each level
+	{name: "deep_struct", want: "1\n2\n3\n4\n5\n8\n16\n24\n32\n40\n"},
+	// union_in_struct: struct↔union alternating nesting; aliasing; sizeof
+	{name: "union_in_struct", want: "7\n3\n4\n3\n16\n16\n24\n24\n"},
+	// enum_flags: enum bit flags combined with bitwise ops
+	{name: "enum_flags", want: "5\n1\n0\n4\n7\n6\n2\n1\n"},
+	// typedef_funcptr_param: typedef'd func ptr as local, global, and function parameter
+	{name: "typedef_funcptr_param", want: "7\n12\n15\n5\n25\n"},
+	// const_ptr_alias: const* aliasing; modify via writable alias; re-point const*
+	{name: "const_ptr_alias", want: "42\n99\n99\n100\n10\n30\n"},
+	// enum_union_dispatch: all 5 new features together — tagged union with enum discriminant,
+	// typedef'd func ptr as callback parameter
+	{name: "enum_union_dispatch", want: "42\n3.140000\n7\n99\n"},
+
+	// ── Byzantine stress tests (one per type-system gap item) ─────────────────────
+	// Item 2: struct with char+short in same 8-byte window; char@0, short@2 → byte/halfword stores
+	{name: "struct_mixed_fields", want: "32\n65\n1000\n999999\n2.500000\n77\n"},
+	// Item 3: 3-level mixed -> . . chains; double field via IRFFieldLoad at depth 3
+	{name: "deep_arrow_dot", want: "42\n1.500000\n99\n7\n16\n24\n32\n"},
+	// Item 6: sizeof used in arithmetic, as divisor for element count, in comparisons
+	{name: "sizeof_exprs", want: "40\n8\n5\n15\n1\n0\n"},
+	// Item 7: void* round-trip through three functions; int* and double* round-trips
+	{name: "void_ptr_chain", want: "42\n99\n7.000000\n"},
+	// Item 8: char+char → int (no overflow); stored back to char (wraps); short overflow
+	{name: "promo_wrap", want: "200\n-56\n10000\n-32768\n"},
+	// Item 9a: function pointer as struct field; "vtable" dispatch through pointer
+	{name: "vtable", want: "3\n8\n15\n0\n"},
+	// Item 9b: enum constants as array indices, in arithmetic, mixed with sizeof
+	{name: "enum_arith", want: "3\n1\n0\n30\n97\n3\n"},
+	// Item 9c: const* aliasing, re-seat, passed to function
+	{name: "const_ptr_write", want: "10\n20\n20\n30\n"},
+	// Item 13: VLA filled in loop, passed to function; two different sizes
+	{name: "vla_sum", want: "55\n15\n8\n"},
+	// Items 1+4: double* pointer arithmetic, *(p+k) reads at stride 8
+	{name: "double_ptr_ops", want: "1.000000\n3.000000\n6.000000\n9.000000\n"},
+	// Items 4+12: char** as pointer table; deref through double indirection
+	{name: "charpp_table", want: "65\n66\n90\n"},
+	// Items 2+3+9 combined: union with double inside nested struct, 3-level dot chain
+	{name: "union_float_chain", want: "42\n3.140000\n42\n24\n"},
+	// Item 5 (documents current non-standard behavior): sizeof(int)=8 in gaston
+	{name: "sizeof_int_abi", want: "8\n8\n16\n"},
+
+	// ── Item 4: double** and float** pointer-to-pointer types ─────────────
+	{name: "dbl_ptr_ptr", want: "3.140000\n2.718000\n"},
+	// ── Item 11: 2D arrays ────────────────────────────────────────────────
+	{name: "multi_dim", want: "66\n0\n11\n"},
+	// ── Item 12: arrays of pointers ───────────────────────────────────────
+	{name: "ptr_arr", want: "10\n20\n30\n99\n"},
+	// ── Item 14: _Bool / bool type ────────────────────────────────────────
+	{name: "bool_basic", want: "1\n0\n1\n1\n"},
+	// ── Item 15: bit-fields ───────────────────────────────────────────────
+	{name: "bitfield_basic", want: "5\n17\n100\n8\n"},
+	// ── Item 16: flexible array members ──────────────────────────────────
+	{name: "flex_array", want: "4\n100\n8\n"},
+	// ── Item 17: static local variables ──────────────────────────────────
+	{name: "static_local", want: "1\n2\n3\n"},
+	// ── Items 17+18: register/volatile as no-ops ─────────────────────────
+	{name: "register_volatile", want: "42\n43\n"},
 }
 
 // sepTest describes a separate-compilation test: compile multiple .cm files
@@ -362,6 +482,57 @@ func TestLibc(t *testing.T) {
 			got := string(out)
 			if got != tt.want {
 				t.Errorf("output mismatch:\n  got  %q\n  want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// semErrorTest describes a program that must fail semCheck with a specific error.
+type semErrorTest struct {
+	name string // testdata/<name>.cm
+	want string // expected substring in the semCheck error
+}
+
+var semErrorTests = []semErrorTest{
+	// ── Item 7: pointer assignment type checking ──────────────────────────
+	// Assigning int* to char* is incompatible (neither is void*).
+	{name: "err_ptr_incompat", want: "assignment of incompatible pointer types"},
+	// Assigning a non-zero integer to a pointer is not allowed.
+	{name: "err_ptr_int", want: "assignment of non-pointer to pointer type"},
+	// Assigning double* to int* is incompatible (FP pointer types are not interchangeable).
+	{name: "err_ptr_fp", want: "assignment of incompatible pointer types"},
+	// ── Item 9: const pointer target ─────────────────────────────────────
+	// Assigning through a const-qualified pointer must be rejected.
+	{name: "err_const_ptr", want: "assignment to const-qualified pointer target"},
+}
+
+// TestSemErrors verifies that ill-typed programs are rejected by semCheck with
+// the expected error message.
+func TestSemErrors(t *testing.T) {
+	for _, tt := range semErrorTests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			srcPath := fmt.Sprintf("testdata/%s.cm", tt.name)
+			raw, err := os.ReadFile(srcPath)
+			if err != nil {
+				t.Fatalf("read %s: %v", srcPath, err)
+			}
+			pp := newPreprocessor(nil)
+			src, err2 := pp.Preprocess(string(raw), srcPath)
+			if err2 != nil {
+				t.Fatalf("preprocess: %v", err2)
+			}
+			lex := newLexer(src, srcPath)
+			yyParse(lex)
+			if lex.errors > 0 {
+				t.Fatalf("parse errors in %s", tt.name)
+			}
+			semErr := semCheck(lex.result, false)
+			if semErr == nil {
+				t.Fatalf("%s: expected semCheck error containing %q, got none", tt.name, tt.want)
+			}
+			if !strings.Contains(semErr.Error(), tt.want) {
+				t.Errorf("%s: error %q does not contain %q", tt.name, semErr.Error(), tt.want)
 			}
 		})
 	}

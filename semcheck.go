@@ -23,13 +23,17 @@ type symTable struct {
 }
 
 type symEntry struct {
-	name      string
-	typ       TypeKind
-	structTag string // for TypeStruct or TypeIntPtr-to-struct: the struct name
-	isParam   bool
-	isGlobal  bool
-	isConst   bool
-	constVal  int
+	name           string
+	typ            TypeKind
+	structTag      string // for TypeStruct or TypeIntPtr-to-struct: the struct name
+	isParam        bool
+	isGlobal       bool
+	isConst        bool
+	constVal       int
+	arrSize        int      // for TypeIntArray locals/globals: number of elements (0 for params, which decay to pointer)
+	innerDim       int      // for 2D arrays: inner dimension (columns)
+	elemType       TypeKind // for TypeIntArray: element type (e.g. TypeDouble); 0/TypeInt if int array
+	isConstTarget  bool     // true for const T *p — cannot store through the pointer
 }
 
 func newSymTable() *symTable {
@@ -43,12 +47,36 @@ func newSymTable() *symTable {
 	st.funcs["output"] = &FuncSig{Name: "output", ReturnType: TypeVoid, Params: []TypeKind{TypeInt}}
 	st.funcs["print_char"] = &FuncSig{Name: "print_char", ReturnType: TypeVoid, Params: []TypeKind{TypeInt}}
 	st.funcs["print_string"] = &FuncSig{Name: "print_string", ReturnType: TypeVoid, Params: []TypeKind{TypeInt}}
-	st.funcs["malloc"] = &FuncSig{Name: "malloc", ReturnType: TypeIntPtr, Params: []TypeKind{TypeInt}}
-	st.funcs["free"] = &FuncSig{Name: "free", ReturnType: TypeVoid, Params: []TypeKind{TypeIntPtr}}
+	st.funcs["malloc"] = &FuncSig{Name: "malloc", ReturnType: TypeVoidPtr, Params: []TypeKind{TypeInt}}
+	st.funcs["free"] = &FuncSig{Name: "free", ReturnType: TypeVoid, Params: []TypeKind{TypeVoidPtr}}
 	st.funcs["print_double"] = &FuncSig{Name: "print_double", ReturnType: TypeVoid, Params: []TypeKind{TypeDouble}}
 	// Compiler built-in: returns a pointer to the variadic register save area.
 	st.funcs["__va_start"] = &FuncSig{Name: "__va_start", ReturnType: TypeIntPtr}
 	return st
+}
+
+// sizeofKind returns the byte size for the given TypeKind.
+// All pointer types and int/long/double occupy 8 bytes; char is 1; short is 2; float is 4.
+// For TypeStruct, structTag and structDefs are used to sum the field sizes.
+func sizeofKind(t TypeKind, structTag string, structDefs map[string]*StructDef) int {
+	switch t {
+	case TypeChar, TypeUnsignedChar:
+		return 1
+	case TypeShort, TypeUnsignedShort:
+		return 2
+	case TypeFloat:
+		return 4
+	case TypeStruct:
+		if structTag != "" {
+			if sd, ok := structDefs[structTag]; ok {
+				return sd.SizeBytes(structDefs)
+			}
+		}
+		return 8
+	default:
+		// TypeInt, TypeUnsignedInt, TypeDouble, pointers, TypeFuncPtr, TypeIntArray, TypeVoid
+		return 8
+	}
 }
 
 func (st *symTable) enterFunc() { st.locals = make(map[string]*symEntry) }
@@ -63,6 +91,16 @@ func (st *symTable) declareGlobal(name string, typ TypeKind, structTag ...string
 		e.structTag = structTag[0]
 	}
 	st.globals[name] = e
+	return nil
+}
+
+func (st *symTable) declareGlobalFull(n *Node) error {
+	if _, ok := st.globals[n.Name]; ok {
+		return fmt.Errorf("redeclaration of global '%s'", n.Name)
+	}
+	e := &symEntry{name: n.Name, typ: n.Type, isGlobal: true,
+		structTag: n.StructTag, isConstTarget: n.IsConstTarget}
+	st.globals[n.Name] = e
 	return nil
 }
 
@@ -90,6 +128,16 @@ func (st *symTable) declareLocal(name string, typ TypeKind, isParam bool, struct
 		e.structTag = structTag[0]
 	}
 	st.locals[name] = e
+	return nil
+}
+
+func (st *symTable) declareLocalFull(n *Node, isParam bool) error {
+	if _, ok := st.locals[n.Name]; ok {
+		return fmt.Errorf("redeclaration of '%s'", n.Name)
+	}
+	e := &symEntry{name: n.Name, typ: n.Type, isParam: isParam,
+		structTag: n.StructTag, isConstTarget: n.IsConstTarget}
+	st.locals[n.Name] = e
 	return nil
 }
 
@@ -127,7 +175,7 @@ func semCheck(prog *Node, requireMain bool) error {
 	for _, decl := range prog.Children {
 		switch decl.Kind {
 		case KindStructDef:
-			sd := buildStructDef(decl, &errs)
+			sd := buildStructDef(decl, &errs, st.structDefs)
 			if sd != nil {
 				st.structDefs[sd.Name] = sd
 			}
@@ -146,8 +194,12 @@ func semCheck(prog *Node, requireMain bool) error {
 						errs = append(errs, fmt.Sprintf("undefined struct '%s'", decl.StructTag))
 					}
 				}
-				if err := st.declareGlobal(decl.Name, decl.Type, decl.StructTag); err != nil {
+				if err := st.declareGlobalFull(decl); err != nil {
 					errs = append(errs, err.Error())
+				} else if decl.Type == TypeIntArray {
+					st.globals[decl.Name].arrSize = decl.Val
+					st.globals[decl.Name].elemType = decl.ElemType
+					st.globals[decl.Name].innerDim = decl.Dim2
 				}
 				if len(decl.Children) > 0 {
 					if decl.Children[0].Kind != KindNum {
@@ -171,16 +223,71 @@ func semCheck(prog *Node, requireMain bool) error {
 }
 
 // buildStructDef constructs a StructDef from a KindStructDef AST node.
-func buildStructDef(n *Node, errs *[]string) *StructDef {
-	sd := &StructDef{Name: n.Name}
-	for i, child := range n.Children {
-		sf := StructField{
-			Name:       child.Name,
-			Type:       child.Type,
-			StructTag:  child.StructTag,
-			ByteOffset: i * 8,
+// Field byte offsets follow the System V ARM64 ABI natural-alignment rule:
+// each field is placed at the smallest offset satisfying its alignment.
+// Bit-fields are packed into 8-byte storage words.
+// Flex arrays (Val==-1) are last and have no storage size.
+// structDefs is used to look up sizes of nested struct fields.
+func buildStructDef(n *Node, errs *[]string, structDefs map[string]*StructDef) *StructDef {
+	sd := &StructDef{Name: n.Name, IsUnion: n.IsUnion}
+	offset := 0
+	bfWordOffset := -1  // byte offset of current bit-field storage word (-1 = none active)
+	bfBitsUsed := 0
+	const bfWordBits = 64
+	const bfWordSize = 8
+
+	for _, child := range n.Children {
+		isBF := child.BitWidth > 0
+		isFlexArr := child.Type == TypeIntArray && child.Val == -1
+
+		if isBF && !sd.IsUnion {
+			if bfWordOffset == -1 || bfBitsUsed+child.BitWidth > bfWordBits {
+				if bfWordOffset != -1 {
+					offset = bfWordOffset + bfWordSize
+				}
+				offset = (offset + 7) &^ 7
+				bfWordOffset = offset
+				bfBitsUsed = 0
+			}
+			sd.Fields = append(sd.Fields, StructField{
+				Name:       child.Name,
+				Type:       child.Type,
+				ByteOffset: bfWordOffset,
+				IsBitField: true,
+				BitOffset:  bfBitsUsed,
+				BitWidth:   child.BitWidth,
+			})
+			bfBitsUsed += child.BitWidth
+		} else {
+			// Close out any open bit-field word.
+			if bfWordOffset != -1 && !sd.IsUnion {
+				offset = bfWordOffset + bfWordSize
+				bfWordOffset = -1
+				bfBitsUsed = 0
+			}
+			sz, align := fieldSizeAlign(child.Type, child.StructTag, structDefs)
+			if !sd.IsUnion {
+				// Struct: advance offset with natural alignment.
+				offset = (offset + align - 1) &^ (align - 1)
+			}
+			// Union: all fields start at offset 0 (offset stays 0 throughout).
+			sd.Fields = append(sd.Fields, StructField{
+				Name:        child.Name,
+				Type:        child.Type,
+				ElemType:    child.ElemType,
+				StructTag:   child.StructTag,
+				ByteOffset:  offset,
+				IsFlexArray: isFlexArr,
+			})
+			if !sd.IsUnion && !isFlexArr {
+				offset += sz
+			}
 		}
-		sd.Fields = append(sd.Fields, sf)
+	}
+	// Close out trailing bit-field word.
+	if bfWordOffset != -1 && !sd.IsUnion {
+		// offset will be computed by SizeBytes via the field's ByteOffset+8
+		_ = bfWordOffset
 	}
 	return sd
 }
@@ -240,14 +347,35 @@ func checkCompound(n *Node, st *symTable, fn *Node, errs *[]string) {
 				if err := st.declareConst(child.Name, child.Type, child.Val, false); err != nil {
 					*errs = append(*errs, err.Error())
 				}
+			} else if child.IsStatic {
+				// Static local: treat as global for type-checking purposes.
+				// Register in globals so lookups work; irgen will handle allocation.
+				e := &symEntry{name: child.Name, typ: child.Type, isGlobal: true,
+					structTag: child.StructTag, isConstTarget: child.IsConstTarget}
+				if child.Type == TypeIntArray {
+					e.arrSize = child.Val
+					e.elemType = child.ElemType
+					e.innerDim = child.Dim2
+				}
+				// Add to locals (shadows any global of same name within this function).
+				if st.locals != nil {
+					st.locals[child.Name] = e
+				}
+				if len(child.Children) > 0 {
+					checkExpr(child.Children[0], st, errs)
+				}
 			} else {
 				if child.Type == TypeStruct {
 					if _, ok := st.structDefs[child.StructTag]; !ok {
 						*errs = append(*errs, fmt.Sprintf("undefined struct '%s'", child.StructTag))
 					}
 				}
-				if err := st.declareLocal(child.Name, child.Type, false, child.StructTag); err != nil {
+				if err := st.declareLocalFull(child, false); err != nil {
 					*errs = append(*errs, err.Error())
+				} else if child.Type == TypeIntArray {
+					st.locals[child.Name].arrSize = child.Val
+					st.locals[child.Name].elemType = child.ElemType
+					st.locals[child.Name].innerDim = child.Dim2
 				}
 				if len(child.Children) > 0 {
 					// For VLA: Children[0] is the size variable expression.
@@ -340,6 +468,27 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		switch t {
 		case TypeChar:
 			n.Type = TypeCharPtr
+		case TypeCharPtr:
+			n.Type = TypeCharPtrPtr
+		case TypeIntPtr, TypeVoidPtr:
+			n.Type = TypeIntPtrPtr
+		case TypeFloat:
+			n.Type = TypeFloatPtr
+		case TypeDouble:
+			n.Type = TypeDoublePtr
+		case TypeFloatPtr:
+			n.Type = TypeFloatPtrPtr
+		case TypeDoublePtr:
+			n.Type = TypeDoublePtrPtr
+		case TypeIntArray:
+			// Array-to-pointer decay: use element type to produce a typed pointer.
+			et := TypeInt
+			if child := n.Children[0]; child.Kind == KindVar {
+				if e := st.lookup(child.Name); e != nil && e.elemType != 0 {
+					et = e.elemType
+				}
+			}
+			n.Type = ptrType(et)
 		default:
 			n.Type = TypeIntPtr
 		}
@@ -347,17 +496,23 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 
 	case KindDeref:
 		t := checkExpr(n.Children[0], st, errs)
-		switch t {
-		case TypeCharPtr:
-			n.Type = TypeChar
-		default:
+		if t == TypeVoidPtr {
+			*errs = append(*errs, "cannot dereference void pointer")
 			n.Type = TypeInt
+			return TypeInt
 		}
+		n.Type = derefPtrType(t)
 		return n.Type
 
 	case KindVar:
 		e := st.lookup(n.Name)
 		if e == nil {
+			// Not a variable — check if it's a function name used as a value (func ptr assignment).
+			if sig, ok := st.funcs[n.Name]; ok {
+				_ = sig
+				n.Type = TypeFuncPtr
+				return TypeFuncPtr
+			}
 			*errs = append(*errs, fmt.Sprintf("undefined variable '%s'", n.Name))
 			n.Type = TypeInt
 			return TypeInt
@@ -379,22 +534,79 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			n.Type = TypeInt
 			return TypeInt
 		}
-		if e.typ != TypeIntArray && e.typ != TypeIntPtr && e.typ != TypeCharPtr {
+		if e.typ != TypeIntArray && !isPtrType(e.typ) {
 			*errs = append(*errs, fmt.Sprintf("'%s' is not an array or pointer", n.Name))
 		}
 		checkExpr(n.Children[0], st, errs)
-		if e.typ == TypeCharPtr {
+		// Element type from subscripting the pointer/array.
+		switch e.typ {
+		case TypeCharPtr:
 			n.Type = TypeChar
-			return TypeChar
+		case TypeFloatPtr:
+			n.Type = TypeFloat
+		case TypeDoublePtr:
+			n.Type = TypeDouble
+		default:
+			if isPtrPtrType(e.typ) {
+				n.Type = derefPtrType(e.typ) // int** → int*, char** → char*, double** → double*
+			} else if e.typ == TypeIntArray && e.elemType != 0 && e.elemType != TypeInt {
+				n.Type = e.elemType // typed array: use the declared element type
+			} else {
+				n.Type = TypeInt // TypeIntPtr, TypeVoidPtr, TypeIntArray → int element
+			}
 		}
-		n.Type = TypeInt
-		return TypeInt
+		return n.Type
+
+	case KindArray2D:
+		e := st.lookup(n.Name)
+		if e == nil {
+			*errs = append(*errs, fmt.Sprintf("undefined variable '%s'", n.Name))
+			n.Type = TypeInt
+			return TypeInt
+		}
+		checkExpr(n.Children[0], st, errs)
+		checkExpr(n.Children[1], st, errs)
+		// Element type of the 2D array
+		if e.elemType != 0 {
+			n.Type = e.elemType
+		} else {
+			n.Type = TypeInt
+		}
+		return n.Type
 
 	case KindAssign:
-		t := checkExpr(n.Children[1], st, errs)
-		checkExpr(n.Children[0], st, errs) // lhs: KindVar, KindArrayVar, or KindDeref
-		n.Type = t
-		return t
+		rhs := n.Children[1]
+		rhsType := checkExpr(rhs, st, errs)
+		lhsType := checkExpr(n.Children[0], st, errs)
+		// Reject assignment through a const pointer target.
+		if n.Children[0].Kind == KindDeref {
+			if inner := n.Children[0].Children[0]; inner.Kind == KindVar {
+				if e := st.lookup(inner.Name); e != nil && e.isConstTarget {
+					*errs = append(*errs, "assignment to const-qualified pointer target")
+				}
+			}
+		}
+		// Pointer assignment compatibility check.
+		if isPtrType(lhsType) {
+			// TypeIntArray used as a value decays to int* (e.g. p = arr_name).
+			effectiveRhs := rhsType
+			if effectiveRhs == TypeIntArray {
+				effectiveRhs = TypeIntPtr
+			}
+			if isPtrType(effectiveRhs) {
+				// Both pointers: must be same type or one side is void*.
+				if lhsType != effectiveRhs && lhsType != TypeVoidPtr && effectiveRhs != TypeVoidPtr {
+					*errs = append(*errs, "assignment of incompatible pointer types")
+				}
+			} else {
+				// Non-pointer rhs to pointer lhs: only the null pointer constant (literal 0) is valid.
+				if rhs.Kind != KindNum || rhs.Val != 0 {
+					*errs = append(*errs, "assignment of non-pointer to pointer type")
+				}
+			}
+		}
+		n.Type = rhsType
+		return rhsType
 
 	case KindCompoundAssign:
 		lt := checkExpr(n.Children[0], st, errs)
@@ -411,10 +623,22 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		// determine signed vs unsigned comparison in irgen via Children[0].Type.
 		switch n.Op {
 		case "<", "<=", ">", ">=", "==", "!=":
+			// Pointer comparison type checking.
+			if isPtrType(lt) && isPtrType(rt) {
+				if lt != rt && lt != TypeVoidPtr && rt != TypeVoidPtr {
+					*errs = append(*errs, "comparison of incompatible pointer types")
+				}
+			}
 			n.Type = TypeInt
 		default:
-			// FP "infects" — if either operand is FP, result is double.
-			if isFPType(lt) || isFPType(rt) {
+			// Pointer arithmetic: pointer ± integer → same pointer type.
+			if isPtrType(lt) && !isPtrType(rt) && (n.Op == "+" || n.Op == "-") {
+				n.Type = lt
+			} else if isPtrType(rt) && !isPtrType(lt) && n.Op == "+" {
+				// integer + pointer (commutative) → pointer type
+				n.Type = rt
+			} else if isFPType(lt) || isFPType(rt) {
+				// FP "infects" — if either operand is FP, result is double.
 				n.Type = TypeDouble
 			} else if isUnsignedType(lt) || isUnsignedType(rt) {
 				// Arithmetic: unsigned "infects" — if either operand is unsigned, result is unsigned.
@@ -461,11 +685,67 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			n.Type = TypeInt
 			return TypeInt
 		}
-		n.Type = f.Type
+		if f.IsFlexArray {
+			// Flex array member decays to a pointer to its element type.
+			et := f.ElemType
+			if et == 0 {
+				et = TypeInt
+			}
+			n.Type = ptrType(et)
+		} else {
+			n.Type = f.Type
+		}
 		n.StructTag = f.StructTag // propagate inner struct tag (for chained access)
 		return n.Type
 
+	case KindSizeof:
+		var size int
+		if len(n.Children) > 0 {
+			// sizeof(expr) — type-check expression to determine its type.
+			child := n.Children[0]
+			t := checkExpr(child, st, errs)
+			if t == TypeIntArray && child.Kind == KindVar {
+				// Array variable: sizeof = element count × element size (8 bytes for int[]).
+				// Array params decay to a pointer, so sizeof(param_arr) = 8.
+				if e := st.lookup(child.Name); e != nil && e.arrSize > 0 {
+					size = e.arrSize * 8
+				} else {
+					size = 8 // param or unknown → pointer size
+				}
+			} else {
+				size = sizeofKind(t, child.StructTag, st.structDefs)
+			}
+		} else if n.StructTag != "" {
+			// sizeof(struct Tag)
+			sd := st.structDefs[n.StructTag]
+			if sd == nil {
+				*errs = append(*errs, fmt.Sprintf("sizeof: unknown struct '%s'", n.StructTag))
+			} else {
+				size = sd.SizeBytes(st.structDefs)
+			}
+		} else {
+			// sizeof(type_specifier)
+			size = sizeofKind(n.Type, "", st.structDefs)
+		}
+		// Fold to integer literal — irgen never sees KindSizeof.
+		n.Kind = KindNum
+		n.Val = size
+		n.Type = TypeInt
+		n.Children = nil
+		n.StructTag = ""
+		return TypeInt
+
 	case KindCall:
+		// Check if the callee name is a TypeFuncPtr variable (not a direct function).
+		if e := st.lookup(n.Name); e != nil && e.typ == TypeFuncPtr {
+			// Rewrite as function-pointer call.
+			n.Kind = KindFuncPtrCall
+			for _, arg := range n.Children {
+				checkExpr(arg, st, errs)
+			}
+			n.Type = TypeInt // opaque: assume int return
+			return TypeInt
+		}
 		sig := st.funcs[n.Name]
 		if sig == nil {
 			*errs = append(*errs, fmt.Sprintf("undefined function '%s'", n.Name))
@@ -485,6 +765,13 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		}
 		n.Type = sig.ReturnType
 		return sig.ReturnType
+
+	case KindFuncPtrCall:
+		for _, arg := range n.Children {
+			checkExpr(arg, st, errs)
+		}
+		n.Type = TypeInt // opaque: assume int return
+		return TypeInt
 	}
 	return TypeVoid
 }

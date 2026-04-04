@@ -1,4 +1,4 @@
-/* ptr_array.cm — pointer arithmetic to address array elements (each int = 8 bytes) */
+/* ptr_array.cm — pointer arithmetic to address array elements (auto-scaled) */
 void main(void) {
     int arr[3];
     int *p;
@@ -7,6 +7,6 @@ void main(void) {
     arr[2] = 30;
     p = &arr;
     output(*p);
-    output(*(p + 8));
-    output(*(p + 16));
+    output(*(p + 1));
+    output(*(p + 2));
 }

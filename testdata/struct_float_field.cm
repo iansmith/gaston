@@ -1,0 +1,24 @@
+/* struct_float_field.cm — struct with a float field followed by an int field.
+   Tests items 1 + 2:
+   - Item 1: float field access yields TypeFloat so print_double receives correct FP value
+   - Item 2: float at byte offset 0 (4 bytes), 4 bytes padding, int at byte offset 8;
+             sizeof(struct FI) = 16
+   Uses a local float variable as intermediary to avoid AddrFConst-to-integer-reg issue. */
+float fval;
+struct FI { float f; int i; };
+
+void main(void) {
+    struct FI m;
+    fval = 3.5;
+    m.f = fval;              /* copy float var into struct float field */
+    m.i = 100;
+    print_double(m.f);       /* 3.500000 — float field read back as FP value */
+    output(m.i);             /* 100      — int field unaffected by float at offset 0 */
+    output(sizeof(struct FI)); /* 16     — float(4)+pad(4)+int(8) */
+
+    /* Overwrite the float field and verify int field is still intact */
+    fval = 9.75;
+    m.f = fval;
+    print_double(m.f);       /* 9.750000 */
+    output(m.i);             /* 100      — int field still 100 */
+}

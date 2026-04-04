@@ -1,0 +1,18 @@
+/* sizeof_int_abi.cm — documents item 5: gaston sizeof(int)=8 diverges from C ABI.
+   In real C LP64, sizeof(int)=4 and sizeof(long)=8.
+   This test records gaston's CURRENT (non-standard) behavior so any future
+   fix to item 5 will break this test and require updating expected output.
+
+   Also exercises sizeof for structs whose layout depends on int width.
+   struct ISize { int a; int b; }  — in gaston: a@0(8), b@8(8), size=16
+   In real C LP64:                                a@0(4), b@4(4), size=8
+
+   Expected (gaston): 8 8 16 */
+
+struct ISize { int a; int b; };
+
+void main(void) {
+    output(sizeof(int));           /* 8 — gaston (should be 4 in real C ABI) */
+    output(sizeof(long));          /* 8 — correct in LP64 */
+    output(sizeof(struct ISize));  /* 16 — 2 * 8; in real C LP64 this would be 8 */
+}

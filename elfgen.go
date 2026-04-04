@@ -81,7 +81,7 @@ type codeBuilder struct {
 	externBLs []externBLRecord // extern BL calls (for ET_REL mode only)
 }
 
-func newCodeBuilder(globals []IRGlobal, strLits []IRStrLit, fconsts []IRFConst) *codeBuilder {
+func newCodeBuilder(globals []IRGlobal, strLits []IRStrLit, fconsts []IRFConst, funcRefs []string) *codeBuilder {
 	cb := &codeBuilder{
 		labels:  make(map[string]int),
 		poolIdx: make(map[string]int),
@@ -98,6 +98,14 @@ func newCodeBuilder(globals []IRGlobal, strLits []IRStrLit, fconsts []IRFConst) 
 	for _, fc := range fconsts {
 		cb.poolIdx[fc.Label] = i
 		i++
+	}
+	// Add pool entries for function address references (IRFuncAddr).
+	for _, fn := range funcRefs {
+		label := funcLabel(fn)
+		if _, already := cb.poolIdx[label]; !already {
+			cb.poolIdx[label] = i
+			i++
+		}
 	}
 	// Reserve space for the literal pool: 2 uint32 words per 8-byte value.
 	for j := 0; j < i; j++ {
@@ -559,6 +567,38 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 			g.arrayBase(q.Src1, regX0)
 			g.store(regX0, q.Dst)
 
+		case IRAddrOf:
+			// Compute the storage address of Src1 — never loads through a pointer slot.
+			switch q.Src1.Kind {
+			case AddrLocal, AddrTemp:
+				off := g.fr.offsets[q.Src1.Name]
+				g.cb.emit(encADDimm(regX0, g.frameBase(), off))
+			case AddrGlobal:
+				g.cb.emitLDRglobal(q.Src1.Name) // X9 = VA of global slot
+				g.cb.emit(encMOVreg(regX0, regX9))
+			}
+			g.store(regX0, q.Dst)
+
+		case IRSignExtend:
+			// Dst = sign_extend(Src1, bits) — integer promotion for char/short.
+			g.load(q.Src1, regX0)
+			if q.Src2.IVal == 8 {
+				g.cb.emit(encSXTB(regX0, regX0))
+			} else {
+				g.cb.emit(encSXTH(regX0, regX0))
+			}
+			g.store(regX0, q.Dst)
+
+		case IRZeroExtend:
+			// Dst = zero_extend(Src1, bits) — integer promotion for unsigned char/short.
+			g.load(q.Src1, regX0)
+			if q.Src2.IVal == 8 {
+				g.cb.emit(encUXTB(regX0, regX0))
+			} else {
+				g.cb.emit(encUXTH(regX0, regX0))
+			}
+			g.store(regX0, q.Dst)
+
 		case IRStrAddr:
 			// Load the address of a string literal via the pool.
 			g.cb.emitLDRglobal(q.Extra)              // X9 = VA of string literal
@@ -577,17 +617,59 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 			g.load(q.Src1, regX1)
 			g.cb.emit(encSTRuoff(regX1, regX0, 0))
 
+		case IRFDerefLoad:
+			// Dst = *Src1 (load 8-byte double via pointer; result stored as FP)
+			g.load(q.Src1, regX0)                    // X0 = pointer value
+			g.cb.emit(encLDRDuoff(0, regX0, 0))      // D0 = *(X0)
+			g.fpStore(0, q.Dst)                       // slot[Dst] = D0
+
+		case IRFDerefStore:
+			// *Dst = Src1 (store 8-byte double via pointer; Src1 is FP)
+			g.load(q.Dst, regX0)                      // X0 = pointer value
+			g.fpLoad(q.Src1, 0)                       // D0 = Src1
+			g.cb.emit(encSTRDuoff(0, regX0, 0))       // *(X0) = D0
+
 		case IRFieldLoad:
-			// Dst = *(Src1 + Src2.IVal) — struct field load
-			g.load(q.Src1, regX0)                              // X0 = base ptr
-			g.cb.emit(encLDRuoff(regX0, regX0, q.Src2.IVal))  // X0 = *(X0 + offset)
+			// Dst = *(Src1 + Src2.IVal) — struct field load; width depends on TypeHint
+			g.load(q.Src1, regX0) // X0 = base ptr
+			switch q.TypeHint {
+			case TypeChar:
+				g.cb.emit(encLDRSBuoff(regX0, regX0, q.Src2.IVal)) // LDRSB: sign-ext byte → 64-bit
+			case TypeUnsignedChar:
+				g.cb.emit(encLDRBuoff(regX0, regX0, q.Src2.IVal)) // LDRB: zero-ext byte → 64-bit
+			case TypeShort:
+				g.cb.emit(encLDRSH(regX0, regX0, q.Src2.IVal)) // LDRSH: sign-ext halfword → 64-bit
+			case TypeUnsignedShort:
+				g.cb.emit(encLDRH(regX0, regX0, q.Src2.IVal)) // LDRH: zero-ext halfword → 64-bit
+			default:
+				g.cb.emit(encLDRuoff(regX0, regX0, q.Src2.IVal)) // LDR: 8-byte load
+			}
 			g.store(regX0, q.Dst)
 
 		case IRFieldStore:
-			// *(Dst + Src2.IVal) = Src1 — struct field store
+			// *(Dst + Src2.IVal) = Src1 — struct field store; width depends on TypeHint
+			g.load(q.Dst, regX0) // X0 = base ptr
+			g.load(q.Src1, regX1) // X1 = value
+			switch q.TypeHint {
+			case TypeChar, TypeUnsignedChar:
+				g.cb.emit(encSTRBuoff(regX1, regX0, q.Src2.IVal)) // STRB: store 1 byte
+			case TypeShort, TypeUnsignedShort:
+				g.cb.emit(encSTRH(regX1, regX0, q.Src2.IVal)) // STRH: store 2 bytes
+			default:
+				g.cb.emit(encSTRuoff(regX1, regX0, q.Src2.IVal)) // STR: store 8 bytes
+			}
+
+		case IRFFieldLoad:
+			// Dst = *(Src1 + Src2.IVal) — struct double field load
+			g.load(q.Src1, regX0)                             // X0 = base ptr
+			g.cb.emit(encLDRDuoff(0, regX0, q.Src2.IVal))    // D0 = *(X0 + offset)
+			g.fpStore(0, q.Dst)
+
+		case IRFFieldStore:
+			// *(Dst + Src2.IVal) = Src1 — struct double field store
 			g.load(q.Dst, regX0)                              // X0 = base ptr
-			g.load(q.Src1, regX1)                             // X1 = value
-			g.cb.emit(encSTRuoff(regX1, regX0, q.Src2.IVal)) // *(X0 + offset) = X1
+			g.fpLoad(q.Src1, 0)                               // D0 = value
+			g.cb.emit(encSTRDuoff(0, regX0, q.Src2.IVal))    // *(X0 + offset) = D0
 
 		// ── floating-point operations ────────────────────────────────────
 		case IRFAdd:
@@ -656,9 +738,40 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 			g.cb.emit(encADDimm(regX0, regX0, 15))         // X0 += 15 (round-up bias)
 			g.cb.emitMOVimm(regX1, -16)                    // X1 = 0xFFFF…FFF0
 			g.cb.emit(encAND(regX0, regX0, regX1))         // X0 &= ~15 (align to 16)
-			g.cb.emit(encSUBreg(regSP, regSP, regX0))      // SP -= aligned_size
+			g.cb.emit(encSUBext(regSP, regSP, regX0))      // SP -= aligned_size
 			g.cb.emit(encADDimm(regX0, regSP, 0))          // X0 = SP (VLA base)
 			g.store(regX0, q.Dst)                          // save base in FP-relative slot
+
+		case IRFuncAddr:
+			// Load the virtual address of a named function from the literal pool into X0.
+			// The pool entry holds the function's VA (patched in Phase 4).
+			g.cb.emitLDRglobal(funcLabel(q.Extra)) // X9 = pool[funcLabel] = func VA
+			g.cb.emit(encMOVreg(regX0, regX9))     // X0 = func VA
+			g.store(regX0, q.Dst)
+
+		case IRFuncPtrCall:
+			// Call through a function pointer value in Src1.
+			// Flush pending params into X0–X7 / D0–D7 first, then BLR X8.
+			iIdx, fIdx := 0, 0
+			for _, p := range g.pendingParams {
+				if p.isFP {
+					if fIdx < 8 {
+						g.fpLoad(p.addr, fIdx)
+						fIdx++
+					}
+				} else {
+					if iIdx < 8 {
+						g.load(p.addr, iIdx)
+						iIdx++
+					}
+				}
+			}
+			g.pendingParams = g.pendingParams[:0]
+			g.load(q.Src1, regX16) // func ptr value into X16 (IP0, intra-proc scratch)
+			g.cb.emit(encBLR(regX16))
+			if q.Dst.Kind != AddrNone {
+				g.store(regX0, q.Dst)
+			}
 
 		case IRReturn:
 			if q.Src1.Kind != AddrNone {
@@ -711,8 +824,13 @@ func (g *elfGen) emitArrayLoad(q Quad) {
 	g.load(q.Src2, regX1)                   // X1 = index
 	g.cb.emit(encLSLimm(regX1, regX1, 3))  // X1 = index * 8
 	g.cb.emit(encADDreg(regX0, regX0, regX1))
-	g.cb.emit(encLDRuoff(regX0, regX0, 0)) // X0 = *X0
-	g.store(regX0, q.Dst)
+	if isFPType(q.TypeHint) {
+		g.cb.emit(encLDRDuoff(0, regX0, 0)) // D0 = *X0 (FP load)
+		g.fpStore(0, q.Dst)
+	} else {
+		g.cb.emit(encLDRuoff(regX0, regX0, 0)) // X0 = *X0
+		g.store(regX0, q.Dst)
+	}
 }
 
 func (g *elfGen) emitArrayStore(q Quad) {
@@ -720,8 +838,13 @@ func (g *elfGen) emitArrayStore(q Quad) {
 	g.load(q.Src1, regX1)                   // X1 = index
 	g.cb.emit(encLSLimm(regX1, regX1, 3))  // X1 = index * 8
 	g.cb.emit(encADDreg(regX0, regX0, regX1))
-	g.load(q.Src2, regX2)                   // X2 = value
-	g.cb.emit(encSTRuoff(regX2, regX0, 0)) // *X0 = X2
+	if isFPType(q.TypeHint) {
+		g.fpLoad(q.Src2, 0)                  // D0 = value
+		g.cb.emit(encSTRDuoff(0, regX0, 0)) // *X0 = D0 (FP store)
+	} else {
+		g.load(q.Src2, regX2)                   // X2 = value
+		g.cb.emit(encSTRuoff(regX2, regX0, 0)) // *X0 = X2
+	}
 }
 
 // emitCharArrayLoad emits: Dst = Src1[Src2]  (char* byte-level load, no stride scaling)
@@ -1622,7 +1745,7 @@ func genELF(irp *IRProgram, outpath string) error {
 		funcRetType[fn.Name] = fn.ReturnType
 	}
 
-	cb := newCodeBuilder(allPoolGlobals, irp.StrLits, irp.FConsts)
+	cb := newCodeBuilder(allPoolGlobals, irp.StrLits, irp.FConsts, irp.FuncRefs)
 	gen := &elfGen{
 		cb:            cb,
 		pendingParams: make([]paramArg, 0, 8),
@@ -1657,12 +1780,19 @@ func genELF(irp *IRProgram, outpath string) error {
 	rodataBase := nextPage(codeBase + codeBytes)
 	bssBase := nextPage(rodataBase + rodataTotal)
 
-	poolAddrs := make(map[string]uint64, len(bssList)+len(rodataList))
+	poolAddrs := make(map[string]uint64, len(bssList)+len(rodataList)+len(irp.FuncRefs))
 	for _, gi := range bssList {
 		poolAddrs[gi.name] = bssBase + gi.offset
 	}
 	for _, ri := range rodataList {
 		poolAddrs[ri.label] = rodataBase + ri.offset
+	}
+	// Patch function address pool entries with the function's code VA.
+	for _, fn := range irp.FuncRefs {
+		label := funcLabel(fn)
+		if idx, ok := cb.labels[label]; ok {
+			poolAddrs[label] = codeBase + uint64(idx)*4
+		}
 	}
 	cb.patchPool(poolAddrs)
 

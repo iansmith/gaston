@@ -1,0 +1,45 @@
+/* struct_mixed_fields.cm — struct with char, short, int, double, int* fields.
+   Byzantine test for item 2: correct alignment padding AND correct sub-word
+   field loads/stores (char at offset 0, short at offset 2 share an 8-byte window;
+   8-byte stores would corrupt each other — this test would expose that bug).
+
+   Layout (gaston LP64):
+     c  char    @0  (1 byte)
+     s  short   @2  (2 bytes, align 2)
+     i  int     @8  (8 bytes, align 8)
+     d  double  @16 (8 bytes, align 8)
+     p  int*    @24 (8 bytes, align 8)
+   sizeof = 32
+
+   Also mixes item 7 (pointer in struct), item 3 (access via pointer parameter).
+
+   Expected: 32 65 1000 999999 2.500000 77 */
+
+struct Mixed {
+    char   c;
+    short  s;
+    int    i;
+    double d;
+    int   *p;
+};
+
+void fill(struct Mixed *m, int *px) {
+    m->c = 65;
+    m->s = 1000;
+    m->i = 999999;
+    m->d = 2.5;
+    m->p = px;
+}
+
+void main(void) {
+    struct Mixed m;
+    int x;
+    x = 77;
+    fill(&m, &x);
+    output(sizeof(struct Mixed));   /* 32 */
+    output(m.c);                    /* 65 */
+    output(m.s);                    /* 1000 */
+    output(m.i);                    /* 999999 */
+    print_double(m.d);              /* 2.500000 */
+    output(*m.p);                   /* 77 */
+}

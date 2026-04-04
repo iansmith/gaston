@@ -9,16 +9,47 @@ import (
 
 // lexer implements the yyLexer interface required by the goyacc-generated parser.
 type lexer struct {
-	src    string
-	pos    int
-	line   int
-	file   string
-	errors int
-	result *Node // set by the top-level grammar action
+	src             string
+	pos             int
+	line            int
+	file            string
+	errors          int
+	result          *Node // set by the top-level grammar action
+	enumAutoVal     int   // auto-increment counter for enum constants
+	typedefs        map[string]TypeKind // typedef name → resolved TypeKind
+	typedefStructTags map[string]string // typedef name → struct tag (for typedef struct S T)
 }
 
 func newLexer(src, file string) *lexer {
-	return &lexer{src: src, pos: 0, line: 1, file: file}
+	return &lexer{
+		src:               src,
+		pos:               0,
+		line:              1,
+		file:              file,
+		typedefs:          make(map[string]TypeKind),
+		typedefStructTags: make(map[string]string),
+	}
+}
+
+// registerTypedef registers a typedef name with its resolved TypeKind and optional struct tag.
+func (l *lexer) registerTypedef(name string, kind TypeKind, structTag string) {
+	l.typedefs[name] = kind
+	if structTag != "" {
+		l.typedefStructTags[name] = structTag
+	}
+}
+
+// lookupTypedefKind returns the TypeKind registered for a typedef name.
+func (l *lexer) lookupTypedefKind(name string) TypeKind {
+	if k, ok := l.typedefs[name]; ok {
+		return k
+	}
+	return TypeInt
+}
+
+// lookupTypedefTag returns the struct tag registered for a typedef name (empty if none).
+func (l *lexer) lookupTypedefTag(name string) string {
+	return l.typedefStructTags[name]
 }
 
 // keywords maps reserved words to their goyacc token constants.
@@ -43,6 +74,21 @@ var keywords = map[string]int{
 	"double":   DOUBLE,
 	"struct":   STRUCT,
 	"goto":     GOTO,
+	"sizeof":   SIZEOF,
+	"enum":     ENUM,
+	"union":    UNION,
+	"typedef":  TYPEDEF,
+	"static":   STATIC,
+	"_Bool":    INT,
+	"bool":     INT,
+}
+
+// skipWords lists storage-class and qualifier keywords that the lexer silently drops.
+var skipWords = map[string]bool{
+	"volatile": true,
+	"register": true,
+	"restrict": true,
+	"inline":   true,
 }
 
 // Lex scans and returns the next token, filling lval with the token's value.
@@ -268,10 +314,18 @@ scan:
 			l.pos++
 		}
 		word := l.src[start:l.pos]
+		// Silently skip storage-class/qualifier keywords (volatile, register, restrict, inline).
+		if skipWords[word] {
+			return l.Lex(lval) // re-enter to skip whitespace and get next token
+		}
 		if tok, ok := keywords[word]; ok {
 			return tok
 		}
 		lval.sval = word
+		// If this identifier was registered as a typedef name, return TYPENAME.
+		if _, ok := l.typedefs[word]; ok {
+			return TYPENAME
+		}
 		return ID
 	}
 

@@ -7,7 +7,7 @@ const int NEWLINE = 10;
 void inc_all(int *p, int n) {
     int i;
     for (i = 0; i < n; i++) {
-        *(p + i * 8) = *(p + i * 8) + 1;
+        *(p + i) = *(p + i) + 1;
     }
 }
 

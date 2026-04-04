@@ -283,7 +283,7 @@ func link(outpath string, inputpaths []string) error {
 	// pointer (gaston_free_list_head), which lives in BSS.  Its address is
 	// patched into the pool after the BSS layout is determined below.
 	freeListSynth := IRGlobal{Name: freeListGlobalName, Size: 1}
-	cb := newCodeBuilder([]IRGlobal{freeListSynth}, nil, nil)
+	cb := newCodeBuilder([]IRGlobal{freeListSynth}, nil, nil, nil)
 	gen := &elfGen{
 		cb:            cb,
 		pendingParams: make([]paramArg, 0, 8),

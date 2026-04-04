@@ -1,0 +1,15 @@
+/* sizeof_types.cm — sizeof for all scalar types beyond int/char/pointer.
+   Tests items 2 and 5:
+   - Item 2: fieldSizeAlign returns correct sizes for sub-word and FP types
+   - Item 5: documents gaston's sizeof values (int=8 per gaston's LP64-ish model;
+             float=4 and short=2 match C ABI exactly)
+   These are the sizes used by buildStructDef for field layout. */
+void main(void) {
+    output(sizeof(float));          /* 4 — float is 32-bit per C ABI */
+    output(sizeof(double));         /* 8 — double is 64-bit */
+    output(sizeof(short));          /* 2 — short is 16-bit per C ABI */
+    output(sizeof(unsigned short)); /* 2 — unsigned short is also 16-bit */
+    output(sizeof(unsigned char));  /* 1 — unsigned char is 8-bit */
+    output(sizeof(int));            /* 8 — gaston int is 64-bit (diverges from C ABI) */
+    output(sizeof(char));           /* 1 — char is 8-bit */
+}

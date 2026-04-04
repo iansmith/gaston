@@ -38,6 +38,8 @@ const (
 	IRStrAddr              // Dst = address of string literal; Extra = label
 	IRDerefLoad            // Dst = *Src1  (load 8 bytes via pointer)
 	IRDerefStore           // *Dst = Src1  (store 8 bytes via pointer)
+	IRFDerefLoad           // Dst = *Src1  (load 8-byte double via pointer; result is FP)
+	IRFDerefStore          // *Dst = Src1  (store 8-byte double via pointer; Src1 is FP)
 	IRCharLoad             // Dst = Src1[Src2]  (char* subscript — byte load, no scaling)
 	IRCharStore            // Dst[Src1] = Src2  (char* subscript — byte store, no scaling)
 
@@ -70,8 +72,15 @@ const (
 	// Struct field operations.
 	// IRFieldLoad:  Dst = *(Src1 + Src2.IVal)  — load field at byte offset Src2.IVal
 	// IRFieldStore: *(Dst + Src2.IVal) = Src1  — store value Src1 at field byte offset Src2.IVal
-	IRFieldLoad  // Dst = field load: base ptr in Src1, byte offset in Src2.IVal
-	IRFieldStore // field store: base ptr in Dst, value in Src1, byte offset in Src2.IVal
+	IRFieldLoad   // Dst = field load (int): base ptr in Src1, byte offset in Src2.IVal
+	IRFieldStore  // field store (int): base ptr in Dst, value in Src1, byte offset in Src2.IVal
+	IRFFieldLoad  // Dst = field load (double): base ptr in Src1, byte offset in Src2.IVal
+	IRFFieldStore // field store (double): base ptr in Dst, value in Src1, byte offset in Src2.IVal
+
+	// IRAddrOf: Dst = storage-address of Src1 — always SP/FP+offset for locals,
+	// global VA for globals. Unlike IRGetAddr, never loads through a pointer slot.
+	// Used exclusively by KindAddrOf (&var) in irgen.go.
+	IRAddrOf
 
 	// Variable-length array allocation.
 	// IRVLAAlloc: Dst = alloca(Src1 * 8) — allocate Src1 elements on the stack,
@@ -79,6 +88,19 @@ const (
 	// FP-relative addressing for all static frame slots once any VLA has been
 	// allocated (SP may differ from FP after this point).
 	IRVLAAlloc
+
+	// Integer promotion (C usual arithmetic conversions).
+	// Src2.IVal is the bit width (8 for char, 16 for short).
+	// IRSignExtend: Dst = sign_extend(Src1, Src2.IVal) — signed promotion to 64-bit int
+	// IRZeroExtend: Dst = zero_extend(Src1, Src2.IVal) — unsigned promotion to 64-bit int
+	IRSignExtend
+	IRZeroExtend
+
+	// Function pointer operations.
+	// IRFuncAddr:    Dst = VA of function named Extra (for fp = funcname; assignments)
+	// IRFuncPtrCall: Dst = (*Src1)(args); Src1 holds the function pointer value
+	IRFuncAddr
+	IRFuncPtrCall
 )
 
 // AddrKind identifies what an IR address refers to.
@@ -116,11 +138,12 @@ func (a IRAddr) String() string {
 
 // Quad is one three-address IR instruction.
 type Quad struct {
-	Op    IROpCode
-	Dst   IRAddr
-	Src1  IRAddr
-	Src2  IRAddr
-	Extra string // label name (IRLabel/IRJump/IRJumpT/IRJumpF) or function name (IRCall/IREnter)
+	Op       IROpCode
+	Dst      IRAddr
+	Src1     IRAddr
+	Src2     IRAddr
+	Extra    string   // label name (IRLabel/IRJump/IRJumpT/IRJumpF) or function name (IRCall/IREnter)
+	TypeHint TypeKind // for IRFieldLoad/IRFieldStore: the field's TypeKind (drives byte/halfword/word insn)
 }
 
 // IRGlobal describes one global variable declaration.
@@ -132,6 +155,7 @@ type IRGlobal struct {
 	StructTag  string // struct type name (when IsStruct)
 	IsExtern   bool   // true for extern-declared globals (no storage allocated)
 	Size       int    // 1 for scalar, N for array[N] or struct (N = numFields)
+	InnerDim   int    // inner dimension for 2D arrays (0 for 1D or non-array)
 	HasInitVal bool
 	InitVal    int // constant initializer value (only when HasInitVal && !IsArr)
 }
@@ -177,5 +201,6 @@ type IRProgram struct {
 	Funcs      []*IRFunc
 	StrLits    []IRStrLit // string literals (rodata)
 	FConsts    []IRFConst // floating-point constants (literal pool entries)
+	FuncRefs   []string   // names of user functions whose addresses are taken (IRFuncAddr)
 	StructDefs map[string]*StructDef // struct type definitions (from ast.go)
 }

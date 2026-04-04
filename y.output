@@ -2,17 +2,21 @@
 state 0
 	$accept: .program $end 
 
-	INT  shift 13
-	VOID  shift 14
-	CONST  shift 11
-	CHAR  shift 15
-	EXTERN  shift 12
-	LONG  shift 16
-	UNSIGNED  shift 18
-	SHORT  shift 17
-	FLOAT  shift 19
-	DOUBLE  shift 20
-	STRUCT  shift 10
+	INT  shift 19
+	VOID  shift 20
+	CONST  shift 15
+	CHAR  shift 21
+	EXTERN  shift 16
+	LONG  shift 22
+	UNSIGNED  shift 24
+	SHORT  shift 23
+	FLOAT  shift 25
+	DOUBLE  shift 26
+	STRUCT  shift 13
+	ENUM  shift 17
+	UNION  shift 14
+	TYPEDEF  shift 18
+	TYPENAME  shift 27
 	.  error
 
 	program  goto 1
@@ -23,7 +27,10 @@ state 0
 	extern_declaration  goto 7
 	declaration_list  goto 2
 	struct_declaration  goto 8
-	type_specifier  goto 9
+	union_declaration  goto 9
+	enum_declaration  goto 10
+	typedef_declaration  goto 11
+	type_specifier  goto 12
 
 state 1
 	$accept:  program.$end 
@@ -36,64 +43,89 @@ state 2
 	program:  declaration_list.    (1)
 	declaration_list:  declaration_list.declaration 
 
-	INT  shift 13
-	VOID  shift 14
-	CONST  shift 11
-	CHAR  shift 15
-	EXTERN  shift 12
-	LONG  shift 16
-	UNSIGNED  shift 18
-	SHORT  shift 17
-	FLOAT  shift 19
-	DOUBLE  shift 20
-	STRUCT  shift 10
-	.  reduce 1 (src line 53)
+	INT  shift 19
+	VOID  shift 20
+	CONST  shift 15
+	CHAR  shift 21
+	EXTERN  shift 16
+	LONG  shift 22
+	UNSIGNED  shift 24
+	SHORT  shift 23
+	FLOAT  shift 25
+	DOUBLE  shift 26
+	STRUCT  shift 13
+	ENUM  shift 17
+	UNION  shift 14
+	TYPEDEF  shift 18
+	TYPENAME  shift 27
+	.  reduce 1 (src line 55)
 
 	fun_declaration  goto 6
-	declaration  goto 21
+	declaration  goto 28
 	var_declaration  goto 4
 	const_declaration  goto 5
 	extern_declaration  goto 7
 	struct_declaration  goto 8
-	type_specifier  goto 9
+	union_declaration  goto 9
+	enum_declaration  goto 10
+	typedef_declaration  goto 11
+	type_specifier  goto 12
 
 state 3
 	declaration_list:  declaration.    (3)
 
-	.  reduce 3 (src line 61)
+	.  reduce 3 (src line 63)
 
 
 state 4
 	declaration:  var_declaration.    (4)
 
-	.  reduce 4 (src line 65)
+	.  reduce 4 (src line 67)
 
 
 state 5
 	declaration:  const_declaration.    (5)
 
-	.  reduce 5 (src line 67)
+	.  reduce 5 (src line 69)
 
 
 state 6
 	declaration:  fun_declaration.    (6)
 
-	.  reduce 6 (src line 68)
+	.  reduce 6 (src line 70)
 
 
 state 7
 	declaration:  extern_declaration.    (7)
 
-	.  reduce 7 (src line 69)
+	.  reduce 7 (src line 71)
 
 
 state 8
 	declaration:  struct_declaration.    (8)
 
-	.  reduce 8 (src line 70)
+	.  reduce 8 (src line 72)
 
 
 state 9
+	declaration:  union_declaration.    (9)
+
+	.  reduce 9 (src line 73)
+
+
+state 10
+	declaration:  enum_declaration.    (10)
+
+	.  reduce 10 (src line 74)
+
+
+state 11
+	declaration:  typedef_declaration.    (11)
+
+	.  reduce 11 (src line 75)
+
+
+state 12
 	var_declaration:  type_specifier.ID ';' 
 	var_declaration:  type_specifier.ID '[' NUM ']' ';' 
 	var_declaration:  type_specifier.ID '[' ID ']' ';' 
@@ -101,97 +133,143 @@ state 9
 	var_declaration:  type_specifier.id_list ';' 
 	var_declaration:  type_specifier.'*' ID ';' 
 	var_declaration:  type_specifier.'*' ID '=' expression ';' 
+	var_declaration:  type_specifier.'*' '*' ID ';' 
+	var_declaration:  type_specifier.'*' '*' ID '=' expression ';' 
+	var_declaration:  type_specifier.'(' '*' ID ')' '(' fp_param_types ')' ';' 
 	fun_declaration:  type_specifier.ID '(' params ')' compound_stmt 
 	fun_declaration:  type_specifier.ID '(' param_list ',' ELLIPSIS ')' compound_stmt 
 
-	ID  shift 22
-	'*'  shift 24
+	ID  shift 29
+	'*'  shift 31
+	'('  shift 32
 	.  error
 
-	id_list  goto 23
+	id_list  goto 30
 
-state 10
+state 13
 	var_declaration:  STRUCT.ID ID ';' 
 	var_declaration:  STRUCT.ID '*' ID ';' 
 	var_declaration:  STRUCT.ID '*' ID '=' expression ';' 
 	struct_declaration:  STRUCT.ID '{' field_list '}' ';' 
 
-	ID  shift 25
+	ID  shift 33
 	.  error
 
 
-state 11
+state 14
+	var_declaration:  UNION.ID ID ';' 
+	var_declaration:  UNION.ID '*' ID ';' 
+	union_declaration:  UNION.ID '{' field_list '}' ';' 
+
+	ID  shift 34
+	.  error
+
+
+state 15
+	var_declaration:  CONST.type_specifier '*' ID ';' 
+	var_declaration:  CONST.type_specifier '*' ID '=' expression ';' 
 	const_declaration:  CONST.type_specifier ID '=' NUM ';' 
 
-	INT  shift 13
-	VOID  shift 14
-	CHAR  shift 15
-	LONG  shift 16
-	UNSIGNED  shift 18
-	SHORT  shift 17
-	FLOAT  shift 19
-	DOUBLE  shift 20
+	INT  shift 19
+	VOID  shift 20
+	CHAR  shift 21
+	LONG  shift 22
+	UNSIGNED  shift 24
+	SHORT  shift 23
+	FLOAT  shift 25
+	DOUBLE  shift 26
+	TYPENAME  shift 27
 	.  error
 
-	type_specifier  goto 26
+	type_specifier  goto 35
 
-state 12
+state 16
 	extern_declaration:  EXTERN.type_specifier ID ';' 
 	extern_declaration:  EXTERN.type_specifier ID '[' ']' ';' 
 	extern_declaration:  EXTERN.type_specifier '*' ID ';' 
+	extern_declaration:  EXTERN.type_specifier '*' '*' ID ';' 
 	extern_declaration:  EXTERN.STRUCT ID '*' ID ';' 
 	extern_declaration:  EXTERN.type_specifier ID '(' params ')' ';' 
 	extern_declaration:  EXTERN.type_specifier ID '(' param_list ',' ELLIPSIS ')' ';' 
 
-	INT  shift 13
-	VOID  shift 14
-	CHAR  shift 15
-	LONG  shift 16
-	UNSIGNED  shift 18
-	SHORT  shift 17
-	FLOAT  shift 19
-	DOUBLE  shift 20
-	STRUCT  shift 28
+	INT  shift 19
+	VOID  shift 20
+	CHAR  shift 21
+	LONG  shift 22
+	UNSIGNED  shift 24
+	SHORT  shift 23
+	FLOAT  shift 25
+	DOUBLE  shift 26
+	STRUCT  shift 37
+	TYPENAME  shift 27
 	.  error
 
-	type_specifier  goto 27
-
-state 13
-	type_specifier:  INT.    (26)
-
-	.  reduce 26 (src line 128)
-
-
-state 14
-	type_specifier:  VOID.    (27)
-
-	.  reduce 27 (src line 130)
-
-
-state 15
-	type_specifier:  CHAR.    (28)
-
-	.  reduce 28 (src line 131)
-
-
-state 16
-	type_specifier:  LONG.    (29)
-	type_specifier:  LONG.LONG 
-
-	LONG  shift 29
-	.  reduce 29 (src line 132)
-
+	type_specifier  goto 36
 
 state 17
-	type_specifier:  SHORT.    (31)
-	type_specifier:  SHORT.INT 
+	enum_declaration:  ENUM.'{' enum_list '}' ';' 
 
-	INT  shift 30
-	.  reduce 31 (src line 134)
+	'{'  shift 38
+	.  error
 
 
 state 18
-	type_specifier:  UNSIGNED.    (33)
+	typedef_declaration:  TYPEDEF.type_specifier ID ';' 
+	typedef_declaration:  TYPEDEF.type_specifier '*' ID ';' 
+	typedef_declaration:  TYPEDEF.STRUCT ID ID ';' 
+	typedef_declaration:  TYPEDEF.STRUCT ID '*' ID ';' 
+	typedef_declaration:  TYPEDEF.type_specifier '(' '*' ID ')' '(' fp_param_types ')' ';' 
+
+	INT  shift 19
+	VOID  shift 20
+	CHAR  shift 21
+	LONG  shift 22
+	UNSIGNED  shift 24
+	SHORT  shift 23
+	FLOAT  shift 25
+	DOUBLE  shift 26
+	STRUCT  shift 40
+	TYPENAME  shift 27
+	.  error
+
+	type_specifier  goto 39
+
+state 19
+	type_specifier:  INT.    (37)
+
+	.  reduce 37 (src line 149)
+
+
+state 20
+	type_specifier:  VOID.    (38)
+
+	.  reduce 38 (src line 151)
+
+
+state 21
+	type_specifier:  CHAR.    (39)
+
+	.  reduce 39 (src line 152)
+
+
+state 22
+	type_specifier:  LONG.    (40)
+	type_specifier:  LONG.LONG 
+
+	LONG  shift 41
+	.  reduce 40 (src line 153)
+
+
+state 23
+	type_specifier:  SHORT.    (42)
+	type_specifier:  SHORT.INT 
+
+	INT  shift 42
+	.  reduce 42 (src line 155)
+
+
+state 24
+	type_specifier:  UNSIGNED.    (44)
 	type_specifier:  UNSIGNED.INT 
 	type_specifier:  UNSIGNED.LONG 
 	type_specifier:  UNSIGNED.LONG LONG 
@@ -199,32 +277,38 @@ state 18
 	type_specifier:  UNSIGNED.SHORT 
 	type_specifier:  UNSIGNED.SHORT INT 
 
-	INT  shift 31
-	CHAR  shift 33
-	LONG  shift 32
-	SHORT  shift 34
-	.  reduce 33 (src line 136)
+	INT  shift 43
+	CHAR  shift 45
+	LONG  shift 44
+	SHORT  shift 46
+	.  reduce 44 (src line 157)
 
 
-state 19
-	type_specifier:  FLOAT.    (40)
+state 25
+	type_specifier:  FLOAT.    (51)
 
-	.  reduce 40 (src line 143)
-
-
-state 20
-	type_specifier:  DOUBLE.    (41)
-
-	.  reduce 41 (src line 144)
+	.  reduce 51 (src line 164)
 
 
-state 21
+state 26
+	type_specifier:  DOUBLE.    (52)
+
+	.  reduce 52 (src line 165)
+
+
+state 27
+	type_specifier:  TYPENAME.    (53)
+
+	.  reduce 53 (src line 166)
+
+
+state 28
 	declaration_list:  declaration_list declaration.    (2)
 
-	.  reduce 2 (src line 58)
+	.  reduce 2 (src line 60)
 
 
-state 22
+state 29
 	var_declaration:  type_specifier ID.';' 
 	var_declaration:  type_specifier ID.'[' NUM ']' ';' 
 	var_declaration:  type_specifier ID.'[' ID ']' ';' 
@@ -233,299 +317,469 @@ state 22
 	fun_declaration:  type_specifier ID.'(' param_list ',' ELLIPSIS ')' compound_stmt 
 	id_list:  ID.',' ID 
 
-	';'  shift 35
-	'['  shift 36
-	'('  shift 38
-	','  shift 39
-	'='  shift 37
+	';'  shift 47
+	'['  shift 48
+	'('  shift 50
+	','  shift 51
+	'='  shift 49
 	.  error
 
 
-state 23
+state 30
 	var_declaration:  type_specifier id_list.';' 
 	id_list:  id_list.',' ID 
 
-	';'  shift 40
-	','  shift 41
+	';'  shift 52
+	','  shift 53
 	.  error
 
 
-state 24
+state 31
 	var_declaration:  type_specifier '*'.ID ';' 
 	var_declaration:  type_specifier '*'.ID '=' expression ';' 
+	var_declaration:  type_specifier '*'.'*' ID ';' 
+	var_declaration:  type_specifier '*'.'*' ID '=' expression ';' 
 
-	ID  shift 42
+	ID  shift 54
+	'*'  shift 55
 	.  error
 
 
-state 25
+state 32
+	var_declaration:  type_specifier '('.'*' ID ')' '(' fp_param_types ')' ';' 
+
+	'*'  shift 56
+	.  error
+
+
+state 33
 	var_declaration:  STRUCT ID.ID ';' 
 	var_declaration:  STRUCT ID.'*' ID ';' 
 	var_declaration:  STRUCT ID.'*' ID '=' expression ';' 
 	struct_declaration:  STRUCT ID.'{' field_list '}' ';' 
 
-	ID  shift 43
-	'*'  shift 44
-	'{'  shift 45
+	ID  shift 57
+	'*'  shift 58
+	'{'  shift 59
 	.  error
-
-
-state 26
-	const_declaration:  CONST type_specifier.ID '=' NUM ';' 
-
-	ID  shift 46
-	.  error
-
-
-state 27
-	extern_declaration:  EXTERN type_specifier.ID ';' 
-	extern_declaration:  EXTERN type_specifier.ID '[' ']' ';' 
-	extern_declaration:  EXTERN type_specifier.'*' ID ';' 
-	extern_declaration:  EXTERN type_specifier.ID '(' params ')' ';' 
-	extern_declaration:  EXTERN type_specifier.ID '(' param_list ',' ELLIPSIS ')' ';' 
-
-	ID  shift 47
-	'*'  shift 48
-	.  error
-
-
-state 28
-	extern_declaration:  EXTERN STRUCT.ID '*' ID ';' 
-
-	ID  shift 49
-	.  error
-
-
-state 29
-	type_specifier:  LONG LONG.    (30)
-
-	.  reduce 30 (src line 133)
-
-
-state 30
-	type_specifier:  SHORT INT.    (32)
-
-	.  reduce 32 (src line 135)
-
-
-state 31
-	type_specifier:  UNSIGNED INT.    (34)
-
-	.  reduce 34 (src line 137)
-
-
-state 32
-	type_specifier:  UNSIGNED LONG.    (35)
-	type_specifier:  UNSIGNED LONG.LONG 
-
-	LONG  shift 50
-	.  reduce 35 (src line 138)
-
-
-state 33
-	type_specifier:  UNSIGNED CHAR.    (37)
-
-	.  reduce 37 (src line 140)
 
 
 state 34
-	type_specifier:  UNSIGNED SHORT.    (38)
-	type_specifier:  UNSIGNED SHORT.INT 
+	var_declaration:  UNION ID.ID ';' 
+	var_declaration:  UNION ID.'*' ID ';' 
+	union_declaration:  UNION ID.'{' field_list '}' ';' 
 
-	INT  shift 51
-	.  reduce 38 (src line 141)
+	ID  shift 60
+	'*'  shift 61
+	'{'  shift 62
+	.  error
 
 
 state 35
-	var_declaration:  type_specifier ID ';'.    (15)
+	var_declaration:  CONST type_specifier.'*' ID ';' 
+	var_declaration:  CONST type_specifier.'*' ID '=' expression ';' 
+	const_declaration:  CONST type_specifier.ID '=' NUM ';' 
 
-	.  reduce 15 (src line 96)
+	ID  shift 64
+	'*'  shift 63
+	.  error
 
 
 state 36
-	var_declaration:  type_specifier ID '['.NUM ']' ';' 
-	var_declaration:  type_specifier ID '['.ID ']' ';' 
+	extern_declaration:  EXTERN type_specifier.ID ';' 
+	extern_declaration:  EXTERN type_specifier.ID '[' ']' ';' 
+	extern_declaration:  EXTERN type_specifier.'*' ID ';' 
+	extern_declaration:  EXTERN type_specifier.'*' '*' ID ';' 
+	extern_declaration:  EXTERN type_specifier.ID '(' params ')' ';' 
+	extern_declaration:  EXTERN type_specifier.ID '(' param_list ',' ELLIPSIS ')' ';' 
 
-	NUM  shift 52
-	ID  shift 53
+	ID  shift 65
+	'*'  shift 66
 	.  error
 
 
 state 37
-	var_declaration:  type_specifier ID '='.expression ';' 
+	extern_declaration:  EXTERN STRUCT.ID '*' ID ';' 
 
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
+	ID  shift 67
 	.  error
 
-	postfix_expr  goto 55
-	expression  goto 54
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
 
 state 38
-	fun_declaration:  type_specifier ID '('.params ')' compound_stmt 
-	fun_declaration:  type_specifier ID '('.param_list ',' ELLIPSIS ')' compound_stmt 
+	enum_declaration:  ENUM '{'.enum_list '}' ';' 
 
-	INT  shift 13
-	VOID  shift 76
-	CHAR  shift 15
-	LONG  shift 16
-	UNSIGNED  shift 18
-	SHORT  shift 17
-	FLOAT  shift 19
-	DOUBLE  shift 20
-	STRUCT  shift 79
+	ID  shift 70
 	.  error
 
-	params  goto 74
-	param_list  goto 75
-	param  goto 77
-	type_specifier  goto 78
+	enum_list  goto 68
+	enum_member  goto 69
 
 state 39
-	id_list:  ID ','.ID 
+	typedef_declaration:  TYPEDEF type_specifier.ID ';' 
+	typedef_declaration:  TYPEDEF type_specifier.'*' ID ';' 
+	typedef_declaration:  TYPEDEF type_specifier.'(' '*' ID ')' '(' fp_param_types ')' ';' 
 
-	ID  shift 80
+	ID  shift 71
+	'*'  shift 72
+	'('  shift 73
 	.  error
 
 
 state 40
-	var_declaration:  type_specifier id_list ';'.    (19)
+	typedef_declaration:  TYPEDEF STRUCT.ID ID ';' 
+	typedef_declaration:  TYPEDEF STRUCT.ID '*' ID ';' 
 
-	.  reduce 19 (src line 109)
+	ID  shift 74
+	.  error
 
 
 state 41
-	id_list:  id_list ','.ID 
+	type_specifier:  LONG LONG.    (41)
 
-	ID  shift 81
-	.  error
+	.  reduce 41 (src line 154)
 
 
 state 42
-	var_declaration:  type_specifier '*' ID.';' 
-	var_declaration:  type_specifier '*' ID.'=' expression ';' 
+	type_specifier:  SHORT INT.    (43)
 
-	';'  shift 82
-	'='  shift 83
-	.  error
+	.  reduce 43 (src line 156)
 
 
 state 43
-	var_declaration:  STRUCT ID ID.';' 
+	type_specifier:  UNSIGNED INT.    (45)
 
-	';'  shift 84
-	.  error
+	.  reduce 45 (src line 158)
 
 
 state 44
-	var_declaration:  STRUCT ID '*'.ID ';' 
-	var_declaration:  STRUCT ID '*'.ID '=' expression ';' 
+	type_specifier:  UNSIGNED LONG.    (46)
+	type_specifier:  UNSIGNED LONG.LONG 
 
-	ID  shift 85
-	.  error
+	LONG  shift 75
+	.  reduce 46 (src line 159)
 
 
 state 45
-	struct_declaration:  STRUCT ID '{'.field_list '}' ';' 
+	type_specifier:  UNSIGNED CHAR.    (48)
 
-	INT  shift 13
-	VOID  shift 14
-	CHAR  shift 15
-	LONG  shift 16
-	UNSIGNED  shift 18
-	SHORT  shift 17
-	FLOAT  shift 19
-	DOUBLE  shift 20
-	STRUCT  shift 89
-	.  error
+	.  reduce 48 (src line 161)
 
-	field_list  goto 86
-	field  goto 87
-	type_specifier  goto 88
 
 state 46
-	const_declaration:  CONST type_specifier ID.'=' NUM ';' 
+	type_specifier:  UNSIGNED SHORT.    (49)
+	type_specifier:  UNSIGNED SHORT.INT 
 
-	'='  shift 90
-	.  error
+	INT  shift 76
+	.  reduce 49 (src line 162)
 
 
 state 47
+	var_declaration:  type_specifier ID ';'.    (19)
+
+	.  reduce 19 (src line 103)
+
+
+state 48
+	var_declaration:  type_specifier ID '['.NUM ']' ';' 
+	var_declaration:  type_specifier ID '['.ID ']' ';' 
+
+	NUM  shift 77
+	ID  shift 78
+	.  error
+
+
+state 49
+	var_declaration:  type_specifier ID '='.expression ';' 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	postfix_expr  goto 80
+	expression  goto 79
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
+
+state 50
+	fun_declaration:  type_specifier ID '('.params ')' compound_stmt 
+	fun_declaration:  type_specifier ID '('.param_list ',' ELLIPSIS ')' compound_stmt 
+
+	INT  shift 19
+	VOID  shift 102
+	CONST  shift 106
+	CHAR  shift 21
+	LONG  shift 22
+	UNSIGNED  shift 24
+	SHORT  shift 23
+	FLOAT  shift 25
+	DOUBLE  shift 26
+	STRUCT  shift 105
+	TYPENAME  shift 27
+	.  error
+
+	params  goto 100
+	param_list  goto 101
+	param  goto 103
+	type_specifier  goto 104
+
+state 51
+	id_list:  ID ','.ID 
+
+	ID  shift 107
+	.  error
+
+
+state 52
+	var_declaration:  type_specifier id_list ';'.    (23)
+
+	.  reduce 23 (src line 116)
+
+
+state 53
+	id_list:  id_list ','.ID 
+
+	ID  shift 108
+	.  error
+
+
+state 54
+	var_declaration:  type_specifier '*' ID.';' 
+	var_declaration:  type_specifier '*' ID.'=' expression ';' 
+
+	';'  shift 109
+	'='  shift 110
+	.  error
+
+
+state 55
+	var_declaration:  type_specifier '*' '*'.ID ';' 
+	var_declaration:  type_specifier '*' '*'.ID '=' expression ';' 
+
+	ID  shift 111
+	.  error
+
+
+state 56
+	var_declaration:  type_specifier '(' '*'.ID ')' '(' fp_param_types ')' ';' 
+
+	ID  shift 112
+	.  error
+
+
+state 57
+	var_declaration:  STRUCT ID ID.';' 
+
+	';'  shift 113
+	.  error
+
+
+state 58
+	var_declaration:  STRUCT ID '*'.ID ';' 
+	var_declaration:  STRUCT ID '*'.ID '=' expression ';' 
+
+	ID  shift 114
+	.  error
+
+
+state 59
+	struct_declaration:  STRUCT ID '{'.field_list '}' ';' 
+
+	INT  shift 19
+	VOID  shift 20
+	CHAR  shift 21
+	LONG  shift 22
+	UNSIGNED  shift 24
+	SHORT  shift 23
+	FLOAT  shift 25
+	DOUBLE  shift 26
+	STRUCT  shift 118
+	UNION  shift 119
+	TYPENAME  shift 27
+	.  error
+
+	field_list  goto 115
+	field  goto 116
+	type_specifier  goto 117
+
+state 60
+	var_declaration:  UNION ID ID.';' 
+
+	';'  shift 120
+	.  error
+
+
+state 61
+	var_declaration:  UNION ID '*'.ID ';' 
+
+	ID  shift 121
+	.  error
+
+
+state 62
+	union_declaration:  UNION ID '{'.field_list '}' ';' 
+
+	INT  shift 19
+	VOID  shift 20
+	CHAR  shift 21
+	LONG  shift 22
+	UNSIGNED  shift 24
+	SHORT  shift 23
+	FLOAT  shift 25
+	DOUBLE  shift 26
+	STRUCT  shift 118
+	UNION  shift 119
+	TYPENAME  shift 27
+	.  error
+
+	field_list  goto 122
+	field  goto 116
+	type_specifier  goto 117
+
+state 63
+	var_declaration:  CONST type_specifier '*'.ID ';' 
+	var_declaration:  CONST type_specifier '*'.ID '=' expression ';' 
+
+	ID  shift 123
+	.  error
+
+
+state 64
+	const_declaration:  CONST type_specifier ID.'=' NUM ';' 
+
+	'='  shift 124
+	.  error
+
+
+state 65
 	extern_declaration:  EXTERN type_specifier ID.';' 
 	extern_declaration:  EXTERN type_specifier ID.'[' ']' ';' 
 	extern_declaration:  EXTERN type_specifier ID.'(' params ')' ';' 
 	extern_declaration:  EXTERN type_specifier ID.'(' param_list ',' ELLIPSIS ')' ';' 
 
-	';'  shift 91
-	'['  shift 92
-	'('  shift 93
+	';'  shift 125
+	'['  shift 126
+	'('  shift 127
 	.  error
 
 
-state 48
+state 66
 	extern_declaration:  EXTERN type_specifier '*'.ID ';' 
+	extern_declaration:  EXTERN type_specifier '*'.'*' ID ';' 
 
-	ID  shift 94
+	ID  shift 128
+	'*'  shift 129
 	.  error
 
 
-state 49
+state 67
 	extern_declaration:  EXTERN STRUCT ID.'*' ID ';' 
 
-	'*'  shift 95
+	'*'  shift 130
 	.  error
 
 
-state 50
-	type_specifier:  UNSIGNED LONG LONG.    (36)
+state 68
+	enum_declaration:  ENUM '{' enum_list.'}' ';' 
+	enum_list:  enum_list.',' enum_member 
 
-	.  reduce 36 (src line 139)
-
-
-state 51
-	type_specifier:  UNSIGNED SHORT INT.    (39)
-
-	.  reduce 39 (src line 142)
+	','  shift 132
+	'}'  shift 131
+	.  error
 
 
-state 52
+state 69
+	enum_list:  enum_member.    (164)
+
+	.  reduce 164 (src line 465)
+
+
+state 70
+	enum_member:  ID.    (165)
+	enum_member:  ID.'=' NUM 
+
+	'='  shift 133
+	.  reduce 165 (src line 469)
+
+
+state 71
+	typedef_declaration:  TYPEDEF type_specifier ID.';' 
+
+	';'  shift 134
+	.  error
+
+
+state 72
+	typedef_declaration:  TYPEDEF type_specifier '*'.ID ';' 
+
+	ID  shift 135
+	.  error
+
+
+state 73
+	typedef_declaration:  TYPEDEF type_specifier '('.'*' ID ')' '(' fp_param_types ')' ';' 
+
+	'*'  shift 136
+	.  error
+
+
+state 74
+	typedef_declaration:  TYPEDEF STRUCT ID.ID ';' 
+	typedef_declaration:  TYPEDEF STRUCT ID.'*' ID ';' 
+
+	ID  shift 137
+	'*'  shift 138
+	.  error
+
+
+state 75
+	type_specifier:  UNSIGNED LONG LONG.    (47)
+
+	.  reduce 47 (src line 160)
+
+
+state 76
+	type_specifier:  UNSIGNED SHORT INT.    (50)
+
+	.  reduce 50 (src line 163)
+
+
+state 77
 	var_declaration:  type_specifier ID '[' NUM.']' ';' 
 
-	']'  shift 96
+	']'  shift 139
 	.  error
 
 
-state 53
+state 78
 	var_declaration:  type_specifier ID '[' ID.']' ';' 
 
-	']'  shift 97
+	']'  shift 140
 	.  error
 
 
-state 54
+state 79
 	var_declaration:  type_specifier ID '=' expression.';' 
 
-	';'  shift 98
+	';'  shift 141
 	.  error
 
 
-state 55
+state 80
 	postfix_expr:  postfix_expr.ARROW ID 
 	postfix_expr:  postfix_expr.'.' ID 
 	expression:  postfix_expr.'=' expression 
@@ -536,1618 +790,2263 @@ state 55
 	expression:  postfix_expr.STAREQ expression 
 	expression:  postfix_expr.DIVEQ expression 
 	expression:  postfix_expr.MODEQ expression 
-	factor:  postfix_expr.    (127)
-
-	INC  shift 102
-	DEC  shift 103
-	PLUSEQ  shift 104
-	MINUSEQ  shift 105
-	STAREQ  shift 106
-	DIVEQ  shift 107
-	MODEQ  shift 108
-	ARROW  shift 99
-	'='  shift 101
-	'.'  shift 100
-	.  reduce 127 (src line 384)
-
-
-state 56
-	expression:  '*'.factor '=' expression 
-	factor:  '*'.factor 
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 111
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  error
-
-	postfix_expr  goto 110
-	var  goto 58
-	factor  goto 109
-	call  goto 59
-
-state 57
-	expression:  simple_expression.    (99)
-
-	.  reduce 99 (src line 315)
-
-
-state 58
-	postfix_expr:  var.    (86)
-
-	.  reduce 86 (src line 285)
-
-
-state 59
-	postfix_expr:  call.    (87)
-
-	.  reduce 87 (src line 288)
-
-
-state 60
-	simple_expression:  bitwise_expression.relop bitwise_expression 
-	simple_expression:  bitwise_expression.    (103)
-	bitwise_expression:  bitwise_expression.bitwiseop additive_expression 
-
-	LE  shift 114
-	GE  shift 117
-	EQ  shift 118
-	NE  shift 119
-	LSHIFT  shift 123
-	RSHIFT  shift 124
-	'&'  shift 120
-	'|'  shift 121
-	'^'  shift 122
-	'<'  shift 115
-	'>'  shift 116
-	.  reduce 103 (src line 329)
-
-	relop  goto 112
-	bitwiseop  goto 113
-
-state 61
-	var:  ID.    (100)
-	var:  ID.'[' expression ']' 
-	call:  ID.'(' args ')' 
-
-	'['  shift 125
-	'('  shift 126
-	.  reduce 100 (src line 319)
-
-
-state 62
-	bitwise_expression:  additive_expression.    (105)
-	additive_expression:  additive_expression.addop term 
-
-	'+'  shift 128
-	'-'  shift 129
-	.  reduce 105 (src line 336)
-
-	addop  goto 127
-
-state 63
-	additive_expression:  term.    (118)
-	term:  term.mulop factor 
-
-	'*'  shift 131
-	'/'  shift 132
-	'%'  shift 133
-	.  reduce 118 (src line 360)
-
-	mulop  goto 130
-
-state 64
-	term:  factor.    (122)
-
-	.  reduce 122 (src line 372)
-
-
-state 65
-	factor:  '('.expression ')' 
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  error
-
-	postfix_expr  goto 55
-	expression  goto 134
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
-
-state 66
-	factor:  NUM.    (128)
-
-	.  reduce 128 (src line 385)
-
-
-state 67
-	factor:  FNUM.    (129)
-
-	.  reduce 129 (src line 386)
-
-
-state 68
-	factor:  CHAR_LIT.    (130)
-
-	.  reduce 130 (src line 387)
-
-
-state 69
-	factor:  STRING_LIT.    (131)
-
-	.  reduce 131 (src line 388)
-
-
-state 70
-	factor:  '-'.factor 
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 111
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  error
-
-	postfix_expr  goto 110
-	var  goto 58
-	factor  goto 135
-	call  goto 59
-
-state 71
-	factor:  '!'.factor 
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 111
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  error
-
-	postfix_expr  goto 110
-	var  goto 58
-	factor  goto 136
-	call  goto 59
-
-state 72
-	factor:  '~'.factor 
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 111
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  error
-
-	postfix_expr  goto 110
-	var  goto 58
-	factor  goto 137
-	call  goto 59
-
-state 73
-	factor:  '&'.var 
-
-	ID  shift 139
-	.  error
-
-	var  goto 138
-
-state 74
-	fun_declaration:  type_specifier ID '(' params.')' compound_stmt 
-
-	')'  shift 140
-	.  error
-
-
-state 75
-	fun_declaration:  type_specifier ID '(' param_list.',' ELLIPSIS ')' compound_stmt 
-	params:  param_list.    (44)
-	param_list:  param_list.',' param 
-	param_list:  param_list.',' ELLIPSIS 
-
-	','  shift 141
-	.  reduce 44 (src line 163)
-
-
-state 76
-	type_specifier:  VOID.    (27)
-	params:  VOID.    (45)
-
-	')'  reduce 45 (src line 165)
-	.  reduce 27 (src line 130)
-
-
-state 77
-	param_list:  param.    (48)
-
-	.  reduce 48 (src line 173)
-
-
-state 78
-	param:  type_specifier.ID 
-	param:  type_specifier.ID '[' ']' 
-	param:  type_specifier.'*' ID 
-
-	ID  shift 142
-	'*'  shift 143
-	.  error
-
-
-state 79
-	param:  STRUCT.ID '*' ID 
-
-	ID  shift 144
-	.  error
-
-
-state 80
-	id_list:  ID ',' ID.    (58)
-
-	.  reduce 58 (src line 205)
+	factor:  postfix_expr.    (141)
+
+	INC  shift 145
+	DEC  shift 146
+	PLUSEQ  shift 147
+	MINUSEQ  shift 148
+	STAREQ  shift 149
+	DIVEQ  shift 150
+	MODEQ  shift 151
+	ARROW  shift 142
+	'='  shift 144
+	'.'  shift 143
+	.  reduce 141 (src line 410)
 
 
 state 81
-	id_list:  id_list ',' ID.    (57)
+	expression:  '*'.factor '=' expression 
+	factor:  '*'.factor 
 
-	.  reduce 57 (src line 202)
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 154
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
 
+	postfix_expr  goto 153
+	var  goto 83
+	factor  goto 152
+	call  goto 84
 
 state 82
-	var_declaration:  type_specifier '*' ID ';'.    (20)
+	expression:  simple_expression.    (113)
 
-	.  reduce 20 (src line 111)
+	.  reduce 113 (src line 341)
 
 
 state 83
-	var_declaration:  type_specifier '*' ID '='.expression ';' 
+	postfix_expr:  var.    (100)
 
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  error
+	.  reduce 100 (src line 311)
 
-	postfix_expr  goto 55
-	expression  goto 145
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
 
 state 84
-	var_declaration:  STRUCT ID ID ';'.    (22)
+	postfix_expr:  call.    (101)
 
-	.  reduce 22 (src line 115)
+	.  reduce 101 (src line 314)
 
 
 state 85
-	var_declaration:  STRUCT ID '*' ID.';' 
-	var_declaration:  STRUCT ID '*' ID.'=' expression ';' 
+	simple_expression:  bitwise_expression.relop bitwise_expression 
+	simple_expression:  bitwise_expression.    (117)
+	bitwise_expression:  bitwise_expression.bitwiseop additive_expression 
 
-	';'  shift 146
-	'='  shift 147
-	.  error
+	LE  shift 157
+	GE  shift 160
+	EQ  shift 161
+	NE  shift 162
+	LSHIFT  shift 166
+	RSHIFT  shift 167
+	'&'  shift 163
+	'|'  shift 164
+	'^'  shift 165
+	'<'  shift 158
+	'>'  shift 159
+	.  reduce 117 (src line 355)
 
+	relop  goto 155
+	bitwiseop  goto 156
 
 state 86
-	struct_declaration:  STRUCT ID '{' field_list.'}' ';' 
-	field_list:  field_list.field 
+	var:  ID.    (114)
+	var:  ID.'[' expression ']' 
+	call:  ID.'(' args ')' 
 
-	INT  shift 13
-	VOID  shift 14
-	CHAR  shift 15
-	LONG  shift 16
-	UNSIGNED  shift 18
-	SHORT  shift 17
-	FLOAT  shift 19
-	DOUBLE  shift 20
-	STRUCT  shift 89
-	'}'  shift 148
-	.  error
+	'['  shift 168
+	'('  shift 169
+	.  reduce 114 (src line 345)
 
-	field  goto 149
-	type_specifier  goto 88
 
 state 87
-	field_list:  field.    (144)
+	bitwise_expression:  additive_expression.    (119)
+	additive_expression:  additive_expression.addop term 
 
-	.  reduce 144 (src line 421)
+	'+'  shift 171
+	'-'  shift 172
+	.  reduce 119 (src line 362)
 
+	addop  goto 170
 
 state 88
-	field:  type_specifier.ID ';' 
-	field:  type_specifier.'*' ID ';' 
+	additive_expression:  term.    (132)
+	term:  term.mulop factor 
 
-	ID  shift 150
-	'*'  shift 151
-	.  error
+	'*'  shift 174
+	'/'  shift 175
+	'%'  shift 176
+	.  reduce 132 (src line 386)
 
+	mulop  goto 173
 
 state 89
-	field:  STRUCT.ID '*' ID ';' 
+	term:  factor.    (136)
 
-	ID  shift 152
-	.  error
+	.  reduce 136 (src line 398)
 
 
 state 90
-	const_declaration:  CONST type_specifier ID '='.NUM ';' 
+	factor:  '('.expression ')' 
 
-	NUM  shift 153
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
 	.  error
 
+	postfix_expr  goto 80
+	expression  goto 177
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
 
 state 91
-	extern_declaration:  EXTERN type_specifier ID ';'.    (9)
+	factor:  NUM.    (142)
 
-	.  reduce 9 (src line 73)
+	.  reduce 142 (src line 411)
 
 
 state 92
-	extern_declaration:  EXTERN type_specifier ID '['.']' ';' 
+	factor:  FNUM.    (143)
 
-	']'  shift 154
-	.  error
+	.  reduce 143 (src line 412)
 
 
 state 93
-	extern_declaration:  EXTERN type_specifier ID '('.params ')' ';' 
-	extern_declaration:  EXTERN type_specifier ID '('.param_list ',' ELLIPSIS ')' ';' 
+	factor:  CHAR_LIT.    (144)
 
-	INT  shift 13
-	VOID  shift 76
-	CHAR  shift 15
-	LONG  shift 16
-	UNSIGNED  shift 18
-	SHORT  shift 17
-	FLOAT  shift 19
-	DOUBLE  shift 20
-	STRUCT  shift 79
-	.  error
+	.  reduce 144 (src line 413)
 
-	params  goto 155
-	param_list  goto 156
-	param  goto 77
-	type_specifier  goto 78
 
 state 94
-	extern_declaration:  EXTERN type_specifier '*' ID.';' 
+	factor:  STRING_LIT.    (145)
 
-	';'  shift 157
-	.  error
+	.  reduce 145 (src line 414)
 
 
 state 95
-	extern_declaration:  EXTERN STRUCT ID '*'.ID ';' 
+	factor:  '-'.factor 
 
-	ID  shift 158
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 154
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
 	.  error
 
+	postfix_expr  goto 153
+	var  goto 83
+	factor  goto 178
+	call  goto 84
 
 state 96
-	var_declaration:  type_specifier ID '[' NUM ']'.';' 
+	factor:  '!'.factor 
 
-	';'  shift 159
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 154
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
 	.  error
 
+	postfix_expr  goto 153
+	var  goto 83
+	factor  goto 179
+	call  goto 84
 
 state 97
-	var_declaration:  type_specifier ID '[' ID ']'.';' 
+	factor:  '~'.factor 
 
-	';'  shift 160
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 154
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
 	.  error
 
+	postfix_expr  goto 153
+	var  goto 83
+	factor  goto 180
+	call  goto 84
 
 state 98
-	var_declaration:  type_specifier ID '=' expression ';'.    (18)
+	factor:  '&'.var 
 
-	.  reduce 18 (src line 107)
+	ID  shift 182
+	.  error
 
+	var  goto 181
 
 state 99
-	postfix_expr:  postfix_expr ARROW.ID 
+	factor:  SIZEOF.'(' type_specifier ')' 
+	factor:  SIZEOF.'(' STRUCT ID ')' 
+	factor:  SIZEOF.'(' UNION ID ')' 
+	factor:  SIZEOF.'(' expression ')' 
 
-	ID  shift 161
+	'('  shift 183
 	.  error
 
 
 state 100
-	postfix_expr:  postfix_expr '.'.ID 
+	fun_declaration:  type_specifier ID '(' params.')' compound_stmt 
 
-	ID  shift 162
+	')'  shift 184
 	.  error
 
 
 state 101
-	expression:  postfix_expr '='.expression 
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  error
-
-	postfix_expr  goto 55
-	expression  goto 163
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
-
-state 102
-	expression:  postfix_expr INC.    (92)
-
-	.  reduce 92 (src line 301)
-
-
-state 103
-	expression:  postfix_expr DEC.    (93)
-
-	.  reduce 93 (src line 303)
-
-
-state 104
-	expression:  postfix_expr PLUSEQ.expression 
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  error
-
-	postfix_expr  goto 55
-	expression  goto 164
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
-
-state 105
-	expression:  postfix_expr MINUSEQ.expression 
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  error
-
-	postfix_expr  goto 55
-	expression  goto 165
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
-
-state 106
-	expression:  postfix_expr STAREQ.expression 
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  error
-
-	postfix_expr  goto 55
-	expression  goto 166
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
-
-state 107
-	expression:  postfix_expr DIVEQ.expression 
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  error
-
-	postfix_expr  goto 55
-	expression  goto 167
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
-
-state 108
-	expression:  postfix_expr MODEQ.expression 
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  error
-
-	postfix_expr  goto 55
-	expression  goto 168
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
-
-state 109
-	expression:  '*' factor.'=' expression 
-	factor:  '*' factor.    (136)
-
-	'='  shift 169
-	.  reduce 136 (src line 393)
-
-
-state 110
-	postfix_expr:  postfix_expr.ARROW ID 
-	postfix_expr:  postfix_expr.'.' ID 
-	factor:  postfix_expr.    (127)
-
-	ARROW  shift 99
-	'.'  shift 100
-	.  reduce 127 (src line 384)
-
-
-state 111
-	factor:  '*'.factor 
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 111
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  error
-
-	postfix_expr  goto 110
-	var  goto 58
-	factor  goto 170
-	call  goto 59
-
-state 112
-	simple_expression:  bitwise_expression relop.bitwise_expression 
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 111
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  error
-
-	postfix_expr  goto 110
-	var  goto 58
-	bitwise_expression  goto 171
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
-
-state 113
-	bitwise_expression:  bitwise_expression bitwiseop.additive_expression 
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 111
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  error
-
-	postfix_expr  goto 110
-	var  goto 58
-	additive_expression  goto 172
-	term  goto 63
-	factor  goto 64
-	call  goto 59
-
-state 114
-	relop:  LE.    (111)
-
-	.  reduce 111 (src line 348)
-
-
-state 115
-	relop:  '<'.    (112)
-
-	.  reduce 112 (src line 350)
-
-
-state 116
-	relop:  '>'.    (113)
-
-	.  reduce 113 (src line 351)
-
-
-state 117
-	relop:  GE.    (114)
-
-	.  reduce 114 (src line 352)
-
-
-state 118
-	relop:  EQ.    (115)
-
-	.  reduce 115 (src line 353)
-
-
-state 119
-	relop:  NE.    (116)
-
-	.  reduce 116 (src line 354)
-
-
-state 120
-	bitwiseop:  '&'.    (106)
-
-	.  reduce 106 (src line 340)
-
-
-state 121
-	bitwiseop:  '|'.    (107)
-
-	.  reduce 107 (src line 342)
-
-
-state 122
-	bitwiseop:  '^'.    (108)
-
-	.  reduce 108 (src line 343)
-
-
-state 123
-	bitwiseop:  LSHIFT.    (109)
-
-	.  reduce 109 (src line 344)
-
-
-state 124
-	bitwiseop:  RSHIFT.    (110)
-
-	.  reduce 110 (src line 345)
-
-
-state 125
-	var:  ID '['.expression ']' 
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  error
-
-	postfix_expr  goto 55
-	expression  goto 173
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
-
-state 126
-	call:  ID '('.args ')' 
-	args: .    (139)
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  reduce 139 (src line 403)
-
-	postfix_expr  goto 55
-	expression  goto 176
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
-	args  goto 174
-	arg_list  goto 175
-
-state 127
-	additive_expression:  additive_expression addop.term 
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 111
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  error
-
-	postfix_expr  goto 110
-	var  goto 58
-	term  goto 177
-	factor  goto 64
-	call  goto 59
-
-state 128
-	addop:  '+'.    (119)
-
-	.  reduce 119 (src line 364)
-
-
-state 129
-	addop:  '-'.    (120)
-
-	.  reduce 120 (src line 366)
-
-
-state 130
-	term:  term mulop.factor 
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 111
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  error
-
-	postfix_expr  goto 110
-	var  goto 58
-	factor  goto 178
-	call  goto 59
-
-state 131
-	mulop:  '*'.    (123)
-
-	.  reduce 123 (src line 376)
-
-
-state 132
-	mulop:  '/'.    (124)
-
-	.  reduce 124 (src line 378)
-
-
-state 133
-	mulop:  '%'.    (125)
-
-	.  reduce 125 (src line 379)
-
-
-state 134
-	factor:  '(' expression.')' 
-
-	')'  shift 179
-	.  error
-
-
-state 135
-	factor:  '-' factor.    (132)
-
-	.  reduce 132 (src line 389)
-
-
-state 136
-	factor:  '!' factor.    (133)
-
-	.  reduce 133 (src line 390)
-
-
-state 137
-	factor:  '~' factor.    (134)
-
-	.  reduce 134 (src line 391)
-
-
-state 138
-	factor:  '&' var.    (135)
-
-	.  reduce 135 (src line 392)
-
-
-state 139
-	var:  ID.    (100)
-	var:  ID.'[' expression ']' 
-
-	'['  shift 125
-	.  reduce 100 (src line 319)
-
-
-state 140
-	fun_declaration:  type_specifier ID '(' params ')'.compound_stmt 
-
-	'{'  shift 181
-	.  error
-
-	compound_stmt  goto 180
-
-state 141
-	fun_declaration:  type_specifier ID '(' param_list ','.ELLIPSIS ')' compound_stmt 
-	param_list:  param_list ','.param 
-	param_list:  param_list ','.ELLIPSIS 
-
-	INT  shift 13
-	VOID  shift 14
-	CHAR  shift 15
-	LONG  shift 16
-	UNSIGNED  shift 18
-	SHORT  shift 17
-	FLOAT  shift 19
-	DOUBLE  shift 20
-	STRUCT  shift 79
-	ELLIPSIS  shift 182
-	.  error
-
-	param  goto 183
-	type_specifier  goto 78
-
-state 142
-	param:  type_specifier ID.    (49)
-	param:  type_specifier ID.'[' ']' 
-
-	'['  shift 184
-	.  reduce 49 (src line 177)
-
-
-state 143
-	param:  type_specifier '*'.ID 
-
-	ID  shift 185
-	.  error
-
-
-state 144
-	param:  STRUCT ID.'*' ID 
-
-	'*'  shift 186
-	.  error
-
-
-state 145
-	var_declaration:  type_specifier '*' ID '=' expression.';' 
-
-	';'  shift 187
-	.  error
-
-
-state 146
-	var_declaration:  STRUCT ID '*' ID ';'.    (23)
-
-	.  reduce 23 (src line 117)
-
-
-state 147
-	var_declaration:  STRUCT ID '*' ID '='.expression ';' 
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  error
-
-	postfix_expr  goto 55
-	expression  goto 188
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
-
-state 148
-	struct_declaration:  STRUCT ID '{' field_list '}'.';' 
-
-	';'  shift 189
-	.  error
-
-
-state 149
-	field_list:  field_list field.    (143)
-
-	.  reduce 143 (src line 418)
-
-
-state 150
-	field:  type_specifier ID.';' 
-
-	';'  shift 190
-	.  error
-
-
-state 151
-	field:  type_specifier '*'.ID ';' 
-
-	ID  shift 191
-	.  error
-
-
-state 152
-	field:  STRUCT ID.'*' ID ';' 
-
-	'*'  shift 192
-	.  error
-
-
-state 153
-	const_declaration:  CONST type_specifier ID '=' NUM.';' 
-
-	';'  shift 193
-	.  error
-
-
-state 154
-	extern_declaration:  EXTERN type_specifier ID '[' ']'.';' 
-
-	';'  shift 194
-	.  error
-
-
-state 155
-	extern_declaration:  EXTERN type_specifier ID '(' params.')' ';' 
-
-	')'  shift 195
-	.  error
-
-
-state 156
-	extern_declaration:  EXTERN type_specifier ID '(' param_list.',' ELLIPSIS ')' ';' 
-	params:  param_list.    (44)
+	fun_declaration:  type_specifier ID '(' param_list.',' ELLIPSIS ')' compound_stmt 
+	params:  param_list.    (56)
 	param_list:  param_list.',' param 
 	param_list:  param_list.',' ELLIPSIS 
 
-	','  shift 196
-	.  reduce 44 (src line 163)
+	','  shift 185
+	.  reduce 56 (src line 185)
 
 
-state 157
-	extern_declaration:  EXTERN type_specifier '*' ID ';'.    (11)
+state 102
+	type_specifier:  VOID.    (38)
+	params:  VOID.    (57)
 
-	.  reduce 11 (src line 78)
+	')'  reduce 57 (src line 187)
+	.  reduce 38 (src line 151)
 
 
-state 158
-	extern_declaration:  EXTERN STRUCT ID '*' ID.';' 
+state 103
+	param_list:  param.    (60)
 
-	';'  shift 197
+	.  reduce 60 (src line 195)
+
+
+state 104
+	param:  type_specifier.ID 
+	param:  type_specifier.ID '[' ']' 
+	param:  type_specifier.'*' ID 
+	param:  type_specifier.'*' '*' ID 
+
+	ID  shift 186
+	'*'  shift 187
 	.  error
 
 
-state 159
-	var_declaration:  type_specifier ID '[' NUM ']' ';'.    (16)
+state 105
+	param:  STRUCT.ID '*' ID 
 
-	.  reduce 16 (src line 99)
-
-
-state 160
-	var_declaration:  type_specifier ID '[' ID ']' ';'.    (17)
-
-	.  reduce 17 (src line 101)
-
-
-state 161
-	postfix_expr:  postfix_expr ARROW ID.    (88)
-
-	.  reduce 88 (src line 290)
-
-
-state 162
-	postfix_expr:  postfix_expr '.' ID.    (89)
-
-	.  reduce 89 (src line 292)
-
-
-state 163
-	expression:  postfix_expr '=' expression.    (90)
-
-	.  reduce 90 (src line 296)
-
-
-state 164
-	expression:  postfix_expr PLUSEQ expression.    (94)
-
-	.  reduce 94 (src line 305)
-
-
-state 165
-	expression:  postfix_expr MINUSEQ expression.    (95)
-
-	.  reduce 95 (src line 307)
-
-
-state 166
-	expression:  postfix_expr STAREQ expression.    (96)
-
-	.  reduce 96 (src line 309)
-
-
-state 167
-	expression:  postfix_expr DIVEQ expression.    (97)
-
-	.  reduce 97 (src line 311)
-
-
-state 168
-	expression:  postfix_expr MODEQ expression.    (98)
-
-	.  reduce 98 (src line 313)
-
-
-state 169
-	expression:  '*' factor '='.expression 
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  error
-
-	postfix_expr  goto 55
-	expression  goto 198
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
-
-state 170
-	factor:  '*' factor.    (136)
-
-	.  reduce 136 (src line 393)
-
-
-state 171
-	simple_expression:  bitwise_expression relop bitwise_expression.    (102)
-	bitwise_expression:  bitwise_expression.bitwiseop additive_expression 
-
-	LSHIFT  shift 123
-	RSHIFT  shift 124
-	'&'  shift 120
-	'|'  shift 121
-	'^'  shift 122
-	.  reduce 102 (src line 326)
-
-	bitwiseop  goto 113
-
-state 172
-	bitwise_expression:  bitwise_expression bitwiseop additive_expression.    (104)
-	additive_expression:  additive_expression.addop term 
-
-	'+'  shift 128
-	'-'  shift 129
-	.  reduce 104 (src line 333)
-
-	addop  goto 127
-
-state 173
-	var:  ID '[' expression.']' 
-
-	']'  shift 199
+	ID  shift 188
 	.  error
 
 
-state 174
-	call:  ID '(' args.')' 
+state 106
+	param:  CONST.type_specifier '*' ID 
 
-	')'  shift 200
+	INT  shift 19
+	VOID  shift 20
+	CHAR  shift 21
+	LONG  shift 22
+	UNSIGNED  shift 24
+	SHORT  shift 23
+	FLOAT  shift 25
+	DOUBLE  shift 26
+	TYPENAME  shift 27
+	.  error
+
+	type_specifier  goto 189
+
+state 107
+	id_list:  ID ',' ID.    (72)
+
+	.  reduce 72 (src line 231)
+
+
+state 108
+	id_list:  id_list ',' ID.    (71)
+
+	.  reduce 71 (src line 228)
+
+
+state 109
+	var_declaration:  type_specifier '*' ID ';'.    (24)
+
+	.  reduce 24 (src line 118)
+
+
+state 110
+	var_declaration:  type_specifier '*' ID '='.expression ';' 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	postfix_expr  goto 80
+	expression  goto 190
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
+
+state 111
+	var_declaration:  type_specifier '*' '*' ID.';' 
+	var_declaration:  type_specifier '*' '*' ID.'=' expression ';' 
+
+	';'  shift 191
+	'='  shift 192
 	.  error
 
 
-state 175
-	args:  arg_list.    (138)
-	arg_list:  arg_list.',' expression 
+state 112
+	var_declaration:  type_specifier '(' '*' ID.')' '(' fp_param_types ')' ';' 
 
-	','  shift 201
-	.  reduce 138 (src line 401)
-
-
-state 176
-	arg_list:  expression.    (141)
-
-	.  reduce 141 (src line 409)
-
-
-state 177
-	additive_expression:  additive_expression addop term.    (117)
-	term:  term.mulop factor 
-
-	'*'  shift 131
-	'/'  shift 132
-	'%'  shift 133
-	.  reduce 117 (src line 357)
-
-	mulop  goto 130
-
-state 178
-	term:  term mulop factor.    (121)
-
-	.  reduce 121 (src line 369)
-
-
-state 179
-	factor:  '(' expression ')'.    (126)
-
-	.  reduce 126 (src line 382)
-
-
-state 180
-	fun_declaration:  type_specifier ID '(' params ')' compound_stmt.    (42)
-
-	.  reduce 42 (src line 147)
-
-
-state 181
-	compound_stmt:  '{'.local_declarations statement_list '}' 
-	local_declarations: .    (56)
-
-	.  reduce 56 (src line 198)
-
-	local_declarations  goto 202
-
-182: shift/reduce conflict (shift 203(0), red'n 47(0)) on ')'
-state 182
-	fun_declaration:  type_specifier ID '(' param_list ',' ELLIPSIS.')' compound_stmt 
-	param_list:  param_list ',' ELLIPSIS.    (47)
-
-	')'  shift 203
-	.  reduce 47 (src line 171)
-
-
-state 183
-	param_list:  param_list ',' param.    (46)
-
-	.  reduce 46 (src line 168)
-
-
-state 184
-	param:  type_specifier ID '['.']' 
-
-	']'  shift 204
+	')'  shift 193
 	.  error
 
 
-state 185
-	param:  type_specifier '*' ID.    (51)
+state 113
+	var_declaration:  STRUCT ID ID ';'.    (28)
 
-	.  reduce 51 (src line 182)
+	.  reduce 28 (src line 126)
 
 
-state 186
-	param:  STRUCT ID '*'.ID 
+state 114
+	var_declaration:  STRUCT ID '*' ID.';' 
+	var_declaration:  STRUCT ID '*' ID.'=' expression ';' 
 
-	ID  shift 205
+	';'  shift 194
+	'='  shift 195
 	.  error
 
 
-state 187
-	var_declaration:  type_specifier '*' ID '=' expression ';'.    (21)
+state 115
+	struct_declaration:  STRUCT ID '{' field_list.'}' ';' 
+	field_list:  field_list.field 
 
-	.  reduce 21 (src line 113)
+	INT  shift 19
+	VOID  shift 20
+	CHAR  shift 21
+	LONG  shift 22
+	UNSIGNED  shift 24
+	SHORT  shift 23
+	FLOAT  shift 25
+	DOUBLE  shift 26
+	STRUCT  shift 118
+	UNION  shift 119
+	TYPENAME  shift 27
+	'}'  shift 196
+	.  error
+
+	field  goto 197
+	type_specifier  goto 117
+
+state 116
+	field_list:  field.    (181)
+
+	.  reduce 181 (src line 534)
 
 
-state 188
-	var_declaration:  STRUCT ID '*' ID '=' expression.';' 
+state 117
+	field:  type_specifier.ID ';' 
+	field:  type_specifier.'*' ID ';' 
 
-	';'  shift 206
+	ID  shift 198
+	'*'  shift 199
 	.  error
 
 
-state 189
-	struct_declaration:  STRUCT ID '{' field_list '}' ';'.    (142)
+state 118
+	field:  STRUCT.ID '*' ID ';' 
+	field:  STRUCT.ID ID ';' 
 
-	.  reduce 142 (src line 413)
-
-
-state 190
-	field:  type_specifier ID ';'.    (145)
-
-	.  reduce 145 (src line 425)
-
-
-state 191
-	field:  type_specifier '*' ID.';' 
-
-	';'  shift 207
+	ID  shift 200
 	.  error
 
 
-state 192
-	field:  STRUCT ID '*'.ID ';' 
+state 119
+	field:  UNION.ID ID ';' 
+	field:  UNION.ID '*' ID ';' 
 
-	ID  shift 208
+	ID  shift 201
 	.  error
 
 
-state 193
-	const_declaration:  CONST type_specifier ID '=' NUM ';'.    (25)
+state 120
+	var_declaration:  UNION ID ID ';'.    (31)
 
-	.  reduce 25 (src line 123)
-
-
-state 194
-	extern_declaration:  EXTERN type_specifier ID '[' ']' ';'.    (10)
-
-	.  reduce 10 (src line 76)
+	.  reduce 31 (src line 132)
 
 
-state 195
-	extern_declaration:  EXTERN type_specifier ID '(' params ')'.';' 
+state 121
+	var_declaration:  UNION ID '*' ID.';' 
 
-	';'  shift 209
+	';'  shift 202
 	.  error
 
 
-state 196
-	extern_declaration:  EXTERN type_specifier ID '(' param_list ','.ELLIPSIS ')' ';' 
-	param_list:  param_list ','.param 
-	param_list:  param_list ','.ELLIPSIS 
+state 122
+	union_declaration:  UNION ID '{' field_list.'}' ';' 
+	field_list:  field_list.field 
 
-	INT  shift 13
-	VOID  shift 14
-	CHAR  shift 15
-	LONG  shift 16
-	UNSIGNED  shift 18
-	SHORT  shift 17
-	FLOAT  shift 19
-	DOUBLE  shift 20
-	STRUCT  shift 79
-	ELLIPSIS  shift 210
+	INT  shift 19
+	VOID  shift 20
+	CHAR  shift 21
+	LONG  shift 22
+	UNSIGNED  shift 24
+	SHORT  shift 23
+	FLOAT  shift 25
+	DOUBLE  shift 26
+	STRUCT  shift 118
+	UNION  shift 119
+	TYPENAME  shift 27
+	'}'  shift 203
 	.  error
 
-	param  goto 183
-	type_specifier  goto 78
+	field  goto 197
+	type_specifier  goto 117
 
-state 197
-	extern_declaration:  EXTERN STRUCT ID '*' ID ';'.    (12)
+state 123
+	var_declaration:  CONST type_specifier '*' ID.';' 
+	var_declaration:  CONST type_specifier '*' ID.'=' expression ';' 
 
-	.  reduce 12 (src line 80)
-
-
-state 198
-	expression:  '*' factor '=' expression.    (91)
-
-	.  reduce 91 (src line 299)
-
-
-state 199
-	var:  ID '[' expression ']'.    (101)
-
-	.  reduce 101 (src line 322)
-
-
-state 200
-	call:  ID '(' args ')'.    (137)
-
-	.  reduce 137 (src line 396)
-
-
-state 201
-	arg_list:  arg_list ','.expression 
-
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
+	';'  shift 204
+	'='  shift 205
 	.  error
 
-	postfix_expr  goto 55
-	expression  goto 211
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
 
-state 202
-	compound_stmt:  '{' local_declarations.statement_list '}' 
-	local_declarations:  local_declarations.var_declaration 
-	local_declarations:  local_declarations.const_declaration 
-	statement_list: .    (60)
+state 124
+	const_declaration:  CONST type_specifier ID '='.NUM ';' 
 
-	INT  shift 13
-	VOID  shift 14
-	CONST  shift 11
-	CHAR  shift 15
-	LONG  shift 16
-	UNSIGNED  shift 18
-	SHORT  shift 17
-	FLOAT  shift 19
-	DOUBLE  shift 20
-	STRUCT  shift 216
-	.  reduce 60 (src line 212)
-
-	var_declaration  goto 213
-	const_declaration  goto 214
-	statement_list  goto 212
-	type_specifier  goto 215
-
-state 203
-	fun_declaration:  type_specifier ID '(' param_list ',' ELLIPSIS ')'.compound_stmt 
-
-	'{'  shift 181
+	NUM  shift 206
 	.  error
 
-	compound_stmt  goto 217
 
-state 204
-	param:  type_specifier ID '[' ']'.    (50)
+state 125
+	extern_declaration:  EXTERN type_specifier ID ';'.    (12)
 
-	.  reduce 50 (src line 180)
-
-
-state 205
-	param:  STRUCT ID '*' ID.    (52)
-
-	.  reduce 52 (src line 184)
+	.  reduce 12 (src line 78)
 
 
-state 206
-	var_declaration:  STRUCT ID '*' ID '=' expression ';'.    (24)
+state 126
+	extern_declaration:  EXTERN type_specifier ID '['.']' ';' 
 
-	.  reduce 24 (src line 119)
-
-
-state 207
-	field:  type_specifier '*' ID ';'.    (146)
-
-	.  reduce 146 (src line 428)
+	']'  shift 207
+	.  error
 
 
-state 208
-	field:  STRUCT ID '*' ID.';' 
+state 127
+	extern_declaration:  EXTERN type_specifier ID '('.params ')' ';' 
+	extern_declaration:  EXTERN type_specifier ID '('.param_list ',' ELLIPSIS ')' ';' 
+
+	INT  shift 19
+	VOID  shift 102
+	CONST  shift 106
+	CHAR  shift 21
+	LONG  shift 22
+	UNSIGNED  shift 24
+	SHORT  shift 23
+	FLOAT  shift 25
+	DOUBLE  shift 26
+	STRUCT  shift 105
+	TYPENAME  shift 27
+	.  error
+
+	params  goto 208
+	param_list  goto 209
+	param  goto 103
+	type_specifier  goto 104
+
+state 128
+	extern_declaration:  EXTERN type_specifier '*' ID.';' 
+
+	';'  shift 210
+	.  error
+
+
+state 129
+	extern_declaration:  EXTERN type_specifier '*' '*'.ID ';' 
+
+	ID  shift 211
+	.  error
+
+
+state 130
+	extern_declaration:  EXTERN STRUCT ID '*'.ID ';' 
+
+	ID  shift 212
+	.  error
+
+
+state 131
+	enum_declaration:  ENUM '{' enum_list '}'.';' 
+
+	';'  shift 213
+	.  error
+
+
+state 132
+	enum_list:  enum_list ','.enum_member 
+
+	ID  shift 70
+	.  error
+
+	enum_member  goto 214
+
+state 133
+	enum_member:  ID '='.NUM 
+
+	NUM  shift 215
+	.  error
+
+
+state 134
+	typedef_declaration:  TYPEDEF type_specifier ID ';'.    (167)
+
+	.  reduce 167 (src line 484)
+
+
+state 135
+	typedef_declaration:  TYPEDEF type_specifier '*' ID.';' 
+
+	';'  shift 216
+	.  error
+
+
+state 136
+	typedef_declaration:  TYPEDEF type_specifier '(' '*'.ID ')' '(' fp_param_types ')' ';' 
+
+	ID  shift 217
+	.  error
+
+
+state 137
+	typedef_declaration:  TYPEDEF STRUCT ID ID.';' 
 
 	';'  shift 218
 	.  error
 
 
+state 138
+	typedef_declaration:  TYPEDEF STRUCT ID '*'.ID ';' 
+
+	ID  shift 219
+	.  error
+
+
+state 139
+	var_declaration:  type_specifier ID '[' NUM ']'.';' 
+
+	';'  shift 220
+	.  error
+
+
+state 140
+	var_declaration:  type_specifier ID '[' ID ']'.';' 
+
+	';'  shift 221
+	.  error
+
+
+state 141
+	var_declaration:  type_specifier ID '=' expression ';'.    (22)
+
+	.  reduce 22 (src line 114)
+
+
+state 142
+	postfix_expr:  postfix_expr ARROW.ID 
+
+	ID  shift 222
+	.  error
+
+
+state 143
+	postfix_expr:  postfix_expr '.'.ID 
+
+	ID  shift 223
+	.  error
+
+
+state 144
+	expression:  postfix_expr '='.expression 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	postfix_expr  goto 80
+	expression  goto 224
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
+
+state 145
+	expression:  postfix_expr INC.    (106)
+
+	.  reduce 106 (src line 327)
+
+
+state 146
+	expression:  postfix_expr DEC.    (107)
+
+	.  reduce 107 (src line 329)
+
+
+state 147
+	expression:  postfix_expr PLUSEQ.expression 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	postfix_expr  goto 80
+	expression  goto 225
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
+
+state 148
+	expression:  postfix_expr MINUSEQ.expression 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	postfix_expr  goto 80
+	expression  goto 226
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
+
+state 149
+	expression:  postfix_expr STAREQ.expression 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	postfix_expr  goto 80
+	expression  goto 227
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
+
+state 150
+	expression:  postfix_expr DIVEQ.expression 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	postfix_expr  goto 80
+	expression  goto 228
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
+
+state 151
+	expression:  postfix_expr MODEQ.expression 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	postfix_expr  goto 80
+	expression  goto 229
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
+
+state 152
+	expression:  '*' factor.'=' expression 
+	factor:  '*' factor.    (150)
+
+	'='  shift 230
+	.  reduce 150 (src line 419)
+
+
+state 153
+	postfix_expr:  postfix_expr.ARROW ID 
+	postfix_expr:  postfix_expr.'.' ID 
+	factor:  postfix_expr.    (141)
+
+	ARROW  shift 142
+	'.'  shift 143
+	.  reduce 141 (src line 410)
+
+
+state 154
+	factor:  '*'.factor 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 154
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	postfix_expr  goto 153
+	var  goto 83
+	factor  goto 231
+	call  goto 84
+
+state 155
+	simple_expression:  bitwise_expression relop.bitwise_expression 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 154
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	postfix_expr  goto 153
+	var  goto 83
+	bitwise_expression  goto 232
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
+
+state 156
+	bitwise_expression:  bitwise_expression bitwiseop.additive_expression 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 154
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	postfix_expr  goto 153
+	var  goto 83
+	additive_expression  goto 233
+	term  goto 88
+	factor  goto 89
+	call  goto 84
+
+state 157
+	relop:  LE.    (125)
+
+	.  reduce 125 (src line 374)
+
+
+state 158
+	relop:  '<'.    (126)
+
+	.  reduce 126 (src line 376)
+
+
+state 159
+	relop:  '>'.    (127)
+
+	.  reduce 127 (src line 377)
+
+
+state 160
+	relop:  GE.    (128)
+
+	.  reduce 128 (src line 378)
+
+
+state 161
+	relop:  EQ.    (129)
+
+	.  reduce 129 (src line 379)
+
+
+state 162
+	relop:  NE.    (130)
+
+	.  reduce 130 (src line 380)
+
+
+state 163
+	bitwiseop:  '&'.    (120)
+
+	.  reduce 120 (src line 366)
+
+
+state 164
+	bitwiseop:  '|'.    (121)
+
+	.  reduce 121 (src line 368)
+
+
+state 165
+	bitwiseop:  '^'.    (122)
+
+	.  reduce 122 (src line 369)
+
+
+state 166
+	bitwiseop:  LSHIFT.    (123)
+
+	.  reduce 123 (src line 370)
+
+
+state 167
+	bitwiseop:  RSHIFT.    (124)
+
+	.  reduce 124 (src line 371)
+
+
+state 168
+	var:  ID '['.expression ']' 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	postfix_expr  goto 80
+	expression  goto 234
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
+
+state 169
+	call:  ID '('.args ')' 
+	args: .    (157)
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  reduce 157 (src line 437)
+
+	postfix_expr  goto 80
+	expression  goto 237
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
+	args  goto 235
+	arg_list  goto 236
+
+state 170
+	additive_expression:  additive_expression addop.term 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 154
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	postfix_expr  goto 153
+	var  goto 83
+	term  goto 238
+	factor  goto 89
+	call  goto 84
+
+state 171
+	addop:  '+'.    (133)
+
+	.  reduce 133 (src line 390)
+
+
+state 172
+	addop:  '-'.    (134)
+
+	.  reduce 134 (src line 392)
+
+
+state 173
+	term:  term mulop.factor 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 154
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	postfix_expr  goto 153
+	var  goto 83
+	factor  goto 239
+	call  goto 84
+
+state 174
+	mulop:  '*'.    (137)
+
+	.  reduce 137 (src line 402)
+
+
+state 175
+	mulop:  '/'.    (138)
+
+	.  reduce 138 (src line 404)
+
+
+state 176
+	mulop:  '%'.    (139)
+
+	.  reduce 139 (src line 405)
+
+
+state 177
+	factor:  '(' expression.')' 
+
+	')'  shift 240
+	.  error
+
+
+state 178
+	factor:  '-' factor.    (146)
+
+	.  reduce 146 (src line 415)
+
+
+state 179
+	factor:  '!' factor.    (147)
+
+	.  reduce 147 (src line 416)
+
+
+state 180
+	factor:  '~' factor.    (148)
+
+	.  reduce 148 (src line 417)
+
+
+state 181
+	factor:  '&' var.    (149)
+
+	.  reduce 149 (src line 418)
+
+
+state 182
+	var:  ID.    (114)
+	var:  ID.'[' expression ']' 
+
+	'['  shift 168
+	.  reduce 114 (src line 345)
+
+
+state 183
+	factor:  SIZEOF '('.type_specifier ')' 
+	factor:  SIZEOF '('.STRUCT ID ')' 
+	factor:  SIZEOF '('.UNION ID ')' 
+	factor:  SIZEOF '('.expression ')' 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	INT  shift 19
+	VOID  shift 20
+	CHAR  shift 21
+	LONG  shift 22
+	UNSIGNED  shift 24
+	SHORT  shift 23
+	FLOAT  shift 25
+	DOUBLE  shift 26
+	STRUCT  shift 242
+	SIZEOF  shift 99
+	UNION  shift 243
+	TYPENAME  shift 27
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	postfix_expr  goto 80
+	expression  goto 244
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
+	type_specifier  goto 241
+
+state 184
+	fun_declaration:  type_specifier ID '(' params ')'.compound_stmt 
+
+	'{'  shift 246
+	.  error
+
+	compound_stmt  goto 245
+
+state 185
+	fun_declaration:  type_specifier ID '(' param_list ','.ELLIPSIS ')' compound_stmt 
+	param_list:  param_list ','.param 
+	param_list:  param_list ','.ELLIPSIS 
+
+	INT  shift 19
+	VOID  shift 20
+	CONST  shift 106
+	CHAR  shift 21
+	LONG  shift 22
+	UNSIGNED  shift 24
+	SHORT  shift 23
+	FLOAT  shift 25
+	DOUBLE  shift 26
+	STRUCT  shift 105
+	TYPENAME  shift 27
+	ELLIPSIS  shift 247
+	.  error
+
+	param  goto 248
+	type_specifier  goto 104
+
+state 186
+	param:  type_specifier ID.    (61)
+	param:  type_specifier ID.'[' ']' 
+
+	'['  shift 249
+	.  reduce 61 (src line 199)
+
+
+state 187
+	param:  type_specifier '*'.ID 
+	param:  type_specifier '*'.'*' ID 
+
+	ID  shift 250
+	'*'  shift 251
+	.  error
+
+
+state 188
+	param:  STRUCT ID.'*' ID 
+
+	'*'  shift 252
+	.  error
+
+
+state 189
+	param:  CONST type_specifier.'*' ID 
+
+	'*'  shift 253
+	.  error
+
+
+state 190
+	var_declaration:  type_specifier '*' ID '=' expression.';' 
+
+	';'  shift 254
+	.  error
+
+
+state 191
+	var_declaration:  type_specifier '*' '*' ID ';'.    (26)
+
+	.  reduce 26 (src line 122)
+
+
+state 192
+	var_declaration:  type_specifier '*' '*' ID '='.expression ';' 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	postfix_expr  goto 80
+	expression  goto 255
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
+
+state 193
+	var_declaration:  type_specifier '(' '*' ID ')'.'(' fp_param_types ')' ';' 
+
+	'('  shift 256
+	.  error
+
+
+state 194
+	var_declaration:  STRUCT ID '*' ID ';'.    (29)
+
+	.  reduce 29 (src line 128)
+
+
+state 195
+	var_declaration:  STRUCT ID '*' ID '='.expression ';' 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	postfix_expr  goto 80
+	expression  goto 257
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
+
+state 196
+	struct_declaration:  STRUCT ID '{' field_list '}'.';' 
+
+	';'  shift 258
+	.  error
+
+
+state 197
+	field_list:  field_list field.    (180)
+
+	.  reduce 180 (src line 531)
+
+
+state 198
+	field:  type_specifier ID.';' 
+
+	';'  shift 259
+	.  error
+
+
+state 199
+	field:  type_specifier '*'.ID ';' 
+
+	ID  shift 260
+	.  error
+
+
+state 200
+	field:  STRUCT ID.'*' ID ';' 
+	field:  STRUCT ID.ID ';' 
+
+	ID  shift 262
+	'*'  shift 261
+	.  error
+
+
+state 201
+	field:  UNION ID.ID ';' 
+	field:  UNION ID.'*' ID ';' 
+
+	ID  shift 263
+	'*'  shift 264
+	.  error
+
+
+state 202
+	var_declaration:  UNION ID '*' ID ';'.    (32)
+
+	.  reduce 32 (src line 134)
+
+
+state 203
+	union_declaration:  UNION ID '{' field_list '}'.';' 
+
+	';'  shift 265
+	.  error
+
+
+state 204
+	var_declaration:  CONST type_specifier '*' ID ';'.    (34)
+
+	.  reduce 34 (src line 138)
+
+
+state 205
+	var_declaration:  CONST type_specifier '*' ID '='.expression ';' 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	postfix_expr  goto 80
+	expression  goto 266
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
+
+state 206
+	const_declaration:  CONST type_specifier ID '=' NUM.';' 
+
+	';'  shift 267
+	.  error
+
+
+state 207
+	extern_declaration:  EXTERN type_specifier ID '[' ']'.';' 
+
+	';'  shift 268
+	.  error
+
+
+state 208
+	extern_declaration:  EXTERN type_specifier ID '(' params.')' ';' 
+
+	')'  shift 269
+	.  error
+
+
 state 209
-	extern_declaration:  EXTERN type_specifier ID '(' params ')' ';'.    (13)
+	extern_declaration:  EXTERN type_specifier ID '(' param_list.',' ELLIPSIS ')' ';' 
+	params:  param_list.    (56)
+	param_list:  param_list.',' param 
+	param_list:  param_list.',' ELLIPSIS 
 
-	.  reduce 13 (src line 82)
+	','  shift 270
+	.  reduce 56 (src line 185)
 
 
-210: shift/reduce conflict (shift 219(0), red'n 47(0)) on ')'
 state 210
-	extern_declaration:  EXTERN type_specifier ID '(' param_list ',' ELLIPSIS.')' ';' 
-	param_list:  param_list ',' ELLIPSIS.    (47)
+	extern_declaration:  EXTERN type_specifier '*' ID ';'.    (14)
 
-	')'  shift 219
-	.  reduce 47 (src line 171)
+	.  reduce 14 (src line 83)
 
 
 state 211
-	arg_list:  arg_list ',' expression.    (140)
+	extern_declaration:  EXTERN type_specifier '*' '*' ID.';' 
 
-	.  reduce 140 (src line 406)
+	';'  shift 271
+	.  error
 
 
 state 212
-	compound_stmt:  '{' local_declarations statement_list.'}' 
-	statement_list:  statement_list.statement 
+	extern_declaration:  EXTERN STRUCT ID '*' ID.';' 
 
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 232
-	STRING_LIT  shift 69
-	IF  shift 235
-	WHILE  shift 236
-	RETURN  shift 239
-	FOR  shift 237
-	DO  shift 238
-	BREAK  shift 240
-	CONTINUE  shift 241
-	GOTO  shift 242
-	';'  shift 234
-	'*'  shift 56
-	'('  shift 65
-	'{'  shift 181
-	'}'  shift 220
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
+	';'  shift 272
 	.  error
 
-	compound_stmt  goto 223
-	postfix_expr  goto 55
-	statement  goto 221
-	expression_stmt  goto 222
-	selection_stmt  goto 224
-	iteration_stmt  goto 225
-	for_stmt  goto 226
-	do_while_stmt  goto 227
-	return_stmt  goto 228
-	break_stmt  goto 229
-	continue_stmt  goto 230
-	goto_stmt  goto 231
-	expression  goto 233
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
 
 state 213
-	local_declarations:  local_declarations var_declaration.    (54)
+	enum_declaration:  ENUM '{' enum_list '}' ';'.    (162)
 
-	.  reduce 54 (src line 193)
+	.  reduce 162 (src line 457)
 
 
 state 214
-	local_declarations:  local_declarations const_declaration.    (55)
+	enum_list:  enum_list ',' enum_member.    (163)
 
-	.  reduce 55 (src line 196)
+	.  reduce 163 (src line 462)
 
 
 state 215
+	enum_member:  ID '=' NUM.    (166)
+
+	.  reduce 166 (src line 477)
+
+
+state 216
+	typedef_declaration:  TYPEDEF type_specifier '*' ID ';'.    (168)
+
+	.  reduce 168 (src line 490)
+
+
+state 217
+	typedef_declaration:  TYPEDEF type_specifier '(' '*' ID.')' '(' fp_param_types ')' ';' 
+
+	')'  shift 273
+	.  error
+
+
+state 218
+	typedef_declaration:  TYPEDEF STRUCT ID ID ';'.    (169)
+
+	.  reduce 169 (src line 495)
+
+
+state 219
+	typedef_declaration:  TYPEDEF STRUCT ID '*' ID.';' 
+
+	';'  shift 274
+	.  error
+
+
+state 220
+	var_declaration:  type_specifier ID '[' NUM ']' ';'.    (20)
+
+	.  reduce 20 (src line 106)
+
+
+state 221
+	var_declaration:  type_specifier ID '[' ID ']' ';'.    (21)
+
+	.  reduce 21 (src line 108)
+
+
+state 222
+	postfix_expr:  postfix_expr ARROW ID.    (102)
+
+	.  reduce 102 (src line 316)
+
+
+state 223
+	postfix_expr:  postfix_expr '.' ID.    (103)
+
+	.  reduce 103 (src line 318)
+
+
+state 224
+	expression:  postfix_expr '=' expression.    (104)
+
+	.  reduce 104 (src line 322)
+
+
+state 225
+	expression:  postfix_expr PLUSEQ expression.    (108)
+
+	.  reduce 108 (src line 331)
+
+
+state 226
+	expression:  postfix_expr MINUSEQ expression.    (109)
+
+	.  reduce 109 (src line 333)
+
+
+state 227
+	expression:  postfix_expr STAREQ expression.    (110)
+
+	.  reduce 110 (src line 335)
+
+
+state 228
+	expression:  postfix_expr DIVEQ expression.    (111)
+
+	.  reduce 111 (src line 337)
+
+
+state 229
+	expression:  postfix_expr MODEQ expression.    (112)
+
+	.  reduce 112 (src line 339)
+
+
+state 230
+	expression:  '*' factor '='.expression 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	postfix_expr  goto 80
+	expression  goto 275
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
+
+state 231
+	factor:  '*' factor.    (150)
+
+	.  reduce 150 (src line 419)
+
+
+state 232
+	simple_expression:  bitwise_expression relop bitwise_expression.    (116)
+	bitwise_expression:  bitwise_expression.bitwiseop additive_expression 
+
+	LSHIFT  shift 166
+	RSHIFT  shift 167
+	'&'  shift 163
+	'|'  shift 164
+	'^'  shift 165
+	.  reduce 116 (src line 352)
+
+	bitwiseop  goto 156
+
+state 233
+	bitwise_expression:  bitwise_expression bitwiseop additive_expression.    (118)
+	additive_expression:  additive_expression.addop term 
+
+	'+'  shift 171
+	'-'  shift 172
+	.  reduce 118 (src line 359)
+
+	addop  goto 170
+
+state 234
+	var:  ID '[' expression.']' 
+
+	']'  shift 276
+	.  error
+
+
+state 235
+	call:  ID '(' args.')' 
+
+	')'  shift 277
+	.  error
+
+
+state 236
+	args:  arg_list.    (156)
+	arg_list:  arg_list.',' expression 
+
+	','  shift 278
+	.  reduce 156 (src line 435)
+
+
+state 237
+	arg_list:  expression.    (159)
+
+	.  reduce 159 (src line 443)
+
+
+state 238
+	additive_expression:  additive_expression addop term.    (131)
+	term:  term.mulop factor 
+
+	'*'  shift 174
+	'/'  shift 175
+	'%'  shift 176
+	.  reduce 131 (src line 383)
+
+	mulop  goto 173
+
+state 239
+	term:  term mulop factor.    (135)
+
+	.  reduce 135 (src line 395)
+
+
+state 240
+	factor:  '(' expression ')'.    (140)
+
+	.  reduce 140 (src line 408)
+
+
+state 241
+	factor:  SIZEOF '(' type_specifier.')' 
+
+	')'  shift 279
+	.  error
+
+
+state 242
+	factor:  SIZEOF '(' STRUCT.ID ')' 
+
+	ID  shift 280
+	.  error
+
+
+state 243
+	factor:  SIZEOF '(' UNION.ID ')' 
+
+	ID  shift 281
+	.  error
+
+
+state 244
+	factor:  SIZEOF '(' expression.')' 
+
+	')'  shift 282
+	.  error
+
+
+state 245
+	fun_declaration:  type_specifier ID '(' params ')' compound_stmt.    (54)
+
+	.  reduce 54 (src line 169)
+
+
+state 246
+	compound_stmt:  '{'.local_declarations statement_list '}' 
+	local_declarations: .    (70)
+
+	.  reduce 70 (src line 224)
+
+	local_declarations  goto 283
+
+247: shift/reduce conflict (shift 284(0), red'n 59(0)) on ')'
+state 247
+	fun_declaration:  type_specifier ID '(' param_list ',' ELLIPSIS.')' compound_stmt 
+	param_list:  param_list ',' ELLIPSIS.    (59)
+
+	')'  shift 284
+	.  reduce 59 (src line 193)
+
+
+state 248
+	param_list:  param_list ',' param.    (58)
+
+	.  reduce 58 (src line 190)
+
+
+state 249
+	param:  type_specifier ID '['.']' 
+
+	']'  shift 285
+	.  error
+
+
+state 250
+	param:  type_specifier '*' ID.    (63)
+
+	.  reduce 63 (src line 204)
+
+
+state 251
+	param:  type_specifier '*' '*'.ID 
+
+	ID  shift 286
+	.  error
+
+
+state 252
+	param:  STRUCT ID '*'.ID 
+
+	ID  shift 287
+	.  error
+
+
+state 253
+	param:  CONST type_specifier '*'.ID 
+
+	ID  shift 288
+	.  error
+
+
+state 254
+	var_declaration:  type_specifier '*' ID '=' expression ';'.    (25)
+
+	.  reduce 25 (src line 120)
+
+
+state 255
+	var_declaration:  type_specifier '*' '*' ID '=' expression.';' 
+
+	';'  shift 289
+	.  error
+
+
+state 256
+	var_declaration:  type_specifier '(' '*' ID ')' '('.fp_param_types ')' ';' 
+	fp_param_types: .    (173)
+
+	INT  shift 19
+	VOID  shift 20
+	CHAR  shift 21
+	LONG  shift 22
+	UNSIGNED  shift 24
+	SHORT  shift 23
+	FLOAT  shift 25
+	DOUBLE  shift 26
+	TYPENAME  shift 27
+	.  reduce 173 (src line 514)
+
+	fp_param_types  goto 290
+	fp_param_type_list  goto 291
+	fp_param_type  goto 292
+	type_specifier  goto 293
+
+state 257
+	var_declaration:  STRUCT ID '*' ID '=' expression.';' 
+
+	';'  shift 294
+	.  error
+
+
+state 258
+	struct_declaration:  STRUCT ID '{' field_list '}' ';'.    (160)
+
+	.  reduce 160 (src line 447)
+
+
+state 259
+	field:  type_specifier ID ';'.    (182)
+
+	.  reduce 182 (src line 538)
+
+
+state 260
+	field:  type_specifier '*' ID.';' 
+
+	';'  shift 295
+	.  error
+
+
+state 261
+	field:  STRUCT ID '*'.ID ';' 
+
+	ID  shift 296
+	.  error
+
+
+state 262
+	field:  STRUCT ID ID.';' 
+
+	';'  shift 297
+	.  error
+
+
+state 263
+	field:  UNION ID ID.';' 
+
+	';'  shift 298
+	.  error
+
+
+state 264
+	field:  UNION ID '*'.ID ';' 
+
+	ID  shift 299
+	.  error
+
+
+state 265
+	union_declaration:  UNION ID '{' field_list '}' ';'.    (161)
+
+	.  reduce 161 (src line 452)
+
+
+state 266
+	var_declaration:  CONST type_specifier '*' ID '=' expression.';' 
+
+	';'  shift 300
+	.  error
+
+
+state 267
+	const_declaration:  CONST type_specifier ID '=' NUM ';'.    (36)
+
+	.  reduce 36 (src line 144)
+
+
+state 268
+	extern_declaration:  EXTERN type_specifier ID '[' ']' ';'.    (13)
+
+	.  reduce 13 (src line 81)
+
+
+state 269
+	extern_declaration:  EXTERN type_specifier ID '(' params ')'.';' 
+
+	';'  shift 301
+	.  error
+
+
+state 270
+	extern_declaration:  EXTERN type_specifier ID '(' param_list ','.ELLIPSIS ')' ';' 
+	param_list:  param_list ','.param 
+	param_list:  param_list ','.ELLIPSIS 
+
+	INT  shift 19
+	VOID  shift 20
+	CONST  shift 106
+	CHAR  shift 21
+	LONG  shift 22
+	UNSIGNED  shift 24
+	SHORT  shift 23
+	FLOAT  shift 25
+	DOUBLE  shift 26
+	STRUCT  shift 105
+	TYPENAME  shift 27
+	ELLIPSIS  shift 302
+	.  error
+
+	param  goto 248
+	type_specifier  goto 104
+
+state 271
+	extern_declaration:  EXTERN type_specifier '*' '*' ID ';'.    (15)
+
+	.  reduce 15 (src line 85)
+
+
+state 272
+	extern_declaration:  EXTERN STRUCT ID '*' ID ';'.    (16)
+
+	.  reduce 16 (src line 87)
+
+
+state 273
+	typedef_declaration:  TYPEDEF type_specifier '(' '*' ID ')'.'(' fp_param_types ')' ';' 
+
+	'('  shift 303
+	.  error
+
+
+state 274
+	typedef_declaration:  TYPEDEF STRUCT ID '*' ID ';'.    (170)
+
+	.  reduce 170 (src line 500)
+
+
+state 275
+	expression:  '*' factor '=' expression.    (105)
+
+	.  reduce 105 (src line 325)
+
+
+state 276
+	var:  ID '[' expression ']'.    (115)
+
+	.  reduce 115 (src line 348)
+
+
+state 277
+	call:  ID '(' args ')'.    (155)
+
+	.  reduce 155 (src line 430)
+
+
+state 278
+	arg_list:  arg_list ','.expression 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	postfix_expr  goto 80
+	expression  goto 304
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
+
+state 279
+	factor:  SIZEOF '(' type_specifier ')'.    (151)
+
+	.  reduce 151 (src line 420)
+
+
+state 280
+	factor:  SIZEOF '(' STRUCT ID.')' 
+
+	')'  shift 305
+	.  error
+
+
+state 281
+	factor:  SIZEOF '(' UNION ID.')' 
+
+	')'  shift 306
+	.  error
+
+
+state 282
+	factor:  SIZEOF '(' expression ')'.    (154)
+
+	.  reduce 154 (src line 426)
+
+
+state 283
+	compound_stmt:  '{' local_declarations.statement_list '}' 
+	local_declarations:  local_declarations.var_declaration 
+	local_declarations:  local_declarations.const_declaration 
+	statement_list: .    (74)
+
+	INT  shift 19
+	VOID  shift 20
+	CONST  shift 15
+	CHAR  shift 21
+	LONG  shift 22
+	UNSIGNED  shift 24
+	SHORT  shift 23
+	FLOAT  shift 25
+	DOUBLE  shift 26
+	STRUCT  shift 311
+	UNION  shift 312
+	TYPENAME  shift 27
+	.  reduce 74 (src line 238)
+
+	var_declaration  goto 308
+	const_declaration  goto 309
+	statement_list  goto 307
+	type_specifier  goto 310
+
+state 284
+	fun_declaration:  type_specifier ID '(' param_list ',' ELLIPSIS ')'.compound_stmt 
+
+	'{'  shift 246
+	.  error
+
+	compound_stmt  goto 313
+
+state 285
+	param:  type_specifier ID '[' ']'.    (62)
+
+	.  reduce 62 (src line 202)
+
+
+state 286
+	param:  type_specifier '*' '*' ID.    (64)
+
+	.  reduce 64 (src line 206)
+
+
+state 287
+	param:  STRUCT ID '*' ID.    (65)
+
+	.  reduce 65 (src line 208)
+
+
+state 288
+	param:  CONST type_specifier '*' ID.    (66)
+
+	.  reduce 66 (src line 210)
+
+
+state 289
+	var_declaration:  type_specifier '*' '*' ID '=' expression ';'.    (27)
+
+	.  reduce 27 (src line 124)
+
+
+state 290
+	var_declaration:  type_specifier '(' '*' ID ')' '(' fp_param_types.')' ';' 
+
+	')'  shift 314
+	.  error
+
+
+state 291
+	fp_param_types:  fp_param_type_list.    (172)
+	fp_param_type_list:  fp_param_type_list.',' fp_param_type 
+
+	','  shift 315
+	.  reduce 172 (src line 512)
+
+
+state 292
+	fp_param_type_list:  fp_param_type.    (175)
+
+	.  reduce 175 (src line 520)
+
+
+state 293
+	fp_param_type:  type_specifier.    (176)
+	fp_param_type:  type_specifier.'*' 
+	fp_param_type:  type_specifier.ID 
+	fp_param_type:  type_specifier.'*' ID 
+
+	ID  shift 317
+	'*'  shift 316
+	.  reduce 176 (src line 524)
+
+
+state 294
+	var_declaration:  STRUCT ID '*' ID '=' expression ';'.    (30)
+
+	.  reduce 30 (src line 130)
+
+
+state 295
+	field:  type_specifier '*' ID ';'.    (183)
+
+	.  reduce 183 (src line 541)
+
+
+state 296
+	field:  STRUCT ID '*' ID.';' 
+
+	';'  shift 318
+	.  error
+
+
+state 297
+	field:  STRUCT ID ID ';'.    (185)
+
+	.  reduce 185 (src line 545)
+
+
+state 298
+	field:  UNION ID ID ';'.    (186)
+
+	.  reduce 186 (src line 547)
+
+
+state 299
+	field:  UNION ID '*' ID.';' 
+
+	';'  shift 319
+	.  error
+
+
+state 300
+	var_declaration:  CONST type_specifier '*' ID '=' expression ';'.    (35)
+
+	.  reduce 35 (src line 140)
+
+
+state 301
+	extern_declaration:  EXTERN type_specifier ID '(' params ')' ';'.    (17)
+
+	.  reduce 17 (src line 89)
+
+
+302: shift/reduce conflict (shift 320(0), red'n 59(0)) on ')'
+state 302
+	extern_declaration:  EXTERN type_specifier ID '(' param_list ',' ELLIPSIS.')' ';' 
+	param_list:  param_list ',' ELLIPSIS.    (59)
+
+	')'  shift 320
+	.  reduce 59 (src line 193)
+
+
+state 303
+	typedef_declaration:  TYPEDEF type_specifier '(' '*' ID ')' '('.fp_param_types ')' ';' 
+	fp_param_types: .    (173)
+
+	INT  shift 19
+	VOID  shift 20
+	CHAR  shift 21
+	LONG  shift 22
+	UNSIGNED  shift 24
+	SHORT  shift 23
+	FLOAT  shift 25
+	DOUBLE  shift 26
+	TYPENAME  shift 27
+	.  reduce 173 (src line 514)
+
+	fp_param_types  goto 321
+	fp_param_type_list  goto 291
+	fp_param_type  goto 292
+	type_specifier  goto 293
+
+state 304
+	arg_list:  arg_list ',' expression.    (158)
+
+	.  reduce 158 (src line 440)
+
+
+state 305
+	factor:  SIZEOF '(' STRUCT ID ')'.    (152)
+
+	.  reduce 152 (src line 422)
+
+
+state 306
+	factor:  SIZEOF '(' UNION ID ')'.    (153)
+
+	.  reduce 153 (src line 424)
+
+
+state 307
+	compound_stmt:  '{' local_declarations statement_list.'}' 
+	statement_list:  statement_list.statement 
+
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 334
+	STRING_LIT  shift 94
+	IF  shift 337
+	WHILE  shift 338
+	RETURN  shift 341
+	FOR  shift 339
+	DO  shift 340
+	BREAK  shift 342
+	CONTINUE  shift 343
+	GOTO  shift 344
+	SIZEOF  shift 99
+	';'  shift 336
+	'*'  shift 81
+	'('  shift 90
+	'{'  shift 246
+	'}'  shift 322
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  error
+
+	compound_stmt  goto 325
+	postfix_expr  goto 80
+	statement  goto 323
+	expression_stmt  goto 324
+	selection_stmt  goto 326
+	iteration_stmt  goto 327
+	for_stmt  goto 328
+	do_while_stmt  goto 329
+	return_stmt  goto 330
+	break_stmt  goto 331
+	continue_stmt  goto 332
+	goto_stmt  goto 333
+	expression  goto 335
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
+
+state 308
+	local_declarations:  local_declarations var_declaration.    (68)
+
+	.  reduce 68 (src line 219)
+
+
+state 309
+	local_declarations:  local_declarations const_declaration.    (69)
+
+	.  reduce 69 (src line 222)
+
+
+state 310
 	var_declaration:  type_specifier.ID ';' 
 	var_declaration:  type_specifier.ID '[' NUM ']' ';' 
 	var_declaration:  type_specifier.ID '[' ID ']' ';' 
@@ -2155,852 +3054,968 @@ state 215
 	var_declaration:  type_specifier.id_list ';' 
 	var_declaration:  type_specifier.'*' ID ';' 
 	var_declaration:  type_specifier.'*' ID '=' expression ';' 
+	var_declaration:  type_specifier.'*' '*' ID ';' 
+	var_declaration:  type_specifier.'*' '*' ID '=' expression ';' 
+	var_declaration:  type_specifier.'(' '*' ID ')' '(' fp_param_types ')' ';' 
 
-	ID  shift 243
-	'*'  shift 24
+	ID  shift 345
+	'*'  shift 31
+	'('  shift 32
 	.  error
 
-	id_list  goto 23
+	id_list  goto 30
 
-state 216
+state 311
 	var_declaration:  STRUCT.ID ID ';' 
 	var_declaration:  STRUCT.ID '*' ID ';' 
 	var_declaration:  STRUCT.ID '*' ID '=' expression ';' 
 
-	ID  shift 244
+	ID  shift 346
 	.  error
 
 
-state 217
-	fun_declaration:  type_specifier ID '(' param_list ',' ELLIPSIS ')' compound_stmt.    (43)
+state 312
+	var_declaration:  UNION.ID ID ';' 
+	var_declaration:  UNION.ID '*' ID ';' 
 
-	.  reduce 43 (src line 154)
-
-
-state 218
-	field:  STRUCT ID '*' ID ';'.    (147)
-
-	.  reduce 147 (src line 430)
+	ID  shift 347
+	.  error
 
 
-state 219
+state 313
+	fun_declaration:  type_specifier ID '(' param_list ',' ELLIPSIS ')' compound_stmt.    (55)
+
+	.  reduce 55 (src line 176)
+
+
+state 314
+	var_declaration:  type_specifier '(' '*' ID ')' '(' fp_param_types ')'.';' 
+
+	';'  shift 348
+	.  error
+
+
+state 315
+	fp_param_type_list:  fp_param_type_list ','.fp_param_type 
+
+	INT  shift 19
+	VOID  shift 20
+	CHAR  shift 21
+	LONG  shift 22
+	UNSIGNED  shift 24
+	SHORT  shift 23
+	FLOAT  shift 25
+	DOUBLE  shift 26
+	TYPENAME  shift 27
+	.  error
+
+	fp_param_type  goto 349
+	type_specifier  goto 293
+
+state 316
+	fp_param_type:  type_specifier '*'.    (177)
+	fp_param_type:  type_specifier '*'.ID 
+
+	ID  shift 350
+	.  reduce 177 (src line 526)
+
+
+state 317
+	fp_param_type:  type_specifier ID.    (178)
+
+	.  reduce 178 (src line 527)
+
+
+state 318
+	field:  STRUCT ID '*' ID ';'.    (184)
+
+	.  reduce 184 (src line 543)
+
+
+state 319
+	field:  UNION ID '*' ID ';'.    (187)
+
+	.  reduce 187 (src line 549)
+
+
+state 320
 	extern_declaration:  EXTERN type_specifier ID '(' param_list ',' ELLIPSIS ')'.';' 
 
-	';'  shift 245
+	';'  shift 351
 	.  error
 
 
-state 220
-	compound_stmt:  '{' local_declarations statement_list '}'.    (53)
+state 321
+	typedef_declaration:  TYPEDEF type_specifier '(' '*' ID ')' '(' fp_param_types.')' ';' 
 
-	.  reduce 53 (src line 188)
-
-
-state 221
-	statement_list:  statement_list statement.    (59)
-
-	.  reduce 59 (src line 209)
+	')'  shift 352
+	.  error
 
 
-state 222
-	statement:  expression_stmt.    (61)
+state 322
+	compound_stmt:  '{' local_declarations statement_list '}'.    (67)
 
-	.  reduce 61 (src line 216)
-
-
-state 223
-	statement:  compound_stmt.    (62)
-
-	.  reduce 62 (src line 218)
+	.  reduce 67 (src line 214)
 
 
-state 224
-	statement:  selection_stmt.    (63)
+state 323
+	statement_list:  statement_list statement.    (73)
 
-	.  reduce 63 (src line 219)
-
-
-state 225
-	statement:  iteration_stmt.    (64)
-
-	.  reduce 64 (src line 220)
+	.  reduce 73 (src line 235)
 
 
-state 226
-	statement:  for_stmt.    (65)
+state 324
+	statement:  expression_stmt.    (75)
 
-	.  reduce 65 (src line 221)
-
-
-state 227
-	statement:  do_while_stmt.    (66)
-
-	.  reduce 66 (src line 222)
+	.  reduce 75 (src line 242)
 
 
-state 228
-	statement:  return_stmt.    (67)
+state 325
+	statement:  compound_stmt.    (76)
 
-	.  reduce 67 (src line 223)
-
-
-state 229
-	statement:  break_stmt.    (68)
-
-	.  reduce 68 (src line 224)
+	.  reduce 76 (src line 244)
 
 
-state 230
-	statement:  continue_stmt.    (69)
+state 326
+	statement:  selection_stmt.    (77)
 
-	.  reduce 69 (src line 225)
-
-
-state 231
-	statement:  goto_stmt.    (70)
-
-	.  reduce 70 (src line 226)
+	.  reduce 77 (src line 245)
 
 
-state 232
+state 327
+	statement:  iteration_stmt.    (78)
+
+	.  reduce 78 (src line 246)
+
+
+state 328
+	statement:  for_stmt.    (79)
+
+	.  reduce 79 (src line 247)
+
+
+state 329
+	statement:  do_while_stmt.    (80)
+
+	.  reduce 80 (src line 248)
+
+
+state 330
+	statement:  return_stmt.    (81)
+
+	.  reduce 81 (src line 249)
+
+
+state 331
+	statement:  break_stmt.    (82)
+
+	.  reduce 82 (src line 250)
+
+
+state 332
+	statement:  continue_stmt.    (83)
+
+	.  reduce 83 (src line 251)
+
+
+state 333
+	statement:  goto_stmt.    (84)
+
+	.  reduce 84 (src line 252)
+
+
+state 334
 	statement:  ID.':' statement 
-	var:  ID.    (100)
+	var:  ID.    (114)
 	var:  ID.'[' expression ']' 
 	call:  ID.'(' args ')' 
 
-	'['  shift 125
-	'('  shift 126
-	':'  shift 246
-	.  reduce 100 (src line 319)
+	'['  shift 168
+	'('  shift 169
+	':'  shift 353
+	.  reduce 114 (src line 345)
 
 
-state 233
+state 335
 	expression_stmt:  expression.';' 
 
-	';'  shift 247
+	';'  shift 354
 	.  error
 
 
-state 234
-	expression_stmt:  ';'.    (73)
+state 336
+	expression_stmt:  ';'.    (87)
 
-	.  reduce 73 (src line 233)
+	.  reduce 87 (src line 259)
 
 
-state 235
+state 337
 	selection_stmt:  IF.'(' expression ')' statement 
 	selection_stmt:  IF.'(' expression ')' statement ELSE statement 
 
-	'('  shift 248
+	'('  shift 355
 	.  error
 
 
-state 236
+state 338
 	iteration_stmt:  WHILE.'(' expression ')' statement 
 
-	'('  shift 249
+	'('  shift 356
 	.  error
 
 
-state 237
+state 339
 	for_stmt:  FOR.'(' opt_expression ';' opt_expression ';' opt_expression ')' statement 
 
-	'('  shift 250
+	'('  shift 357
 	.  error
 
 
-state 238
+state 340
 	do_while_stmt:  DO.statement WHILE '(' expression ')' ';' 
 
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 232
-	STRING_LIT  shift 69
-	IF  shift 235
-	WHILE  shift 236
-	RETURN  shift 239
-	FOR  shift 237
-	DO  shift 238
-	BREAK  shift 240
-	CONTINUE  shift 241
-	GOTO  shift 242
-	';'  shift 234
-	'*'  shift 56
-	'('  shift 65
-	'{'  shift 181
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 334
+	STRING_LIT  shift 94
+	IF  shift 337
+	WHILE  shift 338
+	RETURN  shift 341
+	FOR  shift 339
+	DO  shift 340
+	BREAK  shift 342
+	CONTINUE  shift 343
+	GOTO  shift 344
+	SIZEOF  shift 99
+	';'  shift 336
+	'*'  shift 81
+	'('  shift 90
+	'{'  shift 246
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
 	.  error
 
-	compound_stmt  goto 223
-	postfix_expr  goto 55
-	statement  goto 251
-	expression_stmt  goto 222
-	selection_stmt  goto 224
-	iteration_stmt  goto 225
-	for_stmt  goto 226
-	do_while_stmt  goto 227
-	return_stmt  goto 228
-	break_stmt  goto 229
-	continue_stmt  goto 230
-	goto_stmt  goto 231
-	expression  goto 233
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
+	compound_stmt  goto 325
+	postfix_expr  goto 80
+	statement  goto 358
+	expression_stmt  goto 324
+	selection_stmt  goto 326
+	iteration_stmt  goto 327
+	for_stmt  goto 328
+	do_while_stmt  goto 329
+	return_stmt  goto 330
+	break_stmt  goto 331
+	continue_stmt  goto 332
+	goto_stmt  goto 333
+	expression  goto 335
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
 
-state 239
+state 341
 	return_stmt:  RETURN.';' 
 	return_stmt:  RETURN.expression ';' 
 
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	';'  shift 252
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	';'  shift 359
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
 	.  error
 
-	postfix_expr  goto 55
-	expression  goto 253
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
+	postfix_expr  goto 80
+	expression  goto 360
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
 
-state 240
+state 342
 	break_stmt:  BREAK.';' 
 
-	';'  shift 254
+	';'  shift 361
 	.  error
 
 
-state 241
+state 343
 	continue_stmt:  CONTINUE.';' 
 
-	';'  shift 255
+	';'  shift 362
 	.  error
 
 
-state 242
+state 344
 	goto_stmt:  GOTO.ID ';' 
 
-	ID  shift 256
+	ID  shift 363
 	.  error
 
 
-state 243
+state 345
 	var_declaration:  type_specifier ID.';' 
 	var_declaration:  type_specifier ID.'[' NUM ']' ';' 
 	var_declaration:  type_specifier ID.'[' ID ']' ';' 
 	var_declaration:  type_specifier ID.'=' expression ';' 
 	id_list:  ID.',' ID 
 
-	';'  shift 35
-	'['  shift 36
-	','  shift 39
-	'='  shift 37
+	';'  shift 47
+	'['  shift 48
+	','  shift 51
+	'='  shift 49
 	.  error
 
 
-state 244
+state 346
 	var_declaration:  STRUCT ID.ID ';' 
 	var_declaration:  STRUCT ID.'*' ID ';' 
 	var_declaration:  STRUCT ID.'*' ID '=' expression ';' 
 
-	ID  shift 43
-	'*'  shift 44
+	ID  shift 57
+	'*'  shift 58
 	.  error
 
 
-state 245
-	extern_declaration:  EXTERN type_specifier ID '(' param_list ',' ELLIPSIS ')' ';'.    (14)
+state 347
+	var_declaration:  UNION ID.ID ';' 
+	var_declaration:  UNION ID.'*' ID ';' 
 
-	.  reduce 14 (src line 88)
+	ID  shift 60
+	'*'  shift 61
+	.  error
 
 
-state 246
+state 348
+	var_declaration:  type_specifier '(' '*' ID ')' '(' fp_param_types ')' ';'.    (33)
+
+	.  reduce 33 (src line 136)
+
+
+state 349
+	fp_param_type_list:  fp_param_type_list ',' fp_param_type.    (174)
+
+	.  reduce 174 (src line 517)
+
+
+state 350
+	fp_param_type:  type_specifier '*' ID.    (179)
+
+	.  reduce 179 (src line 528)
+
+
+state 351
+	extern_declaration:  EXTERN type_specifier ID '(' param_list ',' ELLIPSIS ')' ';'.    (18)
+
+	.  reduce 18 (src line 95)
+
+
+state 352
+	typedef_declaration:  TYPEDEF type_specifier '(' '*' ID ')' '(' fp_param_types ')'.';' 
+
+	';'  shift 364
+	.  error
+
+
+state 353
 	statement:  ID ':'.statement 
 
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 232
-	STRING_LIT  shift 69
-	IF  shift 235
-	WHILE  shift 236
-	RETURN  shift 239
-	FOR  shift 237
-	DO  shift 238
-	BREAK  shift 240
-	CONTINUE  shift 241
-	GOTO  shift 242
-	';'  shift 234
-	'*'  shift 56
-	'('  shift 65
-	'{'  shift 181
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 334
+	STRING_LIT  shift 94
+	IF  shift 337
+	WHILE  shift 338
+	RETURN  shift 341
+	FOR  shift 339
+	DO  shift 340
+	BREAK  shift 342
+	CONTINUE  shift 343
+	GOTO  shift 344
+	SIZEOF  shift 99
+	';'  shift 336
+	'*'  shift 81
+	'('  shift 90
+	'{'  shift 246
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
 	.  error
 
-	compound_stmt  goto 223
-	postfix_expr  goto 55
-	statement  goto 257
-	expression_stmt  goto 222
-	selection_stmt  goto 224
-	iteration_stmt  goto 225
-	for_stmt  goto 226
-	do_while_stmt  goto 227
-	return_stmt  goto 228
-	break_stmt  goto 229
-	continue_stmt  goto 230
-	goto_stmt  goto 231
-	expression  goto 233
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
+	compound_stmt  goto 325
+	postfix_expr  goto 80
+	statement  goto 365
+	expression_stmt  goto 324
+	selection_stmt  goto 326
+	iteration_stmt  goto 327
+	for_stmt  goto 328
+	do_while_stmt  goto 329
+	return_stmt  goto 330
+	break_stmt  goto 331
+	continue_stmt  goto 332
+	goto_stmt  goto 333
+	expression  goto 335
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
 
-state 247
-	expression_stmt:  expression ';'.    (72)
+state 354
+	expression_stmt:  expression ';'.    (86)
 
-	.  reduce 72 (src line 231)
+	.  reduce 86 (src line 257)
 
 
-state 248
+state 355
 	selection_stmt:  IF '('.expression ')' statement 
 	selection_stmt:  IF '('.expression ')' statement ELSE statement 
 
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
 	.  error
 
-	postfix_expr  goto 55
-	expression  goto 258
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
+	postfix_expr  goto 80
+	expression  goto 366
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
 
-state 249
+state 356
 	iteration_stmt:  WHILE '('.expression ')' statement 
 
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
 	.  error
 
-	postfix_expr  goto 55
-	expression  goto 259
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
+	postfix_expr  goto 80
+	expression  goto 367
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
 
-state 250
+state 357
 	for_stmt:  FOR '('.opt_expression ';' opt_expression ';' opt_expression ')' statement 
-	opt_expression: .    (83)
+	opt_expression: .    (97)
 
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  reduce 83 (src line 275)
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  reduce 97 (src line 301)
 
-	postfix_expr  goto 55
-	opt_expression  goto 260
-	expression  goto 261
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
+	postfix_expr  goto 80
+	opt_expression  goto 368
+	expression  goto 369
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
 
-state 251
+state 358
 	do_while_stmt:  DO statement.WHILE '(' expression ')' ';' 
 
-	WHILE  shift 262
+	WHILE  shift 370
 	.  error
 
 
-state 252
-	return_stmt:  RETURN ';'.    (84)
+state 359
+	return_stmt:  RETURN ';'.    (98)
 
-	.  reduce 84 (src line 278)
+	.  reduce 98 (src line 304)
 
 
-state 253
+state 360
 	return_stmt:  RETURN expression.';' 
 
-	';'  shift 263
+	';'  shift 371
 	.  error
 
 
-state 254
-	break_stmt:  BREAK ';'.    (80)
+state 361
+	break_stmt:  BREAK ';'.    (94)
 
-	.  reduce 80 (src line 263)
-
-
-state 255
-	continue_stmt:  CONTINUE ';'.    (81)
-
-	.  reduce 81 (src line 268)
+	.  reduce 94 (src line 289)
 
 
-state 256
+state 362
+	continue_stmt:  CONTINUE ';'.    (95)
+
+	.  reduce 95 (src line 294)
+
+
+state 363
 	goto_stmt:  GOTO ID.';' 
 
-	';'  shift 264
+	';'  shift 372
 	.  error
 
 
-state 257
-	statement:  ID ':' statement.    (71)
+state 364
+	typedef_declaration:  TYPEDEF type_specifier '(' '*' ID ')' '(' fp_param_types ')' ';'.    (171)
 
-	.  reduce 71 (src line 227)
+	.  reduce 171 (src line 505)
 
 
-state 258
+state 365
+	statement:  ID ':' statement.    (85)
+
+	.  reduce 85 (src line 253)
+
+
+state 366
 	selection_stmt:  IF '(' expression.')' statement 
 	selection_stmt:  IF '(' expression.')' statement ELSE statement 
 
-	')'  shift 265
+	')'  shift 373
 	.  error
 
 
-state 259
+state 367
 	iteration_stmt:  WHILE '(' expression.')' statement 
 
-	')'  shift 266
+	')'  shift 374
 	.  error
 
 
-state 260
+state 368
 	for_stmt:  FOR '(' opt_expression.';' opt_expression ';' opt_expression ')' statement 
 
-	';'  shift 267
+	';'  shift 375
 	.  error
 
 
-state 261
-	opt_expression:  expression.    (82)
+state 369
+	opt_expression:  expression.    (96)
 
-	.  reduce 82 (src line 273)
+	.  reduce 96 (src line 299)
 
 
-state 262
+state 370
 	do_while_stmt:  DO statement WHILE.'(' expression ')' ';' 
 
-	'('  shift 268
+	'('  shift 376
 	.  error
 
 
-state 263
-	return_stmt:  RETURN expression ';'.    (85)
+state 371
+	return_stmt:  RETURN expression ';'.    (99)
 
-	.  reduce 85 (src line 281)
-
-
-state 264
-	goto_stmt:  GOTO ID ';'.    (79)
-
-	.  reduce 79 (src line 258)
+	.  reduce 99 (src line 307)
 
 
-state 265
+state 372
+	goto_stmt:  GOTO ID ';'.    (93)
+
+	.  reduce 93 (src line 284)
+
+
+state 373
 	selection_stmt:  IF '(' expression ')'.statement 
 	selection_stmt:  IF '(' expression ')'.statement ELSE statement 
 
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 232
-	STRING_LIT  shift 69
-	IF  shift 235
-	WHILE  shift 236
-	RETURN  shift 239
-	FOR  shift 237
-	DO  shift 238
-	BREAK  shift 240
-	CONTINUE  shift 241
-	GOTO  shift 242
-	';'  shift 234
-	'*'  shift 56
-	'('  shift 65
-	'{'  shift 181
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 334
+	STRING_LIT  shift 94
+	IF  shift 337
+	WHILE  shift 338
+	RETURN  shift 341
+	FOR  shift 339
+	DO  shift 340
+	BREAK  shift 342
+	CONTINUE  shift 343
+	GOTO  shift 344
+	SIZEOF  shift 99
+	';'  shift 336
+	'*'  shift 81
+	'('  shift 90
+	'{'  shift 246
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
 	.  error
 
-	compound_stmt  goto 223
-	postfix_expr  goto 55
-	statement  goto 269
-	expression_stmt  goto 222
-	selection_stmt  goto 224
-	iteration_stmt  goto 225
-	for_stmt  goto 226
-	do_while_stmt  goto 227
-	return_stmt  goto 228
-	break_stmt  goto 229
-	continue_stmt  goto 230
-	goto_stmt  goto 231
-	expression  goto 233
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
+	compound_stmt  goto 325
+	postfix_expr  goto 80
+	statement  goto 377
+	expression_stmt  goto 324
+	selection_stmt  goto 326
+	iteration_stmt  goto 327
+	for_stmt  goto 328
+	do_while_stmt  goto 329
+	return_stmt  goto 330
+	break_stmt  goto 331
+	continue_stmt  goto 332
+	goto_stmt  goto 333
+	expression  goto 335
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
 
-state 266
+state 374
 	iteration_stmt:  WHILE '(' expression ')'.statement 
 
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 232
-	STRING_LIT  shift 69
-	IF  shift 235
-	WHILE  shift 236
-	RETURN  shift 239
-	FOR  shift 237
-	DO  shift 238
-	BREAK  shift 240
-	CONTINUE  shift 241
-	GOTO  shift 242
-	';'  shift 234
-	'*'  shift 56
-	'('  shift 65
-	'{'  shift 181
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 334
+	STRING_LIT  shift 94
+	IF  shift 337
+	WHILE  shift 338
+	RETURN  shift 341
+	FOR  shift 339
+	DO  shift 340
+	BREAK  shift 342
+	CONTINUE  shift 343
+	GOTO  shift 344
+	SIZEOF  shift 99
+	';'  shift 336
+	'*'  shift 81
+	'('  shift 90
+	'{'  shift 246
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
 	.  error
 
-	compound_stmt  goto 223
-	postfix_expr  goto 55
-	statement  goto 270
-	expression_stmt  goto 222
-	selection_stmt  goto 224
-	iteration_stmt  goto 225
-	for_stmt  goto 226
-	do_while_stmt  goto 227
-	return_stmt  goto 228
-	break_stmt  goto 229
-	continue_stmt  goto 230
-	goto_stmt  goto 231
-	expression  goto 233
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
+	compound_stmt  goto 325
+	postfix_expr  goto 80
+	statement  goto 378
+	expression_stmt  goto 324
+	selection_stmt  goto 326
+	iteration_stmt  goto 327
+	for_stmt  goto 328
+	do_while_stmt  goto 329
+	return_stmt  goto 330
+	break_stmt  goto 331
+	continue_stmt  goto 332
+	goto_stmt  goto 333
+	expression  goto 335
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
 
-state 267
+state 375
 	for_stmt:  FOR '(' opt_expression ';'.opt_expression ';' opt_expression ')' statement 
-	opt_expression: .    (83)
+	opt_expression: .    (97)
 
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  reduce 83 (src line 275)
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  reduce 97 (src line 301)
 
-	postfix_expr  goto 55
-	opt_expression  goto 271
-	expression  goto 261
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
+	postfix_expr  goto 80
+	opt_expression  goto 379
+	expression  goto 369
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
 
-state 268
+state 376
 	do_while_stmt:  DO statement WHILE '('.expression ')' ';' 
 
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
 	.  error
 
-	postfix_expr  goto 55
-	expression  goto 272
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
+	postfix_expr  goto 80
+	expression  goto 380
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
 
-state 269
-	selection_stmt:  IF '(' expression ')' statement.    (74)
+state 377
+	selection_stmt:  IF '(' expression ')' statement.    (88)
 	selection_stmt:  IF '(' expression ')' statement.ELSE statement 
 
-	ELSE  shift 273
-	.  reduce 74 (src line 236)
+	ELSE  shift 381
+	.  reduce 88 (src line 262)
 
 
-state 270
-	iteration_stmt:  WHILE '(' expression ')' statement.    (76)
+state 378
+	iteration_stmt:  WHILE '(' expression ')' statement.    (90)
 
-	.  reduce 76 (src line 243)
+	.  reduce 90 (src line 269)
 
 
-state 271
+state 379
 	for_stmt:  FOR '(' opt_expression ';' opt_expression.';' opt_expression ')' statement 
 
-	';'  shift 274
+	';'  shift 382
 	.  error
 
 
-state 272
+state 380
 	do_while_stmt:  DO statement WHILE '(' expression.')' ';' 
 
-	')'  shift 275
+	')'  shift 383
 	.  error
 
 
-state 273
+state 381
 	selection_stmt:  IF '(' expression ')' statement ELSE.statement 
 
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 232
-	STRING_LIT  shift 69
-	IF  shift 235
-	WHILE  shift 236
-	RETURN  shift 239
-	FOR  shift 237
-	DO  shift 238
-	BREAK  shift 240
-	CONTINUE  shift 241
-	GOTO  shift 242
-	';'  shift 234
-	'*'  shift 56
-	'('  shift 65
-	'{'  shift 181
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 334
+	STRING_LIT  shift 94
+	IF  shift 337
+	WHILE  shift 338
+	RETURN  shift 341
+	FOR  shift 339
+	DO  shift 340
+	BREAK  shift 342
+	CONTINUE  shift 343
+	GOTO  shift 344
+	SIZEOF  shift 99
+	';'  shift 336
+	'*'  shift 81
+	'('  shift 90
+	'{'  shift 246
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
 	.  error
 
-	compound_stmt  goto 223
-	postfix_expr  goto 55
-	statement  goto 276
-	expression_stmt  goto 222
-	selection_stmt  goto 224
-	iteration_stmt  goto 225
-	for_stmt  goto 226
-	do_while_stmt  goto 227
-	return_stmt  goto 228
-	break_stmt  goto 229
-	continue_stmt  goto 230
-	goto_stmt  goto 231
-	expression  goto 233
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
+	compound_stmt  goto 325
+	postfix_expr  goto 80
+	statement  goto 384
+	expression_stmt  goto 324
+	selection_stmt  goto 326
+	iteration_stmt  goto 327
+	for_stmt  goto 328
+	do_while_stmt  goto 329
+	return_stmt  goto 330
+	break_stmt  goto 331
+	continue_stmt  goto 332
+	goto_stmt  goto 333
+	expression  goto 335
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
 
-state 274
+state 382
 	for_stmt:  FOR '(' opt_expression ';' opt_expression ';'.opt_expression ')' statement 
-	opt_expression: .    (83)
+	opt_expression: .    (97)
 
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 61
-	STRING_LIT  shift 69
-	'*'  shift 56
-	'('  shift 65
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
-	.  reduce 83 (src line 275)
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 86
+	STRING_LIT  shift 94
+	SIZEOF  shift 99
+	'*'  shift 81
+	'('  shift 90
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
+	.  reduce 97 (src line 301)
 
-	postfix_expr  goto 55
-	opt_expression  goto 277
-	expression  goto 261
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
+	postfix_expr  goto 80
+	opt_expression  goto 385
+	expression  goto 369
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
 
-state 275
+state 383
 	do_while_stmt:  DO statement WHILE '(' expression ')'.';' 
 
-	';'  shift 278
+	';'  shift 386
 	.  error
 
 
-state 276
-	selection_stmt:  IF '(' expression ')' statement ELSE statement.    (75)
+state 384
+	selection_stmt:  IF '(' expression ')' statement ELSE statement.    (89)
 
-	.  reduce 75 (src line 239)
+	.  reduce 89 (src line 265)
 
 
-state 277
+state 385
 	for_stmt:  FOR '(' opt_expression ';' opt_expression ';' opt_expression.')' statement 
 
-	')'  shift 279
+	')'  shift 387
 	.  error
 
 
-state 278
-	do_while_stmt:  DO statement WHILE '(' expression ')' ';'.    (78)
+state 386
+	do_while_stmt:  DO statement WHILE '(' expression ')' ';'.    (92)
 
-	.  reduce 78 (src line 253)
+	.  reduce 92 (src line 279)
 
 
-state 279
+state 387
 	for_stmt:  FOR '(' opt_expression ';' opt_expression ';' opt_expression ')'.statement 
 
-	NUM  shift 66
-	CHAR_LIT  shift 68
-	FNUM  shift 67
-	ID  shift 232
-	STRING_LIT  shift 69
-	IF  shift 235
-	WHILE  shift 236
-	RETURN  shift 239
-	FOR  shift 237
-	DO  shift 238
-	BREAK  shift 240
-	CONTINUE  shift 241
-	GOTO  shift 242
-	';'  shift 234
-	'*'  shift 56
-	'('  shift 65
-	'{'  shift 181
-	'&'  shift 73
-	'-'  shift 70
-	'!'  shift 71
-	'~'  shift 72
+	NUM  shift 91
+	CHAR_LIT  shift 93
+	FNUM  shift 92
+	ID  shift 334
+	STRING_LIT  shift 94
+	IF  shift 337
+	WHILE  shift 338
+	RETURN  shift 341
+	FOR  shift 339
+	DO  shift 340
+	BREAK  shift 342
+	CONTINUE  shift 343
+	GOTO  shift 344
+	SIZEOF  shift 99
+	';'  shift 336
+	'*'  shift 81
+	'('  shift 90
+	'{'  shift 246
+	'&'  shift 98
+	'-'  shift 95
+	'!'  shift 96
+	'~'  shift 97
 	.  error
 
-	compound_stmt  goto 223
-	postfix_expr  goto 55
-	statement  goto 280
-	expression_stmt  goto 222
-	selection_stmt  goto 224
-	iteration_stmt  goto 225
-	for_stmt  goto 226
-	do_while_stmt  goto 227
-	return_stmt  goto 228
-	break_stmt  goto 229
-	continue_stmt  goto 230
-	goto_stmt  goto 231
-	expression  goto 233
-	var  goto 58
-	simple_expression  goto 57
-	bitwise_expression  goto 60
-	additive_expression  goto 62
-	term  goto 63
-	factor  goto 64
-	call  goto 59
+	compound_stmt  goto 325
+	postfix_expr  goto 80
+	statement  goto 388
+	expression_stmt  goto 324
+	selection_stmt  goto 326
+	iteration_stmt  goto 327
+	for_stmt  goto 328
+	do_while_stmt  goto 329
+	return_stmt  goto 330
+	break_stmt  goto 331
+	continue_stmt  goto 332
+	goto_stmt  goto 333
+	expression  goto 335
+	var  goto 83
+	simple_expression  goto 82
+	bitwise_expression  goto 85
+	additive_expression  goto 87
+	term  goto 88
+	factor  goto 89
+	call  goto 84
 
-state 280
-	for_stmt:  FOR '(' opt_expression ';' opt_expression ';' opt_expression ')' statement.    (77)
+state 388
+	for_stmt:  FOR '(' opt_expression ';' opt_expression ';' opt_expression ')' statement.    (91)
 
-	.  reduce 77 (src line 248)
+	.  reduce 91 (src line 274)
 
 
-67 terminals, 45 nonterminals
-148 grammar rules, 281/16000 states
+72 terminals, 53 nonterminals
+188 grammar rules, 389/16000 states
 2 shift/reduce, 0 reduce/reduce conflicts reported
-94 working sets used
-memory: parser 522/240000
-157 extra closures
-749 shift entries, 2 exceptions
-109 goto entries
-319 entries saved by goto default
-Optimizer space used: output 430/240000
-430 table entries, 0 zero
-maximum spread: 67, maximum offset: 279
+102 working sets used
+memory: parser 629/240000
+211 extra closures
+1007 shift entries, 2 exceptions
+133 goto entries
+349 entries saved by goto default
+Optimizer space used: output 629/240000
+629 table entries, 27 zero
+maximum spread: 72, maximum offset: 387

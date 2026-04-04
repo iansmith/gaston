@@ -19,6 +19,14 @@ const (
 	TypeFloat                 // float (32-bit IEEE 754; stored as 64-bit double internally)
 	TypeDouble                // double (64-bit IEEE 754)
 	TypeStruct                // struct (paired with Node.StructTag for struct name)
+	TypeVoidPtr               // void* — untyped pointer (accepts any pointer type in assignment)
+	TypeIntPtrPtr             // int** — pointer to pointer to int
+	TypeCharPtrPtr            // char** — pointer to pointer to char
+	TypeFloatPtr              // float*  — pointer to float
+	TypeDoublePtr             // double* — pointer to double
+	TypeFuncPtr               // function pointer — void (*fp)(...); all func ptrs share this type
+	TypeDoublePtrPtr          // double** — pointer to pointer to double
+	TypeFloatPtrPtr           // float**  — pointer to pointer to float
 )
 
 // isUnsignedType reports whether t is an unsigned integer type.
@@ -33,7 +41,52 @@ func isFPType(t TypeKind) bool {
 
 // isPtrType reports whether t is a pointer type (holds an address).
 func isPtrType(t TypeKind) bool {
-	return t == TypeIntPtr || t == TypeCharPtr
+	return t == TypeIntPtr || t == TypeCharPtr || t == TypeVoidPtr ||
+		t == TypeIntPtrPtr || t == TypeCharPtrPtr ||
+		t == TypeFloatPtr || t == TypeDoublePtr || t == TypeFuncPtr ||
+		t == TypeDoublePtrPtr || t == TypeFloatPtrPtr
+}
+
+// isPtrPtrType reports whether t is a double-pointer type.
+func isPtrPtrType(t TypeKind) bool {
+	return t == TypeIntPtrPtr || t == TypeCharPtrPtr ||
+		t == TypeDoublePtrPtr || t == TypeFloatPtrPtr
+}
+
+// ptrPtrType returns the double-pointer type for a given single-pointer type.
+func ptrPtrType(base TypeKind) TypeKind {
+	switch base {
+	case TypeCharPtr:
+		return TypeCharPtrPtr
+	case TypeDoublePtr:
+		return TypeDoublePtrPtr
+	case TypeFloatPtr:
+		return TypeFloatPtrPtr
+	default:
+		return TypeIntPtrPtr
+	}
+}
+
+// derefPtrType returns the type obtained by dereferencing a pointer type once.
+func derefPtrType(t TypeKind) TypeKind {
+	switch t {
+	case TypeIntPtrPtr:
+		return TypeIntPtr
+	case TypeCharPtrPtr:
+		return TypeCharPtr
+	case TypeDoublePtrPtr:
+		return TypeDoublePtr
+	case TypeFloatPtrPtr:
+		return TypeFloatPtr
+	case TypeCharPtr:
+		return TypeChar
+	case TypeFloatPtr:
+		return TypeFloat
+	case TypeDoublePtr:
+		return TypeDouble
+	default: // TypeIntPtr, TypeVoidPtr, etc.
+		return TypeInt
+	}
 }
 
 // NodeKind identifies the kind of an AST node.
@@ -76,7 +129,10 @@ const (
 	KindDeref       // *expr  (pointer dereference, as lvalue or rvalue); Children[0] = pointer expr
 	KindAddrOf      // &var   (address-of scalar or array); Children[0] = KindVar
 	KindFieldAccess // expr->field or expr.field; Children[0]=base; Name=field; Op="->" or "."
-	KindStructDef   // struct TAG { fields }; Name=tag; Children=field KindVarDecl nodes
+	KindStructDef   // struct TAG { fields }; Name=tag; Children=field KindVarDecl nodes; IsUnion=true for unions
+	KindSizeof      // sizeof(type) or sizeof(expr); folded to KindNum during semcheck
+	KindFuncPtrCall // (*fp)(args) — call through a function pointer; Name=var, Children=args
+	KindArray2D     // ID[expr][expr] — 2D array subscript; Children[0]=row, Children[1]=col
 )
 
 // ptrType returns the pointer type corresponding to a base type.
@@ -84,7 +140,13 @@ func ptrType(base TypeKind) TypeKind {
 	switch base {
 	case TypeChar, TypeUnsignedChar:
 		return TypeCharPtr
-	default: // TypeInt, TypeUnsignedInt, TypeShort, TypeUnsignedShort, TypeVoid → int*
+	case TypeVoid:
+		return TypeVoidPtr
+	case TypeFloat:
+		return TypeFloatPtr
+	case TypeDouble:
+		return TypeDoublePtr
+	default: // TypeInt, TypeUnsignedInt, TypeShort, TypeUnsignedShort → int*
 		return TypeIntPtr
 	}
 }
@@ -126,27 +188,96 @@ type Node struct {
 	StructTag string   // for TypeStruct/TypeIntPtr-to-struct: the struct type name
 	Children  []*Node
 	Line      int
-	IsConst   bool // true for KindVarDecl declared with const
-	IsExtern  bool // true for extern declarations (var or fun)
-	IsVLA     bool // true for variable-length array: type ID '[' ID ']'
+	IsConst        bool     // true for KindVarDecl declared with const
+	IsExtern       bool     // true for extern declarations (var or fun)
+	IsVLA          bool     // true for variable-length array: type ID '[' ID ']'
+	IsUnion        bool     // true for KindStructDef that is a union (all fields at offset 0)
+	IsConstTarget  bool     // true for pointer declared as const T *p (cannot store through)
+	IsStatic       bool     // true for static storage class (local: persistent, global: internal linkage)
+	ElemType       TypeKind // for TypeIntArray declarations: element type (e.g. TypeDouble for double arr[N])
+	Dim2           int      // inner dimension for 2D arrays (e.g. for int a[M][N]: Dim2=N)
+	BitWidth       int      // bit width for struct bit-field members (0 for normal fields)
 }
 
-// StructField is one field in a struct definition.
+// StructField is one field in a struct definition (or union).
 type StructField struct {
-	Name       string
-	Type       TypeKind
-	StructTag  string // non-empty when Type == TypeStruct or TypeIntPtr-to-struct
-	ByteOffset int    // byte offset within the struct (all fields are 8 bytes)
+	Name        string
+	Type        TypeKind
+	ElemType    TypeKind // for flex array members: element type
+	StructTag   string   // non-empty when Type == TypeStruct or TypeIntPtr-to-struct
+	ByteOffset  int      // byte offset within the struct (all fields are 8 bytes)
+	IsBitField  bool     // true for struct bit-field members
+	BitOffset   int      // bit offset within the 8-byte storage word
+	BitWidth    int      // bit width (0 for normal fields)
+	IsFlexArray bool     // true for flexible array members (last field, no size)
 }
 
-// StructDef describes one named struct type and its fields.
+// StructDef describes one named struct or union type and its fields.
 type StructDef struct {
-	Name   string
-	Fields []StructField
+	Name    string
+	Fields  []StructField
+	IsUnion bool // true when this is a union (all fields at offset 0)
 }
 
-// SizeBytes returns the total byte size of the struct (all fields are 8-byte aligned).
-func (sd *StructDef) SizeBytes() int { return len(sd.Fields) * 8 }
+// fieldSizeAlign returns the byte size and natural alignment for a field type.
+// For TypeStruct fields, structTag and structDefs are used to compute the recursive size.
+func fieldSizeAlign(t TypeKind, structTag string, structDefs map[string]*StructDef) (size, align int) {
+	switch t {
+	case TypeChar, TypeUnsignedChar:
+		return 1, 1
+	case TypeShort, TypeUnsignedShort:
+		return 2, 2
+	case TypeFloat:
+		return 4, 4
+	case TypeStruct:
+		if structTag != "" && structDefs != nil {
+			if sd, ok := structDefs[structTag]; ok {
+				sz := sd.SizeBytes(structDefs)
+				if sz > 0 {
+					return sz, 8
+				}
+			}
+		}
+		return 8, 8
+	default: // int, unsigned int, double, all pointer types, TypeFuncPtr → 8 bytes
+		return 8, 8
+	}
+}
+
+// SizeBytes returns the total byte size of the struct using natural alignment.
+// Each field is placed at the smallest offset >= previous offset that satisfies
+// the field's natural alignment (size == alignment for scalar types).
+// The total is rounded up to the struct's natural alignment (= max field alignment).
+// structDefs is used to recursively resolve the size of nested struct fields.
+func (sd *StructDef) SizeBytes(structDefs map[string]*StructDef) int {
+	if len(sd.Fields) == 0 {
+		return 0
+	}
+	maxAlign := 1
+	rawEnd := 0
+	for _, f := range sd.Fields {
+		if f.IsFlexArray {
+			continue // flexible array member has no size in the struct
+		}
+		var end int
+		if f.IsBitField {
+			end = f.ByteOffset + 8 // storage word is always 8 bytes
+			if 8 > maxAlign {
+				maxAlign = 8
+			}
+		} else {
+			sz, a := fieldSizeAlign(f.Type, f.StructTag, structDefs)
+			if a > maxAlign {
+				maxAlign = a
+			}
+			end = f.ByteOffset + sz
+		}
+		if end > rawEnd {
+			rawEnd = end
+		}
+	}
+	return (rawEnd + maxAlign - 1) &^ (maxAlign - 1)
+}
 
 // FindField returns the field with the given name, or nil if not found.
 func (sd *StructDef) FindField(name string) *StructField {

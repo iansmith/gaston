@@ -13,6 +13,7 @@ const (
 	regX5  = 5
 	regX8  = 8  // Linux syscall number register
 	regX9  = 9  // scratch for global address pool loads
+	regX16 = 16 // IP0 — intra-procedure scratch (used for indirect calls)
 	regX19 = 19 // callee-saved (used inside helper functions)
 	regX20 = 20
 	regX21 = 21
@@ -77,8 +78,15 @@ func encADDreg(rd, rn, rm int) uint32 {
 }
 
 // encSUBreg encodes SUB Xd, Xn, Xm (shifted register, LSL #0).
+// NOTE: when Rd=31, this encodes XZR (not SP). Do NOT use for SP arithmetic.
 func encSUBreg(rd, rn, rm int) uint32 {
 	return 0xCB000000 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encSUBext encodes SUB Xd, Xn, Xm, UXTX (extended-register form).
+// Unlike encSUBreg, Rd=31 targets SP (not XZR), making this correct for SP arithmetic.
+func encSUBext(rd, rn, rm int) uint32 {
+	return 0xCB200000 | uint32(rm)<<16 | (3 << 13) | uint32(rn)<<5 | uint32(rd)
 }
 
 // encMUL encodes MUL Xd, Xn, Xm (= MADD Xd, Xn, Xm, XZR).
@@ -128,6 +136,11 @@ func encBL(imm26 int) uint32 {
 	return 0x94000000 | uint32(imm26)&0x3FFFFFF
 }
 
+// encBLR encodes BLR Xn (branch with link to register). rn is the register index (0–30).
+func encBLR(rn int) uint32 {
+	return 0xD63F0000 | uint32(rn)<<5
+}
+
 // encBcond encodes B.cond label. imm19 is signed word offset, cond is a cond* constant.
 func encBcond(cond, imm19 int) uint32 {
 	return 0x54000000 | uint32(imm19&0x7FFFF)<<5 | uint32(cond)
@@ -169,9 +182,14 @@ func encSTRBuoff(rt, rn, byteOff int) uint32 {
 	return 0x39000000 | uint32(byteOff)<<10 | uint32(rn)<<5 | uint32(rt)
 }
 
-// encLDRBuoff encodes LDRB Wt, [Xn, #byteOff] (unsigned 12-bit byte offset).
+// encLDRBuoff encodes LDRB Wt, [Xn, #byteOff] (unsigned 12-bit byte offset; zero-extends to 64 bits).
 func encLDRBuoff(rt, rn, byteOff int) uint32 {
 	return 0x39400000 | uint32(byteOff)<<10 | uint32(rn)<<5 | uint32(rt)
+}
+
+// encLDRSBuoff encodes LDRSB Xt, [Xn, #byteOff] (unsigned 12-bit byte offset; sign-extends to 64 bits).
+func encLDRSBuoff(rt, rn, byteOff int) uint32 {
+	return 0x39800000 | uint32(byteOff)<<10 | uint32(rn)<<5 | uint32(rt)
 }
 
 // encCBZ encodes CBZ Xt, label. imm19 is signed word offset.
@@ -360,3 +378,15 @@ func encSTRDuoff(rt, rn, byteOff int) uint32 {
 func encLDRDlit(rt, imm19 int) uint32 {
 	return 0x5C000000 | uint32(imm19&0x7FFFF)<<5 | uint32(rt)
 }
+
+// encSXTB encodes SXTB Xd, Xn (sign-extend byte to 64-bit = SBFM Xd, Xn, #0, #7).
+func encSXTB(rd, rn int) uint32 { return 0x93401C00 | uint32(rn)<<5 | uint32(rd) }
+
+// encSXTH encodes SXTH Xd, Xn (sign-extend halfword to 64-bit = SBFM Xd, Xn, #0, #15).
+func encSXTH(rd, rn int) uint32 { return 0x93403C00 | uint32(rn)<<5 | uint32(rd) }
+
+// encUXTB encodes UXTB Xd, Xn (zero-extend byte to 64-bit = UBFM Xd, Xn, #0, #7).
+func encUXTB(rd, rn int) uint32 { return 0xD3401C00 | uint32(rn)<<5 | uint32(rd) }
+
+// encUXTH encodes UXTH Xd, Xn (zero-extend halfword to 64-bit = UBFM Xd, Xn, #0, #15).
+func encUXTH(rd, rn int) uint32 { return 0xD3403C00 | uint32(rn)<<5 | uint32(rd) }

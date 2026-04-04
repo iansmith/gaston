@@ -1,0 +1,27 @@
+/* enum_arith.cm — enum values used in arithmetic, comparisons, and as array indices.
+   Byzantine test for item 9 (enum): enum constants interact with integer promotion
+   (item 8), array subscript (items 11-partial), and sizeof (item 6).
+   Tests auto-increment, explicit values, and using enum as a computed index.
+
+   Uses two anonymous enums with distinct constant names to avoid the named-enum
+   grammar limitation (gaston supports only anonymous enums).
+
+   Expected: 3 1 0 30 97 3 */
+
+enum { RED = 0, GREEN = 1, BLUE = 2 };
+enum { OK = 200, ERR = 404, WARN = 301 };
+
+int lookup[3];
+
+void main(void) {
+    lookup[RED]   = 10;
+    lookup[GREEN] = 20;
+    lookup[BLUE]  = 30;
+
+    output(RED + GREEN + BLUE);           /* 0+1+2 = 3 */
+    output(GREEN);                        /* 1 */
+    output(RED);                          /* 0 */
+    output(lookup[BLUE]);                 /* 30 */
+    output(OK - ERR + WARN);              /* 200-404+301 = 97 */
+    output(sizeof(lookup) / sizeof(int)); /* 3*8/8 = 3 */
+}

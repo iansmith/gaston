@@ -1,0 +1,21 @@
+/* struct_short_field.cm — struct with a short field followed by an int field.
+   Tests item 2 (proper field layout for sub-word types):
+   - short at byte offset 0 (2 bytes), 6 bytes padding, int at byte offset 8
+   - sizeof(struct S2) = 16
+   - Both fields read back with correct values, proving the offsets are right */
+struct S2 { short s; int i; };
+
+void main(void) {
+    struct S2 m;
+    struct S2 n;
+    m.s = 1000;
+    m.i = 42;
+    output(m.s);               /* 1000 — short field at offset 0 */
+    output(m.i);               /* 42   — int field at offset 8 */
+    output(sizeof(struct S2)); /* 16   — short(2)+pad(6)+int(8), rounded to align-8 */
+    /* A second struct verifies the first struct did not corrupt stack */
+    n.s = 32767;
+    n.i = 9999;
+    output(n.s);               /* 32767 — max positive short */
+    output(n.i);               /* 9999 */
+}

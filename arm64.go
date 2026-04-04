@@ -136,7 +136,7 @@ func buildFrame(fn *IRFunc, structDefs map[string]*StructDef) *frame {
 			switch fn.ParamType[i] {
 			case TypeIntArray:
 				f.isArrPtr[name] = true
-			case TypeIntPtr, TypeCharPtr:
+			case TypeIntPtr, TypeCharPtr, TypeVoidPtr, TypeIntPtrPtr, TypeCharPtrPtr:
 				f.isPtrVar[name] = true
 			}
 		}
@@ -165,16 +165,11 @@ func buildFrame(fn *IRFunc, structDefs map[string]*StructDef) *frame {
 		} else if loc.IsStruct {
 			// Struct locals: inline storage, treated like an array base.
 			f.isArrBase[loc.Name] = true
-			nfields := loc.ArrSize
-			if nfields == 0 {
-				if sd, ok := structDefs[loc.StructTag]; ok {
-					nfields = len(sd.Fields)
-				}
-				if nfields == 0 {
-					nfields = 1
-				}
+			if sd, ok := structDefs[loc.StructTag]; ok {
+				offset += sd.SizeBytes(structDefs)
+			} else {
+				offset += loc.ArrSize * 8 // fallback
 			}
-			offset += nfields * 8
 		} else {
 			if loc.IsPtr {
 				f.isPtrVar[loc.Name] = true
@@ -320,6 +315,28 @@ func (g *arm64Gen) genFunc(fn *IRFunc, structDefs map[string]*StructDef) {
 			g.emitCharArrayStore(f, q)
 		case IRGetAddr:
 			g.emitAddrOf(f, q)
+		case IRAddrOf:
+			g.emitAddrOf(f, q)
+
+		case IRSignExtend:
+			// Dst = sign_extend(Src1, bits) — integer promotion for char/short.
+			g.emit_load(f, q.Src1, "R0")
+			if q.Src2.IVal == 8 {
+				g.insn("SXTB R0, R0")
+			} else {
+				g.insn("SXTH R0, R0")
+			}
+			g.emit_store(f, "R0", q.Dst)
+
+		case IRZeroExtend:
+			// Dst = zero_extend(Src1, bits) — integer promotion for unsigned char/short.
+			g.emit_load(f, q.Src1, "R0")
+			if q.Src2.IVal == 8 {
+				g.insn("UXTB R0, R0")
+			} else {
+				g.insn("UXTH R0, R0")
+			}
+			g.emit_store(f, "R0", q.Dst)
 
 		case IRStrAddr:
 			// Plan 9 path: load address of a rodata symbol.
@@ -337,6 +354,18 @@ func (g *arm64Gen) genFunc(fn *IRFunc, structDefs map[string]*StructDef) {
 			g.emit_load(f, q.Dst, "R0")  // R0 = pointer
 			g.emit_load(f, q.Src1, "R1") // R1 = value
 			g.insn("MOVD R1, (R0)")
+
+		case IRFDerefLoad:
+			// Dst = *Src1 (load 8-byte double via pointer; result is FP)
+			g.emit_load(f, q.Src1, "R0")      // R0 = pointer
+			g.insn("FMOVD (R0), F0")           // F0 = *R0
+			g.emit_fp_store(f, "F0", q.Dst)
+
+		case IRFDerefStore:
+			// *Dst = Src1 (store 8-byte double via pointer; Src1 is FP)
+			g.emit_load(f, q.Dst, "R0")        // R0 = pointer
+			g.emit_fp_load(f, q.Src1, "F0")    // F0 = Src1
+			g.insn("FMOVD F0, (R0)")            // *R0 = F0
 
 		// ── floating-point operations ────────────────────────────────────
 		case IRFAdd:
@@ -390,20 +419,54 @@ func (g *arm64Gen) genFunc(fn *IRFunc, structDefs map[string]*StructDef) {
 			g.emitCall(f, fn, q)
 
 		case IRFieldLoad:
-			// Dst = *(Src1 + Src2.IVal) — load field at byte offset
+			// Dst = *(Src1 + Src2.IVal) — field load; width from TypeHint
 			g.emit_load(f, q.Src1, "R0")
 			g.emit_load(f, q.Src2, "R1")
 			g.insn("ADD R1, R0, R0")
-			g.insn("MOVD (R0), R0")
+			switch q.TypeHint {
+			case TypeChar:
+				g.insn("MOVB (R0), R0")  // sign-extend byte
+			case TypeUnsignedChar:
+				g.insn("MOVBU (R0), R0") // zero-extend byte
+			case TypeShort:
+				g.insn("MOVH (R0), R0")  // sign-extend halfword
+			case TypeUnsignedShort:
+				g.insn("MOVHU (R0), R0") // zero-extend halfword
+			default:
+				g.insn("MOVD (R0), R0")  // 8-byte load
+			}
 			g.emit_store(f, "R0", q.Dst)
 
+		case IRFFieldLoad:
+			// Dst = *(Src1 + Src2.IVal) — load double field at byte offset
+			g.emit_load(f, q.Src1, "R0")
+			g.emit_load(f, q.Src2, "R1")
+			g.insn("ADD R1, R0, R0")
+			g.insn("FMOVD (R0), F0")
+			g.emit_fp_store(f, "F0", q.Dst)
+
 		case IRFieldStore:
-			// *(Dst + Src2.IVal) = Src1 — store to field at byte offset
+			// *(Dst + Src2.IVal) = Src1 — field store; width from TypeHint
 			g.emit_load(f, q.Dst, "R0")
 			g.emit_load(f, q.Src2, "R1")
 			g.insn("ADD R1, R0, R0")
 			g.emit_load(f, q.Src1, "R2")
-			g.insn("MOVD R2, (R0)")
+			switch q.TypeHint {
+			case TypeChar, TypeUnsignedChar:
+				g.insn("MOVB R2, (R0)")  // store 1 byte
+			case TypeShort, TypeUnsignedShort:
+				g.insn("MOVH R2, (R0)")  // store 2 bytes
+			default:
+				g.insn("MOVD R2, (R0)")  // store 8 bytes
+			}
+
+		case IRFFieldStore:
+			// *(Dst + Src2.IVal) = Src1 — store double to field at byte offset
+			g.emit_load(f, q.Dst, "R0")
+			g.emit_load(f, q.Src2, "R1")
+			g.insn("ADD R1, R0, R0")
+			g.emit_fp_load(f, q.Src1, "F0")
+			g.insn("FMOVD F0, (R0)")
 
 		case IRVLAAlloc:
 			// Allocate Src1*8 bytes on the stack (16-byte aligned), store base in Dst.
@@ -415,6 +478,37 @@ func (g *arm64Gen) genFunc(fn *IRFunc, structDefs map[string]*StructDef) {
 			g.insn("SUB R0, RSP, RSP")         // SP -= aligned_size
 			g.insn("MOVD RSP, R0")             // R0 = new SP (VLA base)
 			g.emit_store(f, "R0", q.Dst)       // store VLA base pointer in frame slot
+
+		case IRFuncAddr:
+			// Load the virtual address of a named function into a temporary.
+			// Plan 9 ARM64: MOVD $gaston_name(SB), R0
+			g.insnf("MOVD $gaston_%s(SB), R0", q.Extra)
+			g.emit_store(f, "R0", q.Dst)
+
+		case IRFuncPtrCall:
+			// Call through a function pointer.
+			// First flush pending args into R0–R7 / F0–F7, then load the
+			// function pointer into R16 (scratch register), then CALL (R16).
+			iIdx, fIdx := 0, 0
+			for _, p := range g.pendingParams {
+				if p.isFP {
+					if fIdx < 8 {
+						g.emit_fp_load(f, p.addr, fmt.Sprintf("F%d", fIdx))
+						fIdx++
+					}
+				} else {
+					if iIdx < 8 {
+						g.emit_load(f, p.addr, fmt.Sprintf("R%d", iIdx))
+						iIdx++
+					}
+				}
+			}
+			g.pendingParams = g.pendingParams[:0]
+			g.emit_load(f, q.Src1, "R16")
+			g.insn("CALL (R16)")
+			if q.Dst.Kind != AddrNone {
+				g.emit_store(f, "R0", q.Dst)
+			}
 
 		case IRReturn:
 			if q.Src1.Kind != AddrNone {
@@ -613,8 +707,13 @@ func (g *arm64Gen) emitArrayLoad(f *frame, q Quad) {
 	g.emit_load(f, q.Src2, "R1")  // R1 = index
 	g.insn("LSL $3, R1, R1")      // R1 = index * 8
 	g.insn("ADD R1, R0, R0")      // R0 = base + index*8
-	g.insn("MOVD (R0), R0")       // R0 = *R0
-	g.emit_store(f, "R0", q.Dst)
+	if isFPType(q.TypeHint) {
+		g.insn("FMOVD (R0), F0")         // F0 = *R0 (FP load)
+		g.emit_fp_store(f, "F0", q.Dst)
+	} else {
+		g.insn("MOVD (R0), R0")          // R0 = *R0
+		g.emit_store(f, "R0", q.Dst)
+	}
 }
 
 // emitArrayStore emits: Dst[Src1] = Src2
@@ -623,8 +722,13 @@ func (g *arm64Gen) emitArrayStore(f *frame, q Quad) {
 	g.emit_load(f, q.Src1, "R1")  // R1 = index
 	g.insn("LSL $3, R1, R1")      // R1 = index * 8
 	g.insn("ADD R1, R0, R0")      // R0 = base + index*8
-	g.emit_load(f, q.Src2, "R2")  // R2 = value
-	g.insn("MOVD R2, (R0)")       // *R0 = R2
+	if isFPType(q.TypeHint) {
+		g.emit_fp_load(f, q.Src2, "F0") // F0 = value
+		g.insn("FMOVD F0, (R0)")        // *R0 = F0 (FP store)
+	} else {
+		g.emit_load(f, q.Src2, "R2")  // R2 = value
+		g.insn("MOVD R2, (R0)")       // *R0 = R2
+	}
 }
 
 // emitCharArrayLoad emits: Dst = Src1[Src2]  (char* byte-level load, no stride scaling)

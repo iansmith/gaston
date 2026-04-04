@@ -161,7 +161,7 @@ func genObjectFile(irp *IRProgram, outpath string) error {
 		funcRetType[fn.Name] = fn.ReturnType
 	}
 
-	cb := newCodeBuilder(allGlobalsForPool, irp.StrLits, irp.FConsts)
+	cb := newCodeBuilder(allGlobalsForPool, irp.StrLits, irp.FConsts, irp.FuncRefs)
 	gen := &elfGen{
 		cb:            cb,
 		pendingParams: make([]paramArg, 0, 8),
