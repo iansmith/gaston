@@ -14,11 +14,9 @@ int sum_arr(int *arr, int n) {
 }
 
 int main(void) {
-    int *storage;
     struct Buf *b;
     int *dp;
-    storage = malloc(40);
-    b = storage;
+    b = malloc(40);
     b->len = 4;
     dp = b->data;
     dp[0] = 10;

@@ -1,20 +1,11 @@
-/* stdio.cm — gaston C standard I/O library
-   Compile:  gaston -c -o stdio.o stdio.cm
-   Link with user program:  gaston -link -o prog main.o stdio.o
-*/
-
-/* putchar: write one character to stdout */
-int putchar(int c) {
-    print_char(c);
-    return c;
-}
-
-/* puts: write string followed by newline */
-int puts(char* s) {
-    print_string(s);
-    print_char('\n');
-    return 0;
-}
+/* stdio.cm — gaston C standard I/O library.
+ *
+ * This file now contains only the low-level integer-print helper used by
+ * internal gaston runtime code.  The full printf / sscanf implementations
+ * live in printf.cm and sscanf.cm respectively.
+ *
+ * putchar() and puts() are defined in printf.cm.
+ */
 
 /* __stdio_print_pos: print non-negative long without newline (recursive) */
 void __stdio_print_pos(long n) {
@@ -32,131 +23,4 @@ void __stdio_print_long(long n) {
     } else {
         __stdio_print_pos(n);
     }
-}
-
-/* __sscanf_isws: returns 1 if c is whitespace, 0 otherwise */
-int __sscanf_isws(int c) {
-    if (c == ' ') { return 1; }
-    if (c == '\t') { return 1; }
-    if (c == '\n') { return 1; }
-    return 0;
-}
-
-/* __sscanf_isdigit: returns 1 if c is a decimal digit */
-int __sscanf_isdigit(int c) {
-    if ((c >= '0') & (c <= '9')) { return 1; }
-    return 0;
-}
-
-/* sscanf: minimal format-string reader.
-   Handles: %d (long decimal), %s (non-whitespace word), %c (single char).
-   Returns count of items successfully read.
-   Variadic args are pointers to destinations (long* for %d/%c, char* for %s). */
-int sscanf(char* str, char* fmt, ...) {
-    long* ap;
-    int fi;
-    int si;
-    int count;
-    int neg;
-    long val;
-    long* dest;
-    char* sdest;
-    int di;
-
-    ap = __va_start();
-    fi = 0;
-    si = 0;
-    count = 0;
-
-    while (fmt[fi] != 0) {
-        if (fmt[fi] == '%') {
-            fi = fi + 1;
-            if (fmt[fi] == 'd') {
-                while (__sscanf_isws(str[si])) {
-                    si = si + 1;
-                }
-                neg = 0;
-                if (str[si] == '-') {
-                    neg = 1;
-                    si = si + 1;
-                }
-                val = 0;
-                while (__sscanf_isdigit(str[si])) {
-                    val = val * 10 + (str[si] - '0');
-                    si = si + 1;
-                }
-                if (neg) {
-                    val = 0 - val;
-                }
-                dest = *ap;
-                *dest = val;
-                ap = ap + 8;
-                count = count + 1;
-            } else if (fmt[fi] == 's') {
-                while (__sscanf_isws(str[si])) {
-                    si = si + 1;
-                }
-                sdest = *ap;
-                di = 0;
-                while ((str[si] != 0) & (__sscanf_isws(str[si]) == 0)) {
-                    sdest[di] = str[si];
-                    si = si + 1;
-                    di = di + 1;
-                }
-                sdest[di] = 0;
-                ap = ap + 8;
-                count = count + 1;
-            } else if (fmt[fi] == 'c') {
-                dest = *ap;
-                *dest = str[si];
-                si = si + 1;
-                ap = ap + 8;
-                count = count + 1;
-            }
-        } else if (__sscanf_isws(fmt[fi])) {
-            while (__sscanf_isws(str[si])) {
-                si = si + 1;
-            }
-        } else {
-            if (str[si] == fmt[fi]) {
-                si = si + 1;
-            }
-        }
-        fi = fi + 1;
-    }
-    return count;
-}
-
-/* printf: minimal format-string printer.
-   Handles: %d (long), %s (string), %c (char), %% (literal percent).
-   All other format specifiers are passed through unchanged. */
-int printf(char* fmt, ...) {
-    long* ap;
-    int i;
-    ap = __va_start();
-    i = 0;
-    while (fmt[i] != 0) {
-        if (fmt[i] == '%') {
-            i = i + 1;
-            if (fmt[i] == 'd') {
-                __stdio_print_long(*ap);
-                ap = ap + 8;
-            } else if (fmt[i] == 's') {
-                print_string(*ap);
-                ap = ap + 8;
-            } else if (fmt[i] == 'c') {
-                print_char(*ap);
-                ap = ap + 8;
-            } else if (fmt[i] == '%') {
-                print_char('%');
-            } else {
-                print_char('%');
-                print_char(fmt[i]);
-            }
-        } else {
-            print_char(fmt[i]);
-        }
-        i = i + 1;
-    }
-    return 0;
 }

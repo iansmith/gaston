@@ -30,6 +30,7 @@ package main
 // Multi-character operators
 %token LE GE EQ NE LSHIFT RSHIFT
 %token INC DEC PLUSEQ MINUSEQ STAREQ DIVEQ MODEQ
+%token ANDEQ OREQ XOREQ SHLEQ SHREQ
 %token ARROW ELLIPSIS
 %token ANDAND OROR
 
@@ -93,6 +94,18 @@ extern_declaration
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $5, IsExtern: true}; n.Pointee = ptrCType($2); $$ = []*Node{n} }
 	| EXTERN STRUCT ID '*' ID ';'
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $5, IsExtern: true}; n.Pointee = structCType($3); $$ = []*Node{n} }
+	| EXTERN STRUCT ID ID '(' params ')' ';'
+		{
+			n := &Node{Kind: KindFunDecl, Type: TypeStruct, StructTag: $3, Name: $4}
+			n.IsExtern = true; n.Children = $6; $$ = []*Node{n}
+		}
+	| EXTERN STRUCT ID ID '(' param_list ',' ELLIPSIS ')' ';'
+		{
+			n := &Node{Kind: KindFunDecl, Type: TypeStruct, StructTag: $3, Name: $4}
+			n.IsExtern = true
+			n.Children = append($6, &Node{Kind: KindParam, Type: TypeVoid, Name: "..."})
+			$$ = []*Node{n}
+		}
 	| EXTERN type_specifier ID '(' params ')' ';'
 		{
 			n := ctNode(KindFunDecl, $2, $3); n.IsExtern = true
@@ -223,6 +236,19 @@ fun_declaration
 			n.Children = append($6, $8)
 			$$ = n
 		}
+	| STRUCT ID ID '(' params ')' compound_stmt
+		{
+			n := &Node{Kind: KindFunDecl, Type: TypeStruct, StructTag: $2, Name: $3}
+			n.Children = append($5, $7)
+			$$ = n
+		}
+	| STRUCT ID ID '(' param_list ',' ELLIPSIS ')' compound_stmt
+		{
+			n := &Node{Kind: KindFunDecl, Type: TypeStruct, StructTag: $2, Name: $3}
+			params := append($5, &Node{Kind: KindParam, Type: TypeVoid, Name: "..."})
+			n.Children = append(params, $9)
+			$$ = n
+		}
 	| STATIC type_specifier ID '(' params ')' compound_stmt
 		{
 			n := ctNode(KindFunDecl, $2, $3)
@@ -284,6 +310,8 @@ param
 		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: $3}; n.Pointee = $1; $$ = n }
 	| type_specifier '*' '*' ID
 		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: $4}; n.Pointee = ptrCType($1); $$ = n }
+	| STRUCT ID ID
+		{ $$ = &Node{Kind: KindParam, Type: TypeStruct, Name: $3, StructTag: $2} }
 	| STRUCT ID '*' ID
 		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: $4}; n.Pointee = structCType($2); $$ = n }
 	| STRUCT ID '*' '*' ID
@@ -402,6 +430,8 @@ postfix_expr
 		{ $$ = &Node{Kind: KindPostInc, Children: []*Node{$1}} }
 	| postfix_expr DEC
 		{ $$ = &Node{Kind: KindPostDec, Children: []*Node{$1}} }
+	| postfix_expr '[' expression ']'
+		{ $$ = &Node{Kind: KindIndexExpr, Children: []*Node{$1, $3}} }
 	;
 
 expression
@@ -419,6 +449,16 @@ expression
 		{ $$ = &Node{Kind: KindCompoundAssign, Op: "/", Children: []*Node{$1, $3}} }
 	| postfix_expr MODEQ expression
 		{ $$ = &Node{Kind: KindCompoundAssign, Op: "%", Children: []*Node{$1, $3}} }
+	| postfix_expr ANDEQ expression
+		{ $$ = &Node{Kind: KindCompoundAssign, Op: "&", Children: []*Node{$1, $3}} }
+	| postfix_expr OREQ expression
+		{ $$ = &Node{Kind: KindCompoundAssign, Op: "|", Children: []*Node{$1, $3}} }
+	| postfix_expr XOREQ expression
+		{ $$ = &Node{Kind: KindCompoundAssign, Op: "^", Children: []*Node{$1, $3}} }
+	| postfix_expr SHLEQ expression
+		{ $$ = &Node{Kind: KindCompoundAssign, Op: "<<", Children: []*Node{$1, $3}} }
+	| postfix_expr SHREQ expression
+		{ $$ = &Node{Kind: KindCompoundAssign, Op: ">>", Children: []*Node{$1, $3}} }
 	| simple_expression
 		{ $$ = $1 }
 	;
@@ -551,6 +591,12 @@ factor
 			n.Children = []*Node{$3}
 			$$ = n
 		}
+	| '(' type_specifier ')' factor
+		{ $$ = castNode($2, $4) }
+	| '(' type_specifier '*' ')' factor
+		{ n := &Node{Kind: KindCast, Type: TypePtr}; n.Pointee = $2; n.Children = []*Node{$5}; $$ = n }
+	| '(' type_specifier '*' '*' ')' factor
+		{ n := &Node{Kind: KindCast, Type: TypePtr}; n.Pointee = ptrCType($2); n.Children = []*Node{$6}; $$ = n }
 	;
 
 call

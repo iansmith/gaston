@@ -8,10 +8,16 @@ extern int putchar(int c);
 /* puts: write string s followed by a newline; returns 0 */
 extern int puts(char* s);
 
-/* printf: formatted output.
-   Supported conversions: %d (long decimal), %s (string), %c (char), %% (literal %).
-   Returns 0. */
+/* printf: formatted output to stdout. Returns 0. */
 extern int printf(char* fmt, ...);
+
+/* sprintf: format into null-terminated buffer buf (no size limit).
+   Returns number of characters written, not counting the null byte. */
+extern int sprintf(char* buf, char* fmt, ...);
+
+/* snprintf: format into buf writing at most n-1 chars plus a null byte.
+   Returns number of characters written, not counting the null byte. */
+extern int snprintf(char* buf, long n, char* fmt, ...);
 
 /* sscanf: scan formatted input from string str according to fmt.
    Supported conversions: %d (long decimal into long*), %s (word into char*),

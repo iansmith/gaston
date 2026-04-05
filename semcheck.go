@@ -7,13 +7,14 @@ import (
 
 // FuncSig holds the type signature of a declared function.
 type FuncSig struct {
-	Name          string
-	ReturnType    TypeKind
-	ReturnPointee *CType    // non-nil when ReturnType == TypePtr
-	Params        []TypeKind
-	ParamPointees []*CType  // per-param pointee CType (nil for non-pointer params); len == len(Params)
-	IsExtern      bool      // true for extern function declarations (no body)
-	IsVariadic    bool      // true for variadic functions (last param is "...")
+	Name            string
+	ReturnType      TypeKind
+	ReturnPointee   *CType   // non-nil when ReturnType == TypePtr
+	ReturnStructTag string   // non-empty when ReturnType == TypeStruct: the struct type name
+	Params          []TypeKind
+	ParamPointees   []*CType // per-param pointee CType (nil for non-pointer params); len == len(Params)
+	IsExtern        bool     // true for extern function declarations (no body)
+	IsVariadic      bool     // true for variadic functions (last param is "...")
 }
 
 // symTable is a two-level symbol table: globals + per-function locals.
@@ -83,7 +84,7 @@ func newSymTable() *symTable {
 }
 
 // sizeofKind returns the byte size for the given TypeKind.
-// All pointer types and int/long/double occupy 8 bytes; char is 1; short is 2; float is 4.
+// Follows LP64: int/unsigned int are 4 bytes; long/double/pointers are 8 bytes.
 // For TypeStruct, structTag and structDefs are used to sum the field sizes.
 func sizeofKind(t TypeKind, structTag string, structDefs map[string]*StructDef) int {
 	switch t {
@@ -91,6 +92,8 @@ func sizeofKind(t TypeKind, structTag string, structDefs map[string]*StructDef) 
 		return 1
 	case TypeShort, TypeUnsignedShort:
 		return 2
+	case TypeInt, TypeUnsignedInt:
+		return 4
 	case TypeFloat:
 		return 4
 	case TypeStruct:
@@ -101,7 +104,7 @@ func sizeofKind(t TypeKind, structTag string, structDefs map[string]*StructDef) 
 		}
 		return 8
 	default:
-		// TypeInt, TypeUnsignedInt, TypeDouble, TypePtr, TypeFuncPtr, TypeCharPtr, TypeIntArray, TypeVoid
+		// TypeDouble, TypePtr, TypeFuncPtr, TypeCharPtr, TypeIntArray, TypeVoid → 8 bytes
 		return 8
 	}
 }
@@ -325,7 +328,7 @@ func buildStructDef(n *Node, errs *[]string, structDefs map[string]*StructDef) *
 
 func checkFunDecl(n *Node, st *symTable, errs *[]string) {
 	if n.IsExtern {
-		sig := &FuncSig{Name: n.Name, ReturnType: n.Type, ReturnPointee: n.Pointee, IsExtern: true}
+		sig := &FuncSig{Name: n.Name, ReturnType: n.Type, ReturnPointee: n.Pointee, IsExtern: true, ReturnStructTag: n.StructTag}
 		for _, p := range n.Children {
 			if p.Name == "..." {
 				sig.IsVariadic = true
@@ -341,7 +344,7 @@ func checkFunDecl(n *Node, st *symTable, errs *[]string) {
 	}
 
 	nparams := len(n.Children) - 1 // last child is the body
-	sig := &FuncSig{Name: n.Name, ReturnType: n.Type, ReturnPointee: n.Pointee}
+	sig := &FuncSig{Name: n.Name, ReturnType: n.Type, ReturnPointee: n.Pointee, ReturnStructTag: n.StructTag}
 	for i := 0; i < nparams; i++ {
 		p := n.Children[i]
 		if p.Name == "..." {
@@ -627,6 +630,28 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		}
 		return n.Type
 
+	case KindIndexExpr:
+		// postfix_expr[index]: base is a pointer expression, not a named variable.
+		checkExpr(n.Children[0], st, errs)
+		checkExpr(n.Children[1], st, errs)
+		base := n.Children[0]
+		switch base.Type {
+		case TypePtr:
+			ptee := base.Pointee
+			if ptee == nil {
+				n.Type = TypeInt
+			} else {
+				n.Type = ptee.Kind
+				n.StructTag = ptee.Tag
+				n.Pointee = ptee.Pointee
+			}
+		case TypeCharPtr:
+			n.Type = TypeChar
+		default:
+			n.Type = TypeInt
+		}
+		return n.Type
+
 	case KindArray2D:
 		e := st.lookup(n.Name)
 		if e == nil {
@@ -858,6 +883,11 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		// n.Type and n.Pointee are already set by the grammar rule; just return.
 		return n.Type
 
+	case KindCast:
+		// (type)expr — target type already set by the grammar action.
+		checkExpr(n.Children[0], st, errs)
+		return n.Type
+
 	case KindCall:
 		// Check if the callee name is a TypeFuncPtr variable (not a direct function).
 		if e := st.lookup(n.Name); e != nil && e.typ == TypeFuncPtr {
@@ -956,6 +986,7 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		}
 		n.Type = sig.ReturnType
 		n.Pointee = sig.ReturnPointee
+		n.StructTag = sig.ReturnStructTag
 		return sig.ReturnType
 
 	case KindFuncPtrCall:

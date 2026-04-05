@@ -14,8 +14,9 @@ type irGen struct {
 	fn              *IRFunc   // current function being generated
 	globals         map[string]*IRGlobal
 	locals          map[string]localInfo
-	funcNames       map[string]bool // names of user-defined functions (for IRFuncAddr detection)
-	variadicFuncs   map[string]bool // names of variadic functions (for FP bitcast at call sites)
+	funcNames       map[string]bool   // names of user-defined functions (for IRFuncAddr detection)
+	variadicFuncs   map[string]bool   // names of variadic functions (for FP bitcast at call sites)
+	structRetFuncs  map[string]string // function name → struct tag (for struct-returning functions)
 	tempN           int
 	labelN          int
 	loopStack       []loopLabels
@@ -34,15 +35,18 @@ type localInfo struct {
 
 func newIRGen() *irGen {
 	return &irGen{
-		prog:          &IRProgram{StructDefs: make(map[string]*StructDef)},
-		globals:       make(map[string]*IRGlobal),
-		funcNames:     make(map[string]bool),
-		variadicFuncs: make(map[string]bool),
+		prog:           &IRProgram{StructDefs: make(map[string]*StructDef)},
+		globals:        make(map[string]*IRGlobal),
+		funcNames:      make(map[string]bool),
+		variadicFuncs:  make(map[string]bool),
+		structRetFuncs: make(map[string]string),
 	}
 }
 
 func (g *irGen) newTemp() IRAddr {
-	t := IRAddr{Kind: AddrTemp, Name: fmt.Sprintf("t%d", g.tempN)}
+	// Use "#t" prefix: '#' is not a valid C identifier character, so these
+	// names can never collide with user-declared local variables (e.g. "t1").
+	t := IRAddr{Kind: AddrTemp, Name: fmt.Sprintf("#t%d", g.tempN)}
 	g.tempN++
 	return t
 }
@@ -143,14 +147,19 @@ func genIR(prog *Node) *IRProgram {
 		g.variadicFuncs[name] = true
 	}
 	for _, decl := range prog.Children {
-		if decl.Kind == KindFunDecl && !decl.IsExtern {
-			g.funcNames[decl.Name] = true
-			// A function is variadic if any of its param children is "...".
-			for _, p := range decl.Children {
-				if p.Kind == KindParam && p.Name == "..." {
-					g.variadicFuncs[decl.Name] = true
-					break
+		if decl.Kind == KindFunDecl {
+			if !decl.IsExtern {
+				g.funcNames[decl.Name] = true
+				for _, p := range decl.Children {
+					if p.Kind == KindParam && p.Name == "..." {
+						g.variadicFuncs[decl.Name] = true
+						break
+					}
 				}
+			}
+			// Track struct-returning functions (including extern) for call-site codegen.
+			if decl.Type == TypeStruct {
+				g.structRetFuncs[decl.Name] = decl.StructTag
 			}
 		}
 	}
@@ -224,12 +233,23 @@ func buildStructDefIR(n *Node, structDefs map[string]*StructDef) *StructDef {
 }
 
 func (g *irGen) genFunc(n *Node) {
-	g.fn = &IRFunc{Name: n.Name, ReturnType: n.Type, ReturnPointee: n.Pointee}
+	g.fn = &IRFunc{Name: n.Name, ReturnType: n.Type, ReturnPointee: n.Pointee,
+		ReturnStructTag: n.StructTag}
 	g.tempN = 0
 	g.labelN = 0
 	g.locals = make(map[string]localInfo)
 	g.currentFuncName = n.Name
 	g.staticLocals = make(map[string]string)
+
+	// For struct-returning functions whose return struct exceeds 16 bytes, the caller
+	// passes the destination address in X8 before the BL.  X8 is caller-saved and
+	// will be clobbered by any inner call, so we save it on entry to the frame.
+	if n.Type == TypeStruct {
+		if sd, ok := g.prog.StructDefs[n.StructTag]; ok && sd.SizeBytes(g.prog.StructDefs) > 16 {
+			g.fn.Locals = append(g.fn.Locals, IRLocal{Name: "__x8_save"})
+			g.locals["__x8_save"] = localInfo{}
+		}
+	}
 
 	nparams := len(n.Children) - 1
 	realParams := 0
@@ -239,11 +259,26 @@ func (g *irGen) genFunc(n *Node) {
 			g.fn.IsVariadic = true
 			continue
 		}
-		isArr := p.Type == TypeIntArray
-		g.locals[p.Name] = localInfo{isArray: isArr, isParam: true, arrSize: -1}
+		if p.Type == TypeStruct {
+			// Struct-by-value param: storage goes in Locals (inline frame block),
+			// not in the scalar param slot mechanism. buildFrame sees isArray=true
+			// and allocates full SizeBytes via the Locals path (isArrBase).
+			sz := 1
+			if sd, ok := g.prog.StructDefs[p.StructTag]; ok {
+				sz = (sd.SizeBytes(g.prog.StructDefs) + 7) / 8
+			}
+			g.fn.Locals = append(g.fn.Locals, IRLocal{
+				Name: p.Name, IsStruct: true, StructTag: p.StructTag, ArrSize: sz,
+			})
+			g.locals[p.Name] = localInfo{isArray: true} // → isArrBase in buildFrame
+		} else {
+			isArr := p.Type == TypeIntArray
+			g.locals[p.Name] = localInfo{isArray: isArr, isParam: true, arrSize: -1}
+		}
 		g.fn.Params = append(g.fn.Params, p.Name)
 		g.fn.ParamType = append(g.fn.ParamType, p.Type)
 		g.fn.ParamPointee = append(g.fn.ParamPointee, p.Pointee)
+		g.fn.ParamStructTag = append(g.fn.ParamStructTag, p.StructTag)
 		realParams++
 	}
 
@@ -384,6 +419,27 @@ func (g *irGen) genStmt(n *Node) {
 		g.genStmt(n.Children[0])
 	case KindReturn:
 		if len(n.Children) > 0 {
+			// Struct-by-value return: emit IRReturn with TypeHint=TypeStruct.
+			if g.fn.ReturnStructTag != "" {
+				child := n.Children[0]
+				var src IRAddr
+				if child.Kind == KindVar {
+					src = g.addrOf(child.Name)
+				} else if child.Kind == KindCall {
+					if tag, ok := g.structRetFuncs[child.Name]; ok {
+						slot := g.allocStructSlot(tag)
+						g.genStructCallInto(child, slot, tag)
+						src = slot
+					} else {
+						src = g.genExpr(child)
+					}
+				} else {
+					src = g.genExpr(child)
+				}
+				g.emit(Quad{Op: IRReturn, TypeHint: TypeStruct,
+					Src1: src, StructTag: g.fn.ReturnStructTag})
+				return
+			}
 			v := g.genExpr(n.Children[0])
 			if isFPType(g.fn.ReturnType) {
 				v = g.coerceToFP(v, n.Children[0].Type)
@@ -579,6 +635,28 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 		}
 		return dst
 
+	case KindIndexExpr:
+		// postfix_expr[index]: base is a pointer value, not a named variable.
+		ptr := g.genExpr(n.Children[0])
+		idx := g.genExpr(n.Children[1])
+		dst := g.newTemp()
+		if n.Type == TypeChar {
+			addr := g.newTemp()
+			g.emit(Quad{Op: IRAdd, Dst: addr, Src1: ptr, Src2: idx})
+			g.emit(Quad{Op: IRDerefCharLoad, Dst: dst, Src1: addr})
+		} else {
+			scaled := g.newTemp()
+			g.emit(Quad{Op: IRShl, Dst: scaled, Src1: idx, Src2: IRAddr{Kind: AddrConst, IVal: 3}})
+			addr := g.newTemp()
+			g.emit(Quad{Op: IRAdd, Dst: addr, Src1: ptr, Src2: scaled})
+			if isFPType(n.Type) {
+				g.emit(Quad{Op: IRFDerefLoad, Dst: dst, Src1: addr})
+			} else {
+				g.emit(Quad{Op: IRDerefLoad, Dst: dst, Src1: addr})
+			}
+		}
+		return dst
+
 	case KindArray2D:
 		var innerDim int
 		if li, ok := g.locals[n.Name]; ok {
@@ -607,7 +685,16 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 
 	case KindAssign:
 		lhs := n.Children[0]
-		rhs := g.genExpr(n.Children[1])
+		rhsNode := n.Children[1]
+		// Fast path: struct-returning call directly into the lhs variable.
+		if lhs.Kind == KindVar && rhsNode.Kind == KindCall {
+			if tag, ok := g.structRetFuncs[rhsNode.Name]; ok {
+				dstAddr := g.addrOf(lhs.Name)
+				g.genStructCallInto(rhsNode, dstAddr, tag)
+				return dstAddr
+			}
+		}
+		rhs := g.genExpr(rhsNode)
 		lhsType := n.Children[0].Type
 		rhsType := n.Children[1].Type
 
@@ -618,7 +705,15 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 		switch lhs.Kind {
 		case KindVar:
 			addr := g.addrOf(lhs.Name)
-			if isFPType(lhsType) {
+			if lhsType == TypeStruct {
+				// Struct-to-struct copy (x = y).  rhs is already the address
+				// of the source struct (genExpr(KindVar of TypeStruct) = addrOf).
+				tag := lhs.StructTag
+				if tag == "" {
+					tag = rhsNode.StructTag
+				}
+				g.emit(Quad{Op: IRStructCopy, Dst: addr, Src1: rhs, StructTag: tag})
+			} else if isFPType(lhsType) {
 				g.emit(Quad{Op: IRFCopy, Dst: addr, Src1: rhs})
 			} else if isFPType(rhsType) {
 				tmp := g.newTemp()
@@ -637,6 +732,25 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 				g.emit(Quad{Op: IRCharStore, Dst: base, Src1: idx, Src2: rhs})
 			} else {
 				g.emit(Quad{Op: IRStore, Dst: base, Src1: idx, Src2: rhs})
+			}
+			return rhs
+		case KindIndexExpr:
+			ptr := g.genExpr(lhs.Children[0])
+			idx := g.genExpr(lhs.Children[1])
+			if lhsType == TypeChar {
+				addr := g.newTemp()
+				g.emit(Quad{Op: IRAdd, Dst: addr, Src1: ptr, Src2: idx})
+				g.emit(Quad{Op: IRDerefCharStore, Dst: addr, Src1: rhs})
+			} else {
+				scaled := g.newTemp()
+				g.emit(Quad{Op: IRShl, Dst: scaled, Src1: idx, Src2: IRAddr{Kind: AddrConst, IVal: 3}})
+				addr := g.newTemp()
+				g.emit(Quad{Op: IRAdd, Dst: addr, Src1: ptr, Src2: scaled})
+				if isFPType(lhsType) {
+					g.emit(Quad{Op: IRFDerefStore, Dst: addr, Src1: rhs})
+				} else {
+					g.emit(Quad{Op: IRDerefStore, Dst: addr, Src1: rhs})
+				}
 			}
 			return rhs
 		case KindArray2D:
@@ -679,6 +793,18 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 			ptr := g.fieldBasePtr(lhs)
 			offset := g.fieldByteOffset(lhs)
 			offAddr := IRAddr{Kind: AddrConst, IVal: offset}
+			if lhsType == TypeStruct {
+				// outer.inner = some_struct: compute &(outer.inner) and struct-copy.
+				// rhs is already the address of the source struct (genExpr returns
+				// address for TypeStruct expressions).
+				dstAddr := ptr
+				if offset > 0 {
+					dstAddr = g.newTemp()
+					g.emit(Quad{Op: IRAdd, Dst: dstAddr, Src1: ptr, Src2: offAddr})
+				}
+				g.emit(Quad{Op: IRStructCopy, Dst: dstAddr, Src1: rhs, StructTag: lhs.StructTag})
+				return rhs
+			}
 			sf := g.lookupStructField(lhs)
 			if sf != nil && sf.IsBitField {
 				// Read-modify-write for bit-field store.
@@ -758,6 +884,32 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 			g.emit(Quad{Op: IRLoad, Dst: elem, Src1: base, Src2: idx})
 			g.emit(Quad{Op: irOp, Dst: tmp, Src1: elem, Src2: rhsAddr})
 			g.emit(Quad{Op: IRStore, Dst: base, Src1: idx, Src2: tmp})
+			return tmp
+		case KindIndexExpr:
+			ptr := g.genExpr(lhs.Children[0])
+			idx := g.genExpr(lhs.Children[1])
+			elem := g.newTemp()
+			if lhsType == TypeChar {
+				addr := g.newTemp()
+				g.emit(Quad{Op: IRAdd, Dst: addr, Src1: ptr, Src2: idx})
+				g.emit(Quad{Op: IRDerefCharLoad, Dst: elem, Src1: addr})
+				g.emit(Quad{Op: irOp, Dst: tmp, Src1: elem, Src2: rhsAddr})
+				g.emit(Quad{Op: IRDerefCharStore, Dst: addr, Src1: tmp})
+			} else {
+				scaled := g.newTemp()
+				g.emit(Quad{Op: IRShl, Dst: scaled, Src1: idx, Src2: IRAddr{Kind: AddrConst, IVal: 3}})
+				addr := g.newTemp()
+				g.emit(Quad{Op: IRAdd, Dst: addr, Src1: ptr, Src2: scaled})
+				if isFPType(lhsType) {
+					g.emit(Quad{Op: IRFDerefLoad, Dst: elem, Src1: addr})
+					g.emit(Quad{Op: irOp, Dst: tmp, Src1: elem, Src2: rhsAddr})
+					g.emit(Quad{Op: IRFDerefStore, Dst: addr, Src1: tmp})
+				} else {
+					g.emit(Quad{Op: IRDerefLoad, Dst: elem, Src1: addr})
+					g.emit(Quad{Op: irOp, Dst: tmp, Src1: elem, Src2: rhsAddr})
+					g.emit(Quad{Op: IRDerefStore, Dst: addr, Src1: tmp})
+				}
+			}
 			return tmp
 		}
 
@@ -871,6 +1023,15 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 				Src2: IRAddr{Kind: AddrConst, IVal: mask}})
 			return dst
 		}
+		if n.Type == TypeStruct {
+			// Return the address of the nested struct field rather than loading
+			// its first word.  Callers that need a value copy use IRStructCopy.
+			if offset == 0 {
+				return ptr
+			}
+			g.emit(Quad{Op: IRAdd, Dst: dst, Src1: ptr, Src2: offAddr})
+			return dst
+		}
 		if isFPType(n.Type) {
 			g.emit(Quad{Op: IRFFieldLoad, Dst: dst, Src1: ptr, Src2: offAddr, TypeHint: n.Type})
 		} else {
@@ -910,6 +1071,55 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 		g.emit(Quad{Op: IRCopy, Dst: apAddr, Src1: newAp})
 
 		return result
+
+	case KindCast:
+		src := g.genExpr(n.Children[0])
+		srcType := n.Children[0].Type
+		dstType := n.Type
+		// Same type → identity.
+		if srcType == dstType {
+			return src
+		}
+		// → double/float: promote via IRIntToDouble.
+		if isFPType(dstType) {
+			return g.coerceToFP(src, srcType)
+		}
+		// double/float → int or ptr: truncate.
+		if isFPType(srcType) {
+			dst := g.newTemp()
+			g.emit(Quad{Op: IRDoubleToInt, Dst: dst, Src1: src})
+			return dst
+		}
+		// → char (8-bit truncation + sign-extend).
+		if dstType == TypeChar {
+			dst := g.newTemp()
+			g.emit(Quad{Op: IRSignExtend, Dst: dst, Src1: src,
+				Src2: IRAddr{Kind: AddrConst, IVal: 8}})
+			return dst
+		}
+		// → unsigned char (8-bit truncation + zero-extend).
+		if dstType == TypeUnsignedChar {
+			dst := g.newTemp()
+			g.emit(Quad{Op: IRZeroExtend, Dst: dst, Src1: src,
+				Src2: IRAddr{Kind: AddrConst, IVal: 8}})
+			return dst
+		}
+		// → short (16-bit truncation + sign-extend).
+		if dstType == TypeShort {
+			dst := g.newTemp()
+			g.emit(Quad{Op: IRSignExtend, Dst: dst, Src1: src,
+				Src2: IRAddr{Kind: AddrConst, IVal: 16}})
+			return dst
+		}
+		// → unsigned short (16-bit truncation + zero-extend).
+		if dstType == TypeUnsignedShort {
+			dst := g.newTemp()
+			g.emit(Quad{Op: IRZeroExtend, Dst: dst, Src1: src,
+				Src2: IRAddr{Kind: AddrConst, IVal: 16}})
+			return dst
+		}
+		// All other casts (int↔unsigned, ptr↔int, ptr↔ptr): identity (all 64-bit).
+		return src
 	}
 	return IRAddr{Kind: AddrNone}
 }
@@ -1017,6 +1227,27 @@ func (g *irGen) genIncDec(lval *Node, isIncrement bool, post bool) IRAddr {
 		g.emit(Quad{Op: irOp, Dst: new_, Src1: old, Src2: step})
 		g.emit(Quad{Op: IRStore, Dst: base, Src1: idx, Src2: new_})
 
+	case KindIndexExpr:
+		ptr := g.genExpr(lval.Children[0])
+		idx := g.genExpr(lval.Children[1])
+		old = g.newTemp()
+		new_ = g.newTemp()
+		if lvalType == TypeChar {
+			addr := g.newTemp()
+			g.emit(Quad{Op: IRAdd, Dst: addr, Src1: ptr, Src2: idx})
+			g.emit(Quad{Op: IRDerefCharLoad, Dst: old, Src1: addr})
+			g.emit(Quad{Op: irOp, Dst: new_, Src1: old, Src2: step})
+			g.emit(Quad{Op: IRDerefCharStore, Dst: addr, Src1: new_})
+		} else {
+			scaled := g.newTemp()
+			g.emit(Quad{Op: IRShl, Dst: scaled, Src1: idx, Src2: IRAddr{Kind: AddrConst, IVal: 3}})
+			addr := g.newTemp()
+			g.emit(Quad{Op: IRAdd, Dst: addr, Src1: ptr, Src2: scaled})
+			g.emit(Quad{Op: IRDerefLoad, Dst: old, Src1: addr})
+			g.emit(Quad{Op: irOp, Dst: new_, Src1: old, Src2: step})
+			g.emit(Quad{Op: IRDerefStore, Dst: addr, Src1: new_})
+		}
+
 	case KindDeref:
 		ptrVal := g.genExpr(lval.Children[0])
 		old = g.newTemp()
@@ -1045,11 +1276,28 @@ func (g *irGen) genIncDec(lval *Node, isIncrement bool, post bool) IRAddr {
 	return new_
 }
 
-func (g *irGen) genCall(n *Node) IRAddr {
-	isVariadic := g.variadicFuncs[n.Name]
-	for _, arg := range n.Children {
+// callArgSlot holds a fully-materialized argument ready for IRParam emission.
+// Separating materialization from emission prevents inner calls (which drain
+// pendingParams) from consuming params that belong to the outer call.
+type callArgSlot struct {
+	addr      IRAddr
+	isStruct  bool
+	isFP      bool
+	structTag string
+}
+
+// collectCallArgs evaluates every argument expression (possibly triggering
+// inner calls that drain pendingParams), then returns a slice of ready slots.
+// IRParam quads must be emitted only AFTER all args are collected.
+func (g *irGen) collectCallArgs(children []*Node, isVariadic bool) []callArgSlot {
+	slots := make([]callArgSlot, 0, len(children))
+	for _, arg := range children {
+		if arg.Type == TypeStruct {
+			srcAddr := g.materializeStructArg(arg)
+			slots = append(slots, callArgSlot{addr: srcAddr, isStruct: true, structTag: arg.StructTag})
+			continue
+		}
 		var val IRAddr
-		// Passing an array by name → emit IRAddr to get base pointer.
 		if arg.Kind == KindVar && g.isArrayName(arg.Name) {
 			tmp := g.newTemp()
 			g.emit(Quad{Op: IRGetAddr, Dst: tmp, Src1: g.addrOf(arg.Name)})
@@ -1061,22 +1309,97 @@ func (g *irGen) genCall(n *Node) IRAddr {
 			if isVariadic {
 				// At a variadic call site, pass FP args through integer registers so
 				// the callee's register-save area (X1-X7) captures the bit pattern.
-				// FMOV Xd, Dn (no value conversion — bit-for-bit copy).
 				intBits := g.newTemp()
 				g.emit(Quad{Op: IRFBitcastFI, Dst: intBits, Src1: val})
-				g.emit(Quad{Op: IRParam, Src1: intBits})
+				slots = append(slots, callArgSlot{addr: intBits})
 			} else {
-				g.emit(Quad{Op: IRFParam, Src1: val})
+				slots = append(slots, callArgSlot{addr: val, isFP: true})
 			}
 		} else {
-			g.emit(Quad{Op: IRParam, Src1: val})
+			slots = append(slots, callArgSlot{addr: val})
 		}
 	}
+	return slots
+}
 
+// emitCallArgParams emits IRParam / IRFParam quads for the given slots.
+func (g *irGen) emitCallArgParams(slots []callArgSlot) {
+	for _, s := range slots {
+		if s.isStruct {
+			g.emit(Quad{Op: IRParam, Src1: s.addr, TypeHint: TypeStruct, StructTag: s.structTag})
+		} else if s.isFP {
+			g.emit(Quad{Op: IRFParam, Src1: s.addr})
+		} else {
+			g.emit(Quad{Op: IRParam, Src1: s.addr})
+		}
+	}
+}
+
+func (g *irGen) genCall(n *Node) IRAddr {
+	isVariadic := g.variadicFuncs[n.Name]
+	// Phase 1: materialize all args (inner calls complete here, draining pendingParams).
+	slots := g.collectCallArgs(n.Children, isVariadic)
+	// Phase 2: emit IRParams for THIS call only.
+	g.emitCallArgParams(slots)
 	nargs := IRAddr{Kind: AddrConst, IVal: len(n.Children)}
 	dst := g.newTemp()
 	g.emit(Quad{Op: IRCall, Dst: dst, Src1: nargs, Extra: n.Name})
 	return dst
+}
+
+// genStructCallInto emits IR for a struct-returning call, writing the result
+// directly into dstAddr (the frame address of the destination struct variable).
+// The backend dispatches on struct size: sets X8 before BL (>16 bytes) or
+// extracts X0/X1 after BL (≤8 or ≤16 bytes).
+func (g *irGen) genStructCallInto(n *Node, dstAddr IRAddr, tag string) {
+	isVariadic := g.variadicFuncs[n.Name]
+	// Phase 1: materialize all args (inner calls complete here, draining pendingParams).
+	slots := g.collectCallArgs(n.Children, isVariadic)
+	// Phase 2: emit IRParams for THIS call only.
+	g.emitCallArgParams(slots)
+	nargs := IRAddr{Kind: AddrConst, IVal: len(n.Children)}
+	g.emit(Quad{Op: IRCall, TypeHint: TypeStruct, StructTag: tag,
+		Src1: nargs, Src2: dstAddr, Extra: n.Name})
+}
+
+// materializeStructArg ensures a TypeStruct argument expression is backed by
+// caller-owned inline frame storage, and returns its IRAddr.
+//
+//   KindVar                    → direct AddrLocal of existing isArrBase storage
+//   KindCall (struct return)   → materialize via genStructCallInto into a new slot
+//   anything else (field accs) → genExpr returns a pointer-valued temp;
+//                                copy into a new slot via IRStructCopy
+func (g *irGen) materializeStructArg(arg *Node) IRAddr {
+	if arg.Kind == KindVar {
+		return g.addrOf(arg.Name)
+	}
+	slot := g.allocStructSlot(arg.StructTag)
+	if arg.Kind == KindCall {
+		// Struct-returning call: write result directly into slot.
+		g.genStructCallInto(arg, slot, arg.StructTag)
+	} else {
+		// Field access or other expression returning a pointer to struct storage.
+		ptrVal := g.genExpr(arg)
+		g.emit(Quad{Op: IRStructCopy, Dst: slot, Src1: ptrVal, StructTag: arg.StructTag})
+	}
+	return slot
+}
+
+// allocStructSlot allocates an anonymous frame slot for a temporary struct value
+// and returns its IR address.  Used when a struct-returning call result is needed
+// in a context where the final destination is not yet known (e.g. return expr).
+func (g *irGen) allocStructSlot(tag string) IRAddr {
+	name := fmt.Sprintf("#sr%d", g.tempN)
+	g.tempN++
+	sz := 1
+	if sd, ok := g.prog.StructDefs[tag]; ok {
+		sz = (sd.SizeBytes(g.prog.StructDefs) + 7) / 8
+	}
+	g.fn.Locals = append(g.fn.Locals, IRLocal{
+		Name: name, IsStruct: true, StructTag: tag, ArrSize: sz,
+	})
+	g.locals[name] = localInfo{isArray: true, arrSize: sz}
+	return IRAddr{Kind: AddrLocal, Name: name}
 }
 
 // genFuncPtrCall generates IR for a function-pointer call: (*fp)(args...).
@@ -1087,22 +1410,10 @@ func (g *irGen) genFuncPtrCall(n *Node) IRAddr {
 	fpVal := g.newTemp()
 	g.emit(Quad{Op: IRCopy, Dst: fpVal, Src1: fpAddr})
 
-	// Push arguments exactly as in genCall.
-	for _, arg := range n.Children {
-		var val IRAddr
-		if arg.Kind == KindVar && g.isArrayName(arg.Name) {
-			tmp := g.newTemp()
-			g.emit(Quad{Op: IRGetAddr, Dst: tmp, Src1: g.addrOf(arg.Name)})
-			val = tmp
-		} else {
-			val = g.genExpr(arg)
-		}
-		if isFPType(arg.Type) {
-			g.emit(Quad{Op: IRFParam, Src1: val})
-		} else {
-			g.emit(Quad{Op: IRParam, Src1: val})
-		}
-	}
+	// Phase 1: materialize all args (inner calls complete here).
+	slots := g.collectCallArgs(n.Children, false)
+	// Phase 2: emit IRParams for THIS call only.
+	g.emitCallArgParams(slots)
 
 	nargs := IRAddr{Kind: AddrConst, IVal: len(n.Children)}
 	dst := g.newTemp()

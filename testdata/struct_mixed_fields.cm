@@ -3,17 +3,17 @@
    field loads/stores (char at offset 0, short at offset 2 share an 8-byte window;
    8-byte stores would corrupt each other — this test would expose that bug).
 
-   Layout (gaston LP64):
+   LP64 layout:
      c  char    @0  (1 byte)
      s  short   @2  (2 bytes, align 2)
-     i  int     @8  (8 bytes, align 8)
-     d  double  @16 (8 bytes, align 8)
-     p  int*    @24 (8 bytes, align 8)
-   sizeof = 32
+     i  int     @4  (4 bytes, align 4)
+     d  double  @8  (8 bytes, align 8)
+     p  int*    @16 (8 bytes, align 8)
+   sizeof = 24
 
    Also mixes item 7 (pointer in struct), item 3 (access via pointer parameter).
 
-   Expected: 32 65 1000 999999 2.500000 77 */
+   Expected: 24 65 1000 999999 2.500000 77 */
 
 struct Mixed {
     char   c;
@@ -36,7 +36,7 @@ void main(void) {
     int x;
     x = 77;
     fill(&m, &x);
-    output(sizeof(struct Mixed));   /* 32 */
+    output(sizeof(struct Mixed));   /* 24 */
     output(m.c);                    /* 65 */
     output(m.s);                    /* 1000 */
     output(m.i);                    /* 999999 */

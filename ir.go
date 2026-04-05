@@ -40,6 +40,8 @@ const (
 	IRDerefStore           // *Dst = Src1  (store 8 bytes via pointer)
 	IRFDerefLoad           // Dst = *Src1  (load 8-byte double via pointer; result is FP)
 	IRFDerefStore          // *Dst = Src1  (store 8-byte double via pointer; Src1 is FP)
+	IRDerefCharLoad        // Dst = *(byte*)Src1  (1-byte load via computed pointer; zero-extended)
+	IRDerefCharStore       // *(byte*)Dst = Src1  (1-byte store via computed pointer)
 	IRCharLoad             // Dst = Src1[Src2]  (char* subscript — byte load, no scaling)
 	IRCharStore            // Dst[Src1] = Src2  (char* subscript — byte store, no scaling)
 
@@ -101,6 +103,20 @@ const (
 	// IRFuncPtrCall: Dst = (*Src1)(args); Src1 holds the function pointer value
 	IRFuncAddr
 	IRFuncPtrCall
+
+	// Bit-pattern moves between FP and integer registers (no value conversion).
+	// Used at variadic call sites to pass double arguments through X registers so
+	// the callee's integer-only register-save area captures them correctly.
+	// IRFBitcastFI: Dst(int64)  = bit_pattern(Src1 double) — FMOV Xd, Dn
+	// IRFBitcastIF: Dst(double) = bit_pattern(Src1 int64)  — FMOV Dd, Xn
+	IRFBitcastFI
+	IRFBitcastIF
+
+	// Struct-to-struct copy (struct assignment: x = y).
+	// Dst and Src1 are both AddrLocal/AddrGlobal addresses of struct storage.
+	// StructTag names the struct type (for size lookup).
+	// Copies SizeBytes(StructTag)/8 consecutive 8-byte words.
+	IRStructCopy
 )
 
 // AddrKind identifies what an IR address refers to.
@@ -138,24 +154,26 @@ func (a IRAddr) String() string {
 
 // Quad is one three-address IR instruction.
 type Quad struct {
-	Op       IROpCode
-	Dst      IRAddr
-	Src1     IRAddr
-	Src2     IRAddr
-	Extra    string   // label name (IRLabel/IRJump/IRJumpT/IRJumpF) or function name (IRCall/IREnter)
-	TypeHint TypeKind // for IRFieldLoad/IRFieldStore: the field's TypeKind (drives byte/halfword/word insn)
+	Op        IROpCode
+	Dst       IRAddr
+	Src1      IRAddr
+	Src2      IRAddr
+	Extra     string   // label name (IRLabel/IRJump/IRJumpT/IRJumpF) or function name (IRCall/IREnter)
+	TypeHint  TypeKind // for IRFieldLoad/IRFieldStore: field TypeKind; for IRCall/IRReturn: TypeStruct signals struct-by-value
+	StructTag string   // non-empty when TypeHint == TypeStruct: the struct type name for size lookup
 }
 
 // IRGlobal describes one global variable declaration.
 type IRGlobal struct {
 	Name       string
 	IsArr      bool
-	IsPtr      bool   // true for TypeIntPtr or TypeCharPtr globals
-	IsStruct   bool   // true for TypeStruct globals
-	StructTag  string // struct type name (when IsStruct)
-	IsExtern   bool   // true for extern-declared globals (no storage allocated)
-	Size       int    // 1 for scalar, N for array[N] or struct (N = numFields)
-	InnerDim   int    // inner dimension for 2D arrays (0 for 1D or non-array)
+	IsPtr      bool    // true for TypePtr globals
+	IsStruct   bool    // true for TypeStruct globals
+	Pointee    *CType  // non-nil when IsPtr: full pointee type
+	StructTag  string  // struct type name (when IsStruct)
+	IsExtern   bool    // true for extern-declared globals (no storage allocated)
+	Size       int     // 1 for scalar, N for array[N] or struct (N = numFields)
+	InnerDim   int     // inner dimension for 2D arrays (0 for 1D or non-array)
 	HasInitVal bool
 	InitVal    int // constant initializer value (only when HasInitVal && !IsArr)
 }
@@ -164,23 +182,28 @@ type IRGlobal struct {
 type IRLocal struct {
 	Name      string
 	IsArray   bool
-	IsPtr     bool   // true for TypeIntPtr or TypeCharPtr locals
-	IsStruct  bool   // true for TypeStruct locals
-	IsVLA     bool   // true for variable-length array (runtime size; pointer slot in frame)
-	StructTag string // struct type name (when IsStruct)
-	ArrSize   int    // 1 for scalar, N for int x[N]; for struct: number of fields; 0 for VLA
+	IsPtr     bool    // true for TypePtr locals
+	IsStruct  bool    // true for TypeStruct locals
+	IsVLA     bool    // true for variable-length array (runtime size; pointer slot in frame)
+	Pointee   *CType  // non-nil when IsPtr: full pointee type
+	StructTag string  // struct type name (when IsStruct)
+	ArrSize   int     // 1 for scalar, N for int x[N]; for struct: number of fields; 0 for VLA
 }
 
 // IRFunc is the IR for one function.
 type IRFunc struct {
-	Name       string
-	ReturnType TypeKind   // return type (TypeVoid if void)
-	Params     []string   // parameter names in declaration order (no "..." marker)
-	ParamType  []TypeKind // corresponding types
-	IsVariadic bool       // true if this function accepts variadic arguments
-	HasVLA     bool       // true if any local is a VLA (requires FP-relative frame addressing)
-	Locals     []IRLocal  // local variables declared inside the function body
-	Quads      []Quad
+	Name            string
+	ReturnType      TypeKind   // return type (TypeVoid if void)
+	ReturnPointee   *CType     // non-nil when ReturnType == TypePtr: full pointee type
+	ReturnStructTag string     // non-empty when ReturnType == TypeStruct: struct type name
+	Params          []string   // parameter names in declaration order (no "..." marker)
+	ParamType       []TypeKind // corresponding types
+	ParamPointee    []*CType   // per-param pointee CType (nil for non-pointer params)
+	ParamStructTag  []string   // parallel to ParamType; non-empty when ParamType[i]==TypeStruct
+	IsVariadic   bool       // true if this function accepts variadic arguments
+	HasVLA       bool       // true if any local is a VLA (requires FP-relative frame addressing)
+	Locals       []IRLocal  // local variables declared inside the function body
+	Quads        []Quad
 }
 
 // IRStrLit is one string literal in the rodata section.

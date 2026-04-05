@@ -378,6 +378,10 @@ scan:
 	case '<':
 		if l.pos < len(l.src) && l.src[l.pos] == '<' {
 			l.pos++
+			if l.pos < len(l.src) && l.src[l.pos] == '=' {
+				l.pos++
+				return SHLEQ
+			}
 			return LSHIFT
 		}
 		if l.pos < len(l.src) && l.src[l.pos] == '=' {
@@ -388,6 +392,10 @@ scan:
 	case '>':
 		if l.pos < len(l.src) && l.src[l.pos] == '>' {
 			l.pos++
+			if l.pos < len(l.src) && l.src[l.pos] == '=' {
+				l.pos++
+				return SHREQ
+			}
 			return RSHIFT
 		}
 		if l.pos < len(l.src) && l.src[l.pos] == '=' {
@@ -406,13 +414,27 @@ scan:
 			l.pos++
 			return ANDAND
 		}
+		if l.pos < len(l.src) && l.src[l.pos] == '=' {
+			l.pos++
+			return ANDEQ
+		}
 		return int('&')
 	case '|':
 		if l.pos < len(l.src) && l.src[l.pos] == '|' {
 			l.pos++
 			return OROR
 		}
+		if l.pos < len(l.src) && l.src[l.pos] == '=' {
+			l.pos++
+			return OREQ
+		}
 		return int('|')
+	case '^':
+		if l.pos < len(l.src) && l.src[l.pos] == '=' {
+			l.pos++
+			return XOREQ
+		}
+		return int('^')
 	case '!':
 		if l.pos < len(l.src) && l.src[l.pos] == '=' {
 			l.pos++

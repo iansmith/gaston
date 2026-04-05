@@ -9,7 +9,7 @@ type TypeKind int
 
 const (
 	TypeVoid         TypeKind = iota
-	TypeInt                   // int / long / long long scalar (all 64-bit on ARM64)
+	TypeInt                   // int scalar (4-byte LP64); long / long long are still 8-byte
 	TypeIntArray              // int[] — pointer when a param, inline storage when a local
 	TypeChar                  // char scalar (1-byte integer)
 	TypeCharPtr               // char* — pointer to char (used for string literals; legacy alias for TypePtr+TypeChar pointee)
@@ -117,7 +117,8 @@ const (
 	KindCompoundAssign // var op= expr  (also x++/x--: Children[1]=nil, Val=1)
 	KindBinOp          // expr op expr
 	KindVar      // ID  (scalar or array-base reference)
-	KindArrayVar // ID[expr]
+	KindArrayVar  // ID[expr]
+	KindIndexExpr // postfix_expr[expr]; Children[0]=base pointer expr, Children[1]=index
 	KindCall     // ID(args...)
 	KindNum      // integer literal
 	KindUnary    // unary operator: Op = "-" or "!"
@@ -142,6 +143,7 @@ const (
 	KindPreDec      // --x: Children[0]=lvalue; decrements, then evaluates to new value
 	KindLogAnd      // a && b: short-circuit logical AND; yields 0 or 1 (TypeInt)
 	KindLogOr       // a || b: short-circuit logical OR; yields 0 or 1 (TypeInt)
+	KindCast        // (type)expr — explicit type cast; Type/Pointee = target type; Children[0] = source expr
 
 	// TODO: KindTernary — cond ? then : else expression.
 	// Parser change: add QUESTION/COLON tokens, new grammar rule in expr.
@@ -168,6 +170,17 @@ func makeMultiDecl(ct *CType, names []*Node) []*Node {
 		out[i] = decl
 	}
 	return out
+}
+
+// castNode builds a KindCast node that converts child to the type described by ct.
+func castNode(ct *CType, child *Node) *Node {
+	n := &Node{Kind: KindCast, Type: ct.Kind, Children: []*Node{child}}
+	if ct.Kind == TypePtr {
+		n.Pointee = ct.Pointee
+	} else {
+		n.StructTag = ct.Tag
+	}
+	return n
 }
 
 // ctNode creates a node of the given kind with Type/Pointee/StructTag properly
@@ -234,7 +247,7 @@ type StructField struct {
 	ElemType    TypeKind // for flex/array members: element type (TypePtr for array-of-pointer fields)
 	ElemPointee *CType   // for array fields with ElemType==TypePtr: the pointer's pointee CType
 	StructTag   string   // non-empty when Type == TypeStruct (nested struct field name)
-	ByteOffset  int      // byte offset within the struct (all fields are 8 bytes)
+	ByteOffset  int      // byte offset within the struct (natural alignment per fieldSizeAlign)
 	IsBitField  bool     // true for struct bit-field members
 	BitOffset   int      // bit offset within the 8-byte storage word
 	BitWidth    int      // bit width (0 for normal fields)
@@ -256,6 +269,10 @@ func fieldSizeAlign(t TypeKind, structTag string, structDefs map[string]*StructD
 		return 1, 1
 	case TypeShort, TypeUnsignedShort:
 		return 2, 2
+	case TypeInt:
+		return 4, 4
+	case TypeUnsignedInt:
+		return 4, 4
 	case TypeFloat:
 		return 4, 4
 	case TypeStruct:
@@ -268,7 +285,7 @@ func fieldSizeAlign(t TypeKind, structTag string, structDefs map[string]*StructD
 			}
 		}
 		return 8, 8
-	default: // int, unsigned int, double, TypePtr, TypeFuncPtr, TypeCharPtr → 8 bytes
+	default: // double, TypePtr, TypeFuncPtr, TypeCharPtr → 8 bytes
 		return 8, 8
 	}
 }

@@ -34,6 +34,75 @@ type includeFlags []string
 func (f *includeFlags) String() string        { return strings.Join(*f, ":") }
 func (f *includeFlags) Set(v string) error    { *f = append(*f, v); return nil }
 
+// builtinHeaders provides virtual content for standard headers that gaston
+// implements internally rather than relying on a host system libc.
+var builtinHeaders = map[string]string{
+	"stdarg.h": `
+/* gaston built-in <stdarg.h> */
+typedef long* va_list;
+#define va_start(ap, last)  ap = __va_start()
+#define va_end(ap)
+`,
+	"stddef.h": `
+/* gaston built-in <stddef.h> */
+typedef long size_t;
+typedef long ptrdiff_t;
+typedef long intptr_t;
+#define NULL 0
+#define offsetof(type, member) __builtin_offsetof(type, member)
+`,
+	"stdint.h": `
+/* gaston built-in <stdint.h> */
+typedef long          int64_t;
+typedef unsigned long uint64_t;
+typedef int           int32_t;
+typedef unsigned int  uint32_t;
+typedef long          intmax_t;
+typedef unsigned long uintmax_t;
+typedef long          ssize_t;
+typedef long          size_t;
+#define INT64_MAX  9223372036854775807
+#define UINT64_MAX 18446744073709551615
+#define INT32_MAX  2147483647
+#define SIZE_MAX   18446744073709551615
+`,
+	"limits.h": `
+/* gaston built-in <limits.h> */
+#define CHAR_BIT   8
+#define CHAR_MAX   127
+#define CHAR_MIN   (-128)
+#define UCHAR_MAX  255
+#define SHRT_MAX   32767
+#define SHRT_MIN   (-32768)
+#define USHRT_MAX  65535
+#define INT_MAX    2147483647
+#define INT_MIN    (-2147483648)
+#define UINT_MAX   4294967295
+#define LONG_MAX   9223372036854775807
+#define LONG_MIN   (-9223372036854775808)
+#define ULONG_MAX  18446744073709551615
+#define LLONG_MAX  9223372036854775807
+#define LLONG_MIN  (-9223372036854775808)
+#define ULLONG_MAX 18446744073709551615
+`,
+	"float.h": `
+/* gaston built-in <float.h> */
+#define DBL_MAX      1.7976931348623157e+308
+#define DBL_MIN      2.2250738585072014e-308
+#define DBL_EPSILON  2.2204460492503131e-16
+#define FLT_MAX      3.4028235e+38
+#define FLT_MIN      1.1754944e-38
+#define FLT_EPSILON  1.1920929e-07
+#define DBL_MANT_DIG 53
+#define DBL_MAX_EXP  1024
+#define DBL_MIN_EXP  (-1021)
+#define FLT_MANT_DIG 24
+#define FLT_MAX_EXP  128
+#define FLT_MIN_EXP  (-125)
+#define DECIMAL_DIG  17
+`,
+}
+
 // ── preprocessor ─────────────────────────────────────────────────────────────
 
 // preprocessor is a single-pass, line-oriented C preprocessor.
@@ -44,11 +113,31 @@ type preprocessor struct {
 	errors       int
 }
 
+// defaultLibcDir is the gaston standard library header directory, always
+// searched last (after any caller-supplied paths) before the virtual fallback.
+const defaultLibcDir = "libc"
+
 // newPreprocessor creates a preprocessor with the given include search paths.
+// The gaston libc directory ("libc") is always appended as the final search
+// directory so that #include <stdarg.h>, <stddef.h>, etc. resolve to the
+// real header files when running from the cmd/gaston working directory.
 func newPreprocessor(includePaths []string) *preprocessor {
+	paths := make([]string, len(includePaths), len(includePaths)+1)
+	copy(paths, includePaths)
+	// Append libc/ only if not already present.
+	hasLibc := false
+	for _, p := range paths {
+		if p == defaultLibcDir {
+			hasLibc = true
+			break
+		}
+	}
+	if !hasLibc {
+		paths = append(paths, defaultLibcDir)
+	}
 	return &preprocessor{
 		defines:      make(map[string]*macroDef),
-		includePaths: includePaths,
+		includePaths: paths,
 		inInclude:    make(map[string]bool),
 	}
 }
@@ -249,7 +338,7 @@ func (p *preprocessor) processInclude(rest, file string, line int, out *strings.
 		return
 	}
 
-	// Locate the file on disk.
+	// Locate the file on disk first (real files take priority over virtual headers).
 	var fullPath string
 	if !systemSearch {
 		rel := filepath.Join(filepath.Dir(file), filename)
@@ -266,7 +355,14 @@ func (p *preprocessor) processInclude(rest, file string, line int, out *strings.
 			}
 		}
 	}
-	if fullPath == "" {
+
+	if fullPath != "" {
+		// Found on disk — use the real file.
+	} else if content, ok := builtinHeaders[filename]; ok {
+		// Fall back to virtual built-in header (e.g. when libc/ is not on the path).
+		p.processFile(content, "<"+filename+">", out)
+		return
+	} else {
 		p.errorf(file, line, "#include %q: file not found", filename)
 		return
 	}

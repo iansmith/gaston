@@ -1,6 +1,6 @@
 /* struct_value.cm — struct-by-value fields (item 3).
-   struct Point has two int fields (x, y).
-   struct Rect embeds two Point fields by value (tl, br).
+   struct Point { int x; int y; } — x@0(4), y@4(4), size=8.
+   struct Rect { Point tl; Point br; } — tl@0(8), br@8(8), size=16.
    Verifies: correct byte offsets, recursive SizeBytes, chained dot access. */
 struct Point { int x; int y; };
 struct Rect { struct Point tl; struct Point br; };

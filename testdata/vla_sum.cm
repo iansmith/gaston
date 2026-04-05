@@ -5,7 +5,7 @@
 
    Note: pass arr (not &arr) — array name decays to base pointer via IRGetAddr.
 
-   Expected: 55 15 8 */
+   Expected: 55 15 4 */
 
 int sum_arr(int *p, int n) {
     int s;
@@ -33,5 +33,5 @@ int fill_and_sum(int n) {
 void main(void) {
     output(fill_and_sum(10));   /* 1+2+...+10 = 55 */
     output(fill_and_sum(5));    /* 1+2+3+4+5 = 15 */
-    output(sizeof(int));        /* 8 */
+    output(sizeof(int));        /* 4 — LP64 */
 }

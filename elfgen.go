@@ -74,11 +74,12 @@ type externBLRecord struct {
 // of instrs (two uint32 words per 8-byte address). The pool holds both global
 // variable VAs and string literal VAs.
 type codeBuilder struct {
-	instrs    []uint32
-	labels    map[string]int // label name → instruction index
-	fixups    []branchFixup
-	poolIdx   map[string]int  // name/label → pool entry index (0-based)
-	externBLs []externBLRecord // extern BL calls (for ET_REL mode only)
+	instrs          []uint32
+	labels          map[string]int // label name → instruction index
+	fixups          []branchFixup
+	poolIdx         map[string]int   // name/label → pool entry index (0-based)
+	externBLs       []externBLRecord // extern BL calls (for ET_REL mode only)
+	peepholeBarrier bool             // set by defineLabel; cleared by emit
 }
 
 func newCodeBuilder(globals []IRGlobal, strLits []IRStrLit, fconsts []IRFConst, funcRefs []string) *codeBuilder {
@@ -122,9 +123,10 @@ func newCodeBuilder(globals []IRGlobal, strLits []IRStrLit, fconsts []IRFConst, 
 	return cb
 }
 
-// emit appends one instruction word.
+// emit appends one instruction word and clears the peephole barrier.
 func (cb *codeBuilder) emit(w uint32) {
 	cb.instrs = append(cb.instrs, w)
+	cb.peepholeBarrier = false
 }
 
 // emitMOVimm emits the minimum MOVZ/MOVK sequence to load a 64-bit immediate.
@@ -160,8 +162,12 @@ func (cb *codeBuilder) emitMOVimm(rd int, val int64) {
 //   STR: 0xF9000000 | …   (bit 22 = 0)
 //   LDR: 0xF9400000 | …   (bit 22 = 1)
 // So: the preceding STR encodes as ldrEnc ^ (1<<22).
+//
+// IMPORTANT: this optimization is only valid for straight-line code.
+// peepholeBarrier is set by defineLabel to prevent elimination across
+// a label definition (which may be a back-edge target for a loop).
 func (cb *codeBuilder) peepholeElim(ldrEnc uint32) bool {
-	if len(cb.instrs) == 0 {
+	if len(cb.instrs) == 0 || cb.peepholeBarrier {
 		return false
 	}
 	prev := cb.instrs[len(cb.instrs)-1]
@@ -198,6 +204,7 @@ func (cb *codeBuilder) emitLDRFPconst(label string, fd int) {
 
 func (cb *codeBuilder) defineLabel(name string) {
 	cb.labels[name] = len(cb.instrs)
+	cb.peepholeBarrier = true
 }
 
 func (cb *codeBuilder) emitB(label string) {
@@ -394,6 +401,35 @@ func (g *elfGen) emitFPCmpBool(q Quad, cond int) {
 	g.store(regX0, q.Dst)
 }
 
+// structBase loads the base address of a struct into rd, distinguishing two cases:
+//  - isArrBase (struct local — storage is inline in the frame): ADD rd, SP/FP, #off
+//  - everything else (temp / pointer slot that HOLDS the address): LDR rd, [SP/FP, #off]
+// Used by IRStructCopy and emitStructReturn.
+func (g *elfGen) structBase(addr IRAddr, rd int) {
+	switch addr.Kind {
+	case AddrGlobal:
+		g.cb.emitLDRglobal(addr.Name)
+		if g.isGlobalPtr[addr.Name] {
+			g.cb.emit(encLDRuoff(rd, regX9, 0))
+		} else {
+			g.cb.emit(encMOVreg(rd, regX9))
+		}
+	case AddrLocal, AddrTemp:
+		off := g.fr.offsets[addr.Name]
+		base := g.frameBase()
+		if g.fr.isArrBase[addr.Name] {
+			g.cb.emit(encADDimm(rd, base, off)) // struct inline in frame → compute address
+		} else {
+			// slot holds a pointer value → load it
+			if g.fr.hasVLA {
+				g.cb.emit(encLDRuoff(rd, regFP, off))
+			} else {
+				g.cb.emitLDRsp(rd, off)
+			}
+		}
+	}
+}
+
 // arrayBase emits instructions to load the base address of an array into rd.
 func (g *elfGen) arrayBase(addr IRAddr, rd int) {
 	switch addr.Kind {
@@ -436,7 +472,35 @@ func (g *elfGen) emitPrologue(fn *IRFunc) {
 		if i >= len(fn.ParamType) {
 			break
 		}
-		if isFPType(fn.ParamType[i]) {
+		pt := fn.ParamType[i]
+		if pt == TypeStruct {
+			off := f.offsets[name]
+			tag := ""
+			if i < len(fn.ParamStructTag) {
+				tag = fn.ParamStructTag[i]
+			}
+			size := 0
+			if sd, ok := g.structDefs[tag]; ok {
+				size = sd.SizeBytes(g.structDefs)
+			}
+			switch {
+			case size <= 8:
+				g.cb.emit(encSTRuoff(iIdx, regSP, off))
+				iIdx++
+			case size <= 16:
+				g.cb.emit(encSTRuoff(iIdx, regSP, off))
+				g.cb.emit(encSTRuoff(iIdx+1, regSP, off+8))
+				iIdx += 2
+			default:
+				numWords := (size + 7) / 8
+				g.cb.emit(encMOVreg(regX9, iIdx)) // X9 = caller's pointer
+				for w := 0; w < numWords; w++ {
+					g.cb.emit(encLDRuoff(10, regX9, w*8))
+					g.cb.emit(encSTRuoff(10, regSP, off+w*8))
+				}
+				iIdx++
+			}
+		} else if isFPType(pt) {
 			if fIdx < 8 {
 				g.cb.emit(encSTRDuoff(fIdx, regSP, f.offsets[name]))
 				fIdx++
@@ -454,6 +518,15 @@ func (g *elfGen) emitPrologue(fn *IRFunc) {
 			g.cb.emit(encSTRuoff(i, regSP, 16+8*i))
 		}
 	}
+	// Struct return (>16 bytes): X8 holds the caller's destination pointer on entry.
+	// Save it before any inner call can clobber it.
+	if fn.ReturnStructTag != "" {
+		if sd, ok := g.structDefs[fn.ReturnStructTag]; ok && sd.SizeBytes(g.structDefs) > 16 {
+			if off, ok2 := f.offsets["__x8_save"]; ok2 {
+				g.cb.emit(encSTRuoff(regX8, regSP, off))
+			}
+		}
+	}
 }
 
 func (g *elfGen) emitEpilogue() {
@@ -465,6 +538,40 @@ func (g *elfGen) emitEpilogue() {
 	g.cb.emit(encLDP(regFP, regLR, regSP, 0))
 	g.cb.emit(encADDimm(regSP, regSP, g.fr.frameSize))
 	g.cb.emit(encRET())
+}
+
+// emitStructReturn handles IRReturn when TypeHint == TypeStruct.
+// q.Src1 names the local struct variable to return; q.StructTag names the type.
+// AAPCS64 rules:
+//   ≤  8 bytes → X0 = first 8-byte word
+//   ≤ 16 bytes → X0 = first word, X1 = second word
+//   > 16 bytes → caller put destination in X8; copy all words through it
+func (g *elfGen) emitStructReturn(q Quad) {
+	sd := g.structDefs[q.StructTag]
+	size := 0
+	if sd != nil {
+		size = sd.SizeBytes(g.structDefs)
+	}
+	// X9 = base address of source struct
+	g.structBase(q.Src1, regX9)
+	switch {
+	case size <= 8:
+		g.cb.emit(encLDRuoff(regX0, regX9, 0))
+	case size <= 16:
+		g.cb.emit(encLDRuoff(regX0, regX9, 0))
+		g.cb.emit(encLDRuoff(regX1, regX9, 8))
+	default:
+		// Reload the caller's destination pointer that was saved on entry.
+		if off, ok := g.fr.offsets["__x8_save"]; ok {
+			g.cb.emit(encLDRuoff(regX8, g.frameBase(), off))
+		}
+		numWords := (size + 7) / 8
+		for i := 0; i < numWords; i++ {
+			g.cb.emit(encLDRuoff(10, regX9, i*8)) // X10 as scratch
+			g.cb.emit(encSTRuoff(10, regX8, i*8))
+		}
+	}
+	g.emitEpilogue()
 }
 
 // ── IR quad emission ──────────────────────────────────────────────────────────
@@ -629,6 +736,18 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 			g.fpLoad(q.Src1, 0)                       // D0 = Src1
 			g.cb.emit(encSTRDuoff(0, regX0, 0))       // *(X0) = D0
 
+		case IRDerefCharLoad:
+			// Dst = *(byte*)Src1 — zero-extended 1-byte load via computed pointer
+			g.load(q.Src1, regX0)                    // X0 = byte address
+			g.cb.emit(encLDRBuoff(regX0, regX0, 0)) // X0 = zero-extended byte
+			g.store(regX0, q.Dst)
+
+		case IRDerefCharStore:
+			// *(byte*)Dst = Src1 — 1-byte store via computed pointer
+			g.load(q.Dst, regX0)                    // X0 = byte address
+			g.load(q.Src1, regX1)                   // X1 = value
+			g.cb.emit(encSTRBuoff(regX1, regX0, 0)) // *(X0) = X1 low byte
+
 		case IRFieldLoad:
 			// Dst = *(Src1 + Src2.IVal) — struct field load; width depends on TypeHint
 			g.load(q.Src1, regX0) // X0 = base ptr
@@ -641,6 +760,10 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 				g.cb.emit(encLDRSH(regX0, regX0, q.Src2.IVal)) // LDRSH: sign-ext halfword → 64-bit
 			case TypeUnsignedShort:
 				g.cb.emit(encLDRH(regX0, regX0, q.Src2.IVal)) // LDRH: zero-ext halfword → 64-bit
+			case TypeInt:
+				g.cb.emit(encLDRSWuoff(regX0, regX0, q.Src2.IVal)) // LDRSW: sign-ext 32 → 64-bit
+			case TypeUnsignedInt:
+				g.cb.emit(encLDRWuoff(regX0, regX0, q.Src2.IVal)) // LDR W: zero-ext 32 → 64-bit
 			default:
 				g.cb.emit(encLDRuoff(regX0, regX0, q.Src2.IVal)) // LDR: 8-byte load
 			}
@@ -655,21 +778,33 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 				g.cb.emit(encSTRBuoff(regX1, regX0, q.Src2.IVal)) // STRB: store 1 byte
 			case TypeShort, TypeUnsignedShort:
 				g.cb.emit(encSTRH(regX1, regX0, q.Src2.IVal)) // STRH: store 2 bytes
+			case TypeInt, TypeUnsignedInt:
+				g.cb.emit(encSTRWuoff(regX1, regX0, q.Src2.IVal)) // STR W: store 4 bytes
 			default:
 				g.cb.emit(encSTRuoff(regX1, regX0, q.Src2.IVal)) // STR: store 8 bytes
 			}
 
 		case IRFFieldLoad:
-			// Dst = *(Src1 + Src2.IVal) — struct double field load
-			g.load(q.Src1, regX0)                             // X0 = base ptr
-			g.cb.emit(encLDRDuoff(0, regX0, q.Src2.IVal))    // D0 = *(X0 + offset)
+			// Dst = *(Src1 + Src2.IVal) — struct FP field load; width from TypeHint
+			g.load(q.Src1, regX0)                              // X0 = base ptr
+			if q.TypeHint == TypeFloat {
+				g.cb.emit(encLDRSuoff(0, regX0, q.Src2.IVal)) // LDR S0, [X0+off] (4-byte float)
+				g.cb.emit(encFCVTSD(0, 0))                     // FCVT D0, S0 (single → double)
+			} else {
+				g.cb.emit(encLDRDuoff(0, regX0, q.Src2.IVal)) // LDR D0, [X0+off] (8-byte double)
+			}
 			g.fpStore(0, q.Dst)
 
 		case IRFFieldStore:
-			// *(Dst + Src2.IVal) = Src1 — struct double field store
-			g.load(q.Dst, regX0)                              // X0 = base ptr
-			g.fpLoad(q.Src1, 0)                               // D0 = value
-			g.cb.emit(encSTRDuoff(0, regX0, q.Src2.IVal))    // *(X0 + offset) = D0
+			// *(Dst + Src2.IVal) = Src1 — struct FP field store; width from TypeHint
+			g.load(q.Dst, regX0)                               // X0 = base ptr
+			g.fpLoad(q.Src1, 0)                                // D0 = value (always 64-bit in frame)
+			if q.TypeHint == TypeFloat {
+				g.cb.emit(encFCVTDS(0, 0))                     // FCVT S0, D0 (double → single)
+				g.cb.emit(encSTRSuoff(0, regX0, q.Src2.IVal)) // STR S0, [X0+off] (4-byte float)
+			} else {
+				g.cb.emit(encSTRDuoff(0, regX0, q.Src2.IVal)) // STR D0, [X0+off] (8-byte double)
+			}
 
 		// ── floating-point operations ────────────────────────────────────
 		case IRFAdd:
@@ -719,9 +854,37 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 			g.fpLoad(q.Src1, 0)
 			g.cb.emit(encFCVTZSD(regX0, 0)) // FCVTZS X0, D0
 			g.store(regX0, q.Dst)
+		case IRFBitcastFI:
+			g.fpLoad(q.Src1, 0)
+			g.cb.emit(encFMOVtoGP(regX0, 0)) // FMOV X0, D0 — copy bits, no conversion
+			g.store(regX0, q.Dst)
+		case IRFBitcastIF:
+			g.load(q.Src1, regX0)
+			g.cb.emit(encFMOVfromGP(0, regX0)) // FMOV D0, X0 — copy bits, no conversion
+			g.fpStore(0, q.Dst)
+
+		case IRStructCopy:
+			// x = y: copy all 8-byte words from Src1 (src addr) to Dst (dst addr).
+			sd := g.structDefs[q.StructTag]
+			if sd != nil {
+				size := sd.SizeBytes(g.structDefs)
+				numWords := (size + 7) / 8
+				g.structBase(q.Src1, regX9) // X9 = src base
+				g.structBase(q.Dst, 10)      // X10 = dst base
+				for i := 0; i < numWords; i++ {
+					g.cb.emit(encLDRuoff(11, regX9, i*8)) // X11 = word
+					g.cb.emit(encSTRuoff(11, 10, i*8))    // store word
+				}
+			}
 
 		case IRParam:
-			g.pendingParams = append(g.pendingParams, paramArg{addr: q.Src1, isFP: false})
+			if q.TypeHint == TypeStruct {
+				g.pendingParams = append(g.pendingParams, paramArg{
+					addr: q.Src1, isStruct: true, structTag: q.StructTag,
+				})
+			} else {
+				g.pendingParams = append(g.pendingParams, paramArg{addr: q.Src1, isFP: false})
+			}
 
 		case IRFParam:
 			g.pendingParams = append(g.pendingParams, paramArg{addr: q.Src1, isFP: true})
@@ -774,14 +937,18 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 			}
 
 		case IRReturn:
-			if q.Src1.Kind != AddrNone {
-				if isFPType(g.fn.ReturnType) {
-					g.fpLoad(q.Src1, 0) // FP return value in D0
-				} else {
-					g.load(q.Src1, regX0)
+			if q.TypeHint == TypeStruct && q.StructTag != "" {
+				g.emitStructReturn(q)
+			} else {
+				if q.Src1.Kind != AddrNone {
+					if isFPType(g.fn.ReturnType) {
+						g.fpLoad(q.Src1, 0) // FP return value in D0
+					} else {
+						g.load(q.Src1, regX0)
+					}
 				}
+				g.emitEpilogue()
 			}
-			g.emitEpilogue()
 		}
 	}
 }
@@ -866,10 +1033,32 @@ func (g *elfGen) emitCharArrayStore(q Quad) {
 }
 
 func (g *elfGen) emitCall(q Quad) {
-	// __va_start builtin: returns SP + (16 + 8*nnamedParams) without a real call.
+	// __va_start builtin: returns SP + (16 + 8*nRegSlots) without a real call.
+	// nRegSlots counts actual integer registers consumed by named params.
 	if q.Extra == "__va_start" {
 		g.pendingParams = g.pendingParams[:0]
-		offset := 16 + 8*len(g.fn.Params)
+		fn := g.fn
+		regSlots := 0
+		for i := range fn.Params {
+			if i < len(fn.ParamType) && fn.ParamType[i] == TypeStruct {
+				tag := ""
+				if i < len(fn.ParamStructTag) {
+					tag = fn.ParamStructTag[i]
+				}
+				size := 0
+				if sd, ok := g.structDefs[tag]; ok {
+					size = sd.SizeBytes(g.structDefs)
+				}
+				if size > 8 && size <= 16 {
+					regSlots += 2
+				} else {
+					regSlots++
+				}
+			} else if i < len(fn.ParamType) && !isFPType(fn.ParamType[i]) {
+				regSlots++
+			}
+		}
+		offset := 16 + 8*regSlots
 		g.cb.emit(encADDimm(regX0, regSP, offset))
 		if q.Dst.Kind != AddrNone {
 			g.store(regX0, q.Dst)
@@ -881,7 +1070,28 @@ func (g *elfGen) emitCall(q Quad) {
 	// per AAPCS64: each register class has its own next-register index).
 	iIdx, fIdx := 0, 0
 	for _, p := range g.pendingParams {
-		if p.isFP {
+		if p.isStruct {
+			sd := g.structDefs[p.structTag]
+			size := 0
+			if sd != nil {
+				size = sd.SizeBytes(g.structDefs)
+			}
+			switch {
+			case size <= 8:
+				g.structBase(p.addr, regX9)
+				g.cb.emit(encLDRuoff(iIdx, regX9, 0))
+				iIdx++
+			case size <= 16:
+				g.structBase(p.addr, regX9)
+				g.cb.emit(encLDRuoff(iIdx, regX9, 0))
+				g.cb.emit(encLDRuoff(iIdx+1, regX9, 8))
+				iIdx += 2
+			default:
+				// p.addr is inline frame storage; its address IS the caller-owned copy
+				g.structBase(p.addr, iIdx)
+				iIdx++
+			}
+		} else if p.isFP {
 			if fIdx < 8 {
 				g.fpLoad(p.addr, fIdx)
 				fIdx++
@@ -894,6 +1104,40 @@ func (g *elfGen) emitCall(q Quad) {
 		}
 	}
 	g.pendingParams = g.pendingParams[:0]
+
+	// Struct-returning call: set X8 (>16 bytes) or unpack X0/X1 after BL (≤16 bytes).
+	if q.TypeHint == TypeStruct && q.StructTag != "" {
+		sd := g.structDefs[q.StructTag]
+		size := 0
+		if sd != nil {
+			size = sd.SizeBytes(g.structDefs)
+		}
+		if size > 16 {
+			// X8 = destination address; callee writes through it.
+			g.arrayBase(q.Src2, regX8)
+		}
+		label := funcLabel(q.Extra)
+		if g.isObjMode {
+			if g.localFuncs[q.Extra] {
+				g.cb.emitBL(label)
+			} else {
+				g.cb.emitBLextern(label)
+			}
+		} else {
+			g.cb.emitBL(label)
+		}
+		if size <= 8 {
+			// Recompute dest address into X9 (X8–X17 may be clobbered by callee).
+			g.arrayBase(q.Src2, regX9)
+			g.cb.emit(encSTRuoff(regX0, regX9, 0))
+		} else if size <= 16 {
+			g.arrayBase(q.Src2, regX9)
+			g.cb.emit(encSTRuoff(regX0, regX9, 0))
+			g.cb.emit(encSTRuoff(regX1, regX9, 8))
+		}
+		// size > 16: callee wrote through X8 already; nothing to do.
+		return
+	}
 
 	if g.isObjMode {
 		switch q.Extra {

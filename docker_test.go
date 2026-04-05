@@ -68,6 +68,13 @@ var featureTests = []dockerTest{
 	{name: "unsigned_cmp", want: "1\n1\n1\n1\n1\n1\n"},
 	// unsigned_shr: (-8)>>62 = 3; (-4)>>1 > 0 unsigned → 1
 	{name: "unsigned_shr", want: "3\n1\n"},
+	// bitwise_unit: &,|,^,~,<<,>> on int; compound &=,|=,^=,<<=,>>=
+	{name: "bitwise_unit", want: "0\n255\n255\n-241\n480\n120\n170\n85\n0\n255\n255\n0\n170\n51\n204\n10\n11\n9\n48\n3\n"},
+	// bitwise_shift_sign: signed arithmetic >> vs unsigned logical >>; compound shifts
+	{name: "bitwise_shift_sign", want: "-4\n-2\n-1\n-16\n2\n3\n2147483647\n128\n1\n128\n65536\n-1\n8\n2\n1073741824\n"},
+	// bitwise_byzantine: mixed types, casts, XOR tricks, compound ops — see file for derivation
+	// Note: (short)-256 ^ 65535 = -65281 because short promotes to 64-bit before XOR
+	{name: "bitwise_byzantine", want: "0\n15\n-1\n-65281\n15\n205\n20\n10\n177\n181\n-128\n128\n-32768\n32\n15\n63\n5557743\n65280\n4080\n"},
 	// unsigned_arith: 13,7,30,4, then compound: 15,12,24,6,2, then ul: 2000000000
 	{name: "unsigned_arith", want: "13\n7\n30\n4\n15\n12\n24\n6\n2\n2000000000\n"},
 
@@ -114,18 +121,18 @@ var featureTests = []dockerTest{
 	// ── Feature 11: structs ──────────────────────────────────────────────
 	// struct_basic: local struct, assign and read fields
 	{name: "struct_basic", want: "10\n20\n30\n"},
-	// struct_short_field: struct with short field; verifies layout (short@0, int@8, sizeof=16)
-	{name: "struct_short_field", want: "1000\n42\n16\n32767\n9999\n"},
-	// struct_float_field: struct with float field (item 1+2); float@0, int@8, sizeof=16
-	{name: "struct_float_field", want: "3.500000\n100\n16\n9.750000\n100\n"},
+	// struct_short_field: struct with short field; LP64 layout (short@0, int@4, sizeof=8)
+	{name: "struct_short_field", want: "1000\n42\n8\n32767\n9999\n"},
+	// struct_float_field: struct with float field (item 1+2); float@0, int@4, sizeof=8
+	{name: "struct_float_field", want: "3.500000\n100\n8\n9.750000\n100\n"},
 	// struct_ptr: pointer to struct, -> access, pass to function
 	{name: "struct_ptr", want: "3\n7\n10\n"},
 	// struct_global: global struct variable, function modifies via . access
 	{name: "struct_global", want: "3\n60\n"},
 	// struct_nested: 4-field struct, larger offsets, pass by pointer to function
 	{name: "struct_nested", want: "1\n2\n10\n20\n200\n"},
-	// struct_char_field: char+int struct; verifies ABI-aligned layout (char@0, int@8, size=16)
-	{name: "struct_char_field", want: "65\n42\n16\n"},
+	// struct_char_field: char+int struct; LP64 layout (char@0, int@4, size=8)
+	{name: "struct_char_field", want: "65\n42\n8\n"},
 
 	// ── Feature 12: variadic functions ───────────────────────────────────
 	// variadic_basic: variadic sum of N integer args
@@ -158,16 +165,18 @@ var featureTests = []dockerTest{
 	{name: "ptr_cmp", want: "0\n1\n0\n1\n"},
 
 	// ── Feature 15: sizeof operator ──────────────────────────────────────
-	// sizeof_basic: sizeof(type), sizeof(expr), sizeof(struct)
-	{name: "sizeof_basic", want: "8\n1\n8\n1\n8\n16\n16\n"},
+	// sizeof_basic: sizeof(type), sizeof(expr), sizeof(struct) — LP64: int=4, ptr=8
+	{name: "sizeof_basic", want: "4\n1\n4\n1\n8\n8\n8\n"},
+	// struct_int_layout: verifies sizeof(int)==4 and LP64 struct layouts with int fields
+	{name: "struct_int_layout", want: "8\n8\n16\n4\n7\n42\n1\n"},
 	// sizeof_array: sizeof(local_arr)=N×8, sizeof(arr_param)=8, sizeof(global_arr)=N×8
 	{name: "sizeof_array", want: "24\n40\n8\n"},
-	// sizeof_types: sizeof for float=4, double=8, short=2, unsigned short=2, unsigned char=1, int=8, char=1
-	{name: "sizeof_types", want: "4\n8\n2\n2\n1\n8\n1\n"},
+	// sizeof_types: sizeof for float=4, double=8, short=2, unsigned short=2, unsigned char=1, int=4, char=1
+	{name: "sizeof_types", want: "4\n8\n2\n2\n1\n4\n1\n"},
 
 	// ── Feature 16: struct-by-value fields ───────────────────────────────
-	// struct_value: nested struct fields; chained dot access; recursive SizeBytes
-	{name: "struct_value", want: "1\n2\n10\n20\n12\n16\n32\n"},
+	// struct_value: nested struct fields; LP64 layout: Point=8, Rect=16
+	{name: "struct_value", want: "1\n2\n10\n20\n12\n8\n16\n"},
 
 	// ── Feature 17: pointer assignment type checking ──────────────────────
 	// ptr_compat: void*↔any pointer, same-type, and null constant are all valid
@@ -182,18 +191,18 @@ var featureTests = []dockerTest{
 	// ── Item 9: enum / union / typedef / function pointers / const* ──────────
 	// enum_basic: enum constants auto-increment from 0; explicit value restarts counter
 	{name: "enum_basic", want: "0\n1\n2\n10\n11\n12\n"},
-	// union_basic: all fields share offset 0; sizeof = max field size rounded to alignment
-	{name: "union_basic", want: "1094861636\n65\n8\n"},
+	// union_basic: all fields share offset 0; LP64: sizeof = max(sizeof(int)=4, sizeof(char)=1) = 4
+	{name: "union_basic", want: "1094861636\n65\n4\n"},
 	// typedef_basic: typedef creates an alias; variables declared with typedef'd name
 	{name: "typedef_basic", want: "42\n50\n"},
 	// funcptr_basic: function pointer assign and call
 	{name: "funcptr_basic", want: "7\n12\n30\n"},
 
 	// ── Integration tests: features used in combination ───────────────────
-	// deep_struct: 5-level nested struct; chained dot access; sizeof at each level
-	{name: "deep_struct", want: "1\n2\n3\n4\n5\n8\n16\n24\n32\n40\n"},
-	// union_in_struct: struct↔union alternating nesting; aliasing; sizeof
-	{name: "union_in_struct", want: "7\n3\n4\n3\n16\n16\n24\n24\n"},
+	// deep_struct: 5-level nested struct; chained dot access; sizeof at each level (LP64: L5=4)
+	{name: "deep_struct", want: "1\n2\n3\n4\n5\n4\n16\n24\n32\n40\n"},
+	// union_in_struct: struct↔union alternating nesting; aliasing; sizeof (LP64: Point=8, Shape=16)
+	{name: "union_in_struct", want: "7\n3\n4\n3\n8\n8\n16\n16\n"},
 	// enum_flags: enum bit flags combined with bitwise ops
 	{name: "enum_flags", want: "5\n1\n0\n4\n7\n6\n2\n1\n"},
 	// typedef_funcptr_param: typedef'd func ptr as local, global, and function parameter
@@ -205,12 +214,12 @@ var featureTests = []dockerTest{
 	{name: "enum_union_dispatch", want: "42\n3.140000\n7\n99\n"},
 
 	// ── Byzantine stress tests (one per type-system gap item) ─────────────────────
-	// Item 2: struct with char+short in same 8-byte window; char@0, short@2 → byte/halfword stores
-	{name: "struct_mixed_fields", want: "32\n65\n1000\n999999\n2.500000\n77\n"},
+	// Item 2: struct with char+short+int+double+ptr; LP64 layout, sizeof=24
+	{name: "struct_mixed_fields", want: "24\n65\n1000\n999999\n2.500000\n77\n"},
 	// Item 3: 3-level mixed -> . . chains; double field via IRFFieldLoad at depth 3
 	{name: "deep_arrow_dot", want: "42\n1.500000\n99\n7\n16\n24\n32\n"},
 	// Item 6: sizeof used in arithmetic, as divisor for element count, in comparisons
-	{name: "sizeof_exprs", want: "40\n8\n5\n15\n1\n0\n"},
+	{name: "sizeof_exprs", want: "40\n4\n5\n15\n1\n0\n"},
 	// Item 7: void* round-trip through three functions; int* and double* round-trips
 	{name: "void_ptr_chain", want: "42\n99\n7.000000\n"},
 	// Item 8: char+char → int (no overflow); stored back to char (wraps); short overflow
@@ -222,15 +231,15 @@ var featureTests = []dockerTest{
 	// Item 9c: const* aliasing, re-seat, passed to function
 	{name: "const_ptr_write", want: "10\n20\n20\n30\n"},
 	// Item 13: VLA filled in loop, passed to function; two different sizes
-	{name: "vla_sum", want: "55\n15\n8\n"},
+	{name: "vla_sum", want: "55\n15\n4\n"},
 	// Items 1+4: double* pointer arithmetic, *(p+k) reads at stride 8
 	{name: "double_ptr_ops", want: "1.000000\n3.000000\n6.000000\n9.000000\n"},
 	// Items 4+12: char** as pointer table; deref through double indirection
 	{name: "charpp_table", want: "65\n66\n90\n"},
 	// Items 2+3+9 combined: union with double inside nested struct, 3-level dot chain
 	{name: "union_float_chain", want: "42\n3.140000\n42\n24\n"},
-	// Item 5 (documents current non-standard behavior): sizeof(int)=8 in gaston
-	{name: "sizeof_int_abi", want: "8\n8\n16\n"},
+	// Item 5: sizeof(int)=4 (LP64 C ABI); sizeof(long)=8; struct{int,int}=8
+	{name: "sizeof_int_abi", want: "4\n8\n8\n"},
 
 	// ── Item 4: double** and float** pointer-to-pointer types ─────────────
 	{name: "dbl_ptr_ptr", want: "3.140000\n2.718000\n"},
@@ -243,7 +252,7 @@ var featureTests = []dockerTest{
 	// ── Item 15: bit-fields ───────────────────────────────────────────────
 	{name: "bitfield_basic", want: "5\n17\n100\n8\n"},
 	// ── Item 16: flexible array members ──────────────────────────────────
-	{name: "flex_array", want: "4\n100\n8\n"},
+	{name: "flex_array", want: "4\n100\n4\n"},
 	// ── Item 17: static local variables ──────────────────────────────────
 	{name: "static_local", want: "1\n2\n3\n"},
 	// ── Items 17+18: register/volatile as no-ops ─────────────────────────
@@ -276,6 +285,64 @@ var featureTests = []dockerTest{
 	{name: "incr_arr", want: "10\n11\n21\n21\n31\n31\n30\n30\n"},
 	// incr_field: postfix/prefix on struct fields via dot and arrow
 	{name: "incr_field", want: "5\n6\n7\n7\n7\n6\n5\n5\n"},
+
+	// ── PRINTF-FEATURES item 4: type casts ───────────────────────────────
+	// cast_int_double: (int)3.14→3; (int)((double)5)→5
+	{name: "cast_int_double", want: "3\n5\n"},
+	// cast_char: (char)300 wraps to 44 (300 & 0xFF)
+	{name: "cast_char", want: "44\n"},
+	// cast_ptr: (int*)0 is null; null == 0 is true
+	{name: "cast_ptr", want: "1\n"},
+	// cast_unsigned: (unsigned)(-1) is max unsigned; > 0 is true
+	{name: "cast_unsigned", want: "1\n"},
+	// assign_cross_width: narrowing (int→short/char, short→char) and widening
+	//   (char/short/uchar/ushort → int/long/short) assignments; truncation via load-time sign/zero ext
+	{name: "assign_cross_width", want: "-31072\n34464\n-96\n4464\n12\n-100\n-100\n-100\n200\n200\n-500\n60000\n"},
+	// cast_cross_width: (short), (unsigned short), (char), (unsigned char) casts from int/-1/etc.,
+	//   plus multi-step chains: (int)(short)N, (char)(short)N, (short)(char)N, (us)(char)(-100)
+	{name: "cast_cross_width", want: "-31072\n34464\n-96\n160\n-1\n65535\n255\n-31072\n-96\n44\n34464\n200\n65436\n"},
+
+	// ── PRINTF-FEATURES item 5: struct return by value ────────────────────
+	// struct_ret_small: 1-field struct (≤8 bytes) returned in X0
+	{name: "struct_ret_small", want: "42\n"},
+	// struct_ret_medium: 2-field int struct; LP64 size=8 (≤8 bytes) returned in X0
+	{name: "struct_ret_medium", want: "10\n20\n"},
+	// struct_ret_large: 3-field struct (>16 bytes) returned via hidden X8 pointer
+	{name: "struct_ret_large", want: "7\n8\n9\n"},
+	// struct_copy: x = y struct assignment (IRStructCopy word-copy loop)
+	{name: "struct_copy", want: "11\n22\n22\n11\n1\n2\n3\n4\n"},
+	// nested_struct_3level: 3-level nesting (Leaf→Mid→Top), chained field write+read
+	{name: "nested_struct_3level", want: "10\n20\n99\n"},
+	// nested_struct_decompose: Rect with two Vec2, decompose fields, compute area
+	{name: "nested_struct_decompose", want: "2\n3\n7\n8\n25\n"},
+	// nested_struct_chain_call: segments/midpoints built via chained calls and field access
+	{name: "nested_struct_chain_call", want: "5\n2\n5\n2\n10\n4\n"},
+	// nested_struct_assign: x=outer.inner and outer.inner=x (struct-typed field as lvalue/rvalue)
+	{name: "nested_struct_assign", want: "1\n2\n9\n8\n9\n8\n30\n40\n"},
+
+	// ── Struct-by-value parameters (all three ABI paths) ─────────────────
+	// struct_param_small: ≤8-byte struct param (1 field), read field in callee
+	{name: "struct_param_small", want: "42\n"},
+	// struct_param_medium: ≤16-byte struct param (2 fields, X0+X1), both fields summed
+	{name: "struct_param_medium", want: "30\n"},
+	// struct_param_large: >16-byte struct param (3 fields, pointer), all fields summed
+	{name: "struct_param_large", want: "6\n"},
+	// struct_param_mixed: f(int, Pair, int) — interleaved register consumption
+	{name: "struct_param_mixed", want: "10\n"},
+	// struct_param_isolate: callee mutates copy; caller value unchanged (≤16)
+	{name: "struct_param_isolate", want: "7\n"},
+	// struct_param_ret_combo: struct param + struct return in same function (swap)
+	{name: "struct_param_ret_combo", want: "9\n5\n"},
+	// struct_param_multi: two struct params (dist2(Point a, Point b))
+	{name: "struct_param_multi", want: "25\n"},
+	// struct_param_field_arg: f(outer.inner) — exercises allocStructSlot + IRStructCopy path
+	{name: "struct_param_field_arg", want: "42\n"},
+	// struct_by_value_integration: all three size classes + return + assign in one program
+	{name: "struct_by_value_integration", want: "10\n8\n12\n6\n12\n3\n3\n2\n4\n8\n4\n5\n13\n3\n2\n0\n"},
+	// struct_byval_byzantine: adversarial combinations — medium param+return (Mat2=16) live together,
+	// chained call-result-as-param, mixed register classes, double-transpose,
+	// nested field assign then pass as param, recursion, two medium params+return.
+	{name: "struct_byval_byzantine", want: "1\n3\n2\n4\n8\n12\n6\n12\n8\n16\n1\n2\n3\n4\n25\n15\n6\n7\n7\n8\n"},
 
 	// ── PRINTF-FEATURES items 1–3 ─────────────────────────────────────────
 	// static/inline on functions: static and inline qualifiers parse and compile
@@ -456,7 +523,20 @@ var libcTests = []libcTest{
 	// ── Feature 14: libc sscanf ───────────────────────────────────────────
 	{name: "sscanf_basic", want: "n=42 r=1\ns=hello r=1\na=-7 b=99 r=2\nc=X r=1\n"},
 	// ── Feature 15: libc printf float ────────────────────────────────────
-	{name: "printf_float", want: "3.140000\n2.72\n1.234568e+04\n0.000123\n123456\n"},
+	{name: "printf_float",   want: "3.140000\n2.72\n1.234568e+04\n0.000123\n123456\n"},
+	{name: "printf_f_large",  want: "1234567890.000000\n9876543210.500000\n-12345678901.000000\n1000000000.12\n"},
+	// ── Feature 16: sprintf / snprintf ───────────────────────────────────
+	{name: "snprintf_basic",  want: "x=42\npi=3.141590\nhello world len=11\nhello len=5\nempty='' len=0\n"},
+	// ── Feature 17: sscanf float precision + inf/nan (P1-A, P1-B) ─────────
+	{name: "sscanf_fp",      want: "n=1 v=3.14159265\nn=1 v=0.001234\nn=1 v=-2.71828\nn=1 v=150\nn=1 v=0.75\nn=1 v=inf\nn=1 v=-inf\nn=1 v=nan\nn=1 v=nan\n"},
+	// ── Feature 18: sscanf scanset %[...] (P1-C) ─────────────────────────
+	{name: "sscanf_scanset", want: "n=1 s=hello\nn=1 s=hello\nn=1 s=12345\nn=1 s=abc123\nn=2 a=hello b=world\nn=1 s=rest\n"},
+	// ── Feature 19: printf %p pointer format (P2-B) ───────────────────────
+	{name: "printf_ptr",     want: "0x000000000000002a\n0x0000000000000000\n0x00000000deadbeef\n"},
+	// ── Feature 20: sscanf signed overflow clamping (P2-C) ───────────────
+	{name: "sscanf_overflow", want: "n=1 v=9223372036854775807\nn=1 v=-9223372036854775808\nn=1 v=9223372036854775807\nn=1 v=9223372036854775807\n"},
+	// ── Feature 21: sscanf EOF return (P2-D) ─────────────────────────────
+	{name: "sscanf_eof",     want: "n=-1\nn=-1\nn=1 v=42\nn=0\n"},
 	// vadouble_libc: va_arg double in object-file mode
 	{name: "vadouble_libc", want: "3 7 100\n"},
 }

@@ -280,6 +280,21 @@ func encLSRV(rd, rn, rm int) uint32 {
 	return 0x9AC02400 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
 }
 
+// encSTRWuoff encodes STR Wt, [Xn, #byteOff] (unsigned 12-bit word offset; stores 32 bits).
+func encSTRWuoff(rt, rn, byteOff int) uint32 {
+	return 0xB9000000 | uint32(byteOff/4)<<10 | uint32(rn)<<5 | uint32(rt)
+}
+
+// encLDRWuoff encodes LDR Wt, [Xn, #byteOff] (unsigned 12-bit word offset; zero-extends 32→64).
+func encLDRWuoff(rt, rn, byteOff int) uint32 {
+	return 0xB9400000 | uint32(byteOff/4)<<10 | uint32(rn)<<5 | uint32(rt)
+}
+
+// encLDRSWuoff encodes LDRSW Xt, [Xn, #byteOff] (unsigned 12-bit word offset; sign-extends 32→64).
+func encLDRSWuoff(rt, rn, byteOff int) uint32 {
+	return 0xB9800000 | uint32(byteOff/4)<<10 | uint32(rn)<<5 | uint32(rt)
+}
+
 // encSTRH encodes STRH Wt, [Xn, #byteOff] (unsigned 12-bit halfword offset).
 func encSTRH(rt, rn, byteOff int) uint32 {
 	return 0x79000000 | uint32(byteOff/2)<<10 | uint32(rn)<<5 | uint32(rt)
@@ -371,6 +386,27 @@ func encLDRDuoff(rt, rn, byteOff int) uint32 {
 // encSTRDuoff encodes STR Dt, [Xn, #byteOff] (double, unsigned 12-bit scaled offset).
 func encSTRDuoff(rt, rn, byteOff int) uint32 {
 	return 0xFD000000 | uint32(byteOff/8)<<10 | uint32(rn)<<5 | uint32(rt)
+}
+
+// encLDRSuoff encodes LDR St, [Xn, #byteOff] (single-precision float, unsigned 12-bit scaled offset).
+// byteOff must be 0..16380 and divisible by 4.
+func encLDRSuoff(rt, rn, byteOff int) uint32 {
+	return 0xBD400000 | uint32(byteOff/4)<<10 | uint32(rn)<<5 | uint32(rt)
+}
+
+// encSTRSuoff encodes STR St, [Xn, #byteOff] (single-precision float, unsigned 12-bit scaled offset).
+func encSTRSuoff(rt, rn, byteOff int) uint32 {
+	return 0xBD000000 | uint32(byteOff/4)<<10 | uint32(rn)<<5 | uint32(rt)
+}
+
+// encFCVTDS encodes FCVT Sd, Dn (double → single precision conversion).
+func encFCVTDS(rd, rn int) uint32 {
+	return 0x1E624000 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encFCVTSD encodes FCVT Dd, Sn (single → double precision conversion).
+func encFCVTSD(rd, rn int) uint32 {
+	return 0x1E22C000 | uint32(rn)<<5 | uint32(rd)
 }
 
 // encLDRDlit encodes LDR Dt, [PC, #(imm19*4)] (PC-relative literal load, 64-bit double).

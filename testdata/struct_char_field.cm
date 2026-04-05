@@ -1,6 +1,5 @@
 /* struct_char_field.cm — struct with char field followed by int field.
-   Verifies ABI-aligned layout: char at offset 0 (1 byte), int at offset 8
-   (natural alignment 8, 7 bytes padding), total size 16. */
+   LP64 layout: char@0 (1 byte), pad 3, int@4 (4 bytes, align 4), size=8. */
 struct Mixed { char c; int i; };
 
 void main(void) {

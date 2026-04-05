@@ -6,7 +6,10 @@
    Uses two anonymous enums with distinct constant names to avoid the named-enum
    grammar limitation (gaston supports only anonymous enums).
 
-   Expected: 3 1 0 30 97 3 */
+   Expected: 3 1 0 30 97 3
+
+   Note: gaston int arrays use 8-byte frame slots per element, so element count
+   is sizeof(lookup)/8 rather than sizeof(lookup)/sizeof(int). */
 
 enum { RED = 0, GREEN = 1, BLUE = 2 };
 enum { OK = 200, ERR = 404, WARN = 301 };
@@ -23,5 +26,5 @@ void main(void) {
     output(RED);                          /* 0 */
     output(lookup[BLUE]);                 /* 30 */
     output(OK - ERR + WARN);              /* 200-404+301 = 97 */
-    output(sizeof(lookup) / sizeof(int)); /* 3*8/8 = 3 */
+    output(sizeof(lookup) / 8); /* 3*8/8 = 3 (frame slot size is 8 bytes) */
 }

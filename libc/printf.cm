@@ -1,0 +1,714 @@
+/* printf.cm — gaston printf / puts / putchar implementation.
+ *
+ * Algorithms extracted and adapted from:
+ *   eyalroz/printf  (MIT License)
+ *   https://github.com/eyalroz/printf
+ *   Original authors: Eyal Rozenberg <eyalroz1@gmx.com>
+ *                     Marco Paland (info@paland.com) 2014-2019
+ *   Exponential specifiers: Martijn Jasperse <m.jaspersen@gmail.com>
+ *
+ * Key adaptations for gaston C-minus:
+ *   - output_gadget_t removed; all output goes directly via print_char()
+ *   - bool  → int (1/0); static/inline removed; compound literals removed
+ *   - All structs passed/returned by pointer (no by-value)
+ *   - Type casts removed (not in gaston grammar)
+ *   - Union trick for IEEE 754 bit access preserved (gaston supports unions)
+ */
+
+#include <stdarg.h>
+#include <float.h>
+
+/* ── putchar / puts ─────────────────────────────────────────────────────── */
+
+int putchar(int c) {
+    print_char(c);
+    return c;
+}
+
+int puts(char* s) {
+    print_string(s);
+    print_char('\n');
+    return 0;
+}
+
+/* ── output gadget ──────────────────────────────────────────────────────────
+   mode 0: write to stdout via print_char (used by printf).
+   mode 1: write to buf[0..cap-2], null-terminate at buf[len] (sprintf/snprintf).
+   Not reentrant; gaston is single-threaded so this is fine.            ──── */
+struct __pf_gadget { char* buf; long cap; long len; int mode; };
+struct __pf_gadget __pf_g;
+
+void __pf_emit(int c) {
+    if (__pf_g.mode == 0) {
+        print_char(c);
+    } else {
+        if (__pf_g.len < __pf_g.cap - 1) {
+            __pf_g.buf[__pf_g.len] = c;
+            __pf_g.len = __pf_g.len + 1;
+        }
+    }
+}
+
+/* ── format flags ──────────────────────────────────────────────────────── */
+#define FLAGS_ZEROPAD   1
+#define FLAGS_LEFT      2
+#define FLAGS_PLUS      4
+#define FLAGS_SPACE     8
+#define FLAGS_HASH      16
+#define FLAGS_UPPERCASE 32
+#define FLAGS_PRECISION 64
+#define FLAGS_ADAPT_EXP 128
+#define FLAGS_POINTER   256
+#define FLAGS_SIGNED    512
+
+/* ── buffer sizes ──────────────────────────────────────────────────────── */
+#define INT_BUF_SIZE  32
+#define DEC_BUF_SIZE  32
+#define MAX_PREC      17
+
+/* ── precomputed powers of 10 [0..17] — filled by __pf_init_p10() ──────── */
+double __pf_p10[18];
+
+void __pf_init_p10(void) {
+    __pf_p10[0]  = 1e0;
+    __pf_p10[1]  = 1e1;
+    __pf_p10[2]  = 1e2;
+    __pf_p10[3]  = 1e3;
+    __pf_p10[4]  = 1e4;
+    __pf_p10[5]  = 1e5;
+    __pf_p10[6]  = 1e6;
+    __pf_p10[7]  = 1e7;
+    __pf_p10[8]  = 1e8;
+    __pf_p10[9]  = 1e9;
+    __pf_p10[10] = 1e10;
+    __pf_p10[11] = 1e11;
+    __pf_p10[12] = 1e12;
+    __pf_p10[13] = 1e13;
+    __pf_p10[14] = 1e14;
+    __pf_p10[15] = 1e15;
+    __pf_p10[16] = 1e16;
+    __pf_p10[17] = 1e17;
+}
+
+/* ── IEEE 754 bit-pattern union.
+   Fields U (64-bit integer bits) and F (double value) share the same
+   8 bytes.  Used for log10 and pow10 computation without math.h.
+   Adapted from eyalroz get_bit_access / floating_point_with_bit_access. */
+union __pf_fba { unsigned long U; double F; };
+
+/* __pf_get_exp2: extract unbiased base-2 exponent from raw IEEE 754 bits. */
+int __pf_get_exp2(unsigned long bits) {
+    return ((bits >> 52) & 0x7FF) - 1023;
+}
+
+/* __pf_get_sign: return 1 if double x is negative. */
+int __pf_get_sign(double x) {
+    union __pf_fba ba;
+    ba.F = x;
+    return ba.U >> 63;
+}
+
+/* ── padding helpers ────────────────────────────────────────────────────── */
+void __pf_pad(long n, int ch) {
+    long i;
+    i = 0;
+    while (i < n) { __pf_emit(ch); i = i + 1; }
+}
+
+/* ── out_rev_: output buf[0..len-1] reversed with width padding.
+   Adapted from eyalroz out_rev_(). */
+void __pf_out_rev(char* buf, long len, long width, long flags) {
+    long i;
+    long padlen;
+    padlen = width - len;
+    if (padlen < 0) { padlen = 0; }
+    if (!(flags & FLAGS_LEFT) & !(flags & FLAGS_ZEROPAD)) {
+        i = 0;
+        while (i < padlen) { __pf_emit(' '); i = i + 1; }
+    }
+    i = len;
+    while (i > 0) { i = i - 1; __pf_emit(buf[i]); }
+    if (flags & FLAGS_LEFT) {
+        i = 0;
+        while (i < padlen) { __pf_emit(' '); i = i + 1; }
+    }
+}
+
+/* ── print_integer: format unsigned value in the given base.
+   Adapted from eyalroz print_integer() + print_integer_finalization(). */
+void __pf_print_int(unsigned long value, int negative,
+                    int base, long prec, long width, long flags) {
+    char buf[INT_BUF_SIZE];
+    long len;
+    long unpadded;
+    char digit;
+
+    len = 0;
+    if (value == 0) {
+        if (!(flags & FLAGS_PRECISION)) {
+            buf[len] = '0'; len = len + 1;
+            flags = flags & ~FLAGS_HASH;
+        } else if (base == 16) {
+            flags = flags & ~FLAGS_HASH;
+        }
+    } else {
+        while ((value != 0) & (len < INT_BUF_SIZE)) {
+            digit = value % base;
+            if (digit < 10) {
+                buf[len] = '0' + digit;
+            } else if (flags & FLAGS_UPPERCASE) {
+                buf[len] = 'A' + digit - 10;
+            } else {
+                buf[len] = 'a' + digit - 10;
+            }
+            len = len + 1;
+            value = value / base;
+        }
+    }
+    unpadded = len;
+
+    if (!(flags & FLAGS_LEFT)) {
+        if ((width != 0) & (flags & FLAGS_ZEROPAD) & (negative | (flags & FLAGS_PLUS) | (flags & FLAGS_SPACE))) {
+            width = width - 1;
+        }
+        while ((flags & FLAGS_ZEROPAD) & (len < width) & (len < INT_BUF_SIZE)) {
+            buf[len] = '0'; len = len + 1;
+        }
+    }
+    while ((len < prec) & (len < INT_BUF_SIZE)) {
+        buf[len] = '0'; len = len + 1;
+    }
+
+    if ((base == 8) & (len > unpadded)) {
+        flags = flags & ~FLAGS_HASH;
+    }
+
+    if (flags & (FLAGS_HASH | FLAGS_POINTER)) {
+        if (!(flags & FLAGS_PRECISION) & (len != 0) & ((len == prec) | (len == width))) {
+            if (unpadded < len) { len = len - 1; }
+            if ((len != 0) & ((base == 16) | (base == 2)) & (unpadded < len)) {
+                len = len - 1;
+            }
+        }
+        if ((base == 16) & !(flags & FLAGS_UPPERCASE) & (len < INT_BUF_SIZE)) {
+            buf[len] = 'x'; len = len + 1;
+        } else if ((base == 16) & (flags & FLAGS_UPPERCASE) & (len < INT_BUF_SIZE)) {
+            buf[len] = 'X'; len = len + 1;
+        }
+        if (len < INT_BUF_SIZE) { buf[len] = '0'; len = len + 1; }
+    }
+
+    if (len < INT_BUF_SIZE) {
+        if (negative) { buf[len] = '-'; len = len + 1; }
+        else if (flags & FLAGS_PLUS) { buf[len] = '+'; len = len + 1; }
+        else if (flags & FLAGS_SPACE) { buf[len] = ' '; len = len + 1; }
+    }
+
+    __pf_out_rev(buf, len, width, flags);
+}
+
+/* ── floating-point component struct (integral + fractional + sign) ─────── */
+struct __pf_fpc { unsigned long integral; unsigned long fractional; int is_neg; };
+
+/* ── get_components: split abs(number) into integer and fractional parts.
+   Adapted from eyalroz get_components().
+   out must be a valid pointer to struct __pf_fpc. */
+void __pf_get_components(double number, long prec, struct __pf_fpc* out) {
+    double abs_n;
+    double scaled;
+    double rem;
+
+    out->is_neg = __pf_get_sign(number);
+    if (out->is_neg) { abs_n = 0.0 - number; } else { abs_n = number; }
+    out->integral = abs_n;
+    scaled = (abs_n - out->integral) * __pf_p10[prec];
+    out->fractional = scaled;
+    rem = scaled - out->fractional;
+
+    if (rem > 0.5) {
+        out->fractional = out->fractional + 1;
+    } else if ((rem == 0.5) & (out->fractional & 1)) {
+        out->fractional = out->fractional + 1;
+    }
+
+    if (out->fractional >= __pf_p10[prec]) {
+        out->fractional = 0;
+        out->integral = out->integral + 1;
+    }
+    if (prec == 0) {
+        rem = abs_n - out->integral;
+        if ((rem == 0.5) & (out->integral & 1)) {
+            out->integral = out->integral + 1;
+        }
+    }
+}
+
+/* ── print_broken_up_decimal: output split float components via print_char.
+   Adapted from eyalroz print_broken_up_decimal(). */
+void __pf_print_fpc(struct __pf_fpc* cp, long prec, long width, long flags,
+                    char* buf, long len) {
+    long count;
+    unsigned long frac;
+
+    if (prec != 0) {
+        count = prec;
+        frac  = cp->fractional;
+        if (flags & FLAGS_ADAPT_EXP) {
+            if (!(flags & FLAGS_HASH)) {
+                if (frac > 0) {
+                    while (count > 0) {
+                        if ((frac % 10) != 0) { break; }
+                        count = count - 1;
+                        frac  = frac / 10;
+                    }
+                }
+            }
+        }
+        if ((frac > 0) | !(flags & FLAGS_ADAPT_EXP) | (flags & FLAGS_HASH)) {
+            while (len < DEC_BUF_SIZE) {
+                count = count - 1;
+                buf[len] = '0' + frac % 10;
+                len = len + 1;
+                frac = frac / 10;
+                if (frac == 0) { break; }
+            }
+            while ((len < DEC_BUF_SIZE) & (count > 0)) {
+                buf[len] = '0'; len = len + 1; count = count - 1;
+            }
+            if (len < DEC_BUF_SIZE) { buf[len] = '.'; len = len + 1; }
+        }
+    } else {
+        if ((flags & FLAGS_HASH) & (len < DEC_BUF_SIZE)) {
+            buf[len] = '.'; len = len + 1;
+        }
+    }
+
+    while (len < DEC_BUF_SIZE) {
+        buf[len] = '0' + cp->integral % 10;
+        len = len + 1;
+        cp->integral = cp->integral / 10;
+        if (cp->integral == 0) { break; }
+    }
+
+    if (!(flags & FLAGS_LEFT) & (flags & FLAGS_ZEROPAD)) {
+        if ((width != 0) & (cp->is_neg | (flags & FLAGS_PLUS) | (flags & FLAGS_SPACE))) {
+            width = width - 1;
+        }
+        while ((len < width) & (len < DEC_BUF_SIZE)) {
+            buf[len] = '0'; len = len + 1;
+        }
+    }
+
+    if (len < DEC_BUF_SIZE) {
+        if (cp->is_neg)           { buf[len] = '-'; len = len + 1; }
+        else if (flags & FLAGS_PLUS)  { buf[len] = '+'; len = len + 1; }
+        else if (flags & FLAGS_SPACE) { buf[len] = ' '; len = len + 1; }
+    }
+
+    __pf_out_rev(buf, len, width, flags);
+}
+
+/* ── bastardized_floor: floor() for values whose floor fits in int.
+   Adapted from eyalroz bastardized_floor(). */
+int __pf_bfloor(double x) {
+    int n;
+    if (x >= 0.0) { return x; }
+    n = x;
+    if (n == x) { return n; }
+    return n - 1;
+}
+
+/* ── log10_of_positive: Taylor-series log10 using IEEE 754 bit tricks.
+   Adapted from eyalroz log10_of_positive() / David Gay dtoa.c algorithm.
+   Valid only for positive finite non-subnormal values. */
+double __pf_log10(double x) {
+    union __pf_fba ba;
+    int exp2;
+    double z;
+    unsigned long mant_mask;
+
+    ba.F = x;
+    exp2 = __pf_get_exp2(ba.U);
+    mant_mask = 0x000FFFFFFFFFFFFF;
+    ba.U = (ba.U & mant_mask) | 0x3FF0000000000000;
+    z = ba.F - 1.5;
+    return (  0.1760912590556812420
+            + z     * 0.2895296546021678851
+            - z*z   * 0.0965098848673892950
+            + z*z*z * 0.0428932821632841311
+            + exp2 * 0.30102999566398119521 );
+}
+
+/* ── pow10_of_int: compute 10^e using bit manipulation (no math.h).
+   Adapted from eyalroz pow10_of_int(). */
+double __pf_pow10(int e) {
+    union __pf_fba ba;
+    int exp2;
+    double z;
+    double z2;
+
+    if (e == -308) { return 1e-308; }
+    exp2 = __pf_bfloor(e * 3.321928094887362 + 0.5);
+    z    = e * 2.302585092994046 - exp2 * 0.6931471805599453;
+    z2   = z * z;
+    ba.U = (exp2 + 1023) << 52;
+    ba.F = ba.F * (1.0 + 2.0 * z / (2.0 - z + (z2 / (6.0 + (z2 / (10.0 + z2 / 14.0))))));
+    return ba.F;
+}
+
+/* ── print_decimal_number: format %f / %F.
+   Adapted from eyalroz print_decimal_number(). */
+void __pf_print_f(double number, long prec, long width, long flags) {
+    char buf[DEC_BUF_SIZE];
+    struct __pf_fpc c;
+    __pf_get_components(number, prec, &c);
+    __pf_print_fpc(&c, prec, width, flags, buf, 0);
+}
+
+/* ── print_exponential_number: format %e / %E / %g / %G.
+   Adapted from eyalroz print_exponential_number(). */
+void __pf_print_e(double number, long prec, long width, long flags) {
+    char buf[DEC_BUF_SIZE];
+    int negative;
+    double abs_num;
+    double exp10;
+    int floored_exp10;
+    double p10;
+    int exp10_abs;
+    int fall_back;
+    long decimal_part_width;
+    long exp_part_width;
+    struct __pf_fpc dec;
+
+    negative = __pf_get_sign(number);
+    if (negative) { abs_num = 0.0 - number; } else { abs_num = number; }
+
+    if (abs_num == 0.0) {
+        floored_exp10 = 0;
+        p10 = 1.0;
+    } else {
+        exp10 = __pf_log10(abs_num);
+        floored_exp10 = __pf_bfloor(exp10);
+        p10 = __pf_pow10(floored_exp10);
+        if (abs_num < p10) {
+            floored_exp10 = floored_exp10 - 1;
+            p10 = p10 / 10.0;
+        }
+    }
+
+    if (flags & FLAGS_ADAPT_EXP) {
+        if (prec > 1) { prec = prec - 1; } else { prec = 0; }
+        flags = flags | FLAGS_PRECISION;
+    }
+
+    exp10_abs = floored_exp10;
+    if (exp10_abs < 0) { exp10_abs = 0 - exp10_abs; }
+    if (exp10_abs < 10) { exp_part_width = 3; } else if (exp10_abs < 100) { exp_part_width = 4; } else { exp_part_width = 5; }
+
+    if (flags & FLAGS_LEFT) {
+        decimal_part_width = 0;
+    } else {
+        if (width > exp_part_width) {
+            decimal_part_width = width - exp_part_width;
+        } else {
+            decimal_part_width = 0;
+        }
+    }
+
+    /* %g fall-back to %f mode when -4 <= exp < precision */
+    fall_back = 0;
+    if (flags & FLAGS_ADAPT_EXP) {
+        if ((floored_exp10 >= -4) & (floored_exp10 < prec + 1)) {
+            fall_back = 1;
+        }
+    }
+
+    if (fall_back) {
+        long adj_prec;
+        if (prec > floored_exp10) {
+            adj_prec = prec - floored_exp10;
+        } else {
+            adj_prec = 0;
+        }
+        __pf_get_components(number, adj_prec, &dec);
+        __pf_print_fpc(&dec, adj_prec, width, flags, buf, 0);
+        return;
+    }
+
+    /* Normalise abs_num into [1, 10) */
+    if (floored_exp10 == 0) {
+        __pf_get_components(number, prec, &dec);
+    } else {
+        double scaled;
+        if (floored_exp10 < 0) {
+            scaled = abs_num * __pf_pow10(0 - floored_exp10);
+        } else {
+            scaled = abs_num / p10;
+        }
+        if (negative) { scaled = 0.0 - scaled; }
+        __pf_get_components(scaled, prec, &dec);
+        if (negative) { dec.is_neg = 1; }
+    }
+
+    /* roll-over: 9.99... rounds to 10.0 → bump exponent */
+    if (dec.integral >= 10) {
+        floored_exp10 = floored_exp10 + 1;
+        dec.integral   = 1;
+        dec.fractional = 0;
+    }
+
+    __pf_print_fpc(&dec, prec, decimal_part_width, flags, buf, 0);
+
+    if (flags & FLAGS_UPPERCASE) { __pf_emit('E'); } else { __pf_emit('e'); }
+    if (floored_exp10 < 0) {
+        __pf_emit('-');
+        __pf_print_int(0 - floored_exp10, 0, 10, 0, exp_part_width - 1, FLAGS_ZEROPAD);
+    } else {
+        __pf_emit('+');
+        __pf_print_int(floored_exp10, 0, 10, 0, exp_part_width - 1, FLAGS_ZEROPAD);
+    }
+}
+
+/* ── print_floating_point: dispatch %f / %e / %g.
+   Adapted from eyalroz print_floating_point(). */
+void __pf_print_fp(double value, long prec, long width, long flags, int prefer_exp) {
+    if (value != value) {
+        __pf_out_rev("nan", 3, width, flags);
+        return;
+    }
+    if (value < -1e308) {
+        __pf_out_rev("fni-", 4, width, flags);
+        return;
+    }
+    if (value > 1e308) {
+        if (flags & FLAGS_PLUS) {
+            __pf_out_rev("fni+", 4, width, flags);
+        } else {
+            __pf_out_rev("fni", 3, width, flags);
+        }
+        return;
+    }
+
+    if (!(flags & FLAGS_PRECISION)) { prec = 6; }
+    while (prec > MAX_PREC) { prec = prec - 1; }
+
+    if (prefer_exp) {
+        __pf_print_e(value, prec, width, flags);
+    } else {
+        __pf_print_f(value, prec, width, flags);
+    }
+}
+
+/* ── string / char helpers ──────────────────────────────────────────────── */
+long __pf_strnlen(char* s, long maxlen) {
+    long n;
+    n = 0;
+    while ((s[n] != 0) & (n < maxlen)) { n = n + 1; }
+    return n;
+}
+
+int __pf_isdigit(char c) {
+    if ((c >= '0') & (c <= '9')) { return 1; }
+    return 0;
+}
+
+/* parse decimal number starting at fmt[*idx], advancing *idx */
+long __pf_atou(char* fmt, long* idx) {
+    long v;
+    v = 0;
+    while (__pf_isdigit(fmt[*idx])) {
+        v = v * 10 + (fmt[*idx] - '0');
+        *idx = *idx + 1;
+    }
+    return v;
+}
+
+/* parse flag characters, return flags mask, advance *idx */
+long __pf_parse_flags(char* fmt, long* idx) {
+    long flags;
+    flags = 0;
+    while (1) {
+        if      (fmt[*idx] == '0') { flags = flags | FLAGS_ZEROPAD; *idx = *idx + 1; }
+        else if (fmt[*idx] == '-') { flags = flags | FLAGS_LEFT;    *idx = *idx + 1; }
+        else if (fmt[*idx] == '+') { flags = flags | FLAGS_PLUS;    *idx = *idx + 1; }
+        else if (fmt[*idx] == ' ') { flags = flags | FLAGS_SPACE;   *idx = *idx + 1; }
+        else if (fmt[*idx] == '#') { flags = flags | FLAGS_HASH;    *idx = *idx + 1; }
+        else { break; }
+    }
+    return flags;
+}
+
+/* ── __pf_vformat: shared format engine used by printf / sprintf / snprintf.
+   Caller must configure __pf_g before calling. ap is the va_list from the
+   caller's __va_start().  Adapted from eyalroz format_string_loop(). */
+void __pf_vformat(char* fmt, long* ap) {
+    long    i;
+    long    flags;
+    long    width;
+    long    prec;
+    long    slen;
+    char*   sp;
+    long    lv;
+    unsigned long uv;
+    double  dv;
+
+    __pf_init_p10();
+
+    i = 0;
+    while (fmt[i] != 0) {
+        if (fmt[i] != '%') {
+            __pf_emit(fmt[i]);
+            i = i + 1;
+            continue;
+        }
+
+        i = i + 1;
+        if (fmt[i] == 0) { break; }
+
+        flags = __pf_parse_flags(fmt, &i);
+
+        /* width */
+        width = 0;
+        if (__pf_isdigit(fmt[i])) {
+            width = __pf_atou(fmt, &i);
+        } else if (fmt[i] == '*') {
+            lv = va_arg(ap, long);
+            if (lv < 0) { flags = flags | FLAGS_LEFT; width = 0 - lv; }
+            else        { width = lv; }
+            i = i + 1;
+        }
+        if (fmt[i] == 0) { break; }
+
+        /* precision */
+        prec = 0;
+        if (fmt[i] == '.') {
+            flags = flags | FLAGS_PRECISION;
+            i = i + 1;
+            if (fmt[i] == 0) { break; }
+            if (__pf_isdigit(fmt[i])) {
+                prec = __pf_atou(fmt, &i);
+            } else if (fmt[i] == '*') {
+                lv = va_arg(ap, long);
+                if (lv < 0) { flags = flags & ~FLAGS_PRECISION; }
+                else        { prec = lv; }
+                i = i + 1;
+            }
+        }
+        if (fmt[i] == 0) { break; }
+
+        /* length modifiers (no-ops in 64-bit gaston) */
+        if ((fmt[i] == 'l') | (fmt[i] == 'h') | (fmt[i] == 'z') | (fmt[i] == 'j') | (fmt[i] == 't')) {
+            i = i + 1;
+            if ((fmt[i] == 'l') | (fmt[i] == 'h')) { i = i + 1; }
+        }
+        if (fmt[i] == 0) { break; }
+
+        if (flags & FLAGS_PRECISION) { flags = flags & ~FLAGS_ZEROPAD; }
+
+        /* specifier dispatch */
+        if ((fmt[i] == 'd') | (fmt[i] == 'i')) {
+            lv = va_arg(ap, long);
+            if (lv < 0) {
+                __pf_print_int(0 - lv, 1, 10, prec, width, flags | FLAGS_SIGNED);
+            } else {
+                __pf_print_int(lv, 0, 10, prec, width, flags | FLAGS_SIGNED);
+            }
+        } else if (fmt[i] == 'u') {
+            uv = va_arg(ap, unsigned long);
+            __pf_print_int(uv, 0, 10, prec, width, flags);
+        } else if ((fmt[i] == 'x') | (fmt[i] == 'X')) {
+            uv = va_arg(ap, unsigned long);
+            if (fmt[i] == 'X') { flags = flags | FLAGS_UPPERCASE; }
+            __pf_print_int(uv, 0, 16, prec, width, flags);
+        } else if (fmt[i] == 'o') {
+            uv = va_arg(ap, unsigned long);
+            __pf_print_int(uv, 0, 8, prec, width, flags);
+        } else if (fmt[i] == 'p') {
+            uv = va_arg(ap, unsigned long);
+            width = 18;
+            flags = flags | FLAGS_ZEROPAD | FLAGS_POINTER;
+            __pf_print_int(uv, 0, 16, prec, width, flags);
+        } else if ((fmt[i] == 'f') | (fmt[i] == 'F')) {
+            dv = va_arg(ap, double);
+            if (fmt[i] == 'F') { flags = flags | FLAGS_UPPERCASE; }
+            __pf_print_fp(dv, prec, width, flags, 0);
+        } else if ((fmt[i] == 'e') | (fmt[i] == 'E')) {
+            dv = va_arg(ap, double);
+            if (fmt[i] == 'E') { flags = flags | FLAGS_UPPERCASE; }
+            __pf_print_fp(dv, prec, width, flags, 1);
+        } else if ((fmt[i] == 'g') | (fmt[i] == 'G')) {
+            dv = va_arg(ap, double);
+            flags = flags | FLAGS_ADAPT_EXP;
+            if (fmt[i] == 'G') { flags = flags | FLAGS_UPPERCASE; }
+            __pf_print_fp(dv, prec, width, flags, 1);
+        } else if (fmt[i] == 'c') {
+            lv = va_arg(ap, long);
+            if (!(flags & FLAGS_LEFT)) { __pf_pad(width - 1, ' '); }
+            __pf_emit(lv);
+            if (flags & FLAGS_LEFT)  { __pf_pad(width - 1, ' '); }
+        } else if (fmt[i] == 's') {
+            sp = va_arg(ap, char*);
+            if (sp == 0) { sp = "(null)"; }
+            if (flags & FLAGS_PRECISION) {
+                slen = __pf_strnlen(sp, prec);
+            } else {
+                slen = __pf_strnlen(sp, 2147483647);
+            }
+            if (!(flags & FLAGS_LEFT)) { __pf_pad(width - slen, ' '); }
+            {
+                long si;
+                si = 0;
+                while ((sp[si] != 0) & (!(flags & FLAGS_PRECISION) | (si < prec))) {
+                    __pf_emit(sp[si]);
+                    si = si + 1;
+                }
+            }
+            if (flags & FLAGS_LEFT) { __pf_pad(width - slen, ' '); }
+        } else if (fmt[i] == '%') {
+            __pf_emit('%');
+        } else {
+            __pf_emit('%');
+            __pf_emit(fmt[i]);
+        }
+
+        i = i + 1;
+    }
+}
+
+/* ── printf: format and print to stdout. */
+int printf(char* fmt, ...) {
+    long* ap;
+    __pf_g.mode = 0;
+    ap = __va_start();
+    __pf_vformat(fmt, ap);
+    return 0;
+}
+
+/* ── sprintf: format into null-terminated buffer buf (no size limit).
+   Returns number of characters written (not counting the null byte). */
+int sprintf(char* buf, char* fmt, ...) {
+    long* ap;
+    __pf_g.mode = 1;
+    __pf_g.buf  = buf;
+    __pf_g.cap  = 2147483647;
+    __pf_g.len  = 0;
+    ap = __va_start();
+    __pf_vformat(fmt, ap);
+    __pf_g.buf[__pf_g.len] = 0;
+    return (int)__pf_g.len;
+}
+
+/* ── snprintf: format into buf writing at most n-1 chars plus a null byte.
+   Returns number of characters written (not counting the null byte). */
+int snprintf(char* buf, long n, char* fmt, ...) {
+    long* ap;
+    if (n <= 0) { return 0; }
+    __pf_g.mode = 1;
+    __pf_g.buf  = buf;
+    __pf_g.cap  = n;
+    __pf_g.len  = 0;
+    ap = __va_start();
+    __pf_vformat(fmt, ap);
+    __pf_g.buf[__pf_g.len] = 0;
+    return (int)__pf_g.len;
+}
