@@ -183,6 +183,30 @@ func buildStructDefIR(n *Node, structDefs map[string]*StructDef) *StructDef {
 	const bfWordSize = 8
 
 	for _, child := range n.Children {
+		// Anonymous struct/union member (same logic as buildStructDef in semcheck.go).
+		if child.Name == "" && child.Type == TypeStruct && len(child.Children) > 0 {
+			anonDef := &Node{Kind: KindStructDef, Name: child.StructTag,
+				Children: child.Children, IsUnion: child.IsUnion}
+			inner := buildStructDefIR(anonDef, structDefs)
+			if inner != nil {
+				structDefs[child.StructTag] = inner
+			}
+			sz, align := fieldSizeAlign(TypeStruct, child.StructTag, structDefs)
+			if !sd.IsUnion {
+				offset = (offset + align - 1) &^ (align - 1)
+			}
+			sd.Fields = append(sd.Fields, StructField{
+				Name:      "",
+				Type:      TypeStruct,
+				StructTag: child.StructTag,
+				ByteOffset: offset,
+			})
+			if !sd.IsUnion {
+				offset += sz
+			}
+			continue
+		}
+
 		isBF := child.BitWidth > 0
 		isFlexArr := child.Type == TypeIntArray && child.Val == -1
 

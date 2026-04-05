@@ -344,6 +344,33 @@ var featureTests = []dockerTest{
 	// nested field assign then pass as param, recursion, two medium params+return.
 	{name: "struct_byval_byzantine", want: "1\n3\n2\n4\n8\n12\n6\n12\n8\n16\n1\n2\n3\n4\n25\n15\n6\n7\n7\n8\n"},
 
+	// ── Tier 3 item 11: anonymous struct/union members ───────────────────
+	// anon_struct_basic: anonymous struct inside struct; fields accessed directly
+	// on outer; LP64 layout: a@0, anon@8(b@8,c@12), d@16; sizeof=24
+	{name: "anon_struct_basic", want: "1\n2\n3\n4\n24\n"},
+	// anon_union_basic: anonymous union inside struct; aliasing via overlapping
+	// fields; tag unaffected; sizeof=16
+	{name: "anon_union_basic", want: "7\n1000\n65\n833\n16\n"},
+	// anon_multi: two anonymous structs in one struct; -> access through pointer;
+	// LP64 layout: anon0@0(x@0,y@4), anon1@8(z@8,w@12); sizeof=16
+	{name: "anon_multi", want: "10\n20\n30\n40\n10\n30\n16\n"},
+
+	// ── Tier 3 item 12: adjacent string literal concatenation ─────────────
+	// adj_str_basic: 2-part, 3-part, empty-prefix, empty-middle concat
+	{name: "adj_str_basic", want: "Hello, World!\nfoobarbaz\nnonempty\nAB\n"},
+	// adj_str_escape: concat across escape sequences (\n, \t, \")
+	{name: "adj_str_escape", want: "line1\nline2\ncol1\tcol2\tcol3\nsay \"hi\"\n"},
+
+	// ── Tier 3 item 13: _Noreturn / GCC qualifier keywords ───────────────
+	// noreturn_qual: _Noreturn, __inline__, __restrict__, __signed__ silently
+	// accepted and dropped; underlying code behaves identically
+	{name: "noreturn_qual", want: "42\n21\n50\n-99\n"},
+
+	// ── Tier 3 item 15: wchar_t pre-registered typedef ───────────────────
+	// wchar_t_basic: wchar_t scalar, array, arithmetic, unsigned semantics;
+	// sizeof(unsigned int)=4; no sign extension at 200
+	{name: "wchar_t_basic", want: "65\n4\n100\n200\n300\n400\n75\n200\n"},
+
 	// ── PRINTF-FEATURES items 1–3 ─────────────────────────────────────────
 	// static/inline on functions: static and inline qualifiers parse and compile
 	{name: "static_inline_func", want: "6\n16\n"},
