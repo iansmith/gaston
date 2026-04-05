@@ -132,6 +132,8 @@ var featureTests = []dockerTest{
 	{name: "variadic_basic", want: "60\n100\n10\n"},
 	// variadic_ptr: variadic function reading string pointer args
 	{name: "variadic_ptr", want: "hello\nworld\ndone\n"},
+	// vadouble_basic: va_arg with double — reads double bits and truncates to long
+	{name: "vadouble_basic", want: "3\n7\n100\n"},
 
 	// ── Feature 13: pointer arithmetic / void* / double pointers ─────────
 	// ptr_double: store and load double values via double* pointer
@@ -246,6 +248,44 @@ var featureTests = []dockerTest{
 	{name: "static_local", want: "1\n2\n3\n"},
 	// ── Items 17+18: register/volatile as no-ops ─────────────────────────
 	{name: "register_volatile", want: "42\n43\n"},
+
+	// ── va_list / va_arg built-in ─────────────────────────────────────────
+	// va_arg_basic: va_arg reads int, double, and char* args, advancing the
+	// va_list pointer correctly for each type.
+	{name: "va_arg_basic", want: "60\n10\n4.000000\n6.000000\nalpha\ngamma\n"},
+
+	// ── Parameterised TypePtr / CType byzantine pointer tests ─────────────
+	// ptr_triple_chain: int*** via three-level typedef chain; read and write
+	// through all three levels of indirection.
+	{name: "ptr_triple_chain", want: "10\n30\n30\n20\n77\n"},
+	// typedef_ptr_layers: struct Point* via PointPtr/PointPtrPtr typedefs;
+	// function parameter, double-deref, arrow-through-deref, pointer redirect.
+	{name: "typedef_ptr_layers", want: "7\n7\n300\n300\n15\n3\n3\n"},
+	// void_ptr_launder: void* used as universal adapter at each level;
+	// int*→void*→int* and int**→void*→int** round-trips must be transparent.
+	{name: "void_ptr_launder", want: "42\n42\n99\n99\n"},
+
+	// ── x++/x--/++x/--x ──────────────────────────────────────────────────
+	// incr_stmt: all four forms used as statements (return value discarded)
+	{name: "incr_stmt", want: "6\n5\n6\n5\n"},
+	// incr_expr: postfix returns old value; prefix returns new value
+	{name: "incr_expr", want: "10\n11\n11\n10\n11\n11\n10\n10\n4\n4\n6\n5\n"},
+	// incr_ptr: pointer increment/decrement scales by element size; expression forms
+	{name: "incr_ptr", want: "0\n10\n20\n10\n0\n0\n10\n20\n20\n"},
+	// incr_arr: postfix/prefix on array elements and through pointer deref (++*p)
+	{name: "incr_arr", want: "10\n11\n21\n21\n31\n31\n30\n30\n"},
+	// incr_field: postfix/prefix on struct fields via dot and arrow
+	{name: "incr_field", want: "5\n6\n7\n7\n7\n6\n5\n5\n"},
+
+	// ── PRINTF-FEATURES items 1–3 ─────────────────────────────────────────
+	// static/inline on functions: static and inline qualifiers parse and compile
+	{name: "static_inline_func", want: "6\n16\n"},
+	// bool keyword as typedef alias: typedef _Bool bool; works without re-lexing bool as INT
+	{name: "bool_typedef", want: "1\n0\n"},
+	// logical &&: short-circuit, 0/1 result, use in conditions
+	{name: "logical_and", want: "1\n1\n0\n1\n"},
+	// logical ||: short-circuit, 0/1 result, use in conditions
+	{name: "logical_or", want: "1\n0\n1\n1\n1\n"},
 }
 
 // sepTest describes a separate-compilation test: compile multiple .cm files
@@ -415,23 +455,46 @@ var libcTests = []libcTest{
 	{name: "puts_test",   want: "one\ntwo\nthree\n"},
 	// ── Feature 14: libc sscanf ───────────────────────────────────────────
 	{name: "sscanf_basic", want: "n=42 r=1\ns=hello r=1\na=-7 b=99 r=2\nc=X r=1\n"},
+	// ── Feature 15: libc printf float ────────────────────────────────────
+	{name: "printf_float", want: "3.140000\n2.72\n1.234568e+04\n0.000123\n123456\n"},
+	// vadouble_libc: va_arg double in object-file mode
+	{name: "vadouble_libc", want: "3 7 100\n"},
 }
 
-// buildLibgastonc compiles libc/stdio.cm to stdio.o, then archives it into
-// libgastonc.a, returning the archive path.  The caller must clean up both.
-func buildLibgastonc(t *testing.T) (libPath, objPath string) {
+// buildLibgastonc compiles every .cm file under libc/ to a .o, archives them
+// all into libgastonc.a, and returns the archive path.  The caller must clean
+// up.  New libc source files are picked up automatically.
+func buildLibgastonc(t *testing.T) (libPath string) {
 	t.Helper()
-	objPath = "/tmp/gaston-test-libgastonc-stdio.o"
 	libPath = "/tmp/gaston-test-libgastonc.a"
-	t.Cleanup(func() { os.Remove(objPath); os.Remove(libPath) })
+	t.Cleanup(func() { os.Remove(libPath) })
 
-	if err := compileObjPath("libc/stdio.cm", objPath, nil); err != nil {
-		t.Fatalf("compile stdio.cm: %v", err)
+	entries, err := os.ReadDir("libc")
+	if err != nil {
+		t.Fatalf("read libc dir: %v", err)
 	}
-	if err := archiveCreate(libPath, []string{objPath}); err != nil {
+
+	var objPaths []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".cm") {
+			continue
+		}
+		src := "libc/" + e.Name()
+		obj := fmt.Sprintf("/tmp/gaston-test-libgastonc-%s.o",
+			strings.TrimSuffix(e.Name(), ".cm"))
+		t.Cleanup(func() { os.Remove(obj) })
+		if err := compileObjPath(src, obj, nil); err != nil {
+			t.Fatalf("compile %s: %v", src, err)
+		}
+		objPaths = append(objPaths, obj)
+	}
+	if len(objPaths) == 0 {
+		t.Fatal("libc/ contains no .cm files")
+	}
+	if err := archiveCreate(libPath, objPaths); err != nil {
 		t.Fatalf("archive libgastonc.a: %v", err)
 	}
-	return libPath, objPath
+	return libPath
 }
 
 // TestLibc compiles programs against libgastonc.a (the gaston standard C library)
@@ -441,7 +504,7 @@ func TestLibc(t *testing.T) {
 		t.Skip("docker not found in PATH; skipping container tests")
 	}
 
-	libPath, _ := buildLibgastonc(t)
+	libPath := buildLibgastonc(t)
 	includePaths := []string{"libc"}
 
 	for _, tt := range libcTests {
@@ -504,6 +567,23 @@ var semErrorTests = []semErrorTest{
 	// ── Item 9: const pointer target ─────────────────────────────────────
 	// Assigning through a const-qualified pointer must be rejected.
 	{name: "err_const_ptr", want: "assignment to const-qualified pointer target"},
+
+	// ── Parameterised TypePtr / CType byzantine type-checking ─────────────
+	// err_typedef_mismatch: IntPtr(=int*) and CharPtr(=char*) look like opaque
+	// pointer aliases but must remain incompatible after typedef resolution.
+	{name: "err_typedef_mismatch", want: "assignment of incompatible pointer types"},
+	// err_double_ptr_inner: int** and char** are both depth-2 pointers, but the
+	// inner element type differs; ctypeEq must recurse to the leaf to catch this.
+	{name: "err_double_ptr_inner", want: "assignment of incompatible pointer types"},
+	// err_struct_ptr_alias: CatPtr(=Cat*) and DogPtr(=Dog*) have identical layouts
+	// but different struct tags; pointer compatibility is by name, not structure.
+	{name: "err_struct_ptr_alias", want: "assignment of incompatible pointer types"},
+	// err_typedef_chain_depth: T2 and U2 both expand to "double pointer" but with
+	// int vs char at the leaf; the checker must follow the full typedef chain.
+	{name: "err_typedef_chain_depth", want: "assignment of incompatible pointer types"},
+	// err_func_typedef_arg: process() expects AlphaPtr(=Alpha*) but is called with
+	// BetaPtr(=Beta*); call-site type check must resolve both typedef chains.
+	{name: "err_func_typedef_arg", want: "incompatible pointer types"},
 }
 
 // TestSemErrors verifies that ill-typed programs are rejected by semCheck with

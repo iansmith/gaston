@@ -15,6 +15,7 @@ type irGen struct {
 	globals         map[string]*IRGlobal
 	locals          map[string]localInfo
 	funcNames       map[string]bool // names of user-defined functions (for IRFuncAddr detection)
+	variadicFuncs   map[string]bool // names of variadic functions (for FP bitcast at call sites)
 	tempN           int
 	labelN          int
 	loopStack       []loopLabels
@@ -33,9 +34,10 @@ type localInfo struct {
 
 func newIRGen() *irGen {
 	return &irGen{
-		prog:      &IRProgram{StructDefs: make(map[string]*StructDef)},
-		globals:   make(map[string]*IRGlobal),
-		funcNames: make(map[string]bool),
+		prog:          &IRProgram{StructDefs: make(map[string]*StructDef)},
+		globals:       make(map[string]*IRGlobal),
+		funcNames:     make(map[string]bool),
+		variadicFuncs: make(map[string]bool),
 	}
 }
 
@@ -116,6 +118,7 @@ func genIR(prog *Node) *IRProgram {
 				IsArr:     isArr,
 				IsPtr:     isPtr,
 				IsStruct:  isStruct,
+				Pointee:   decl.Pointee,
 				StructTag: decl.StructTag,
 				IsExtern:  decl.IsExtern,
 				Size:      sz,
@@ -131,9 +134,24 @@ func genIR(prog *Node) *IRProgram {
 	}
 
 	// Third pass: collect function names, then generate IR for each function.
+	// Also record which functions are variadic so call sites can bitcast FP args.
+	knownVariadicLibFuncs := map[string]bool{
+		"printf": true, "fprintf": true, "sprintf": true, "snprintf": true,
+		"scanf": true, "fscanf": true, "sscanf": true,
+	}
+	for name := range knownVariadicLibFuncs {
+		g.variadicFuncs[name] = true
+	}
 	for _, decl := range prog.Children {
 		if decl.Kind == KindFunDecl && !decl.IsExtern {
 			g.funcNames[decl.Name] = true
+			// A function is variadic if any of its param children is "...".
+			for _, p := range decl.Children {
+				if p.Kind == KindParam && p.Name == "..." {
+					g.variadicFuncs[decl.Name] = true
+					break
+				}
+			}
 		}
 	}
 	for _, decl := range prog.Children {
@@ -190,7 +208,9 @@ func buildStructDefIR(n *Node, structDefs map[string]*StructDef) *StructDef {
 			sd.Fields = append(sd.Fields, StructField{
 				Name:        child.Name,
 				Type:        child.Type,
+				Pointee:     child.Pointee,
 				ElemType:    child.ElemType,
+				ElemPointee: child.ElemPointee,
 				StructTag:   child.StructTag,
 				ByteOffset:  offset,
 				IsFlexArray: isFlexArr,
@@ -204,7 +224,7 @@ func buildStructDefIR(n *Node, structDefs map[string]*StructDef) *StructDef {
 }
 
 func (g *irGen) genFunc(n *Node) {
-	g.fn = &IRFunc{Name: n.Name, ReturnType: n.Type}
+	g.fn = &IRFunc{Name: n.Name, ReturnType: n.Type, ReturnPointee: n.Pointee}
 	g.tempN = 0
 	g.labelN = 0
 	g.locals = make(map[string]localInfo)
@@ -223,6 +243,7 @@ func (g *irGen) genFunc(n *Node) {
 		g.locals[p.Name] = localInfo{isArray: isArr, isParam: true, arrSize: -1}
 		g.fn.Params = append(g.fn.Params, p.Name)
 		g.fn.ParamType = append(g.fn.ParamType, p.Type)
+		g.fn.ParamPointee = append(g.fn.ParamPointee, p.Pointee)
 		realParams++
 	}
 
@@ -260,6 +281,7 @@ func (g *irGen) genCompound(n *Node) {
 					Name:     mangledName,
 					IsArr:    isArrS,
 					IsPtr:    isPtrType(child.Type),
+					Pointee:  child.Pointee,
 					Size:     szS,
 					InnerDim: child.Dim2,
 				}
@@ -305,6 +327,7 @@ func (g *irGen) genCompound(n *Node) {
 					IsArray:   isArr,
 					IsPtr:     isPtr,
 					IsStruct:  isStruct,
+					Pointee:   child.Pointee,
 					StructTag: child.StructTag,
 					ArrSize:   sz,
 				})
@@ -364,6 +387,11 @@ func (g *irGen) genStmt(n *Node) {
 			v := g.genExpr(n.Children[0])
 			if isFPType(g.fn.ReturnType) {
 				v = g.coerceToFP(v, n.Children[0].Type)
+			} else if isFPType(n.Children[0].Type) {
+				// Returning FP value from non-FP function: truncate to int.
+				tmp := g.newTemp()
+				g.emit(Quad{Op: IRDoubleToInt, Dst: tmp, Src1: v})
+				v = tmp
 			}
 			g.emit(Quad{Op: IRReturn, Src1: v})
 		} else {
@@ -638,6 +666,11 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 			ptr := g.genExpr(lhs.Children[0])
 			if isFPType(lhsType) {
 				g.emit(Quad{Op: IRFDerefStore, Dst: ptr, Src1: rhs})
+			} else if isFPType(rhsType) {
+				// Implicit double→int truncation (e.g. *long_ptr = double_var).
+				tmp := g.newTemp()
+				g.emit(Quad{Op: IRDoubleToInt, Dst: tmp, Src1: rhs})
+				g.emit(Quad{Op: IRDerefStore, Dst: ptr, Src1: tmp})
 			} else {
 				g.emit(Quad{Op: IRDerefStore, Dst: ptr, Src1: rhs})
 			}
@@ -672,6 +705,11 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 			}
 			if isFPType(lhsType) {
 				g.emit(Quad{Op: IRFFieldStore, Dst: ptr, Src1: rhs, Src2: offAddr, TypeHint: lhsType})
+			} else if isFPType(rhsType) {
+				// Implicit double→int truncation (e.g. struct.long_field = double_var).
+				tmp := g.newTemp()
+				g.emit(Quad{Op: IRDoubleToInt, Dst: tmp, Src1: rhs})
+				g.emit(Quad{Op: IRFieldStore, Dst: ptr, Src1: tmp, Src2: offAddr, TypeHint: lhsType})
 			} else {
 				g.emit(Quad{Op: IRFieldStore, Dst: ptr, Src1: rhs, Src2: offAddr, TypeHint: lhsType})
 			}
@@ -693,7 +731,7 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 
 		// Pointer arithmetic: scale the step value by element size.
 		if isPtrType(lhsType) && (n.Op == "+" || n.Op == "-") {
-			sz := elemSize(lhsType)
+			sz := elemSize(lhs.Pointee)
 			if sz > 1 {
 				scaled := g.newTemp()
 				g.emit(Quad{Op: IRMul, Dst: scaled, Src1: rhsAddr, Src2: IRAddr{Kind: AddrConst, IVal: sz}})
@@ -724,6 +762,15 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 		}
 
 
+	case KindPostInc:
+		return g.genIncDec(n.Children[0], true, true)
+	case KindPostDec:
+		return g.genIncDec(n.Children[0], false, true)
+	case KindPreInc:
+		return g.genIncDec(n.Children[0], true, false)
+	case KindPreDec:
+		return g.genIncDec(n.Children[0], false, false)
+
 	case KindBinOp:
 		if isFPType(n.Type) || isFPType(n.Children[0].Type) || isFPType(n.Children[1].Type) {
 			return g.genFPBinOp(n)
@@ -732,16 +779,40 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 		leftType := n.Children[0].Type
 		rightType := n.Children[1].Type
 		if isPtrType(leftType) && !isPtrType(rightType) && (n.Op == "+" || n.Op == "-") {
-			return g.genPtrArith(n.Children[0], n.Children[1], leftType, n.Op)
+			return g.genPtrArith(n.Children[0], n.Children[1], n.Children[0].Pointee, n.Op)
 		}
 		if isPtrType(rightType) && !isPtrType(leftType) && n.Op == "+" {
-			return g.genPtrArith(n.Children[1], n.Children[0], rightType, "+")
+			return g.genPtrArith(n.Children[1], n.Children[0], n.Children[1].Pointee, "+")
 		}
 		left := g.genExpr(n.Children[0])
 		right := g.genExpr(n.Children[1])
 		dst := g.newTemp()
 		op := binOpToIRTyped(n.Op, n.Children[0].Type)
 		g.emit(Quad{Op: op, Dst: dst, Src1: left, Src2: right})
+		return dst
+
+	case KindLogAnd:
+		dst := g.newTemp()
+		doneL := g.newLabel()
+		g.emit(Quad{Op: IRCopy, Dst: dst, Src1: IRAddr{Kind: AddrConst, IVal: 0}})
+		left := g.genExpr(n.Children[0])
+		g.emit(Quad{Op: IRJumpF, Src1: left, Extra: doneL})
+		right := g.genExpr(n.Children[1])
+		g.emit(Quad{Op: IRJumpF, Src1: right, Extra: doneL})
+		g.emit(Quad{Op: IRCopy, Dst: dst, Src1: IRAddr{Kind: AddrConst, IVal: 1}})
+		g.emitLabel(doneL)
+		return dst
+
+	case KindLogOr:
+		dst := g.newTemp()
+		doneL := g.newLabel()
+		g.emit(Quad{Op: IRCopy, Dst: dst, Src1: IRAddr{Kind: AddrConst, IVal: 1}})
+		left := g.genExpr(n.Children[0])
+		g.emit(Quad{Op: IRJumpT, Src1: left, Extra: doneL})
+		right := g.genExpr(n.Children[1])
+		g.emit(Quad{Op: IRJumpT, Src1: right, Extra: doneL})
+		g.emit(Quad{Op: IRCopy, Dst: dst, Src1: IRAddr{Kind: AddrConst, IVal: 0}})
+		g.emitLabel(doneL)
 		return dst
 
 	case KindUnary:
@@ -812,6 +883,33 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 
 	case KindFuncPtrCall:
 		return g.genFuncPtrCall(n)
+
+	case KindVAArg:
+		// va_arg(ap, T): load *ap (8 bytes), advance ap by 8, return the value.
+		// Children[0] must be a KindVar naming the va_list local (long*).
+		apVal := g.genExpr(n.Children[0]) // current pointer value stored in ap
+
+		// Load 8 bytes from *ap as the correct type.
+		// FP slots were stored as integer bit patterns (via IRFBitcastFI at call site),
+		// so read as int64 then bitcast back to double.
+		result := g.newTemp()
+		if isFPType(n.Type) {
+			intBits := g.newTemp()
+			g.emit(Quad{Op: IRDerefLoad, Dst: intBits, Src1: apVal})
+			g.emit(Quad{Op: IRFBitcastIF, Dst: result, Src1: intBits})
+		} else {
+			g.emit(Quad{Op: IRDerefLoad, Dst: result, Src1: apVal})
+		}
+
+		// Advance ap by 8 bytes (one variadic slot) — raw byte add, no pointer scaling.
+		newAp := g.newTemp()
+		g.emit(Quad{Op: IRAdd, Dst: newAp, Src1: apVal, Src2: IRAddr{Kind: AddrConst, IVal: 8}})
+
+		// Write new pointer value back into the ap local variable.
+		apAddr := g.addrOf(n.Children[0].Name)
+		g.emit(Quad{Op: IRCopy, Dst: apAddr, Src1: newAp})
+
+		return result
 	}
 	return IRAddr{Kind: AddrNone}
 }
@@ -870,7 +968,85 @@ func (g *irGen) lookupStructField(n *Node) *StructField {
 	return sd.FindField(n.Name)
 }
 
+// genIncDec emits a load-modify-store sequence for x++/x--/++x/--x.
+//   lval        — the lvalue node (KindVar, KindArrayVar, KindDeref, KindFieldAccess)
+//   isIncrement — true for ++, false for --
+//   post        — true to return old value (postfix), false to return new value (prefix)
+func (g *irGen) genIncDec(lval *Node, isIncrement bool, post bool) IRAddr {
+	lvalType := lval.Type
+
+	// Choose add or subtract.
+	irOp := IRAdd
+	if !isIncrement {
+		irOp = IRSub
+	}
+
+	// For pointer types, scale the step by the pointee element size.
+	step := IRAddr{Kind: AddrConst, IVal: 1}
+	if isPtrType(lvalType) {
+		sz := elemSize(lval.Pointee)
+		if sz > 1 {
+			scaled := g.newTemp()
+			g.emit(Quad{Op: IRMul, Dst: scaled,
+				Src1: IRAddr{Kind: AddrConst, IVal: 1},
+				Src2: IRAddr{Kind: AddrConst, IVal: sz}})
+			step = scaled
+		}
+	}
+
+	var old, new_ IRAddr
+
+	switch lval.Kind {
+	case KindVar:
+		addr := g.addrOf(lval.Name)
+		// Explicitly load into a fresh temp to snapshot the current value.
+		// (g.genExpr(lval) returns addr itself — an AddrLocal — which, if returned
+		// as "old" for postfix, would resolve to the *new* value after the store.)
+		old = g.newTemp()
+		g.emit(Quad{Op: IRCopy, Dst: old, Src1: addr})
+		new_ = g.newTemp()
+		g.emit(Quad{Op: irOp, Dst: new_, Src1: old, Src2: step})
+		g.emit(Quad{Op: IRCopy, Dst: addr, Src1: new_})
+
+	case KindArrayVar:
+		base := g.addrOf(lval.Name)
+		idx := g.genExpr(lval.Children[0])
+		old = g.newTemp()
+		g.emit(Quad{Op: IRLoad, Dst: old, Src1: base, Src2: idx})
+		new_ = g.newTemp()
+		g.emit(Quad{Op: irOp, Dst: new_, Src1: old, Src2: step})
+		g.emit(Quad{Op: IRStore, Dst: base, Src1: idx, Src2: new_})
+
+	case KindDeref:
+		ptrVal := g.genExpr(lval.Children[0])
+		old = g.newTemp()
+		g.emit(Quad{Op: IRDerefLoad, Dst: old, Src1: ptrVal})
+		new_ = g.newTemp()
+		g.emit(Quad{Op: irOp, Dst: new_, Src1: old, Src2: step})
+		g.emit(Quad{Op: IRDerefStore, Dst: ptrVal, Src1: new_})
+
+	case KindFieldAccess:
+		ptr := g.fieldBasePtr(lval)
+		offset := g.fieldByteOffset(lval)
+		offAddr := IRAddr{Kind: AddrConst, IVal: offset}
+		old = g.newTemp()
+		g.emit(Quad{Op: IRFieldLoad, Dst: old, Src1: ptr, Src2: offAddr, TypeHint: lvalType})
+		new_ = g.newTemp()
+		g.emit(Quad{Op: irOp, Dst: new_, Src1: old, Src2: step})
+		g.emit(Quad{Op: IRFieldStore, Dst: ptr, Src1: new_, Src2: offAddr, TypeHint: lvalType})
+
+	default:
+		panic(fmt.Sprintf("irgen: unsupported lvalue kind %v for inc/dec", lval.Kind))
+	}
+
+	if post {
+		return old
+	}
+	return new_
+}
+
 func (g *irGen) genCall(n *Node) IRAddr {
+	isVariadic := g.variadicFuncs[n.Name]
 	for _, arg := range n.Children {
 		var val IRAddr
 		// Passing an array by name → emit IRAddr to get base pointer.
@@ -882,7 +1058,16 @@ func (g *irGen) genCall(n *Node) IRAddr {
 			val = g.genExpr(arg)
 		}
 		if isFPType(arg.Type) {
-			g.emit(Quad{Op: IRFParam, Src1: val})
+			if isVariadic {
+				// At a variadic call site, pass FP args through integer registers so
+				// the callee's register-save area (X1-X7) captures the bit pattern.
+				// FMOV Xd, Dn (no value conversion — bit-for-bit copy).
+				intBits := g.newTemp()
+				g.emit(Quad{Op: IRFBitcastFI, Dst: intBits, Src1: val})
+				g.emit(Quad{Op: IRParam, Src1: intBits})
+			} else {
+				g.emit(Quad{Op: IRFParam, Src1: val})
+			}
 		} else {
 			g.emit(Quad{Op: IRParam, Src1: val})
 		}
@@ -956,10 +1141,11 @@ func (g *irGen) genFPBinOp(n *Node) IRAddr {
 
 // genPtrArith emits IR for pointer ± integer with automatic element-size scaling.
 // ptrExpr is the pointer operand, idxExpr is the integer operand.
-func (g *irGen) genPtrArith(ptrExpr, idxExpr *Node, ptrType TypeKind, op string) IRAddr {
+// pointee is the CType that the pointer points to (used to compute element size).
+func (g *irGen) genPtrArith(ptrExpr, idxExpr *Node, pointee *CType, op string) IRAddr {
 	ptrVal := g.genExpr(ptrExpr)
 	idx := g.genExpr(idxExpr)
-	sz := elemSize(ptrType)
+	sz := elemSize(pointee)
 	if sz > 1 {
 		scaled := g.newTemp()
 		g.emit(Quad{Op: IRMul, Dst: scaled, Src1: idx, Src2: IRAddr{Kind: AddrConst, IVal: sz}})
@@ -1065,14 +1251,18 @@ func binOpToIRTyped(op string, leftType TypeKind) IROpCode {
 
 func binOpToIR(op string) IROpCode { return binOpToIRTyped(op, TypeInt) }
 
-// elemSize returns the byte stride for pointer arithmetic on the given pointer type.
-func elemSize(t TypeKind) int {
-	switch t {
-	case TypeCharPtr, TypeVoidPtr:
+// elemSize returns the byte stride for pointer arithmetic given the pointee CType.
+// ct is Node.Pointee (the type that the pointer points to), not the pointer type itself.
+func elemSize(ct *CType) int {
+	if ct == nil {
+		return 8
+	}
+	switch ct.Kind {
+	case TypeChar, TypeUnsignedChar, TypeVoid:
 		return 1
-	case TypeFloatPtr:
+	case TypeFloat:
 		return 4
-	default: // TypeIntPtr, TypeDoublePtr, TypeIntPtrPtr, TypeCharPtrPtr, TypeDoublePtrPtr, TypeFloatPtrPtr, etc.
+	default: // TypeInt, TypeDouble, TypePtr, TypeStruct, etc. → 8 bytes
 		return 8
 	}
 }

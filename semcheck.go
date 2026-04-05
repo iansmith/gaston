@@ -7,11 +7,13 @@ import (
 
 // FuncSig holds the type signature of a declared function.
 type FuncSig struct {
-	Name       string
-	ReturnType TypeKind
-	Params     []TypeKind
-	IsExtern   bool // true for extern function declarations (no body)
-	IsVariadic bool // true for variadic functions (last param is "...")
+	Name          string
+	ReturnType    TypeKind
+	ReturnPointee *CType    // non-nil when ReturnType == TypePtr
+	Params        []TypeKind
+	ParamPointees []*CType  // per-param pointee CType (nil for non-pointer params); len == len(Params)
+	IsExtern      bool      // true for extern function declarations (no body)
+	IsVariadic    bool      // true for variadic functions (last param is "...")
 }
 
 // symTable is a two-level symbol table: globals + per-function locals.
@@ -23,20 +25,37 @@ type symTable struct {
 }
 
 type symEntry struct {
-	name           string
-	typ            TypeKind
-	structTag      string // for TypeStruct or TypeIntPtr-to-struct: the struct name
-	isParam        bool
-	isGlobal       bool
-	isConst        bool
-	constVal       int
-	arrSize        int      // for TypeIntArray locals/globals: number of elements (0 for params, which decay to pointer)
-	innerDim       int      // for 2D arrays: inner dimension (columns)
-	elemType       TypeKind // for TypeIntArray: element type (e.g. TypeDouble); 0/TypeInt if int array
-	isConstTarget  bool     // true for const T *p — cannot store through the pointer
+	name          string
+	typ           TypeKind
+	pointee       *CType   // non-nil when typ == TypePtr: full pointee type
+	structTag     string   // for TypeStruct: the struct name
+	isParam       bool
+	isGlobal      bool
+	isConst       bool
+	constVal      int
+	arrSize       int      // for TypeIntArray locals/globals: number of elements (0 for params)
+	innerDim      int      // for 2D arrays: inner dimension (columns)
+	elemType      TypeKind // for TypeIntArray: element type (TypePtr when array-of-pointers)
+	elemPointee   *CType   // for TypeIntArray with elemType==TypePtr: the pointer's pointee
+	isConstTarget bool     // true for const T *p — cannot store through the pointer
+}
+
+// charPtee is the canonical CType for a char pointee (shared singleton).
+var charPtee = leafCType(TypeChar)
+
+// normalizePtrType converts TypeCharPtr to (TypePtr, charPtee) so that legacy
+// string-literal char* nodes are interchangeable with TypePtr+TypeChar pointee
+// variables in type-compatibility checks. TypeIntArray decays to (TypePtr, ptee)
+// where ptee describes the element. All other types pass through unchanged.
+func normalizePtrType(t TypeKind, ptee *CType) (TypeKind, *CType) {
+	if t == TypeCharPtr {
+		return TypePtr, charPtee
+	}
+	return t, ptee
 }
 
 func newSymTable() *symTable {
+	voidPtee := leafCType(TypeVoid) // pointee for void*
 	st := &symTable{
 		globals:    make(map[string]*symEntry),
 		funcs:      make(map[string]*FuncSig),
@@ -44,14 +63,22 @@ func newSymTable() *symTable {
 	}
 	// Built-in functions.
 	st.funcs["input"] = &FuncSig{Name: "input", ReturnType: TypeInt}
-	st.funcs["output"] = &FuncSig{Name: "output", ReturnType: TypeVoid, Params: []TypeKind{TypeInt}}
-	st.funcs["print_char"] = &FuncSig{Name: "print_char", ReturnType: TypeVoid, Params: []TypeKind{TypeInt}}
-	st.funcs["print_string"] = &FuncSig{Name: "print_string", ReturnType: TypeVoid, Params: []TypeKind{TypeInt}}
-	st.funcs["malloc"] = &FuncSig{Name: "malloc", ReturnType: TypeVoidPtr, Params: []TypeKind{TypeInt}}
-	st.funcs["free"] = &FuncSig{Name: "free", ReturnType: TypeVoid, Params: []TypeKind{TypeVoidPtr}}
-	st.funcs["print_double"] = &FuncSig{Name: "print_double", ReturnType: TypeVoid, Params: []TypeKind{TypeDouble}}
+	st.funcs["output"] = &FuncSig{Name: "output", ReturnType: TypeVoid,
+		Params: []TypeKind{TypeInt}, ParamPointees: []*CType{nil}}
+	st.funcs["print_char"] = &FuncSig{Name: "print_char", ReturnType: TypeVoid,
+		Params: []TypeKind{TypeInt}, ParamPointees: []*CType{nil}}
+	st.funcs["print_string"] = &FuncSig{Name: "print_string", ReturnType: TypeVoid,
+		Params: []TypeKind{TypeCharPtr}, ParamPointees: []*CType{nil}}
+	st.funcs["malloc"] = &FuncSig{Name: "malloc", ReturnType: TypePtr,
+		ReturnPointee: voidPtee,
+		Params: []TypeKind{TypeInt}, ParamPointees: []*CType{nil}}
+	st.funcs["free"] = &FuncSig{Name: "free", ReturnType: TypeVoid,
+		Params: []TypeKind{TypePtr}, ParamPointees: []*CType{voidPtee}}
+	st.funcs["print_double"] = &FuncSig{Name: "print_double", ReturnType: TypeVoid,
+		Params: []TypeKind{TypeDouble}, ParamPointees: []*CType{nil}}
 	// Compiler built-in: returns a pointer to the variadic register save area.
-	st.funcs["__va_start"] = &FuncSig{Name: "__va_start", ReturnType: TypeIntPtr}
+	st.funcs["__va_start"] = &FuncSig{Name: "__va_start", ReturnType: TypePtr,
+		ReturnPointee: leafCType(TypeInt)}
 	return st
 }
 
@@ -74,7 +101,7 @@ func sizeofKind(t TypeKind, structTag string, structDefs map[string]*StructDef) 
 		}
 		return 8
 	default:
-		// TypeInt, TypeUnsignedInt, TypeDouble, pointers, TypeFuncPtr, TypeIntArray, TypeVoid
+		// TypeInt, TypeUnsignedInt, TypeDouble, TypePtr, TypeFuncPtr, TypeCharPtr, TypeIntArray, TypeVoid
 		return 8
 	}
 }
@@ -99,7 +126,7 @@ func (st *symTable) declareGlobalFull(n *Node) error {
 		return fmt.Errorf("redeclaration of global '%s'", n.Name)
 	}
 	e := &symEntry{name: n.Name, typ: n.Type, isGlobal: true,
-		structTag: n.StructTag, isConstTarget: n.IsConstTarget}
+		structTag: n.StructTag, pointee: n.Pointee, isConstTarget: n.IsConstTarget}
 	st.globals[n.Name] = e
 	return nil
 }
@@ -136,7 +163,8 @@ func (st *symTable) declareLocalFull(n *Node, isParam bool) error {
 		return fmt.Errorf("redeclaration of '%s'", n.Name)
 	}
 	e := &symEntry{name: n.Name, typ: n.Type, isParam: isParam,
-		structTag: n.StructTag, isConstTarget: n.IsConstTarget}
+		structTag: n.StructTag, pointee: n.Pointee, isConstTarget: n.IsConstTarget,
+		elemType: n.ElemType, elemPointee: n.ElemPointee}
 	st.locals[n.Name] = e
 	return nil
 }
@@ -199,6 +227,7 @@ func semCheck(prog *Node, requireMain bool) error {
 				} else if decl.Type == TypeIntArray {
 					st.globals[decl.Name].arrSize = decl.Val
 					st.globals[decl.Name].elemType = decl.ElemType
+					st.globals[decl.Name].elemPointee = decl.ElemPointee
 					st.globals[decl.Name].innerDim = decl.Dim2
 				}
 				if len(decl.Children) > 0 {
@@ -274,7 +303,9 @@ func buildStructDef(n *Node, errs *[]string, structDefs map[string]*StructDef) *
 			sd.Fields = append(sd.Fields, StructField{
 				Name:        child.Name,
 				Type:        child.Type,
+				Pointee:     child.Pointee,
 				ElemType:    child.ElemType,
+				ElemPointee: child.ElemPointee,
 				StructTag:   child.StructTag,
 				ByteOffset:  offset,
 				IsFlexArray: isFlexArr,
@@ -294,13 +325,14 @@ func buildStructDef(n *Node, errs *[]string, structDefs map[string]*StructDef) *
 
 func checkFunDecl(n *Node, st *symTable, errs *[]string) {
 	if n.IsExtern {
-		sig := &FuncSig{Name: n.Name, ReturnType: n.Type, IsExtern: true}
+		sig := &FuncSig{Name: n.Name, ReturnType: n.Type, ReturnPointee: n.Pointee, IsExtern: true}
 		for _, p := range n.Children {
 			if p.Name == "..." {
 				sig.IsVariadic = true
 				continue
 			}
 			sig.Params = append(sig.Params, p.Type)
+			sig.ParamPointees = append(sig.ParamPointees, p.Pointee)
 		}
 		if err := st.declareFunc(sig); err != nil {
 			*errs = append(*errs, err.Error())
@@ -309,7 +341,7 @@ func checkFunDecl(n *Node, st *symTable, errs *[]string) {
 	}
 
 	nparams := len(n.Children) - 1 // last child is the body
-	sig := &FuncSig{Name: n.Name, ReturnType: n.Type}
+	sig := &FuncSig{Name: n.Name, ReturnType: n.Type, ReturnPointee: n.Pointee}
 	for i := 0; i < nparams; i++ {
 		p := n.Children[i]
 		if p.Name == "..." {
@@ -317,6 +349,7 @@ func checkFunDecl(n *Node, st *symTable, errs *[]string) {
 			continue
 		}
 		sig.Params = append(sig.Params, p.Type)
+		sig.ParamPointees = append(sig.ParamPointees, p.Pointee)
 	}
 	if err := st.declareFunc(sig); err != nil {
 		*errs = append(*errs, err.Error())
@@ -331,7 +364,7 @@ func checkFunDecl(n *Node, st *symTable, errs *[]string) {
 		if p.Name == "..." {
 			continue
 		}
-		if err := st.declareLocal(p.Name, p.Type, true, p.StructTag); err != nil {
+		if err := st.declareLocalFull(p, true); err != nil {
 			*errs = append(*errs, err.Error())
 		}
 	}
@@ -351,10 +384,11 @@ func checkCompound(n *Node, st *symTable, fn *Node, errs *[]string) {
 				// Static local: treat as global for type-checking purposes.
 				// Register in globals so lookups work; irgen will handle allocation.
 				e := &symEntry{name: child.Name, typ: child.Type, isGlobal: true,
-					structTag: child.StructTag, isConstTarget: child.IsConstTarget}
+					structTag: child.StructTag, pointee: child.Pointee, isConstTarget: child.IsConstTarget}
 				if child.Type == TypeIntArray {
 					e.arrSize = child.Val
 					e.elemType = child.ElemType
+					e.elemPointee = child.ElemPointee
 					e.innerDim = child.Dim2
 				}
 				// Add to locals (shadows any global of same name within this function).
@@ -375,6 +409,7 @@ func checkCompound(n *Node, st *symTable, fn *Node, errs *[]string) {
 				} else if child.Type == TypeIntArray {
 					st.locals[child.Name].arrSize = child.Val
 					st.locals[child.Name].elemType = child.ElemType
+					st.locals[child.Name].elemPointee = child.ElemPointee
 					st.locals[child.Name].innerDim = child.Dim2
 				}
 				if len(child.Children) > 0 {
@@ -464,44 +499,63 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		return TypeCharPtr
 
 	case KindAddrOf:
-		t := checkExpr(n.Children[0], st, errs)
-		switch t {
-		case TypeChar:
-			n.Type = TypeCharPtr
-		case TypeCharPtr:
-			n.Type = TypeCharPtrPtr
-		case TypeIntPtr, TypeVoidPtr:
-			n.Type = TypeIntPtrPtr
-		case TypeFloat:
-			n.Type = TypeFloatPtr
-		case TypeDouble:
-			n.Type = TypeDoublePtr
-		case TypeFloatPtr:
-			n.Type = TypeFloatPtrPtr
-		case TypeDoublePtr:
-			n.Type = TypeDoublePtrPtr
+		_ = checkExpr(n.Children[0], st, errs)
+		child := n.Children[0]
+		n.Type = TypePtr
+		switch child.Type {
 		case TypeIntArray:
-			// Array-to-pointer decay: use element type to produce a typed pointer.
+			// Array-to-pointer decay: use element type.
 			et := TypeInt
-			if child := n.Children[0]; child.Kind == KindVar {
-				if e := st.lookup(child.Name); e != nil && e.elemType != 0 {
-					et = e.elemType
+			var ep *CType
+			if child.Kind == KindVar {
+				if e := st.lookup(child.Name); e != nil {
+					if e.elemType != 0 {
+						et = e.elemType
+						ep = e.elemPointee
+					}
 				}
 			}
-			n.Type = ptrType(et)
+			if et == TypePtr {
+				n.Pointee = ptrCType(ep)
+			} else {
+				n.Pointee = leafCType(et)
+			}
+		case TypePtr:
+			// &ptr — pointer to a pointer.
+			n.Pointee = ptrCType(child.Pointee)
+		case TypeStruct:
+			n.Pointee = structCType(child.StructTag)
 		default:
-			n.Type = TypeIntPtr
+			n.Pointee = leafCType(child.Type)
 		}
-		return n.Type
+		return TypePtr
 
 	case KindDeref:
 		t := checkExpr(n.Children[0], st, errs)
-		if t == TypeVoidPtr {
+		if t != TypePtr && t != TypeCharPtr {
+			*errs = append(*errs, "cannot dereference non-pointer")
+			n.Type = TypeInt
+			return TypeInt
+		}
+		child := n.Children[0]
+		ptee := child.Pointee
+		if t == TypeCharPtr || (ptee != nil && ptee.Kind == TypeChar) {
+			n.Type = TypeChar
+			n.Pointee = nil
+			return TypeChar
+		}
+		if ptee == nil {
+			n.Type = TypeInt
+			return TypeInt
+		}
+		if ptee.Kind == TypeVoid {
 			*errs = append(*errs, "cannot dereference void pointer")
 			n.Type = TypeInt
 			return TypeInt
 		}
-		n.Type = derefPtrType(t)
+		n.Type = ptee.Kind
+		n.StructTag = ptee.Tag
+		n.Pointee = ptee.Pointee
 		return n.Type
 
 	case KindVar:
@@ -524,7 +578,12 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			return TypeInt
 		}
 		n.Type = e.typ
+		n.Pointee = e.pointee
 		n.StructTag = e.structTag
+		// For TypePtr-to-struct: propagate the struct tag to StructTag for field-access lookup.
+		if e.typ == TypePtr && e.pointee != nil && e.pointee.Kind == TypeStruct {
+			n.StructTag = e.pointee.Tag
+		}
 		return e.typ
 
 	case KindArrayVar:
@@ -539,21 +598,32 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		}
 		checkExpr(n.Children[0], st, errs)
 		// Element type from subscripting the pointer/array.
-		switch e.typ {
-		case TypeCharPtr:
+		if e.typ == TypePtr {
+			ptee := e.pointee
+			if ptee == nil {
+				n.Type = TypeInt
+			} else {
+				n.Type = ptee.Kind
+				n.StructTag = ptee.Tag
+				n.Pointee = ptee.Pointee
+				// For TypePtr-to-struct: propagate struct tag.
+				if ptee.Kind == TypeStruct {
+					n.StructTag = ptee.Tag
+				}
+			}
+		} else if e.typ == TypeCharPtr {
 			n.Type = TypeChar
-		case TypeFloatPtr:
-			n.Type = TypeFloat
-		case TypeDoublePtr:
-			n.Type = TypeDouble
-		default:
-			if isPtrPtrType(e.typ) {
-				n.Type = derefPtrType(e.typ) // int** → int*, char** → char*, double** → double*
-			} else if e.typ == TypeIntArray && e.elemType != 0 && e.elemType != TypeInt {
+		} else if e.typ == TypeIntArray {
+			if e.elemType == TypePtr {
+				n.Type = TypePtr
+				n.Pointee = e.elemPointee
+			} else if e.elemType != 0 && e.elemType != TypeInt {
 				n.Type = e.elemType // typed array: use the declared element type
 			} else {
-				n.Type = TypeInt // TypeIntPtr, TypeVoidPtr, TypeIntArray → int element
+				n.Type = TypeInt
 			}
+		} else {
+			n.Type = TypeInt // TypeVoidPtr fallback
 		}
 		return n.Type
 
@@ -588,19 +658,30 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		}
 		// Pointer assignment compatibility check.
 		if isPtrType(lhsType) {
-			// TypeIntArray used as a value decays to int* (e.g. p = arr_name).
+			// TypeIntArray used as a value decays to pointer.
 			effectiveRhs := rhsType
+			effectiveRhsPtee := rhs.Pointee
 			if effectiveRhs == TypeIntArray {
-				effectiveRhs = TypeIntPtr
+				effectiveRhs = TypePtr
+				effectiveRhsPtee = leafCType(TypeInt)
 			}
 			if isPtrType(effectiveRhs) {
-				// Both pointers: must be same type or one side is void*.
-				if lhsType != effectiveRhs && lhsType != TypeVoidPtr && effectiveRhs != TypeVoidPtr {
-					*errs = append(*errs, "assignment of incompatible pointer types")
+				// Both pointers: must have compatible pointees, or one side is void*.
+				// Normalize TypeCharPtr (legacy string-literal type) to TypePtr(TypeChar).
+				normLhs, lhsPtee := normalizePtrType(lhsType, n.Children[0].Pointee)
+				normRhs, rhsPtee := normalizePtrType(effectiveRhs, effectiveRhsPtee)
+				isLhsVoid := normLhs == TypePtr && ctypeIsVoidPtr(lhsPtee)
+				isRhsVoid := normRhs == TypePtr && ctypeIsVoidPtr(rhsPtee)
+				if !isLhsVoid && !isRhsVoid {
+					if normLhs != normRhs || !ctypeEq(lhsPtee, rhsPtee) {
+						*errs = append(*errs, "assignment of incompatible pointer types")
+					}
 				}
 			} else {
-				// Non-pointer rhs to pointer lhs: only the null pointer constant (literal 0) is valid.
-				if rhs.Kind != KindNum || rhs.Val != 0 {
+				// Non-pointer rhs to pointer lhs: reject non-zero integer literals.
+				// Other non-pointer expressions (e.g. deref of long* for variadic args)
+				// are allowed — the programmer is responsible for the cast-free conversion.
+				if rhs.Kind == KindNum && rhs.Val != 0 {
 					*errs = append(*errs, "assignment of non-pointer to pointer type")
 				}
 			}
@@ -616,6 +697,20 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		n.Type = lt // result type matches lhs (e.g. unsigned int x += y stays unsigned)
 		return lt
 
+	case KindPostInc, KindPostDec, KindPreInc, KindPreDec:
+		t := checkExpr(n.Children[0], st, errs)
+		n.Type = t
+		if isPtrType(t) {
+			n.Pointee = n.Children[0].Pointee
+		}
+		return t
+
+	case KindLogAnd, KindLogOr:
+		checkExpr(n.Children[0], st, errs)
+		checkExpr(n.Children[1], st, errs)
+		n.Type = TypeInt
+		return TypeInt
+
 	case KindBinOp:
 		lt := checkExpr(n.Children[0], st, errs)
 		rt := checkExpr(n.Children[1], st, errs)
@@ -625,23 +720,26 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		case "<", "<=", ">", ">=", "==", "!=":
 			// Pointer comparison type checking.
 			if isPtrType(lt) && isPtrType(rt) {
-				if lt != rt && lt != TypeVoidPtr && rt != TypeVoidPtr {
+				lPtee := n.Children[0].Pointee
+				rPtee := n.Children[1].Pointee
+				isLVoid := lt == TypePtr && ctypeIsVoidPtr(lPtee)
+				isRVoid := rt == TypePtr && ctypeIsVoidPtr(rPtee)
+				if !isLVoid && !isRVoid && !ctypeEq(lPtee, rPtee) {
 					*errs = append(*errs, "comparison of incompatible pointer types")
 				}
 			}
 			n.Type = TypeInt
 		default:
-			// Pointer arithmetic: pointer ± integer → same pointer type.
+			// Pointer arithmetic: pointer ± integer → same pointer type (preserve Pointee).
 			if isPtrType(lt) && !isPtrType(rt) && (n.Op == "+" || n.Op == "-") {
 				n.Type = lt
+				n.Pointee = n.Children[0].Pointee
 			} else if isPtrType(rt) && !isPtrType(lt) && n.Op == "+" {
-				// integer + pointer (commutative) → pointer type
 				n.Type = rt
+				n.Pointee = n.Children[1].Pointee
 			} else if isFPType(lt) || isFPType(rt) {
-				// FP "infects" — if either operand is FP, result is double.
 				n.Type = TypeDouble
 			} else if isUnsignedType(lt) || isUnsignedType(rt) {
-				// Arithmetic: unsigned "infects" — if either operand is unsigned, result is unsigned.
 				n.Type = TypeUnsignedInt
 			} else {
 				n.Type = TypeInt
@@ -667,7 +765,12 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 
 	case KindFieldAccess:
 		checkExpr(n.Children[0], st, errs)
-		baseTag := n.Children[0].StructTag
+		base := n.Children[0]
+		baseTag := base.StructTag
+		// For "->": if base is TypePtr pointing to a struct, extract tag from Pointee.
+		if baseTag == "" && base.Type == TypePtr && base.Pointee != nil && base.Pointee.Kind == TypeStruct {
+			baseTag = base.Pointee.Tag
+		}
 		if baseTag == "" {
 			*errs = append(*errs, fmt.Sprintf("field access on non-struct expression"))
 			n.Type = TypeInt
@@ -691,11 +794,23 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			if et == 0 {
 				et = TypeInt
 			}
-			n.Type = ptrType(et)
+			n.Type = TypePtr
+			if et == TypePtr {
+				n.Pointee = f.ElemPointee
+			} else {
+				n.Pointee = leafCType(et)
+			}
 		} else {
 			n.Type = f.Type
+			n.Pointee = f.Pointee
+			if f.Type == TypeStruct {
+				n.StructTag = f.StructTag
+			} else if f.Type == TypePtr && f.Pointee != nil && f.Pointee.Kind == TypeStruct {
+				n.StructTag = f.Pointee.Tag
+			} else {
+				n.StructTag = f.StructTag
+			}
 		}
-		n.StructTag = f.StructTag // propagate inner struct tag (for chained access)
 		return n.Type
 
 	case KindSizeof:
@@ -735,6 +850,14 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		n.StructTag = ""
 		return TypeInt
 
+	case KindVAArg:
+		// va_arg(ap, type) — type-check the ap expression; result type is already
+		// recorded in n.Type / n.Pointee by the grammar action.  No further
+		// checking needed: ap is a va_list (long*) and we trust the caller.
+		checkExpr(n.Children[0], st, errs)
+		// n.Type and n.Pointee are already set by the grammar rule; just return.
+		return n.Type
+
 	case KindCall:
 		// Check if the callee name is a TypeFuncPtr variable (not a direct function).
 		if e := st.lookup(n.Name); e != nil && e.typ == TypeFuncPtr {
@@ -760,10 +883,79 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 					n.Name, len(sig.Params), len(n.Children)))
 			}
 		}
-		for _, arg := range n.Children {
-			checkExpr(arg, st, errs)
+		for i, arg := range n.Children {
+			argType := checkExpr(arg, st, errs)
+			// Per-param pointer type checking: skip variadic functions and
+			// builtins whose signatures are simplified (accept both ptr and int).
+			isBuiltin := n.Name == "input" || n.Name == "output" ||
+				n.Name == "print_char" || n.Name == "print_string" || n.Name == "print_double"
+			if i < len(sig.Params) && !sig.IsVariadic && !isBuiltin {
+				paramType := sig.Params[i]
+				paramPtee := (*CType)(nil)
+				if i < len(sig.ParamPointees) {
+					paramPtee = sig.ParamPointees[i]
+				}
+				// Array-to-pointer decay: TypeIntArray passed as arg decays to a pointer.
+				// Treat it as TypePtr for the purpose of compatibility checking.
+				effectiveArgType := argType
+				effectiveArgPtee := arg.Pointee
+				if argType == TypeIntArray {
+					effectiveArgType = TypePtr
+					// Determine element type for the decayed pointer.
+					if e := st.lookup(arg.Name); e != nil {
+						if e.elemType == TypePtr {
+							effectiveArgPtee = e.elemPointee
+						} else if e.elemType != 0 {
+							effectiveArgPtee = leafCType(e.elemType)
+						} else {
+							effectiveArgPtee = leafCType(TypeInt)
+						}
+					} else {
+						effectiveArgPtee = leafCType(TypeInt)
+					}
+				}
+				// Array-to-pointer decay on the param side: int arr[] params behave as int*.
+				effectiveParamType := paramType
+				if effectiveParamType == TypeIntArray {
+					effectiveParamType = TypePtr
+					if paramPtee == nil {
+						paramPtee = leafCType(TypeInt)
+					}
+				}
+				// Normalize TypeCharPtr (legacy string-literal type) to TypePtr(TypeChar)
+				// on both sides so that char* variables and string literals compare equal.
+				effectiveArgType, effectiveArgPtee = normalizePtrType(effectiveArgType, effectiveArgPtee)
+				effectiveParamType, paramPtee = normalizePtrType(effectiveParamType, paramPtee)
+				// Flag: pointer passed where non-pointer expected, or vice versa.
+				argIsPtr := isPtrType(effectiveArgType)
+				paramIsPtr := isPtrType(effectiveParamType)
+				if argIsPtr && !paramIsPtr && effectiveParamType != TypeVoid {
+					*errs = append(*errs, fmt.Sprintf("'%s' arg %d: pointer passed where non-pointer expected",
+						n.Name, i+1))
+				} else if !argIsPtr && paramIsPtr && argType != TypeVoid &&
+					!(arg.Kind == KindNum && arg.Val == 0) {
+					// Null pointer constant (0) is always valid.
+					*errs = append(*errs, fmt.Sprintf("'%s' arg %d: non-pointer passed where pointer expected",
+						n.Name, i+1))
+				} else if argIsPtr && paramIsPtr && effectiveParamType == TypePtr && effectiveArgType == TypePtr {
+					// Both pointer: check compatibility (void* is universal).
+					isArgVoid := ctypeIsVoidPtr(effectiveArgPtee)
+					isParamVoid := ctypeIsVoidPtr(paramPtee)
+					if !isArgVoid && !isParamVoid && !ctypeEq(effectiveArgPtee, paramPtee) {
+						*errs = append(*errs, fmt.Sprintf("'%s' arg %d: incompatible pointer types",
+							n.Name, i+1))
+					}
+				} else if isFPType(argType) && !isFPType(paramType) && !paramIsPtr {
+					*errs = append(*errs, fmt.Sprintf("'%s' arg %d: floating-point passed where integer expected",
+						n.Name, i+1))
+				} else if !isFPType(argType) && isFPType(paramType) {
+					*errs = append(*errs, fmt.Sprintf("'%s' arg %d: integer passed where floating-point expected",
+						n.Name, i+1))
+				}
+			}
 		}
 		n.Type = sig.ReturnType
+		n.Pointee = sig.ReturnPointee
 		return sig.ReturnType
 
 	case KindFuncPtrCall:

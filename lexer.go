@@ -9,47 +9,42 @@ import (
 
 // lexer implements the yyLexer interface required by the goyacc-generated parser.
 type lexer struct {
-	src             string
-	pos             int
-	line            int
-	file            string
-	errors          int
-	result          *Node // set by the top-level grammar action
-	enumAutoVal     int   // auto-increment counter for enum constants
-	typedefs        map[string]TypeKind // typedef name → resolved TypeKind
-	typedefStructTags map[string]string // typedef name → struct tag (for typedef struct S T)
+	src         string
+	pos         int
+	line        int
+	file        string
+	errors      int
+	result      *Node            // set by the top-level grammar action
+	enumAutoVal int              // auto-increment counter for enum constants
+	typedefs    map[string]*CType // typedef name → full CType (leaf or pointer)
 }
 
 func newLexer(src, file string) *lexer {
-	return &lexer{
-		src:               src,
-		pos:               0,
-		line:              1,
-		file:              file,
-		typedefs:          make(map[string]TypeKind),
-		typedefStructTags: make(map[string]string),
+	l := &lexer{
+		src:      src,
+		pos:      0,
+		line:     1,
+		file:     file,
+		typedefs: make(map[string]*CType),
 	}
+	// Pre-register "bool" as a typedef for _Bool (TypeInt).
+	// This lets "typedef _Bool bool;" work without "bool" being re-lexed as INT.
+	l.typedefs["bool"] = leafCType(TypeInt)
+	return l
 }
 
-// registerTypedef registers a typedef name with its resolved TypeKind and optional struct tag.
-func (l *lexer) registerTypedef(name string, kind TypeKind, structTag string) {
-	l.typedefs[name] = kind
-	if structTag != "" {
-		l.typedefStructTags[name] = structTag
-	}
+// registerTypedef registers a typedef name with its full CType.
+func (l *lexer) registerTypedef(name string, ct *CType) {
+	l.typedefs[name] = ct
 }
 
-// lookupTypedefKind returns the TypeKind registered for a typedef name.
-func (l *lexer) lookupTypedefKind(name string) TypeKind {
-	if k, ok := l.typedefs[name]; ok {
-		return k
+// lookupTypedefCType returns the full *CType registered for a typedef name.
+// Returns a leaf TypeInt CType if the name is not registered.
+func (l *lexer) lookupTypedefCType(name string) *CType {
+	if ct, ok := l.typedefs[name]; ok {
+		return ct
 	}
-	return TypeInt
-}
-
-// lookupTypedefTag returns the struct tag registered for a typedef name (empty if none).
-func (l *lexer) lookupTypedefTag(name string) string {
-	return l.typedefStructTags[name]
+	return leafCType(TypeInt)
 }
 
 // keywords maps reserved words to their goyacc token constants.
@@ -80,7 +75,7 @@ var keywords = map[string]int{
 	"typedef":  TYPEDEF,
 	"static":   STATIC,
 	"_Bool":    INT,
-	"bool":     INT,
+	"va_arg":   VA_ARG,
 }
 
 // skipWords lists storage-class and qualifier keywords that the lexer silently drops.
@@ -406,6 +401,18 @@ scan:
 			return EQ
 		}
 		return int('=')
+	case '&':
+		if l.pos < len(l.src) && l.src[l.pos] == '&' {
+			l.pos++
+			return ANDAND
+		}
+		return int('&')
+	case '|':
+		if l.pos < len(l.src) && l.src[l.pos] == '|' {
+			l.pos++
+			return OROR
+		}
+		return int('|')
 	case '!':
 		if l.pos < len(l.src) && l.src[l.pos] == '=' {
 			l.pos++
