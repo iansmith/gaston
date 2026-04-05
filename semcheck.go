@@ -736,6 +736,34 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		n.Type = TypeInt
 		return TypeInt
 
+	case KindTernary:
+		checkExpr(n.Children[0], st, errs) // condition
+		thenType := checkExpr(n.Children[1], st, errs)
+		elseType := checkExpr(n.Children[2], st, errs)
+		switch {
+		case isFPType(thenType) || isFPType(elseType):
+			n.Type = TypeDouble
+		case thenType == TypeUnsignedLong || elseType == TypeUnsignedLong:
+			n.Type = TypeUnsignedLong
+		case thenType == TypeLong || elseType == TypeLong:
+			n.Type = TypeLong
+		case isPtrType(thenType):
+			n.Type = thenType
+			n.Pointee = n.Children[1].Pointee
+		case isPtrType(elseType):
+			n.Type = elseType
+			n.Pointee = n.Children[2].Pointee
+		case isUnsignedType(thenType) || isUnsignedType(elseType):
+			n.Type = TypeUnsignedInt
+		default:
+			n.Type = TypeInt
+		}
+		if thenType == TypeStruct && elseType == TypeStruct &&
+			n.Children[1].StructTag == n.Children[2].StructTag {
+			n.StructTag = n.Children[1].StructTag
+		}
+		return n.Type
+
 	case KindBinOp:
 		lt := checkExpr(n.Children[0], st, errs)
 		rt := checkExpr(n.Children[1], st, errs)

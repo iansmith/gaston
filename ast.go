@@ -146,10 +146,7 @@ const (
 	KindLogAnd      // a && b: short-circuit logical AND; yields 0 or 1 (TypeInt)
 	KindLogOr       // a || b: short-circuit logical OR; yields 0 or 1 (TypeInt)
 	KindCast        // (type)expr — explicit type cast; Type/Pointee = target type; Children[0] = source expr
-
-	// TODO: KindTernary — cond ? then : else expression.
-	// Parser change: add QUESTION/COLON tokens, new grammar rule in expr.
-	// Irgen: emit cond, branch to two blocks, phi-join into result temp.
+	KindTernary     // cond ? then : else — Children[0]=cond, [1]=then-expr, [2]=else-expr
 
 	// TODO: struct return by value (on the stack).
 	// Currently all structs must be passed/returned by pointer (printf.cm works

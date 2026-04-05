@@ -353,6 +353,10 @@ var featureTests = []dockerTest{
 	{name: "logical_and", want: "1\n1\n0\n1\n"},
 	// logical ||: short-circuit, 0/1 result, use in conditions
 	{name: "logical_or", want: "1\n0\n1\n1\n1\n"},
+	// ternary_basic: sign/abs/max2 via nested ternary expressions
+	{name: "ternary_basic", want: "-1\n0\n1\n7\n4\n8\n10\n"},
+	// ternary_fp: double abs and max via ternary (FP branch selection)
+	{name: "ternary_fp", want: "3.140000\n2.710000\n2.500000\n"},
 }
 
 // sepTest describes a separate-compilation test: compile multiple .cm files

@@ -33,6 +33,7 @@ package main
 %token ANDEQ OREQ XOREQ SHLEQ SHREQ
 %token ARROW ELLIPSIS
 %token ANDAND OROR
+%token QUESTION
 
 // Types for non-terminals
 %type <node>  program fun_declaration
@@ -43,7 +44,7 @@ package main
 %type <nodes> local_declarations statement_list
 %type <node>  statement expression_stmt selection_stmt iteration_stmt for_stmt do_while_stmt return_stmt break_stmt continue_stmt goto_stmt
 %type <node>  opt_expression
-%type <node>  expression var simple_expression logical_expression comparison_expression bitwise_expression additive_expression term factor call
+%type <node>  expression var simple_expression ternary_expression logical_expression comparison_expression bitwise_expression additive_expression term factor call
 %type <nodes> args arg_list
 %type <typ>   type_specifier
 %type <sval>  relop addop mulop bitwiseop
@@ -473,7 +474,14 @@ var
 	;
 
 simple_expression
-	: logical_expression
+	: ternary_expression
+		{ $$ = $1 }
+	;
+
+ternary_expression
+	: logical_expression QUESTION ternary_expression ':' ternary_expression
+		{ $$ = &Node{Kind: KindTernary, Children: []*Node{$1, $3, $5}} }
+	| logical_expression
 		{ $$ = $1 }
 	;
 

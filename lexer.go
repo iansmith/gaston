@@ -441,6 +441,8 @@ scan:
 			return NE
 		}
 		return int('!')
+	case '?':
+		return QUESTION
 	default:
 		return int(c)
 	}

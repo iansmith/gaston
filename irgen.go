@@ -967,6 +967,34 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 		g.emitLabel(doneL)
 		return dst
 
+	case KindTernary:
+		condVal := g.genExpr(n.Children[0])
+		thenLbl := g.newLabel()
+		elseLbl := g.newLabel()
+		endLbl := g.newLabel()
+		result := g.newTemp()
+		g.emit(Quad{Op: IRJumpT, Src1: condVal, Extra: thenLbl})
+		g.emitJump(elseLbl)
+		g.emitLabel(thenLbl)
+		thenVal := g.genExpr(n.Children[1])
+		if isFPType(n.Type) {
+			thenVal = g.coerceToFP(thenVal, n.Children[1].Type)
+			g.emit(Quad{Op: IRFCopy, Dst: result, Src1: thenVal})
+		} else {
+			g.emit(Quad{Op: IRCopy, Dst: result, Src1: thenVal})
+		}
+		g.emitJump(endLbl)
+		g.emitLabel(elseLbl)
+		elseVal := g.genExpr(n.Children[2])
+		if isFPType(n.Type) {
+			elseVal = g.coerceToFP(elseVal, n.Children[2].Type)
+			g.emit(Quad{Op: IRFCopy, Dst: result, Src1: elseVal})
+		} else {
+			g.emit(Quad{Op: IRCopy, Dst: result, Src1: elseVal})
+		}
+		g.emitLabel(endLbl)
+		return result
+
 	case KindUnary:
 		operand := g.genExpr(n.Children[0])
 		dst := g.newTemp()
