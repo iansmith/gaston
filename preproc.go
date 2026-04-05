@@ -36,6 +36,12 @@ type includeFlags []string
 func (f *includeFlags) String() string        { return strings.Join(*f, ":") }
 func (f *includeFlags) Set(v string) error    { *f = append(*f, v); return nil }
 
+// defineFlags is a flag.Value that accumulates -D NAME[=value] defines.
+type defineFlags []string
+
+func (f *defineFlags) String() string        { return strings.Join(*f, " ") }
+func (f *defineFlags) Set(v string) error    { *f = append(*f, v); return nil }
+
 // builtinHeaders provides virtual content for standard headers that gaston
 // implements internally rather than relying on a host system libc.
 var builtinHeaders = map[string]string{
@@ -119,11 +125,12 @@ type preprocessor struct {
 // searched last (after any caller-supplied paths) before the virtual fallback.
 const defaultLibcDir = "libc"
 
-// newPreprocessor creates a preprocessor with the given include search paths.
+// newPreprocessor creates a preprocessor with the given include search paths
+// and extra command-line -D defines (each element is "NAME" or "NAME=value").
 // The gaston libc directory ("libc") is always appended as the final search
 // directory so that #include <stdarg.h>, <stddef.h>, etc. resolve to the
 // real header files when running from the cmd/gaston working directory.
-func newPreprocessor(includePaths []string) *preprocessor {
+func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor {
 	paths := make([]string, len(includePaths), len(includePaths)+1)
 	copy(paths, includePaths)
 	// Append libc/ only if not already present.
@@ -145,6 +152,7 @@ func newPreprocessor(includePaths []string) *preprocessor {
 
 	// Install predefined macros (GCC/Clang compatibility + ABI constants).
 	builtinSrc := `
+#define __gaston__              1
 #define __GNUC__                0
 #define __GNUC_MINOR__          0
 #define __GNUC_PATCHLEVEL__     0
@@ -162,23 +170,108 @@ func newPreprocessor(includePaths []string) *preprocessor {
 #define __SIZEOF_INT__          4
 #define __SIZEOF_SHORT__        2
 #define __SIZEOF_LONG_LONG__    8
+#define __SIZEOF_FLOAT__        4
+#define __SIZEOF_DOUBLE__       8
 #define __SIZEOF_LONG_DOUBLE__  16
 #define NULL                    0
+#define __FLT_MANT_DIG__        24
+#define __DBL_MANT_DIG__        53
+#define __LDBL_MANT_DIG__       64
+#define __FLT_MIN_EXP__         (-125)
+#define __DBL_MIN_EXP__         (-1021)
+#define __LDBL_MIN_EXP__        (-16381)
+#define __FLT_MAX_EXP__         128
+#define __DBL_MAX_EXP__         1024
+#define __LDBL_MAX_EXP__        16384
 `
 	var dummy strings.Builder
 	pp.processFile(builtinSrc, "<builtin>", &dummy)
+
+	// Apply -D NAME or -D NAME=value defines from the command line.
+	for _, d := range extraDefines {
+		var defSrc string
+		if idx := strings.IndexByte(d, '='); idx >= 0 {
+			defSrc = "#define " + d[:idx] + " " + d[idx+1:] + "\n"
+		} else {
+			defSrc = "#define " + d + " 1\n"
+		}
+		pp.processFile(defSrc, "<cmdline>", &dummy)
+	}
+
 	return pp
 }
 
 // Preprocess runs the preprocessor on src (source file name file) and returns
 // the expanded text, ready for lexing.
 func (p *preprocessor) Preprocess(src, file string) (string, error) {
+	src = stripBlockComments(src)
 	var out strings.Builder
 	p.processFile(src, file, &out)
 	if p.errors > 0 {
 		return "", fmt.Errorf("preprocessor: %d error(s)", p.errors)
 	}
 	return out.String(), nil
+}
+
+// stripBlockComments removes C block comments (/* ... */) from src, replacing
+// each comment with a single space on the starting line and preserving any
+// embedded newlines so that line numbers are not disturbed.
+// String and character literals are not scanned for comment markers.
+func stripBlockComments(src string) string {
+	var out strings.Builder
+	out.Grow(len(src))
+	i := 0
+	for i < len(src) {
+		c := src[i]
+		switch {
+		case c == '"': // string literal — copy verbatim
+			out.WriteByte(c)
+			i++
+			for i < len(src) {
+				c = src[i]
+				out.WriteByte(c)
+				i++
+				if c == '\\' && i < len(src) {
+					out.WriteByte(src[i])
+					i++
+				} else if c == '"' {
+					break
+				}
+			}
+		case c == '\'': // char literal — copy verbatim
+			out.WriteByte(c)
+			i++
+			for i < len(src) {
+				c = src[i]
+				out.WriteByte(c)
+				i++
+				if c == '\\' && i < len(src) {
+					out.WriteByte(src[i])
+					i++
+				} else if c == '\'' {
+					break
+				}
+			}
+		case c == '/' && i+1 < len(src) && src[i+1] == '*': // block comment
+			i += 2 // skip /*
+			out.WriteByte(' ')
+			for i < len(src) {
+				if src[i] == '\n' {
+					out.WriteByte('\n')
+					i++
+				} else if src[i] == '*' && i+1 < len(src) && src[i+1] == '/' {
+					i += 2 // skip */
+					break
+				} else {
+					i++
+				}
+			}
+		default:
+			out.WriteByte(c)
+			i++
+		}
+	}
+	return out.String()
 }
 
 func (p *preprocessor) errorf(file string, line int, format string, args ...any) {
@@ -293,7 +386,7 @@ func (p *preprocessor) processFile(src, file string, out *strings.Builder) {
 				out.WriteByte('\n')
 			}
 		} else if active {
-			out.WriteString(p.expandLine(ll.text))
+			out.WriteString(stripLineComment(p.expandLine(ll.text)))
 			for i := 0; i < ll.count; i++ {
 				out.WriteByte('\n')
 			}
@@ -1381,7 +1474,7 @@ func splitLogical(src string) []logLine {
 	for _, line := range raw {
 		count++
 		if strings.HasSuffix(line, "\\") {
-			buf.WriteString(line[:len(line)-1])
+			buf.WriteString(strings.TrimRight(line[:len(line)-1], " \t"))
 		} else {
 			buf.WriteString(line)
 			result = append(result, logLine{text: buf.String(), count: count})

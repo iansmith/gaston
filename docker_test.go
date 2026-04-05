@@ -387,7 +387,7 @@ func compileObj(name, outPath string) error {
 	if err != nil {
 		return fmt.Errorf("read %s: %w", srcPath, err)
 	}
-	pp := newPreprocessor(nil)
+	pp := newPreprocessor(nil, nil)
 	src, err := pp.Preprocess(string(raw), srcPath)
 	if err != nil {
 		return fmt.Errorf("preprocess %s: %w", srcPath, err)
@@ -466,7 +466,7 @@ func compileTest(name, outPath string) error {
 	if err != nil {
 		return fmt.Errorf("read %s: %w", srcPath, err)
 	}
-	pp := newPreprocessor(nil)
+	pp := newPreprocessor(nil, nil)
 	src, err := pp.Preprocess(string(raw), srcPath)
 	if err != nil {
 		return fmt.Errorf("preprocess %s: %w", srcPath, err)
@@ -493,7 +493,7 @@ func compileObjPath(srcPath, outPath string, includePaths []string) error {
 	if err != nil {
 		return fmt.Errorf("read %s: %w", srcPath, err)
 	}
-	pp := newPreprocessor(includePaths)
+	pp := newPreprocessor(includePaths, nil)
 	src, err := pp.Preprocess(string(raw), srcPath)
 	if err != nil {
 		return fmt.Errorf("preprocess %s: %w", srcPath, err)
@@ -681,7 +681,7 @@ func TestSemErrors(t *testing.T) {
 			if err != nil {
 				t.Fatalf("read %s: %v", srcPath, err)
 			}
-			pp := newPreprocessor(nil)
+			pp := newPreprocessor(nil, nil)
 			src, err2 := pp.Preprocess(string(raw), srcPath)
 			if err2 != nil {
 				t.Fatalf("preprocess: %v", err2)

@@ -23,7 +23,7 @@ func normLines(s string) string {
 // pp runs the preprocessor on src and returns the normalised output.
 func pp(t *testing.T, src string, includePaths ...string) string {
 	t.Helper()
-	p := newPreprocessor(includePaths)
+	p := newPreprocessor(includePaths, nil)
 	got, err := p.Preprocess(src, "<test>")
 	if err != nil {
 		t.Fatalf("Preprocess: %v", err)
@@ -309,7 +309,7 @@ func TestPP_IncludeGuard(t *testing.T) {
 		"#include \"guarded.h\"\n" +
 		"r = MAGIC;\n"
 
-	p := newPreprocessor([]string{dir})
+	p := newPreprocessor([]string{dir}, nil)
 	got, err := p.Preprocess(src, filepath.Join(dir, "test.cm"))
 	if err != nil {
 		t.Fatalf("Preprocess: %v", err)
@@ -335,7 +335,7 @@ func TestPP_IncludeSearchPath(t *testing.T) {
 		"a = ANSWER;\n" +
 		"b = GREETING;\n"
 
-	p := newPreprocessor([]string{incDir})
+	p := newPreprocessor([]string{incDir}, nil)
 	got, err := p.Preprocess(src, filepath.Join(srcDir, "test.cm"))
 	if err != nil {
 		t.Fatalf("Preprocess: %v", err)

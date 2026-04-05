@@ -21,13 +21,16 @@ import (
 )
 
 func main() {
-	asmMode  := flag.Bool("asm", false, "emit Plan 9 ARM64 assembly + Go bridge instead of ELF")
-	compOnly := flag.Bool("c", false, "compile to relocatable object (.o) only; do not link")
-	linkMode := flag.Bool("link", false, "link mode: combine .o/.a files into an ELF executable")
-	arMode   := flag.Bool("ar", false, "archive mode: package .o files into a static library (.a)")
-	outFlag  := flag.String("o", "", "output file name (used with -c, -link, or -ar)")
+	asmMode    := flag.Bool("asm", false, "emit Plan 9 ARM64 assembly + Go bridge instead of ELF")
+	compOnly   := flag.Bool("c", false, "compile to relocatable object (.o) only; do not link")
+	linkMode   := flag.Bool("link", false, "link mode: combine .o/.a files into an ELF executable")
+	arMode     := flag.Bool("ar", false, "archive mode: package .o files into a static library (.a)")
+	preprocOnly := flag.Bool("preprocess", false, "stop after preprocessing; write <base>.pre.cm")
+	outFlag    := flag.String("o", "", "output file name (used with -c, -link, or -ar)")
 	var includePaths includeFlags
+	var defines defineFlags
 	flag.Var(&includePaths, "I", "add `directory` to the include search path (may be repeated)")
+	flag.Var(&defines, "D", "define preprocessor macro `NAME[=value]` (may be repeated)")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage:\n")
@@ -36,7 +39,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  gaston -link -o out a.o b.o …       — link objects/archives\n")
 		fmt.Fprintf(os.Stderr, "  gaston -ar -o libfoo.a a.o b.o …    — build static library\n")
 		fmt.Fprintf(os.Stderr, "  gaston -asm <file.cm>               — emit Plan 9 assembly (legacy)\n")
+		fmt.Fprintf(os.Stderr, "  gaston -preprocess <file.cm>        — preprocess only; write <base>.pre.cm\n")
 		fmt.Fprintf(os.Stderr, "  gaston -I <dir> <file.cm>           — add include search path\n")
+		fmt.Fprintf(os.Stderr, "  gaston -D NAME[=val] <file.cm>      — define preprocessor macro\n")
 	}
 	flag.Parse()
 
@@ -96,11 +101,21 @@ func main() {
 	}
 
 	// Preprocess.
-	pp := newPreprocessor([]string(includePaths))
+	pp := newPreprocessor([]string(includePaths), []string(defines))
 	src, err := pp.Preprocess(string(rawSrc), infile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
 		os.Exit(1)
+	}
+
+	if *preprocOnly {
+		outFile := filepath.Join(dir, base+".pre.cm")
+		if err := os.WriteFile(outFile, []byte(src), 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Fprintf(os.Stderr, "gaston: wrote %s\n", outFile)
+		return
 	}
 
 	// Parse.
