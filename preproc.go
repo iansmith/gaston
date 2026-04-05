@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"unicode"
 )
 
 // ── data types ───────────────────────────────────────────────────────────────
@@ -135,11 +137,37 @@ func newPreprocessor(includePaths []string) *preprocessor {
 	if !hasLibc {
 		paths = append(paths, defaultLibcDir)
 	}
-	return &preprocessor{
+	pp := &preprocessor{
 		defines:      make(map[string]*macroDef),
 		includePaths: paths,
 		inInclude:    make(map[string]bool),
 	}
+
+	// Install predefined macros (GCC/Clang compatibility + ABI constants).
+	builtinSrc := `
+#define __GNUC__                0
+#define __GNUC_MINOR__          0
+#define __GNUC_PATCHLEVEL__     0
+#define __STDC__                1
+#define __STDC_VERSION__        199901L
+#define __STDC_HOSTED__         1
+#define __LP64__                1
+#define __LLP64__               0
+#define __aarch64__             1
+#define __ORDER_LITTLE_ENDIAN__ 1234
+#define __ORDER_BIG_ENDIAN__    4321
+#define __BYTE_ORDER__          1234
+#define __SIZEOF_POINTER__      8
+#define __SIZEOF_LONG__         8
+#define __SIZEOF_INT__          4
+#define __SIZEOF_SHORT__        2
+#define __SIZEOF_LONG_LONG__    8
+#define __SIZEOF_LONG_DOUBLE__  16
+#define NULL                    0
+`
+	var dummy strings.Builder
+	pp.processFile(builtinSrc, "<builtin>", &dummy)
+	return pp
 }
 
 // Preprocess runs the preprocessor on src (source file name file) and returns
@@ -220,15 +248,44 @@ func (p *preprocessor) processFile(src, file string, out *strings.Builder) {
 					}
 				}
 
+			case "if":
+				var entering bool
+				if active {
+					val := p.evalIfExpr(rest, file, lineNum)
+					entering = val != 0
+				}
+				conds = append(conds, condFrame{active: active && entering, done: active && entering})
+
+			case "elif":
+				if len(conds) <= 1 {
+					p.errorf(file, lineNum, "#elif without #if")
+				} else {
+					top := &conds[len(conds)-1]
+					parentActive := conds[len(conds)-2].active
+					if parentActive && !top.done {
+						val := p.evalIfExpr(rest, file, lineNum)
+						top.active = val != 0
+						top.done = top.active
+					} else {
+						top.active = false
+					}
+				}
+
 			case "include":
 				if active {
 					p.processInclude(rest, file, lineNum, out)
 				}
 
-			default:
+			case "error":
 				if active {
-					p.errorf(file, lineNum, "unknown directive #%s", dir)
+					p.errorf(file, lineNum, "#error %s", strings.TrimSpace(rest))
 				}
+
+			case "pragma", "warning":
+				// silently ignore
+
+			default:
+				// Unknown directives are silently ignored (picolibc compatibility).
 			}
 			// Directive lines produce no code output — emit blank lines so the
 			// lexer's line numbers stay aligned with the original source.
@@ -496,6 +553,7 @@ func (p *preprocessor) expandLineOnce(line string) string {
 }
 
 // applyFuncMacro substitutes actual arguments into a function-like macro body.
+// It supports # stringification and ## token pasting.
 func (p *preprocessor) applyFuncMacro(def *macroDef, name string, args []string) string {
 	// Normalise: #define FOO() called as FOO() yields args=[""] but wants 0.
 	if len(def.params) == 0 && len(args) == 1 && args[0] == "" {
@@ -509,34 +567,84 @@ func (p *preprocessor) applyFuncMacro(def *macroDef, name string, args []string)
 		return name
 	}
 
+	// paramIndex returns the index of param name in def.params, or -1.
+	paramIndex := func(tok string) int {
+		if tok == "__VA_ARGS__" && def.variadic {
+			return len(def.params) // sentinel for variadic
+		}
+		for idx, param := range def.params {
+			if tok == param {
+				return idx
+			}
+		}
+		return -1
+	}
+
+	// argFor returns the substituted argument string for a given param index.
+	argFor := func(idx int) string {
+		if idx == len(def.params) && def.variadic {
+			// variadic: join extra args
+			return strings.Join(args[len(def.params):], ", ")
+		}
+		if idx >= 0 && idx < len(args) {
+			return args[idx]
+		}
+		return ""
+	}
+
 	var out strings.Builder
 	body := def.body
 	i := 0
 	for i < len(body) {
+		// Handle # stringification operator (not ##).
+		if body[i] == '#' {
+			// Peek: if next non-space is also '#', it's a paste operator — handle below.
+			j := i + 1
+			for j < len(body) && (body[j] == ' ' || body[j] == '\t') {
+				j++
+			}
+			if j < len(body) && body[j] == '#' {
+				// This is '# #' which is not a standard use; treat as paste.
+				// Fall through to emit '#' and let paste handler below pick it up.
+				out.WriteByte('#')
+				i++
+				continue
+			}
+			// Check if followed by an identifier (stringification).
+			if j < len(body) && isLetter(body[j]) {
+				k := j + 1
+				for k < len(body) && (isLetter(body[k]) || isDigit(body[k])) {
+					k++
+				}
+				tok := body[j:k]
+				idx := paramIndex(tok)
+				if idx >= 0 {
+					arg := argFor(idx)
+					// Stringify: wrap in double-quotes, escaping backslash and quote.
+					escaped := strings.ReplaceAll(arg, `\`, `\\`)
+					escaped = strings.ReplaceAll(escaped, `"`, `\"`)
+					out.WriteByte('"')
+					out.WriteString(escaped)
+					out.WriteByte('"')
+					i = k
+					continue
+				}
+			}
+			out.WriteByte('#')
+			i++
+			continue
+		}
+
 		if isLetter(body[i]) {
 			j := i + 1
 			for j < len(body) && (isLetter(body[j]) || isDigit(body[j])) {
 				j++
 			}
 			tok := body[i:j]
-
-			if tok == "__VA_ARGS__" && def.variadic {
-				varArgs := args[len(def.params):]
-				out.WriteString(strings.Join(varArgs, ", "))
-				i = j
-				continue
-			}
-			replaced := false
-			for idx, param := range def.params {
-				if tok == param {
-					if idx < len(args) {
-						out.WriteString(args[idx])
-					}
-					replaced = true
-					break
-				}
-			}
-			if !replaced {
+			idx := paramIndex(tok)
+			if idx >= 0 {
+				out.WriteString(argFor(idx))
+			} else {
 				out.WriteString(tok)
 			}
 			i = j
@@ -545,7 +653,32 @@ func (p *preprocessor) applyFuncMacro(def *macroDef, name string, args []string)
 		out.WriteByte(body[i])
 		i++
 	}
-	return out.String()
+
+	// Second pass: collapse ## token-paste operators (with optional surrounding spaces).
+	result := out.String()
+	result = applyTokenPaste(result)
+	return result
+}
+
+// applyTokenPaste collapses ## (token-paste) operators in s.
+// It handles patterns like "a ## b", "a##b", " ## b", "a ## ".
+func applyTokenPaste(s string) string {
+	if !strings.Contains(s, "##") {
+		return s
+	}
+	// Repeatedly collapse leftmost ## occurrence.
+	for {
+		idx := strings.Index(s, "##")
+		if idx < 0 {
+			break
+		}
+		// Trim trailing spaces before ##.
+		before := strings.TrimRight(s[:idx], " \t")
+		// Trim leading spaces after ##.
+		after := strings.TrimLeft(s[idx+2:], " \t")
+		s = before + after
+	}
+	return s
 }
 
 // collectArgs reads macro arguments starting after the opening '(' (at position
@@ -635,6 +768,606 @@ func collectArgs(line string, start int) ([]string, int, bool) {
 		}
 	}
 	return nil, 0, false // unclosed '('
+}
+
+// ── #if / #elif expression evaluator ─────────────────────────────────────────
+
+// evalIfExpr evaluates a preprocessor constant expression (from #if or #elif).
+func (p *preprocessor) evalIfExpr(expr, file string, line int) int64 {
+	expanded := p.expandForIf(expr)
+	toks := scanPPTokens(expanded)
+	pos := 0
+	val := evalPPExpr(toks, &pos)
+	return val
+}
+
+// expandForIf expands macros in a #if expression, handles defined(), and
+// replaces unknown identifiers with 0 (C standard rule).
+func (p *preprocessor) expandForIf(expr string) string {
+	// First, handle __has_attribute, __has_builtin, __has_feature,
+	// __has_include, __has_c_attribute — replace with 0 before macro expansion.
+	hasBuiltins := []string{
+		"__has_attribute", "__has_builtin", "__has_feature",
+		"__has_include", "__has_c_attribute", "__has_extension",
+		"__has_include_next",
+	}
+	for _, hb := range hasBuiltins {
+		for {
+			idx := strings.Index(expr, hb)
+			if idx < 0 {
+				break
+			}
+			after := idx + len(hb)
+			// Skip spaces.
+			j := after
+			for j < len(expr) && (expr[j] == ' ' || expr[j] == '\t') {
+				j++
+			}
+			if j >= len(expr) || expr[j] != '(' {
+				// Not a call — replace just the name with 0.
+				expr = expr[:idx] + "0" + expr[after:]
+				continue
+			}
+			// Find matching ')'.
+			depth := 1
+			k := j + 1
+			for k < len(expr) && depth > 0 {
+				if expr[k] == '(' {
+					depth++
+				} else if expr[k] == ')' {
+					depth--
+				}
+				k++
+			}
+			expr = expr[:idx] + "0" + expr[k:]
+		}
+	}
+
+	// Handle defined(X) and defined X.
+	for {
+		idx := strings.Index(expr, "defined")
+		if idx < 0 {
+			break
+		}
+		after := idx + len("defined")
+		// Make sure "defined" is a complete token (not part of longer identifier).
+		if idx > 0 && (isLetter(expr[idx-1]) || isDigit(expr[idx-1])) {
+			// Part of a longer word — skip by replacing just the word.
+			// Find end of this identifier.
+			end := after
+			for end < len(expr) && (isLetter(expr[end]) || isDigit(expr[end])) {
+				end++
+			}
+			// Replace with 0 (unknown identifier).
+			expr = expr[:idx] + "0" + expr[end:]
+			continue
+		}
+		if after < len(expr) && (isLetter(expr[after]) || isDigit(expr[after])) {
+			// Part of a longer word (e.g. "defined_something").
+			end := after
+			for end < len(expr) && (isLetter(expr[end]) || isDigit(expr[end])) {
+				end++
+			}
+			expr = expr[:idx] + "0" + expr[end:]
+			continue
+		}
+		// Skip spaces.
+		j := after
+		for j < len(expr) && (expr[j] == ' ' || expr[j] == '\t') {
+			j++
+		}
+		if j >= len(expr) {
+			expr = expr[:idx] + "0"
+			break
+		}
+		var macroName string
+		var end int
+		if expr[j] == '(' {
+			// defined(X) form.
+			k := j + 1
+			for k < len(expr) && (expr[k] == ' ' || expr[k] == '\t') {
+				k++
+			}
+			nameStart := k
+			for k < len(expr) && (isLetter(expr[k]) || isDigit(expr[k])) {
+				k++
+			}
+			macroName = expr[nameStart:k]
+			for k < len(expr) && (expr[k] == ' ' || expr[k] == '\t') {
+				k++
+			}
+			if k < len(expr) && expr[k] == ')' {
+				k++
+			}
+			end = k
+		} else if isLetter(expr[j]) {
+			// defined X form.
+			k := j
+			for k < len(expr) && (isLetter(expr[k]) || isDigit(expr[k])) {
+				k++
+			}
+			macroName = expr[j:k]
+			end = k
+		} else {
+			// Malformed defined — replace with 0.
+			expr = expr[:idx] + "0" + expr[j:]
+			continue
+		}
+		var replacement string
+		if p.defines[macroName] != nil {
+			replacement = "1"
+		} else {
+			replacement = "0"
+		}
+		expr = expr[:idx] + replacement + expr[end:]
+	}
+
+	// Expand remaining macros using the normal macro expander.
+	expr = p.expandLine(expr)
+
+	// Replace any remaining identifiers (undefined macros) with 0.
+	// We must skip numeric literals (including hex 0x...) and character literals.
+	var out strings.Builder
+	i := 0
+	for i < len(expr) {
+		c := expr[i]
+
+		// Skip character literals.
+		if c == '\'' {
+			out.WriteByte(c)
+			i++
+			for i < len(expr) {
+				if expr[i] == '\\' {
+					out.WriteByte(expr[i])
+					i++
+					if i < len(expr) {
+						out.WriteByte(expr[i])
+						i++
+					}
+					continue
+				}
+				out.WriteByte(expr[i])
+				if expr[i] == '\'' {
+					i++
+					break
+				}
+				i++
+			}
+			continue
+		}
+
+		// Skip string literals.
+		if c == '"' {
+			out.WriteByte(c)
+			i++
+			for i < len(expr) {
+				if expr[i] == '\\' {
+					out.WriteByte(expr[i])
+					i++
+					if i < len(expr) {
+						out.WriteByte(expr[i])
+						i++
+					}
+					continue
+				}
+				out.WriteByte(expr[i])
+				if expr[i] == '"' {
+					i++
+					break
+				}
+				i++
+			}
+			continue
+		}
+
+		// Skip numeric literals (decimal and hex).
+		if isDigit(c) {
+			j := i
+			if c == '0' && j+1 < len(expr) && (expr[j+1] == 'x' || expr[j+1] == 'X') {
+				j += 2
+				for j < len(expr) && isHexDigit(expr[j]) {
+					j++
+				}
+			} else {
+				for j < len(expr) && isDigit(expr[j]) {
+					j++
+				}
+			}
+			// Consume integer suffixes attached to the number (e.g., 1UL, 0xFFULL).
+			for j < len(expr) && (expr[j] == 'u' || expr[j] == 'U' || expr[j] == 'l' || expr[j] == 'L') {
+				j++
+			}
+			out.WriteString(expr[i:j])
+			i = j
+			continue
+		}
+
+		// Replace identifiers (undefined macros) with 0.
+		if isLetter(c) {
+			j := i + 1
+			for j < len(expr) && (isLetter(expr[j]) || isDigit(expr[j])) {
+				j++
+			}
+			out.WriteString("0")
+			i = j
+			continue
+		}
+		out.WriteByte(c)
+		i++
+	}
+	return out.String()
+}
+
+// ppToken is a token in a preprocessor constant expression.
+type ppToken struct {
+	kind string // "num", "op"
+	num  int64
+	op   string
+}
+
+// scanPPTokens tokenizes a preprocessor constant expression.
+func scanPPTokens(s string) []ppToken {
+	var toks []ppToken
+	i := 0
+	for i < len(s) {
+		c := s[i]
+		if c == ' ' || c == '\t' {
+			i++
+			continue
+		}
+
+		// Character literal: 'x' or '\n'.
+		if c == '\'' {
+			i++ // skip opening quote
+			var val int64
+			if i < len(s) && s[i] == '\\' {
+				i++
+				if i < len(s) {
+					switch s[i] {
+					case 'n':
+						val = '\n'
+					case 't':
+						val = '\t'
+					case 'r':
+						val = '\r'
+					case '0':
+						val = 0
+					case '\\':
+						val = '\\'
+					case '\'':
+						val = '\''
+					default:
+						val = int64(s[i])
+					}
+					i++
+				}
+			} else if i < len(s) {
+				val = int64(s[i])
+				i++
+			}
+			if i < len(s) && s[i] == '\'' {
+				i++ // skip closing quote
+			}
+			toks = append(toks, ppToken{kind: "num", num: val})
+			continue
+		}
+
+		// Number.
+		if isDigit(c) {
+			j := i
+			if c == '0' && j+1 < len(s) && (s[j+1] == 'x' || s[j+1] == 'X') {
+				j += 2
+				for j < len(s) && isHexDigit(s[j]) {
+					j++
+				}
+			} else {
+				for j < len(s) && isDigit(s[j]) {
+					j++
+				}
+			}
+			numStr := s[i:j]
+			// Skip integer suffixes.
+			for j < len(s) && (s[j] == 'u' || s[j] == 'U' || s[j] == 'l' || s[j] == 'L') {
+				j++
+			}
+			// Parse number.
+			base := 0
+			v, err := strconv.ParseInt(numStr, base, 64)
+			if err != nil {
+				// Try unsigned.
+				uv, uerr := strconv.ParseUint(numStr, base, 64)
+				if uerr == nil {
+					v = int64(uv)
+				}
+			}
+			toks = append(toks, ppToken{kind: "num", num: v})
+			i = j
+			continue
+		}
+
+		// Two-character operators.
+		if i+1 < len(s) {
+			two := s[i : i+2]
+			switch two {
+			case "&&", "||", "==", "!=", "<=", ">=", "<<", ">>":
+				toks = append(toks, ppToken{kind: "op", op: two})
+				i += 2
+				continue
+			}
+		}
+
+		// Single-character operators.
+		switch c {
+		case '?', ':', '(', ')', '!', '~', '+', '-', '*', '/', '%', '&', '|', '^', '<', '>':
+			toks = append(toks, ppToken{kind: "op", op: string(c)})
+		default:
+			// Skip unknown characters (e.g., identifiers already replaced with 0).
+			if !unicode.IsSpace(rune(c)) {
+				// Unknown — skip.
+			}
+		}
+		i++
+	}
+	return toks
+}
+
+// evalPPExpr evaluates a preprocessor constant expression using recursive descent.
+func evalPPExpr(toks []ppToken, pos *int) int64 {
+	return evalTernary(toks, pos)
+}
+
+func peekOp(toks []ppToken, pos *int, op string) bool {
+	if *pos < len(toks) && toks[*pos].kind == "op" && toks[*pos].op == op {
+		return true
+	}
+	return false
+}
+
+func consumeOp(toks []ppToken, pos *int, op string) bool {
+	if peekOp(toks, pos, op) {
+		*pos++
+		return true
+	}
+	return false
+}
+
+func evalTernary(toks []ppToken, pos *int) int64 {
+	cond := evalOr(toks, pos)
+	if consumeOp(toks, pos, "?") {
+		then := evalTernary(toks, pos)
+		consumeOp(toks, pos, ":")
+		els := evalTernary(toks, pos)
+		if cond != 0 {
+			return then
+		}
+		return els
+	}
+	return cond
+}
+
+func evalOr(toks []ppToken, pos *int) int64 {
+	lhs := evalAnd(toks, pos)
+	for consumeOp(toks, pos, "||") {
+		rhs := evalAnd(toks, pos)
+		if lhs != 0 || rhs != 0 {
+			lhs = 1
+		} else {
+			lhs = 0
+		}
+	}
+	return lhs
+}
+
+func evalAnd(toks []ppToken, pos *int) int64 {
+	lhs := evalBitOr(toks, pos)
+	for consumeOp(toks, pos, "&&") {
+		rhs := evalBitOr(toks, pos)
+		if lhs != 0 && rhs != 0 {
+			lhs = 1
+		} else {
+			lhs = 0
+		}
+	}
+	return lhs
+}
+
+func evalBitOr(toks []ppToken, pos *int) int64 {
+	lhs := evalBitXor(toks, pos)
+	for peekOp(toks, pos, "|") {
+		*pos++
+		rhs := evalBitXor(toks, pos)
+		lhs = lhs | rhs
+	}
+	return lhs
+}
+
+func evalBitXor(toks []ppToken, pos *int) int64 {
+	lhs := evalBitAnd(toks, pos)
+	for consumeOp(toks, pos, "^") {
+		rhs := evalBitAnd(toks, pos)
+		lhs = lhs ^ rhs
+	}
+	return lhs
+}
+
+func evalBitAnd(toks []ppToken, pos *int) int64 {
+	lhs := evalEquality(toks, pos)
+	for peekOp(toks, pos, "&") {
+		*pos++
+		rhs := evalEquality(toks, pos)
+		lhs = lhs & rhs
+	}
+	return lhs
+}
+
+func evalEquality(toks []ppToken, pos *int) int64 {
+	lhs := evalRelational(toks, pos)
+	for {
+		if consumeOp(toks, pos, "==") {
+			rhs := evalRelational(toks, pos)
+			if lhs == rhs {
+				lhs = 1
+			} else {
+				lhs = 0
+			}
+		} else if consumeOp(toks, pos, "!=") {
+			rhs := evalRelational(toks, pos)
+			if lhs != rhs {
+				lhs = 1
+			} else {
+				lhs = 0
+			}
+		} else {
+			break
+		}
+	}
+	return lhs
+}
+
+func evalRelational(toks []ppToken, pos *int) int64 {
+	lhs := evalShift(toks, pos)
+	for {
+		if consumeOp(toks, pos, "<=") {
+			rhs := evalShift(toks, pos)
+			if lhs <= rhs {
+				lhs = 1
+			} else {
+				lhs = 0
+			}
+		} else if consumeOp(toks, pos, ">=") {
+			rhs := evalShift(toks, pos)
+			if lhs >= rhs {
+				lhs = 1
+			} else {
+				lhs = 0
+			}
+		} else if peekOp(toks, pos, "<") {
+			*pos++
+			rhs := evalShift(toks, pos)
+			if lhs < rhs {
+				lhs = 1
+			} else {
+				lhs = 0
+			}
+		} else if peekOp(toks, pos, ">") {
+			*pos++
+			rhs := evalShift(toks, pos)
+			if lhs > rhs {
+				lhs = 1
+			} else {
+				lhs = 0
+			}
+		} else {
+			break
+		}
+	}
+	return lhs
+}
+
+func evalShift(toks []ppToken, pos *int) int64 {
+	lhs := evalAddSub(toks, pos)
+	for {
+		if consumeOp(toks, pos, "<<") {
+			rhs := evalAddSub(toks, pos)
+			lhs = lhs << uint(rhs)
+		} else if consumeOp(toks, pos, ">>") {
+			rhs := evalAddSub(toks, pos)
+			lhs = lhs >> uint(rhs)
+		} else {
+			break
+		}
+	}
+	return lhs
+}
+
+func evalAddSub(toks []ppToken, pos *int) int64 {
+	lhs := evalMulDiv(toks, pos)
+	for {
+		if peekOp(toks, pos, "+") {
+			*pos++
+			rhs := evalMulDiv(toks, pos)
+			lhs = lhs + rhs
+		} else if peekOp(toks, pos, "-") {
+			*pos++
+			rhs := evalMulDiv(toks, pos)
+			lhs = lhs - rhs
+		} else {
+			break
+		}
+	}
+	return lhs
+}
+
+func evalMulDiv(toks []ppToken, pos *int) int64 {
+	lhs := evalUnary(toks, pos)
+	for {
+		if peekOp(toks, pos, "*") {
+			*pos++
+			rhs := evalUnary(toks, pos)
+			lhs = lhs * rhs
+		} else if peekOp(toks, pos, "/") {
+			*pos++
+			rhs := evalUnary(toks, pos)
+			if rhs == 0 {
+				lhs = 0 // division by zero: return 0
+			} else {
+				lhs = lhs / rhs
+			}
+		} else if peekOp(toks, pos, "%") {
+			*pos++
+			rhs := evalUnary(toks, pos)
+			if rhs == 0 {
+				lhs = 0 // modulo by zero: return 0
+			} else {
+				lhs = lhs % rhs
+			}
+		} else {
+			break
+		}
+	}
+	return lhs
+}
+
+func evalUnary(toks []ppToken, pos *int) int64 {
+	if consumeOp(toks, pos, "!") {
+		v := evalUnary(toks, pos)
+		if v == 0 {
+			return 1
+		}
+		return 0
+	}
+	if consumeOp(toks, pos, "~") {
+		v := evalUnary(toks, pos)
+		return ^v
+	}
+	if peekOp(toks, pos, "-") {
+		*pos++
+		v := evalUnary(toks, pos)
+		return -v
+	}
+	if peekOp(toks, pos, "+") {
+		*pos++
+		return evalUnary(toks, pos)
+	}
+	return evalPrimary(toks, pos)
+}
+
+func evalPrimary(toks []ppToken, pos *int) int64 {
+	if *pos >= len(toks) {
+		return 0
+	}
+	tok := toks[*pos]
+	if tok.kind == "num" {
+		*pos++
+		return tok.num
+	}
+	if tok.kind == "op" && tok.op == "(" {
+		*pos++ // consume '('
+		val := evalTernary(toks, pos)
+		consumeOp(toks, pos, ")")
+		return val
+	}
+	return 0
 }
 
 // ── utility functions ────────────────────────────────────────────────────────

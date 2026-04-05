@@ -384,3 +384,141 @@ x = 5;
 `
 	checkPP(t, pp(t, src), "int  x;\nx = 5;")
 }
+
+// ── #if / #elif expression evaluation tests ───────────────────────────────────
+
+// TestPreprocIf verifies basic #if / #elif expression evaluation.
+func TestPreprocIf(t *testing.T) {
+	cases := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{
+			name: "if_1",
+			src:  "#if 1\nint x;\n#endif",
+			want: "int x;",
+		},
+		{
+			name: "if_0",
+			src:  "#if 0\nint x;\n#endif",
+			want: "",
+		},
+		{
+			name: "if_arithmetic",
+			src:  "#if 1+1 == 2\nint x;\n#endif",
+			want: "int x;",
+		},
+		{
+			name: "if_defined_predefined",
+			src:  "#if defined(NULL)\nint x;\n#endif",
+			want: "int x;",
+		},
+		{
+			name: "if_not_defined_undefined",
+			src:  "#if !defined(UNDEFINED_MACRO)\nint x;\n#endif",
+			want: "int x;",
+		},
+		{
+			name: "elif_basic",
+			src:  "#if 0\nint x;\n#elif 1\nint y;\n#endif",
+			want: "int y;",
+		},
+		{
+			name: "elif_else",
+			src:  "#if 0\nint x;\n#elif 0\nint y;\n#else\nint z;\n#endif",
+			want: "int z;",
+		},
+		{
+			name: "if_logical_and",
+			src:  "#if 1 && 1\nint x;\n#endif",
+			want: "int x;",
+		},
+		{
+			name: "if_logical_or",
+			src:  "#if 0 || 1\nint x;\n#endif",
+			want: "int x;",
+		},
+		{
+			name: "if_ternary",
+			src:  "#if (1 ? 1 : 0)\nint x;\n#endif",
+			want: "int x;",
+		},
+		{
+			name: "if_bitwise",
+			src:  "#if (0x0F & 0xFF) == 15\nint x;\n#endif",
+			want: "int x;",
+		},
+		{
+			name: "if_shift",
+			src:  "#if (1 << 3) == 8\nint x;\n#endif",
+			want: "int x;",
+		},
+		{
+			name: "if_not",
+			src:  "#if !0\nint x;\n#endif",
+			want: "int x;",
+		},
+		{
+			name: "if_defined_no_parens",
+			src:  "#define FOO\n#if defined FOO\nint x;\n#endif",
+			want: "int x;",
+		},
+		{
+			name: "if_macro_value",
+			src:  "#define VERSION 3\n#if VERSION >= 2\nint x;\n#endif",
+			want: "int x;",
+		},
+		{
+			name: "if_has_attribute_zero",
+			src:  "#if __has_attribute(visibility)\nint x;\n#else\nint y;\n#endif",
+			want: "int y;",
+		},
+		{
+			name: "pragma_ignored",
+			src:  "#pragma once\nint x;",
+			want: "int x;",
+		},
+		{
+			name: "unknown_directive_ignored",
+			src:  "#ident \"version\"\nint x;",
+			want: "int x;",
+		},
+		{
+			name: "integer_suffix_ul",
+			src:  "#if 1UL == 1\nint x;\n#endif",
+			want: "int x;",
+		},
+		{
+			name: "integer_suffix_ll",
+			src:  "#if 100LL > 50\nint x;\n#endif",
+			want: "int x;",
+		},
+		{
+			name: "char_literal_in_if",
+			src:  "#if 'a' == 97\nint x;\n#endif",
+			want: "int x;",
+		},
+		{
+			name: "nested_if_elif",
+			src:  "#if 0\nint a;\n#elif 0\nint b;\n#elif 1\nint c;\n#endif",
+			want: "int c;",
+		},
+		{
+			name: "predefined_gnuc",
+			src:  "#if defined(__GNUC__)\nint x;\n#endif",
+			want: "int x;",
+		},
+		{
+			name: "predefined_stdc_version",
+			src:  "#if __STDC_VERSION__ >= 199901L\nint x;\n#endif",
+			want: "int x;",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			checkPP(t, pp(t, tc.src), tc.want)
+		})
+	}
+}
