@@ -269,6 +269,32 @@ func buildStructDef(n *Node, errs *[]string, structDefs map[string]*StructDef) *
 	const bfWordSize = 8
 
 	for _, child := range n.Children {
+		// Anonymous struct/union member: child.Name == "" and child.Children holds
+		// the inline field list.  Register it as a synthetic StructDef, then
+		// treat the anonymous member like a regular TypeStruct field.
+		if child.Name == "" && child.Type == TypeStruct && len(child.Children) > 0 {
+			anonDef := &Node{Kind: KindStructDef, Name: child.StructTag,
+				Children: child.Children, IsUnion: child.IsUnion}
+			inner := buildStructDef(anonDef, errs, structDefs)
+			if inner != nil {
+				structDefs[child.StructTag] = inner
+			}
+			sz, align := fieldSizeAlign(TypeStruct, child.StructTag, structDefs)
+			if !sd.IsUnion {
+				offset = (offset + align - 1) &^ (align - 1)
+			}
+			sd.Fields = append(sd.Fields, StructField{
+				Name:       "",
+				Type:       TypeStruct,
+				StructTag:  child.StructTag,
+				ByteOffset: offset,
+			})
+			if !sd.IsUnion {
+				offset += sz
+			}
+			continue
+		}
+
 		isBF := child.BitWidth > 0
 		isFlexArr := child.Type == TypeIntArray && child.Val == -1
 
@@ -839,7 +865,7 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			n.Type = TypeInt
 			return TypeInt
 		}
-		f := sd.FindField(n.Name)
+		f := sd.FindFieldDeep(n.Name, st.structDefs)
 		if f == nil {
 			*errs = append(*errs, fmt.Sprintf("struct '%s' has no field '%s'", baseTag, n.Name))
 			n.Type = TypeInt

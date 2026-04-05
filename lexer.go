@@ -16,6 +16,7 @@ type lexer struct {
 	errors      int
 	result      *Node            // set by the top-level grammar action
 	enumAutoVal int              // auto-increment counter for enum constants
+	anonCount   int              // counter for anonymous struct/union synthetic names
 	typedefs    map[string]*CType // typedef name → full CType (leaf or pointer)
 }
 
@@ -30,7 +31,16 @@ func newLexer(src, file string) *lexer {
 	// Pre-register "bool" as a typedef for _Bool (TypeInt).
 	// This lets "typedef _Bool bool;" work without "bool" being re-lexed as INT.
 	l.typedefs["bool"] = leafCType(TypeInt)
+	// Pre-register wchar_t as unsigned int (AArch64 LP64 ABI).
+	l.typedefs["wchar_t"] = leafCType(TypeUnsignedInt)
 	return l
+}
+
+// nextAnon returns the next synthetic anonymous struct/union tag name.
+func (l *lexer) nextAnon() string {
+	name := fmt.Sprintf("__anon_%d", l.anonCount)
+	l.anonCount++
+	return name
 }
 
 // registerTypedef registers a typedef name with its full CType.
@@ -80,10 +90,26 @@ var keywords = map[string]int{
 
 // skipWords lists storage-class and qualifier keywords that the lexer silently drops.
 var skipWords = map[string]bool{
-	"volatile": true,
-	"register": true,
-	"restrict": true,
-	"inline":   true,
+	// Standard qualifiers / storage classes
+	"volatile":   true,
+	"register":   true,
+	"restrict":   true,
+	"inline":     true,
+	// C11 function specifiers
+	"_Noreturn":  true,
+	"noreturn":   true,
+	// GCC alternate spellings (appear after __GNUC__=4 cdefs.h expansion)
+	"__restrict__":  true,
+	"__volatile__":  true,
+	"__const__":     true,
+	"__signed__":    true,
+	"__inline__":    true,
+	"__inline":      true,
+	"__noreturn__":  true,
+	"__extension__": true,
+	// _Alignas / _Alignof are silently dropped (we don't enforce alignment)
+	"_Alignas":   true,
+	"_Alignof":   true,
 }
 
 // Lex scans and returns the next token, filling lval with the token's value.
@@ -314,6 +340,56 @@ scan:
 			return 0
 		}
 		l.pos++ // consume closing quote
+		// Adjacent string literal concatenation: "a" "b" → "ab"
+		for {
+			j := l.pos
+			for j < len(l.src) && (l.src[j] == ' ' || l.src[j] == '\t' || l.src[j] == '\r' || l.src[j] == '\n') {
+				if l.src[j] == '\n' {
+					l.line++
+				}
+				j++
+			}
+			if j >= len(l.src) || l.src[j] != '"' {
+				break
+			}
+			l.pos = j + 1 // consume opening quote of next string
+			for l.pos < len(l.src) && l.src[l.pos] != '"' {
+				ch := l.src[l.pos]
+				if ch == '\n' {
+					l.Error("newline in string literal")
+					break
+				}
+				if ch == '\\' {
+					l.pos++
+					if l.pos >= len(l.src) {
+						break
+					}
+					switch l.src[l.pos] {
+					case 'n':
+						buf = append(buf, '\n')
+					case 't':
+						buf = append(buf, '\t')
+					case 'r':
+						buf = append(buf, '\r')
+					case '0':
+						buf = append(buf, 0)
+					case '\\':
+						buf = append(buf, '\\')
+					case '"':
+						buf = append(buf, '"')
+					default:
+						buf = append(buf, l.src[l.pos])
+					}
+					l.pos++
+				} else {
+					buf = append(buf, ch)
+					l.pos++
+				}
+			}
+			if l.pos < len(l.src) {
+				l.pos++ // consume closing quote
+			}
+		}
 		lval.sval = string(buf)
 		return STRING_LIT
 	}

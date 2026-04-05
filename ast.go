@@ -333,3 +333,28 @@ func (sd *StructDef) FindField(name string) *StructField {
 	}
 	return nil
 }
+
+// FindFieldDeep searches for a field by name, looking inside anonymous
+// (nameless) embedded struct/union members.  Returns the field with its
+// absolute byte offset within the outer struct (anonymous base offset +
+// inner field offset), or nil if not found.
+func (sd *StructDef) FindFieldDeep(name string, structDefs map[string]*StructDef) *StructField {
+	for i := range sd.Fields {
+		f := &sd.Fields[i]
+		if f.Name == name {
+			return f
+		}
+		// Anonymous member: recurse into it.
+		if f.Name == "" && f.Type == TypeStruct && f.StructTag != "" && structDefs != nil {
+			if anon, ok := structDefs[f.StructTag]; ok {
+				if inner := anon.FindFieldDeep(name, structDefs); inner != nil {
+					// Return a copy with the absolute offset.
+					copy := *inner
+					copy.ByteOffset = f.ByteOffset + inner.ByteOffset
+					return &copy
+				}
+			}
+		}
+	}
+	return nil
+}

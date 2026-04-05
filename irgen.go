@@ -1194,6 +1194,7 @@ func (g *irGen) fieldByteOffset(n *Node) int {
 }
 
 // lookupStructField returns the StructField for a KindFieldAccess node, or nil.
+// Searches anonymous (nameless) embedded members via FindFieldDeep.
 func (g *irGen) lookupStructField(n *Node) *StructField {
 	structTag := n.Children[0].StructTag
 	if structTag == "" {
@@ -1203,7 +1204,7 @@ func (g *irGen) lookupStructField(n *Node) *StructField {
 	if sd == nil {
 		return nil
 	}
-	return sd.FindField(n.Name)
+	return sd.FindFieldDeep(n.Name, g.prog.StructDefs)
 }
 
 // genIncDec emits a load-modify-store sequence for x++/x--/++x/--x.

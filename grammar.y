@@ -745,6 +745,26 @@ field
 		{ $$ = &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $3, StructTag: $2} }
 	| UNION ID '*' ID ';'
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4}; n.Pointee = structCType($2); $$ = n }
+	| STRUCT '{' field_list '}' ';'
+		{
+			tag := yylex.(*lexer).nextAnon()
+			$$ = &Node{Kind: KindVarDecl, Type: TypeStruct, Name: "", StructTag: tag, Children: $3}
+		}
+	| UNION '{' field_list '}' ';'
+		{
+			tag := yylex.(*lexer).nextAnon()
+			$$ = &Node{Kind: KindVarDecl, Type: TypeStruct, Name: "", StructTag: tag, Children: $3, IsUnion: true}
+		}
+	| STRUCT ID '{' field_list '}' ';'
+		{
+			tag := yylex.(*lexer).nextAnon()
+			$$ = &Node{Kind: KindVarDecl, Type: TypeStruct, Name: "", StructTag: tag, Children: $4}
+		}
+	| UNION ID '{' field_list '}' ';'
+		{
+			tag := yylex.(*lexer).nextAnon()
+			$$ = &Node{Kind: KindVarDecl, Type: TypeStruct, Name: "", StructTag: tag, Children: $4, IsUnion: true}
+		}
 	;
 
 %%

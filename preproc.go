@@ -497,6 +497,14 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 /* ── NULL / misc ─────────────────────────────────────────────────────── */
 #define NULL                    0
 #define __USER_LABEL_PREFIX__
+
+/* ── Neutralise GCC-specific declaration attributes / extensions ─────── */
+/* These would otherwise reach the parser and cause syntax errors.        */
+#define __attribute__(x)
+#define __attribute(x)
+#define __asm__(x)
+#define __asm(x)
+#define __volatile__(x)
 `
 	var dummy strings.Builder
 	pp.processFile(builtinSrc, "<builtin>", &dummy)
