@@ -149,11 +149,22 @@ scan:
 			for l.pos < len(l.src) && isHexDigit(l.src[l.pos]) {
 				l.pos++
 			}
+			numEnd := l.pos
+			// Consume and discard any integer suffixes (u, U, l, L).
+			for l.pos < len(l.src) && (l.src[l.pos] == 'u' || l.src[l.pos] == 'U' || l.src[l.pos] == 'l' || l.src[l.pos] == 'L') {
+				l.pos++
+			}
 			// Hex literals are always integers.
-			v, err := strconv.ParseInt(l.src[start:l.pos], 0, 64)
+			v, err := strconv.ParseInt(l.src[start:numEnd], 0, 64)
 			if err != nil {
-				l.Error(fmt.Sprintf("invalid integer literal: %s", l.src[start:l.pos]))
-				return 0
+				// Try unsigned parse for values > int64 max (e.g. 0xFFFFFFFFFFFFFFFF).
+				uv, uerr := strconv.ParseUint(l.src[start:numEnd], 0, 64)
+				if uerr != nil {
+					l.Error(fmt.Sprintf("invalid integer literal: %s", l.src[start:numEnd]))
+					return 0
+				}
+				lval.ival = int(int64(uv))
+				return NUM
 			}
 			lval.ival = int(v)
 			return NUM
@@ -200,9 +211,14 @@ scan:
 			lval.fval = v
 			return FNUM
 		}
-		v, err := strconv.ParseInt(l.src[start:l.pos], 0, 64)
+		numEnd := l.pos
+		// Consume and discard any integer suffixes (u, U, l, L).
+		for l.pos < len(l.src) && (l.src[l.pos] == 'u' || l.src[l.pos] == 'U' || l.src[l.pos] == 'l' || l.src[l.pos] == 'L') {
+			l.pos++
+		}
+		v, err := strconv.ParseInt(l.src[start:numEnd], 0, 64)
 		if err != nil {
-			l.Error(fmt.Sprintf("invalid integer literal: %s", l.src[start:l.pos]))
+			l.Error(fmt.Sprintf("invalid integer literal: %s", l.src[start:numEnd]))
 			return 0
 		}
 		lval.ival = int(v)
