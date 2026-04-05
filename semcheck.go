@@ -79,7 +79,7 @@ func newSymTable() *symTable {
 		Params: []TypeKind{TypeDouble}, ParamPointees: []*CType{nil}}
 	// Compiler built-in: returns a pointer to the variadic register save area.
 	st.funcs["__va_start"] = &FuncSig{Name: "__va_start", ReturnType: TypePtr,
-		ReturnPointee: leafCType(TypeInt)}
+		ReturnPointee: leafCType(TypeLong)}
 	return st
 }
 
@@ -764,6 +764,10 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 				n.Pointee = n.Children[1].Pointee
 			} else if isFPType(lt) || isFPType(rt) {
 				n.Type = TypeDouble
+			} else if lt == TypeUnsignedLong || rt == TypeUnsignedLong {
+				n.Type = TypeUnsignedLong
+			} else if lt == TypeLong || rt == TypeLong {
+				n.Type = TypeLong
 			} else if isUnsignedType(lt) || isUnsignedType(rt) {
 				n.Type = TypeUnsignedInt
 			} else {

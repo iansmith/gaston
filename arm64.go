@@ -223,8 +223,9 @@ func (g *arm64Gen) genFunc(fn *IRFunc, structDefs map[string]*StructDef) {
 	g.insn("MOVD R30, 8(RSP)")   // save LR  (frame record high word)
 	g.insn("MOVD RSP, R29")      // FP = SP  (frame pointer chain)
 	iIdx := 0
+	fIdx := 0
 	for i, name := range fn.Params {
-		if iIdx >= 8 {
+		if iIdx >= 8 && fIdx >= 8 {
 			break
 		}
 		pt := TypeInt
@@ -258,6 +259,10 @@ func (g *arm64Gen) genFunc(fn *IRFunc, structDefs map[string]*StructDef) {
 				}
 				iIdx++
 			}
+		} else if isFPType(pt) {
+			// Non-variadic FP params arrive in D0-D7 (AAPCS64).
+			g.insnf("FMOVD F%d, %d(RSP)", fIdx, f.offsets[name])
+			fIdx++
 		} else {
 			g.insnf("MOVD R%d, %d(RSP)", iIdx, f.offsets[name])
 			iIdx++
@@ -626,7 +631,11 @@ func (g *arm64Gen) genFunc(fn *IRFunc, structDefs map[string]*StructDef) {
 				g.emitStructReturn(f, q)
 			} else {
 				if q.Src1.Kind != AddrNone {
-					g.emit_load(f, q.Src1, "R0")
+					if isFPType(fn.ReturnType) {
+						g.emit_fp_load(f, q.Src1, "F0")
+					} else {
+						g.emit_load(f, q.Src1, "R0")
+					}
 				}
 				g.emitEpilogue(f)
 			}
@@ -1007,7 +1016,11 @@ func (g *arm64Gen) emitCall(f *frame, fn *IRFunc, q Quad) {
 	}
 
 	if q.Dst.Kind != AddrNone {
-		g.emit_store(f, "R0", q.Dst)
+		if isFPType(q.TypeHint) {
+			g.emit_fp_store(f, "F0", q.Dst)
+		} else {
+			g.emit_store(f, "R0", q.Dst)
+		}
 	}
 }
 

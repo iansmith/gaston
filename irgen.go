@@ -1343,7 +1343,11 @@ func (g *irGen) genCall(n *Node) IRAddr {
 	g.emitCallArgParams(slots)
 	nargs := IRAddr{Kind: AddrConst, IVal: len(n.Children)}
 	dst := g.newTemp()
-	g.emit(Quad{Op: IRCall, Dst: dst, Src1: nargs, Extra: n.Name})
+	hint := TypeInt
+	if isFPType(n.Type) {
+		hint = TypeDouble
+	}
+	g.emit(Quad{Op: IRCall, Dst: dst, Src1: nargs, Extra: n.Name, TypeHint: hint})
 	return dst
 }
 

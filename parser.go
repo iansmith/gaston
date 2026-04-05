@@ -1246,13 +1246,13 @@ yydefault:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:187
 		{
-			yyVAL.typ = leafCType(TypeInt)
+			yyVAL.typ = leafCType(TypeLong)
 		}
 	case 51:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:188
 		{
-			yyVAL.typ = leafCType(TypeInt)
+			yyVAL.typ = leafCType(TypeLong)
 		}
 	case 52:
 		yyDollar = yyS[yypt-1 : yypt+1]
@@ -1282,13 +1282,13 @@ yydefault:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:193
 		{
-			yyVAL.typ = leafCType(TypeUnsignedInt)
+			yyVAL.typ = leafCType(TypeUnsignedLong)
 		}
 	case 57:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line grammar.y:194
 		{
-			yyVAL.typ = leafCType(TypeUnsignedInt)
+			yyVAL.typ = leafCType(TypeUnsignedLong)
 		}
 	case 58:
 		yyDollar = yyS[yypt-2 : yypt+1]

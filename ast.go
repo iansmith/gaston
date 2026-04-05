@@ -9,11 +9,11 @@ type TypeKind int
 
 const (
 	TypeVoid         TypeKind = iota
-	TypeInt                   // int scalar (4-byte LP64); long / long long are still 8-byte
+	TypeInt                   // int scalar (4-byte LP64)
 	TypeIntArray              // int[] — pointer when a param, inline storage when a local
 	TypeChar                  // char scalar (1-byte integer)
 	TypeCharPtr               // char* — pointer to char (used for string literals; legacy alias for TypePtr+TypeChar pointee)
-	TypeUnsignedInt           // unsigned int / unsigned long (64-bit, unsigned)
+	TypeUnsignedInt           // unsigned int (4-byte LP64, unsigned)
 	TypeUnsignedChar          // unsigned char
 	TypeShort                 // short (16-bit signed; stored as 64-bit in frame)
 	TypeUnsignedShort         // unsigned short
@@ -22,6 +22,8 @@ const (
 	TypeStruct                // struct (paired with Node.StructTag for struct name)
 	TypeFuncPtr               // function pointer — void (*fp)(...); all func ptrs share this type
 	TypePtr                   // generic pointer — pointee described by Node.Pointee *CType
+	TypeLong                  // long / long long (8-byte LP64, signed)
+	TypeUnsignedLong          // unsigned long / unsigned long long (8-byte LP64, unsigned)
 )
 
 // CType is the full parameterised representation of a pointer type.
@@ -67,7 +69,7 @@ func ctypeIsVoidPtr(ct *CType) bool {
 
 // isUnsignedType reports whether t is an unsigned integer type.
 func isUnsignedType(t TypeKind) bool {
-	return t == TypeUnsignedInt || t == TypeUnsignedChar || t == TypeUnsignedShort
+	return t == TypeUnsignedInt || t == TypeUnsignedChar || t == TypeUnsignedShort || t == TypeUnsignedLong
 }
 
 // isFPType reports whether t is a floating-point type (float or double).
