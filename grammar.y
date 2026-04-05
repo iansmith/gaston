@@ -198,6 +198,7 @@ type_specifier
 	| UNSIGNED SHORT INT { $$ = leafCType(TypeUnsignedShort) }
 	| FLOAT              { $$ = leafCType(TypeFloat) }
 	| DOUBLE             { $$ = leafCType(TypeDouble) }
+	| LONG DOUBLE        { $$ = leafCType(TypeDouble) }
 	| TYPENAME           { $$ = yylex.(*lexer).lookupTypedefCType($1) }
 	;
 
