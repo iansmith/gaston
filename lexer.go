@@ -18,6 +18,7 @@ type lexer struct {
 	enumAutoVal int              // auto-increment counter for enum constants
 	anonCount   int              // counter for anonymous struct/union synthetic names
 	typedefs    map[string]*CType // typedef name → full CType (leaf or pointer)
+	typeofExpr  *Node            // scratch: holds typeof(expr) expression until declaration picks it up
 }
 
 func newLexer(src, file string) *lexer {
@@ -33,6 +34,9 @@ func newLexer(src, file string) *lexer {
 	l.typedefs["bool"] = leafCType(TypeInt)
 	// Pre-register wchar_t as unsigned int (AArch64 LP64 ABI).
 	l.typedefs["wchar_t"] = leafCType(TypeUnsignedInt)
+	// Pre-register 128-bit integer typedefs so headers don't need to re-define them.
+	l.typedefs["__uint128_t"] = leafCType(TypeUint128)
+	l.typedefs["__int128_t"] = leafCType(TypeInt128)
 	return l
 }
 
@@ -84,8 +88,12 @@ var keywords = map[string]int{
 	"union":    UNION,
 	"typedef":  TYPEDEF,
 	"static":   STATIC,
-	"_Bool":    INT,
-	"va_arg":   VA_ARG,
+	"_Bool":      INT,
+	"va_arg":     VA_ARG,
+	"typeof":      TYPEOF,
+	"__typeof__":  TYPEOF,
+	"__int128":    INT128,
+	"__int128_t":  INT128,
 }
 
 // skipWords lists storage-class and qualifier keywords that the lexer silently drops.
@@ -176,6 +184,38 @@ scan:
 				l.pos++
 			}
 			numEnd := l.pos
+			// Check for hex-float: 0x<hex>.<hex>p<sign><dec> (C99 §6.4.4.2)
+			if l.pos < len(l.src) && (l.src[l.pos] == '.' || l.src[l.pos] == 'p' || l.src[l.pos] == 'P') {
+				// optional fractional part
+				if l.src[l.pos] == '.' {
+					l.pos++
+					for l.pos < len(l.src) && isHexDigit(l.src[l.pos]) {
+						l.pos++
+					}
+				}
+				// required binary exponent: p or P, optional sign, decimal digits
+				if l.pos < len(l.src) && (l.src[l.pos] == 'p' || l.src[l.pos] == 'P') {
+					l.pos++
+					if l.pos < len(l.src) && (l.src[l.pos] == '+' || l.src[l.pos] == '-') {
+						l.pos++
+					}
+					for l.pos < len(l.src) && isDigit(l.src[l.pos]) {
+						l.pos++
+					}
+				}
+				end := l.pos
+				// optional f/F suffix (treat as float64)
+				if l.pos < len(l.src) && (l.src[l.pos] == 'f' || l.src[l.pos] == 'F') {
+					l.pos++
+				}
+				v, err := strconv.ParseFloat(l.src[start:end], 64)
+				if err != nil {
+					l.Error(fmt.Sprintf("invalid hex float literal: %s", l.src[start:end]))
+					return 0
+				}
+				lval.fval = v
+				return FNUM
+			}
 			// Consume and discard any integer suffixes (u, U, l, L).
 			for l.pos < len(l.src) && (l.src[l.pos] == 'u' || l.src[l.pos] == 'U' || l.src[l.pos] == 'l' || l.src[l.pos] == 'L') {
 				l.pos++

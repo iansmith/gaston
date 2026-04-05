@@ -24,7 +24,7 @@ package main
 
 // Keywords
 %token INT VOID IF ELSE WHILE RETURN FOR DO BREAK CONTINUE CONST CHAR EXTERN GOTO
-%token LONG UNSIGNED SHORT FLOAT DOUBLE STRUCT SIZEOF ENUM UNION TYPEDEF STATIC VA_ARG
+%token LONG UNSIGNED SHORT FLOAT DOUBLE STRUCT SIZEOF ENUM UNION TYPEDEF STATIC VA_ARG TYPEOF INT128
 %token <sval> TYPENAME
 
 // Multi-character operators
@@ -42,6 +42,8 @@ package main
 %type <nodes> fp_param_types fp_param_type_list
 %type <node>  field param compound_stmt postfix_expr enum_member fp_param_type
 %type <nodes> local_declarations statement_list
+%type <nodes> init_list
+%type <node>  init_entry assign_expr
 %type <node>  statement expression_stmt selection_stmt iteration_stmt for_stmt do_while_stmt return_stmt break_stmt continue_stmt goto_stmt
 %type <node>  opt_expression
 %type <node>  expression var simple_expression ternary_expression logical_expression comparison_expression bitwise_expression additive_expression term factor call
@@ -123,7 +125,7 @@ extern_declaration
 
 var_declaration
 	: type_specifier ID ';'
-		{ $$ = []*Node{ctNode(KindVarDecl, $1, $2)} }
+		{ n := ctNode(KindVarDecl, $1, $2); maybeSetTypeofExpr(n, $1, yylex); $$ = []*Node{n} }
 	| type_specifier ID '[' NUM ']' '[' NUM ']' ';'
 		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: $4, Dim2: $7, ElemType: $1.Kind}} }
 	| type_specifier ID '[' NUM ']' ';'
@@ -135,7 +137,7 @@ var_declaration
 			$$ = []*Node{n}
 		}
 	| type_specifier ID '=' expression ';'
-		{ n := ctNode(KindVarDecl, $1, $2); n.Children = []*Node{$4}; $$ = []*Node{n} }
+		{ n := ctNode(KindVarDecl, $1, $2); n.Children = []*Node{$4}; maybeSetTypeofExpr(n, $1, yylex); $$ = []*Node{n} }
 	| type_specifier id_list ';'
 		{ $$ = makeMultiDecl($1, $2) }
 	| type_specifier '*' ID '[' NUM ']' ';'
@@ -169,11 +171,86 @@ var_declaration
 	| CONST type_specifier '*' ID '=' expression ';'
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4, IsConstTarget: true}; n.Pointee = $2; n.Children = []*Node{$6}; $$ = []*Node{n} }
 	| STATIC type_specifier ID ';'
-		{ n := ctNode(KindVarDecl, $2, $3); n.IsStatic = true; $$ = []*Node{n} }
+		{ n := ctNode(KindVarDecl, $2, $3); n.IsStatic = true; maybeSetTypeofExpr(n, $2, yylex); $$ = []*Node{n} }
 	| STATIC type_specifier ID '=' expression ';'
-		{ n := ctNode(KindVarDecl, $2, $3); n.IsStatic = true; n.Children = []*Node{$5}; $$ = []*Node{n} }
+		{ n := ctNode(KindVarDecl, $2, $3); n.IsStatic = true; n.Children = []*Node{$5}; maybeSetTypeofExpr(n, $2, yylex); $$ = []*Node{n} }
 	| STATIC type_specifier ID '[' NUM ']' ';'
 		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: $5, ElemType: $2.Kind, IsStatic: true}} }
+	/* ── Brace-initializer for struct/scalar local ── */
+	| type_specifier ID '=' '{' init_list '}' ';'
+		{ n := ctNode(KindVarDecl, $1, $2)
+		  n.Children = []*Node{{Kind: KindInitList, Children: $5}}
+		  maybeSetTypeofExpr(n, $1, yylex)
+		  $$ = []*Node{n} }
+	| type_specifier ID '=' '{' init_list ',' '}' ';'
+		{ n := ctNode(KindVarDecl, $1, $2)
+		  n.Children = []*Node{{Kind: KindInitList, Children: $5}}
+		  maybeSetTypeofExpr(n, $1, yylex)
+		  $$ = []*Node{n} }
+	/* ── Brace-initializer for array ── */
+	| type_specifier ID '[' NUM ']' '=' '{' init_list '}' ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $2,
+		             Val: $4, ElemType: $1.Kind,
+		             Children: []*Node{{Kind: KindInitList, Children: $8}}}
+		  $$ = []*Node{n} }
+	| type_specifier ID '[' NUM ']' '=' '{' init_list ',' '}' ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $2,
+		             Val: $4, ElemType: $1.Kind,
+		             Children: []*Node{{Kind: KindInitList, Children: $8}}}
+		  $$ = []*Node{n} }
+	/* ── Brace-initializer for struct/union variable ── */
+	| STRUCT ID ID '=' '{' init_list '}' ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $3, StructTag: $2,
+		             Children: []*Node{{Kind: KindInitList, Children: $6}}}
+		  $$ = []*Node{n} }
+	| STRUCT ID ID '=' '{' init_list ',' '}' ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $3, StructTag: $2,
+		             Children: []*Node{{Kind: KindInitList, Children: $6}}}
+		  $$ = []*Node{n} }
+	| UNION ID ID '=' '{' init_list '}' ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $3, StructTag: $2,
+		             Children: []*Node{{Kind: KindInitList, Children: $6}}}
+		  $$ = []*Node{n} }
+	| UNION ID ID '=' '{' init_list ',' '}' ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $3, StructTag: $2,
+		             Children: []*Node{{Kind: KindInitList, Children: $6}}}
+		  $$ = []*Node{n} }
+	;
+
+init_list
+	: init_entry
+		{ $$ = []*Node{$1} }
+	| init_list ',' init_entry
+		{ $$ = append($1, $3) }
+	;
+
+init_entry
+	: assign_expr
+		{ $$ = &Node{Kind: KindInitEntry, Op: "", Children: []*Node{$1}} }
+	| '.' ID '=' assign_expr
+		{ $$ = &Node{Kind: KindInitEntry, Op: ".", Name: $2, Children: []*Node{$4}} }
+	| '.' ID '=' '{' init_list '}'
+		{ $$ = &Node{Kind: KindInitEntry, Op: ".", Name: $2, Children: []*Node{
+		      {Kind: KindInitList, Children: $5}}} }
+	| '.' ID '=' '{' init_list ',' '}'
+		{ $$ = &Node{Kind: KindInitEntry, Op: ".", Name: $2, Children: []*Node{
+		      {Kind: KindInitList, Children: $5}}} }
+	| '[' NUM ']' '=' assign_expr
+		{ $$ = &Node{Kind: KindInitEntry, Op: "[", Val: $2, Children: []*Node{$5}} }
+	| '[' NUM ']' '=' '{' init_list '}'
+		{ $$ = &Node{Kind: KindInitEntry, Op: "[", Val: $2, Children: []*Node{
+		      {Kind: KindInitList, Children: $6}}} }
+	| '{' init_list '}'
+		{ $$ = &Node{Kind: KindInitEntry, Op: "", Children: []*Node{
+		      {Kind: KindInitList, Children: $2}}} }
+	| '{' init_list ',' '}'
+		{ $$ = &Node{Kind: KindInitEntry, Op: "", Children: []*Node{
+		      {Kind: KindInitList, Children: $2}}} }
+	;
+
+assign_expr
+	: expression
+		{ $$ = $1 }
 	;
 
 const_declaration
@@ -199,7 +276,17 @@ type_specifier
 	| FLOAT              { $$ = leafCType(TypeFloat) }
 	| DOUBLE             { $$ = leafCType(TypeDouble) }
 	| LONG DOUBLE        { $$ = leafCType(TypeDouble) }
+	| INT128             { $$ = leafCType(TypeInt128) }
+	| UNSIGNED INT128    { $$ = leafCType(TypeUint128) }
+	| INT128 UNSIGNED    { $$ = leafCType(TypeUint128) }
 	| TYPENAME           { $$ = yylex.(*lexer).lookupTypedefCType($1) }
+	| TYPEOF '(' expression ')'
+		{ yylex.(*lexer).typeofExpr = $3
+		  $$ = leafCType(TypeTypeof) }
+	| TYPEOF '(' type_specifier ')'
+		{ $$ = $3 }
+	| TYPEOF '(' STRUCT ID ')'
+		{ $$ = structCType($4) }
 	;
 
 fun_declaration
@@ -606,6 +693,85 @@ factor
 		{ n := &Node{Kind: KindCast, Type: TypePtr}; n.Pointee = $2; n.Children = []*Node{$5}; $$ = n }
 	| '(' type_specifier '*' '*' ')' factor
 		{ n := &Node{Kind: KindCast, Type: TypePtr}; n.Pointee = ptrCType($2); n.Children = []*Node{$6}; $$ = n }
+	/* ── Address-of compound literal: &(struct T){...} — produces TypePtr ── */
+	| '&' '(' STRUCT ID ')' '{' init_list '}'
+		{ n := &Node{Kind: KindCompoundLit, Type: TypePtr}
+		  n.Pointee = structCType($4)
+		  n.Children = []*Node{{Kind: KindInitList, Children: $7}}
+		  $$ = n }
+	| '&' '(' STRUCT ID ')' '{' init_list ',' '}'
+		{ n := &Node{Kind: KindCompoundLit, Type: TypePtr}
+		  n.Pointee = structCType($4)
+		  n.Children = []*Node{{Kind: KindInitList, Children: $7}}
+		  $$ = n }
+	| '&' '(' STRUCT ID ')' '{' '}'
+		{ n := &Node{Kind: KindCompoundLit, Type: TypePtr}
+		  n.Pointee = structCType($4)
+		  n.Children = []*Node{{Kind: KindInitList}}
+		  $$ = n }
+	/* ── Array compound literal: (int[]){...} ── */
+	| '(' type_specifier '[' ']' ')' '{' init_list '}'
+		{ n := &Node{Kind: KindCompoundLit, Type: TypeIntArray, ElemType: $2.Kind}
+		  n.Children = []*Node{{Kind: KindInitList, Children: $7}}
+		  $$ = n }
+	| '(' type_specifier '[' ']' ')' '{' init_list ',' '}'
+		{ n := &Node{Kind: KindCompoundLit, Type: TypeIntArray, ElemType: $2.Kind}
+		  n.Children = []*Node{{Kind: KindInitList, Children: $7}}
+		  $$ = n }
+	| '(' type_specifier '[' NUM ']' ')' '{' init_list '}'
+		{ n := &Node{Kind: KindCompoundLit, Type: TypeIntArray, ElemType: $2.Kind, Val: $4}
+		  n.Children = []*Node{{Kind: KindInitList, Children: $8}}
+		  $$ = n }
+	| '(' type_specifier '[' NUM ']' ')' '{' init_list ',' '}'
+		{ n := &Node{Kind: KindCompoundLit, Type: TypeIntArray, ElemType: $2.Kind, Val: $4}
+		  n.Children = []*Node{{Kind: KindInitList, Children: $8}}
+		  $$ = n }
+	/* ── Compound literals (C99 §6.5.2.5) ── */
+	| '(' type_specifier ')' '{' init_list '}'
+		{ n := ctNode(KindCompoundLit, $2, "")
+		  n.Children = []*Node{{Kind: KindInitList, Children: $5}}
+		  $$ = n }
+	| '(' type_specifier ')' '{' init_list ',' '}'
+		{ n := ctNode(KindCompoundLit, $2, "")
+		  n.Children = []*Node{{Kind: KindInitList, Children: $5}}
+		  $$ = n }
+	| '(' type_specifier ')' '{' '}'
+		{ n := ctNode(KindCompoundLit, $2, "")
+		  n.Children = []*Node{{Kind: KindInitList}}
+		  $$ = n }
+	| '(' type_specifier '*' ')' '{' init_list '}'
+		{ n := &Node{Kind: KindCompoundLit, Type: TypePtr}
+		  n.Pointee = $2
+		  n.Children = []*Node{{Kind: KindInitList, Children: $6}}
+		  $$ = n }
+	| '(' type_specifier '*' ')' '{' init_list ',' '}'
+		{ n := &Node{Kind: KindCompoundLit, Type: TypePtr}
+		  n.Pointee = $2
+		  n.Children = []*Node{{Kind: KindInitList, Children: $6}}
+		  $$ = n }
+	| '(' STRUCT ID ')' '{' init_list '}'
+		{ n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: $3}
+		  n.Children = []*Node{{Kind: KindInitList, Children: $6}}
+		  $$ = n }
+	| '(' STRUCT ID ')' '{' init_list ',' '}'
+		{ n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: $3}
+		  n.Children = []*Node{{Kind: KindInitList, Children: $6}}
+		  $$ = n }
+	| '(' STRUCT ID ')' '{' '}'
+		{ n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: $3}
+		  n.Children = []*Node{{Kind: KindInitList}}
+		  $$ = n }
+	| '(' UNION ID ')' '{' init_list '}'
+		{ n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: $3}
+		  n.Children = []*Node{{Kind: KindInitList, Children: $6}}
+		  $$ = n }
+	| '(' UNION ID ')' '{' init_list ',' '}'
+		{ n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: $3}
+		  n.Children = []*Node{{Kind: KindInitList, Children: $6}}
+		  $$ = n }
+	/* ── Statement expressions (GCC extension) ── */
+	| '(' '{' local_declarations statement_list '}' ')'
+		{ $$ = &Node{Kind: KindStmtExpr, Children: append($3, $4...)} }
 	;
 
 call

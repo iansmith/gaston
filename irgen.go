@@ -1,6 +1,10 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+	"strings"
+)
 
 // loopLabels holds the break/continue targets for one loop level.
 type loopLabels struct {
@@ -128,9 +132,23 @@ func genIR(prog *Node) *IRProgram {
 				Size:      sz,
 				InnerDim:  decl.Dim2,
 			}
-			if !decl.IsExtern && len(decl.Children) > 0 && decl.Children[0].Kind == KindNum {
-				gbl.HasInitVal = true
-				gbl.InitVal = decl.Children[0].Val
+			if !decl.IsExtern && len(decl.Children) > 0 {
+				init := decl.Children[0]
+				if init.Kind == KindNum {
+					gbl.HasInitVal = true
+					gbl.InitVal = init.Val
+				} else if init.Kind == KindInitList {
+					// Build a byte-buffer from constant-valued init entries.
+					byteSize := sz * 8
+					if isStruct {
+						if sd, ok := g.prog.StructDefs[decl.StructTag]; ok {
+							byteSize = sd.SizeBytes(g.prog.StructDefs)
+						}
+					}
+					buf := make([]byte, byteSize)
+					buildInitDataBuf(buf, init, decl, g.prog.StructDefs)
+					gbl.InitData = buf
+				}
 			}
 			g.prog.Globals = append(g.prog.Globals, *gbl)
 			g.globals[decl.Name] = gbl
@@ -352,6 +370,20 @@ func (g *irGen) genCompound(n *Node) {
 				g.globals[mangledName] = &g.prog.Globals[len(g.prog.Globals)-1]
 				continue
 			}
+			// 128-bit integer locals: allocate as 2-slot array with Is128 flag.
+			if child.Type == TypeInt128 || child.Type == TypeUint128 {
+				g.fn.Locals = append(g.fn.Locals, IRLocal{
+					Name: child.Name, ArrSize: 2, Is128: true, IsArray: true,
+				})
+				g.locals[child.Name] = localInfo{isArray: true, arrSize: 2}
+				if len(child.Children) > 0 {
+					initAddr := g.genExpr(child.Children[0])
+					// widen if the initializer is not already 128-bit
+					initAddr = g.widen128(initAddr, child.Children[0].Type, child.Type == TypeUint128)
+					g.emit(Quad{Op: IR128Copy, Dst: g.addrOf(child.Name), Src1: initAddr})
+				}
+				continue
+			}
 			isArr := child.Type == TypeIntArray
 			isPtr := isPtrType(child.Type)
 			isStruct := child.Type == TypeStruct
@@ -390,19 +422,189 @@ func (g *irGen) genCompound(n *Node) {
 					StructTag: child.StructTag,
 					ArrSize:   sz,
 				})
-				if len(child.Children) > 0 && !isArr && !isStruct {
-					initVal := g.genExpr(child.Children[0])
-					dst := g.addrOf(child.Name)
-					if isFPType(child.Type) {
-						initVal = g.coerceToFP(initVal, child.Children[0].Type)
-						g.emit(Quad{Op: IRFCopy, Dst: dst, Src1: initVal})
-					} else {
-						g.emit(Quad{Op: IRCopy, Dst: dst, Src1: initVal})
+				if len(child.Children) > 0 {
+					if child.Children[0].Kind == KindInitList {
+						// Brace-initializer: zero-fill then apply entries.
+						baseAddr := g.addrOf(child.Name)
+						ptrTmp := g.newTemp()
+						g.emit(Quad{Op: IRGetAddr, Dst: ptrTmp, Src1: baseAddr})
+						g.genInitList(child.Children[0], ptrTmp, sz*8, child)
+					} else if !isArr && !isStruct {
+						initVal := g.genExpr(child.Children[0])
+						dst := g.addrOf(child.Name)
+						if isFPType(child.Type) {
+							initVal = g.coerceToFP(initVal, child.Children[0].Type)
+							g.emit(Quad{Op: IRFCopy, Dst: dst, Src1: initVal})
+						} else {
+							g.emit(Quad{Op: IRCopy, Dst: dst, Src1: initVal})
+						}
 					}
 				}
 			}
 		} else {
 			g.genStmt(child)
+		}
+	}
+}
+
+// genInitList zero-fills the allocation and then applies each init entry.
+// basePtr is an IRAddr holding the base pointer (address value in a temp or global).
+// totalBytes is the total byte size of the allocation.
+// decl is the variable's declaration node (for type/tag info).
+func (g *irGen) genInitList(list *Node, basePtr IRAddr, totalBytes int, decl *Node) {
+	// Step 1: zero-fill using 8-byte IRFieldStore (TypeHint=TypeLong → MOVD = 8-byte store).
+	// IRFieldStore correctly loads the pointer value from basePtr, then stores at basePtr+offset.
+	zero := IRAddr{Kind: AddrConst, IVal: 0}
+	for off := 0; off+8 <= totalBytes; off += 8 {
+		offAddr := IRAddr{Kind: AddrConst, IVal: off}
+		g.emit(Quad{Op: IRFieldStore, Dst: basePtr, Src1: zero, Src2: offAddr, TypeHint: TypeLong})
+	}
+
+	// Step 2: store each designated entry over the zeros.
+	for _, entry := range list.Children {
+		g.genInitEntry(entry, basePtr, decl)
+	}
+}
+
+// genInitEntry stores one initializer entry at its designated position.
+// basePtr holds the base address (value loaded from a temp or global slot).
+func (g *irGen) genInitEntry(entry *Node, basePtr IRAddr, decl *Node) {
+	valNode := entry.Children[0]
+
+	if decl.Type == TypeIntArray {
+		// Array: entry.Val is element index; elements are stored at index*8 (LP64 stride).
+		byteOff := entry.Val * 8
+		offAddr := IRAddr{Kind: AddrConst, IVal: byteOff}
+
+		if valNode.Kind == KindInitList {
+			return // nested array-of-struct: not yet supported
+		}
+		val := g.genExpr(valNode)
+		if isFPType(decl.ElemType) {
+			val = g.coerceToFP(val, valNode.Type)
+			g.emit(Quad{Op: IRFFieldStore, Dst: basePtr, Src1: val, Src2: offAddr, TypeHint: decl.ElemType})
+		} else {
+			// Store as 8-byte word (matching normal array element stride).
+			g.emit(Quad{Op: IRFieldStore, Dst: basePtr, Src1: val, Src2: offAddr, TypeHint: TypeLong})
+		}
+		return
+	}
+
+	// Struct: entry.Val is byte offset (set by semcheck).
+	offAddr := IRAddr{Kind: AddrConst, IVal: entry.Val}
+
+	if valNode.Kind == KindInitList {
+		// Nested struct: compute innerPtr = basePtr + offset, then recurse.
+		innerPtr := g.newTemp()
+		// Load basePtr value into innerPtr, then add offset.
+		// Use IRFieldStore's Dst loading: we need to do pointer arithmetic.
+		// Emit: innerPtr = *basePtr-slot + offset via add.
+		// IRAdd does: Dst = Src1 + Src2 (integer add on register values).
+		// But we need to add to the pointer VALUE, not a frame offset.
+		// Emit a temp to hold the base address first, then add.
+		baseCopy := g.newTemp()
+		g.emit(Quad{Op: IRCopy, Dst: baseCopy, Src1: basePtr})
+		g.emit(Quad{Op: IRAdd, Dst: innerPtr,
+			Src1: baseCopy,
+			Src2: IRAddr{Kind: AddrConst, IVal: entry.Val}})
+		nestedSz := 8
+		if sd, ok := g.prog.StructDefs[entry.StructTag]; ok {
+			nestedSz = (sd.SizeBytes(g.prog.StructDefs) + 7) &^ 7
+			if nestedSz == 0 {
+				nestedSz = 8
+			}
+		}
+		synthDecl := &Node{Kind: KindVarDecl, Type: entry.Type, StructTag: entry.StructTag}
+		g.genInitList(valNode, innerPtr, nestedSz, synthDecl)
+		return
+	}
+
+	val := g.genExpr(valNode)
+	if isFPType(entry.Type) {
+		val = g.coerceToFP(val, valNode.Type)
+		g.emit(Quad{Op: IRFFieldStore, Dst: basePtr, Src1: val, Src2: offAddr, TypeHint: entry.Type})
+	} else {
+		g.emit(Quad{Op: IRFieldStore, Dst: basePtr, Src1: val, Src2: offAddr, TypeHint: entry.Type})
+	}
+}
+
+// buildInitDataBuf fills buf with the constant values from a KindInitList node.
+// Used for global variable initializers where all values must be compile-time constants.
+func buildInitDataBuf(buf []byte, list *Node, decl *Node, structDefs map[string]*StructDef) {
+	for _, entry := range list.Children {
+		valNode := entry.Children[0]
+		byteOff := 0
+
+		if decl.Type == TypeIntArray {
+			// Array: entry.Val is element index; each element stored at index*8 (LP64).
+			byteOff = entry.Val * 8
+		} else {
+			// Struct: entry.Val is already byte offset (set by semcheck).
+			byteOff = entry.Val
+		}
+
+		if valNode.Kind == KindInitList {
+			// Nested struct: recurse with a synthetic decl.
+			synthDecl := &Node{Kind: KindVarDecl, Type: entry.Type, StructTag: entry.StructTag}
+			if byteOff < len(buf) {
+				subBuf := buf[byteOff:]
+				buildInitDataBuf(subBuf, valNode, synthDecl, structDefs)
+			}
+			continue
+		}
+
+		// Extract constant value.
+		var ival int64
+		var fval float64
+		isFP := false
+		switch valNode.Kind {
+		case KindNum:
+			ival = int64(valNode.Val)
+		case KindFNum:
+			fval = valNode.FVal
+			isFP = true
+		case KindUnary:
+			if valNode.Op == "-" && valNode.Children[0].Kind == KindNum {
+				ival = -int64(valNode.Children[0].Val)
+			} else if valNode.Op == "-" && valNode.Children[0].Kind == KindFNum {
+				fval = -valNode.Children[0].FVal
+				isFP = true
+			}
+		case KindCharLit:
+			ival = int64(valNode.Val)
+		default:
+			continue // non-constant; semcheck should have caught this
+		}
+
+		// Determine store size from field type.
+		storeSz := 8
+		if decl.Type != TypeIntArray {
+			storeSz, _ = fieldSizeAlign(entry.Type, entry.StructTag, structDefs)
+		}
+
+		if byteOff+storeSz > len(buf) {
+			continue // out of bounds (shouldn't happen after semcheck)
+		}
+
+		if isFP {
+			// float or double: write IEEE bits.
+			if storeSz == 4 {
+				bits := math.Float32bits(float32(fval))
+				buf[byteOff+0] = byte(bits)
+				buf[byteOff+1] = byte(bits >> 8)
+				buf[byteOff+2] = byte(bits >> 16)
+				buf[byteOff+3] = byte(bits >> 24)
+			} else {
+				bits := math.Float64bits(fval)
+				for i := 0; i < 8; i++ {
+					buf[byteOff+i] = byte(bits >> (uint(i) * 8))
+				}
+			}
+		} else {
+			// Integer: write little-endian.
+			for i := 0; i < storeSz; i++ {
+				buf[byteOff+i] = byte(ival >> (uint(i) * 8))
+			}
 		}
 	}
 }
@@ -743,6 +945,10 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 				tmp := g.newTemp()
 				g.emit(Quad{Op: IRDoubleToInt, Dst: tmp, Src1: rhs})
 				g.emit(Quad{Op: IRCopy, Dst: addr, Src1: tmp})
+			} else if lhsType == TypeInt128 || lhsType == TypeUint128 {
+				// 128-bit assignment: copy both lo and hi halves.
+				rhsWide := g.widen128(rhs, rhsType, lhsType == TypeUint128)
+				g.emit(Quad{Op: IR128Copy, Dst: addr, Src1: rhsWide})
 			} else {
 				g.emit(Quad{Op: IRCopy, Dst: addr, Src1: rhs})
 			}
@@ -951,6 +1157,12 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 		if isFPType(n.Type) || isFPType(n.Children[0].Type) || isFPType(n.Children[1].Type) {
 			return g.genFPBinOp(n)
 		}
+		// 128-bit arithmetic dispatch.
+		if n.Type == TypeInt128 || n.Type == TypeUint128 ||
+			n.Children[0].Type == TypeInt128 || n.Children[0].Type == TypeUint128 ||
+			n.Children[1].Type == TypeInt128 || n.Children[1].Type == TypeUint128 {
+			return g.gen128BinOp(n)
+		}
 		// Pointer arithmetic: scale the integer operand by element size.
 		leftType := n.Children[0].Type
 		rightType := n.Children[1].Type
@@ -1132,6 +1344,17 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 		if srcType == dstType {
 			return src
 		}
+		// → 128-bit widening cast.
+		if dstType == TypeInt128 || dstType == TypeUint128 {
+			return g.widen128(src, srcType, dstType == TypeUint128)
+		}
+		// Narrowing from 128-bit to 64-bit (or smaller).
+		if srcType == TypeInt128 || srcType == TypeUint128 {
+			dst := g.newTemp()
+			g.emit(Quad{Op: IR64From128, Dst: dst, Src1: src})
+			src = dst
+			srcType = TypeLong // treat as 64-bit for further narrowing below
+		}
 		// → double/float: promote via IRIntToDouble.
 		if isFPType(dstType) {
 			return g.coerceToFP(src, srcType)
@@ -1172,6 +1395,12 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 		}
 		// All other casts (int↔unsigned, ptr↔int, ptr↔ptr): identity (all 64-bit).
 		return src
+
+	case KindCompoundLit:
+		return g.genCompoundLit(n)
+
+	case KindStmtExpr:
+		return g.genStmtExpr(n)
 	}
 	return IRAddr{Kind: AddrNone}
 }
@@ -1389,6 +1618,13 @@ func (g *irGen) emitCallArgParams(slots []callArgSlot) {
 }
 
 func (g *irGen) genCall(n *Node) IRAddr {
+	// Intercept GCC bit-manipulation intrinsics — emit inline IR, no call.
+	switch n.Name {
+	case "__builtin_clz", "__builtin_clzl", "__builtin_clzll",
+		"__builtin_ctz", "__builtin_ctzl", "__builtin_ctzll",
+		"__builtin_popcount", "__builtin_popcountl", "__builtin_popcountll":
+		return g.genBuiltinBitop(n)
+	}
 	isVariadic := g.variadicFuncs[n.Name]
 	// Phase 1: materialize all args (inner calls complete here, draining pendingParams).
 	slots := g.collectCallArgs(n.Children, isVariadic)
@@ -1401,6 +1637,26 @@ func (g *irGen) genCall(n *Node) IRAddr {
 		hint = TypeDouble
 	}
 	g.emit(Quad{Op: IRCall, Dst: dst, Src1: nargs, Extra: n.Name, TypeHint: hint})
+	return dst
+}
+
+func (g *irGen) genBuiltinBitop(n *Node) IRAddr {
+	arg := g.genExpr(n.Children[0])
+	dst := g.newTemp()
+	var op IROpCode
+	switch {
+	case strings.HasPrefix(n.Name, "__builtin_clz"):
+		op = IRCLZ
+	case strings.HasPrefix(n.Name, "__builtin_ctz"):
+		op = IRCTZ
+	default:
+		op = IRPopcount
+	}
+	hint := TypeUnsignedLong
+	if n.Name == "__builtin_clz" || n.Name == "__builtin_popcount" || n.Name == "__builtin_ctz" {
+		hint = TypeUnsignedInt // 32-bit variant: zero-extend before operating
+	}
+	g.emit(Quad{Op: op, Dst: dst, Src1: arg, TypeHint: hint})
 	return dst
 }
 
@@ -1442,6 +1698,124 @@ func (g *irGen) materializeStructArg(arg *Node) IRAddr {
 	return slot
 }
 
+// alloc128Slot allocates an anonymous 128-bit frame slot (2 × 8-byte) and returns its IRAddr.
+func (g *irGen) alloc128Slot() IRAddr {
+	name := fmt.Sprintf("#w%d", g.tempN)
+	g.tempN++
+	g.fn.Locals = append(g.fn.Locals, IRLocal{Name: name, ArrSize: 2, Is128: true, IsArray: true})
+	g.locals[name] = localInfo{isArray: true, arrSize: 2}
+	return IRAddr{Kind: AddrLocal, Name: name}
+}
+
+// widen128 zero-extends or sign-extends a 64-bit value to a 128-bit slot.
+// If srcType is already TypeInt128/TypeUint128, addr is returned unchanged.
+func (g *irGen) widen128(addr IRAddr, srcType TypeKind, unsigned bool) IRAddr {
+	if srcType == TypeInt128 || srcType == TypeUint128 {
+		return addr
+	}
+	slot := g.alloc128Slot()
+	op := IR128FromI64
+	if unsigned || isUnsignedType(srcType) {
+		op = IR128FromU64
+	}
+	g.emit(Quad{Op: op, Dst: slot, Src1: addr})
+	return slot
+}
+
+// gen128BinOp emits IR for a binary operation on 128-bit operands.
+func (g *irGen) gen128BinOp(n *Node) IRAddr {
+	left := g.genExpr(n.Children[0])
+	right := g.genExpr(n.Children[1])
+	unsigned := n.Type == TypeUint128 ||
+		n.Children[0].Type == TypeUint128 || n.Children[1].Type == TypeUint128
+
+	// Widen 64-bit inputs to 128-bit if needed.
+	left = g.widen128(left, n.Children[0].Type, unsigned)
+	right = g.widen128(right, n.Children[1].Type, unsigned)
+
+	hint := TypeInt128
+	if unsigned {
+		hint = TypeUint128
+	}
+
+	switch n.Op {
+	case "==":
+		dst := g.newTemp()
+		g.emit(Quad{Op: IR128Eq, Dst: dst, Src1: left, Src2: right})
+		return dst
+	case "!=":
+		dst := g.newTemp()
+		g.emit(Quad{Op: IR128Ne, Dst: dst, Src1: left, Src2: right})
+		return dst
+	case "<":
+		dst := g.newTemp()
+		cmpOp := IR128SLt
+		if unsigned {
+			cmpOp = IR128ULt
+		}
+		g.emit(Quad{Op: cmpOp, Dst: dst, Src1: left, Src2: right})
+		return dst
+	case "<=":
+		dst := g.newTemp()
+		cmpOp := IR128SLe
+		if unsigned {
+			cmpOp = IR128ULe
+		}
+		g.emit(Quad{Op: cmpOp, Dst: dst, Src1: left, Src2: right})
+		return dst
+	case ">":
+		dst := g.newTemp()
+		cmpOp := IR128SGt
+		if unsigned {
+			cmpOp = IR128UGt
+		}
+		g.emit(Quad{Op: cmpOp, Dst: dst, Src1: left, Src2: right})
+		return dst
+	case ">=":
+		dst := g.newTemp()
+		cmpOp := IR128SGe
+		if unsigned {
+			cmpOp = IR128UGe
+		}
+		g.emit(Quad{Op: cmpOp, Dst: dst, Src1: left, Src2: right})
+		return dst
+	}
+
+	dst := g.alloc128Slot()
+	var op IROpCode
+	switch n.Op {
+	case "+":
+		op = IR128Add
+	case "-":
+		op = IR128Sub
+	case "*":
+		op = IR128Mul
+	case "&":
+		op = IR128And
+	case "|":
+		op = IR128Or
+	case "^":
+		op = IR128Xor
+	case "<<":
+		// Shift count must be a constant for now.
+		shiftVal := g.genExpr(n.Children[1])
+		g.emit(Quad{Op: IR128Shl, Dst: dst, Src1: left, Src2: shiftVal, TypeHint: hint})
+		return dst
+	case ">>":
+		shiftVal := g.genExpr(n.Children[1])
+		if unsigned {
+			g.emit(Quad{Op: IR128LShr, Dst: dst, Src1: left, Src2: shiftVal, TypeHint: hint})
+		} else {
+			g.emit(Quad{Op: IR128AShr, Dst: dst, Src1: left, Src2: shiftVal, TypeHint: hint})
+		}
+		return dst
+	default:
+		op = IR128Add // fallback
+	}
+	g.emit(Quad{Op: op, Dst: dst, Src1: left, Src2: right, TypeHint: hint})
+	return dst
+}
+
 // allocStructSlot allocates an anonymous frame slot for a temporary struct value
 // and returns its IR address.  Used when a struct-returning call result is needed
 // in a context where the final destination is not yet known (e.g. return expr).
@@ -1457,6 +1831,114 @@ func (g *irGen) allocStructSlot(tag string) IRAddr {
 	})
 	g.locals[name] = localInfo{isArray: true, arrSize: sz}
 	return IRAddr{Kind: AddrLocal, Name: name}
+}
+
+// genCompoundLit emits IR for a (Type){init_list} compound literal.
+// It allocates an anonymous local slot, zero-fills it, applies the init entries,
+// and returns the IRAddr of the slot.
+// For structs/arrays the return value is a pointer temp (IRAddr of AddrTemp holding address).
+// For scalars the return value is the AddrLocal of the slot.
+func (g *irGen) genCompoundLit(n *Node) IRAddr {
+	name := fmt.Sprintf("#clit%d", g.tempN)
+	g.tempN++
+
+	// For &(struct T){...}: n.Type==TypePtr, n.Pointee.Kind==TypeStruct.
+	// Treat as a struct compound lit but return the pointer value.
+	isPtrToStruct := n.Type == TypePtr && n.Pointee != nil && n.Pointee.Kind == TypeStruct
+
+	isArr := n.Type == TypeIntArray
+	isStruct := n.Type == TypeStruct || isPtrToStruct
+	isPtr := isPtrType(n.Type) && !isPtrToStruct
+
+	// Determine the effective struct tag and synthDecl for genInitList.
+	structTag := n.StructTag
+	if isPtrToStruct {
+		structTag = n.Pointee.Tag
+	}
+
+	sz := 1
+	if isStruct {
+		if sd, ok := g.prog.StructDefs[structTag]; ok {
+			sz = (sd.SizeBytes(g.prog.StructDefs) + 7) / 8
+		}
+	} else if isArr {
+		sz = n.Val
+		if sz == 0 {
+			sz = 1
+		}
+	}
+
+	// Register the anonymous local so buildFrame allocates stack space.
+	g.fn.Locals = append(g.fn.Locals, IRLocal{
+		Name:      name,
+		IsArray:   isArr || isStruct,
+		IsPtr:     isPtr,
+		IsStruct:  isStruct && !isArr,
+		StructTag: structTag,
+		Pointee:   n.Pointee,
+		ArrSize:   sz,
+	})
+	g.locals[name] = localInfo{isArray: isArr || isStruct, arrSize: sz}
+
+	// Obtain a pointer to the slot via IRGetAddr.
+	baseAddr := g.addrOf(name) // AddrLocal
+	ptrTmp := g.newTemp()
+	g.emit(Quad{Op: IRGetAddr, Dst: ptrTmp, Src1: baseAddr})
+
+	// Build a synthDecl for genInitList (uses struct tag from the inner type).
+	synthDecl := n
+	if isPtrToStruct {
+		synthDecl = &Node{Kind: KindVarDecl, Type: TypeStruct, StructTag: structTag}
+	}
+
+	// Zero-fill + apply init entries.
+	if len(n.Children) > 0 && n.Children[0].Kind == KindInitList {
+		g.genInitList(n.Children[0], ptrTmp, sz*8, synthDecl)
+	}
+
+	if isStruct || isArr {
+		return ptrTmp
+	}
+	return baseAddr
+}
+
+// genStmtExpr emits IR for a ({ ... }) statement expression.
+// It processes the body exactly like genCompound — var decls are registered into the
+// function frame, intermediate statements are emitted normally. The last statement
+// must be a KindExprStmt; its expression's IRAddr is the return value.
+// If the body is empty or ends in a non-expression statement, AddrConst{0} is returned.
+func (g *irGen) genStmtExpr(n *Node) IRAddr {
+	children := n.Children
+
+	// Find the index of the last non-VarDecl child (the final statement).
+	lastStmtIdx := -1
+	for i := len(children) - 1; i >= 0; i-- {
+		if children[i].Kind != KindVarDecl {
+			lastStmtIdx = i
+			break
+		}
+	}
+
+	if lastStmtIdx < 0 {
+		// Body is all var decls (or empty) — no value.
+		synth := &Node{Kind: KindCompound, Children: children}
+		g.genCompound(synth)
+		return IRAddr{Kind: AddrConst, IVal: 0}
+	}
+
+	// Process everything up to (but not including) the last statement via genCompound.
+	// This registers var decls and emits intermediate statements.
+	synth := &Node{Kind: KindCompound, Children: children[:lastStmtIdx]}
+	g.genCompound(synth)
+
+	// Emit the last statement and capture its value.
+	last := children[lastStmtIdx]
+	if last.Kind == KindExprStmt && len(last.Children) > 0 {
+		return g.genExpr(last.Children[0])
+	}
+	// Last child is not a value-producing expression statement (e.g. an if/while).
+	g.genStmt(last)
+	return IRAddr{Kind: AddrConst, IVal: 0}
 }
 
 // genFuncPtrCall generates IR for a function-pointer call: (*fp)(args...).

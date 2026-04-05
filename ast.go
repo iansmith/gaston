@@ -24,6 +24,9 @@ const (
 	TypePtr                   // generic pointer — pointee described by Node.Pointee *CType
 	TypeLong                  // long / long long (8-byte LP64, signed)
 	TypeUnsignedLong          // unsigned long / unsigned long long (8-byte LP64, unsigned)
+	TypeTypeof                // sentinel: typeof(expr) — resolved to real type by semcheck
+	TypeInt128  // __int128 / __int128_t (signed 128-bit integer, 16 bytes)
+	TypeUint128 // __uint128_t / unsigned __int128 (unsigned 128-bit integer, 16 bytes)
 )
 
 // CType is the full parameterised representation of a pointer type.
@@ -69,7 +72,7 @@ func ctypeIsVoidPtr(ct *CType) bool {
 
 // isUnsignedType reports whether t is an unsigned integer type.
 func isUnsignedType(t TypeKind) bool {
-	return t == TypeUnsignedInt || t == TypeUnsignedChar || t == TypeUnsignedShort || t == TypeUnsignedLong
+	return t == TypeUnsignedInt || t == TypeUnsignedChar || t == TypeUnsignedShort || t == TypeUnsignedLong || t == TypeUint128
 }
 
 // isFPType reports whether t is a floating-point type (float or double).
@@ -147,6 +150,27 @@ const (
 	KindLogOr       // a || b: short-circuit logical OR; yields 0 or 1 (TypeInt)
 	KindCast        // (type)expr — explicit type cast; Type/Pointee = target type; Children[0] = source expr
 	KindTernary     // cond ? then : else — Children[0]=cond, [1]=then-expr, [2]=else-expr
+
+	// Initializer lists (C99 §6.7.8 designated initializers).
+	KindInitList  // { entry, entry, ... } — Children = KindInitEntry nodes in source order
+	KindInitEntry // one initializer entry: Op="" plain, Op="." field designator, Op="[" index designator
+	               // Name = field name when Op=="."; Val = index when Op=="["; Val = byte offset (set by semcheck)
+	               // Children[0] = value expression or nested KindInitList
+
+	// KindCompoundLit: (Type){ init_list } — anonymous temporary with init list (C99 §6.5.2.5).
+	// Type / Pointee / StructTag = the declared type (same semantics as a KindVarDecl node:
+	//   TypeStruct+StructTag, TypeIntArray+ElemType, TypePtr+Pointee, or a scalar TypeKind).
+	// Val = array size (when Type == TypeIntArray).
+	// ElemType = element type (when Type == TypeIntArray).
+	// Children[0] = KindInitList node (may be empty).
+	// Semcheck sets node.Type; irgen returns the IRAddr of the slot.
+	KindCompoundLit
+
+	// KindStmtExpr: ({ local_decls... stmts... }) — GCC statement expression.
+	// Children = body contents in order (same layout as KindCompound).
+	// Type/Pointee/StructTag set by semcheck to match the last expression's type.
+	// If last statement is not KindExprStmt (or body is empty), Type = TypeVoid.
+	KindStmtExpr
 
 	// TODO: struct return by value (on the stack).
 	// Currently all structs must be passed/returned by pointer (printf.cm works
@@ -236,6 +260,7 @@ type Node struct {
 	ElemPointee    *CType   // for TypeIntArray with ElemType==TypePtr: the pointer's pointee CType
 	Dim2           int      // inner dimension for 2D arrays (e.g. for int a[M][N]: Dim2=N)
 	BitWidth       int      // bit width for struct bit-field members (0 for normal fields)
+	TypeofExpr     *Node    // non-nil when Type==TypeTypeof: the expression whose type to infer
 }
 
 // StructField is one field in a struct definition (or union).
@@ -284,8 +309,23 @@ func fieldSizeAlign(t TypeKind, structTag string, structDefs map[string]*StructD
 			}
 		}
 		return 8, 8
+	case TypeTypeof:
+		panic("TypeTypeof not resolved before fieldSizeAlign")
+	case TypeInt128, TypeUint128:
+		return 16, 16 // 16-byte size, 16-byte alignment
 	default: // double, TypePtr, TypeFuncPtr, TypeCharPtr → 8 bytes
 		return 8, 8
+	}
+}
+
+// maybeSetTypeofExpr sets n.TypeofExpr from the lexer scratch if the CType is TypeTypeof.
+// Called from grammar actions to propagate typeof expressions into declaration nodes.
+func maybeSetTypeofExpr(n *Node, ct *CType, l interface{}) {
+	if ct.Kind == TypeTypeof {
+		if lx, ok := l.(*lexer); ok {
+			n.TypeofExpr = lx.typeofExpr
+			lx.typeofExpr = nil
+		}
 	}
 }
 

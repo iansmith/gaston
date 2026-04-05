@@ -117,6 +117,52 @@ const (
 	// StructTag names the struct type (for size lookup).
 	// Copies SizeBytes(StructTag)/8 consecutive 8-byte words.
 	IRStructCopy
+
+	// Bit-manipulation intrinsics — emit inline ARM64 instructions.
+	// Src1 is the input value. Dst receives the result (TypeInt).
+	// For IRCLZ/IRCTZ of 32-bit __builtin_clz (non-l/ll): TypeHint==TypeUnsignedInt
+	//   signals that the upper 32 bits must be zeroed before CLZ (GCC compat).
+	IRCLZ      // count leading zeros  — ARM64: CLZ Xd, Xn (or Wd, Wn for 32-bit)
+	IRCTZ      // count trailing zeros — ARM64: RBIT Xd, Xn; CLZ Xd, Xd
+	IRPopcount // population count     — ARM64: FMOV D0,X0; CNT V0.8B,V0.8B; ADDV B0,V0.8B; UMOV X0,V0.B[0]
+
+	// ── 128-bit integer arithmetic ─────────────────────────────────────────────
+	// All Dst, Src1, Src2 refer to the lo-half IRAddr of a 128-bit local.
+	// elfgen derives the hi-half address as offsets[addr.Name] + 8.
+
+	// Arithmetic (result is 128-bit)
+	IR128Add  // Dst = Src1 + Src2   (ADDS lo; ADC hi)
+	IR128Sub  // Dst = Src1 - Src2   (SUBS lo; SBC hi)
+	IR128Mul  // Dst = Src1 * Src2   (MUL lo; UMULH/SMULH hi for unsigned/signed)
+	IR128And  // Dst = Src1 & Src2   (AND both halves)
+	IR128Or   // Dst = Src1 | Src2   (ORR both halves)
+	IR128Xor  // Dst = Src1 ^ Src2   (EOR both halves)
+	IR128Neg  // Dst = -Src1         (NEGS lo; NGC hi)
+
+	// Shifts — Src2.IVal is the shift count (constant only for now)
+	IR128Shl  // Dst = Src1 << Src2.IVal  (logical left)
+	IR128LShr // Dst = Src1 >> Src2.IVal  (logical right, for unsigned)
+	IR128AShr // Dst = Src1 >> Src2.IVal  (arithmetic right, for signed)
+
+	// Comparisons → 32-bit int result (0 or 1)
+	IR128Eq  // Dst = (Src1 == Src2)   signed/unsigned same
+	IR128Ne  // Dst = (Src1 != Src2)
+	IR128ULt // Dst = (Src1 < Src2)    unsigned
+	IR128ULe // Dst = (Src1 <= Src2)   unsigned
+	IR128UGt // Dst = (Src1 > Src2)    unsigned
+	IR128UGe // Dst = (Src1 >= Src2)   unsigned
+	IR128SLt // Dst = (Src1 < Src2)    signed (hi half is sign-extended)
+	IR128SLe // Dst = (Src1 <= Src2)   signed
+	IR128SGt // Dst = (Src1 > Src2)    signed
+	IR128SGe // Dst = (Src1 >= Src2)   signed
+
+	// Copy
+	IR128Copy // Dst = Src1  (copies both halves)
+
+	// Widening / narrowing casts
+	IR128FromI64 // Dst (128-bit) = sign_extend(Src1 (int64)): lo = Src1; hi = ASR Src1, 63
+	IR128FromU64 // Dst (128-bit) = zero_extend(Src1 (uint64)): lo = Src1; hi = 0
+	IR64From128  // Dst (int64/uint64) = Src1_lo  (narrow; hi discarded)
 )
 
 // AddrKind identifies what an IR address refers to.
@@ -175,7 +221,8 @@ type IRGlobal struct {
 	Size       int     // 1 for scalar, N for array[N] or struct (N = numFields)
 	InnerDim   int     // inner dimension for 2D arrays (0 for 1D or non-array)
 	HasInitVal bool
-	InitVal    int // constant initializer value (only when HasInitVal && !IsArr)
+	InitVal    int    // constant initializer value (only when HasInitVal && !IsArr && InitData==nil)
+	InitData   []byte // byte-buffer constant initializer (struct/array init list; nil = zero-filled)
 }
 
 // IRLocal describes one local variable in a function (not a parameter).
@@ -185,6 +232,7 @@ type IRLocal struct {
 	IsPtr     bool    // true for TypePtr locals
 	IsStruct  bool    // true for TypeStruct locals
 	IsVLA     bool    // true for variable-length array (runtime size; pointer slot in frame)
+	Is128     bool    // true for TypeInt128/TypeUint128 locals (2-slot, 16-byte)
 	Pointee   *CType  // non-nil when IsPtr: full pointee type
 	StructTag string  // struct type name (when IsStruct)
 	ArrSize   int     // 1 for scalar, N for int x[N]; for struct: number of fields; 0 for VLA

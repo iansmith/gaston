@@ -426,3 +426,117 @@ func encUXTB(rd, rn int) uint32 { return 0xD3401C00 | uint32(rn)<<5 | uint32(rd)
 
 // encUXTH encodes UXTH Xd, Xn (zero-extend halfword to 64-bit = UBFM Xd, Xn, #0, #15).
 func encUXTH(rd, rn int) uint32 { return 0xD3403C00 | uint32(rn)<<5 | uint32(rd) }
+
+// ── bit-manipulation instruction encoders ────────────────────────────────────
+
+// encCLZ encodes CLZ Xd, Xn (64-bit count leading zeros).
+// Data Processing (1 source): sf=1, S=0, opcode2=00000, opcode=000100(4)
+// 1_1_0_11010110_00000_000100_Rn_Rd = 0xDAC01000 | rn<<5 | rd
+func encCLZ(rd, rn int) uint32 {
+	return 0xDAC01000 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encCLZ32 encodes CLZ Wd, Wn (32-bit count leading zeros).
+// sf=0: 0x5AC01000 | rn<<5 | rd
+func encCLZ32(rd, rn int) uint32 {
+	return 0x5AC01000 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encRBIT encodes RBIT Xd, Xn (64-bit reverse bits).
+// opcode=000000 → 0xDAC00000 | rn<<5 | rd
+func encRBIT(rd, rn int) uint32 {
+	return 0xDAC00000 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encRBIT32 encodes RBIT Wd, Wn (32-bit reverse bits).
+func encRBIT32(rd, rn int) uint32 {
+	return 0x5AC00000 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encCNT8B encodes CNT V<d>.8B, V<n>.8B (count set bits per byte, 8 bytes).
+// Advanced SIMD two-register misc: Q=0, U=0, size=00, opcode=00101
+// 0_0_0_01110_00_10000_00101_10_Rn_Rd = 0x0E205800 | vn<<5 | vd
+func encCNT8B(vd, vn int) uint32 {
+	return 0x0E205800 | uint32(vn)<<5 | uint32(vd)
+}
+
+// encADDVb encodes ADDV Bd, V<n>.8B (across-lane add, byte).
+// Advanced SIMD across lanes: Q=0, U=0, size=00, opcode=11011
+// 0_0_0_01110_00_11000_11011_10_Rn_Rd = 0x0E31B800 | vn<<5 | vd
+func encADDVb(vd, vn int) uint32 {
+	return 0x0E31B800 | uint32(vn)<<5 | uint32(vd)
+}
+
+// encUMOVb0 encodes UMOV Wd, V<n>.B[0] (extract byte lane 0 to 32-bit GP reg).
+// Advanced SIMD copy: Q=0, op=0, imm5=00001 (byte lane 0), imm4=0111
+// Verified encoding: 0x0E013C00 | vn<<5 | rd
+func encUMOVb0(rd, vn int) uint32 {
+	return 0x0E013C00 | uint32(vn)<<5 | uint32(rd)
+}
+
+// ── 128-bit arithmetic encoders ───────────────────────────────────────────────
+
+// encADDS encodes ADDS Xd, Xn, Xm (add, set flags — for 128-bit lo half).
+func encADDS(rd, rn, rm int) uint32 {
+	return 0xAB000000 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encADC encodes ADC Xd, Xn, Xm (add with carry, no flag update — for hi half).
+func encADC(rd, rn, rm int) uint32 {
+	return 0x9A000000 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encSUBS encodes SUBS Xd, Xn, Xm (subtract, set flags — for lo half).
+func encSUBS(rd, rn, rm int) uint32 {
+	return 0xEB000000 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encSBC encodes SBC Xd, Xn, Xm (subtract with carry, no flag update — for hi half).
+func encSBC(rd, rn, rm int) uint32 {
+	return 0xDA000000 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encUMULH encodes UMULH Xd, Xn, Xm (unsigned multiply high — hi 64 bits of 64×64).
+func encUMULH(rd, rn, rm int) uint32 {
+	return 0x9BC07C00 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encSMULH encodes SMULH Xd, Xn, Xm (signed multiply high — hi 64 bits of 64×64).
+func encSMULH(rd, rn, rm int) uint32 {
+	return 0x9B407C00 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encNEGS encodes NEGS Xd, Xm (negate and set flags): SUBS Xd, XZR, Xm.
+func encNEGS(rd, rm int) uint32 {
+	return 0xEB0003E0 | uint32(rm)<<16 | uint32(rd)
+}
+
+// encNGC encodes NGC Xd, Xm (negate with carry): SBC Xd, XZR, Xm.
+func encNGC(rd, rm int) uint32 {
+	return 0xDA0003E0 | uint32(rm)<<16 | uint32(rd)
+}
+
+// encUBFM encodes UBFM Xd, Xn, #immr, #imms (unsigned bitfield move).
+// LSL Xd, Xn, #n = UBFM Xd, Xn, #(64-n), #(63-n)
+// LSR Xd, Xn, #n = UBFM Xd, Xn, #n, #63
+func encUBFM(rd, rn, immr, imms int) uint32 {
+	return 0xD3400000 | uint32(immr)<<16 | uint32(imms)<<10 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encASR encodes ASR Xd, Xn, #n (arithmetic shift right by immediate).
+// ASR Xd, Xn, #n = SBFM Xd, Xn, #n, #63
+func encASR(rd, rn, n int) uint32 {
+	return 0x9340FC00 | uint32(n)<<16 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encCCMP encodes CCMP Xn, Xm, #nzcv, cond (conditional compare registers).
+// If cond is true: flags = Xn - Xm; else flags = nzcv.
+func encCCMP(rn, rm, nzcv, cond int) uint32 {
+	return 0xFA400000 | uint32(rm)<<16 | uint32(cond)<<12 | uint32(rn)<<5 | uint32(nzcv)
+}
+
+// encSBCS encodes SBCS Xd, Xn, Xm (subtract with carry, set flags).
+// 1 1 1 11010 000 Rm 000000 Rn Rd → 0xFA000000 | rm<<16 | rn<<5 | rd
+func encSBCS(rd, rn, rm int) uint32 {
+	return 0xFA000000 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
+}

@@ -19,10 +19,11 @@ type FuncSig struct {
 
 // symTable is a two-level symbol table: globals + per-function locals.
 type symTable struct {
-	globals    map[string]*symEntry
-	locals     map[string]*symEntry // nil when not inside a function
-	funcs      map[string]*FuncSig
-	structDefs map[string]*StructDef // registered struct types
+	globals     map[string]*symEntry
+	locals      map[string]*symEntry // nil when not inside a function
+	funcs       map[string]*FuncSig
+	structDefs  map[string]*StructDef // registered struct types
+	currentFunc *Node                 // set during checkFunDecl; used by KindStmtExpr to check return stmts
 }
 
 type symEntry struct {
@@ -80,6 +81,23 @@ func newSymTable() *symTable {
 	// Compiler built-in: returns a pointer to the variadic register save area.
 	st.funcs["__va_start"] = &FuncSig{Name: "__va_start", ReturnType: TypePtr,
 		ReturnPointee: leafCType(TypeLong)}
+	// GCC bit-manipulation intrinsics.
+	for _, name := range []string{
+		"__builtin_clz", "__builtin_clzl", "__builtin_clzll",
+		"__builtin_ctz", "__builtin_ctzl", "__builtin_ctzll",
+		"__builtin_popcount", "__builtin_popcountl", "__builtin_popcountll",
+	} {
+		paramType := TypeUnsignedInt
+		if strings.HasSuffix(name, "ll") || strings.HasSuffix(name, "l") {
+			paramType = TypeUnsignedLong
+		}
+		st.funcs[name] = &FuncSig{
+			Name:          name,
+			ReturnType:    TypeInt,
+			Params:        []TypeKind{paramType},
+			ParamPointees: []*CType{nil},
+		}
+	}
 	return st
 }
 
@@ -103,6 +121,8 @@ func sizeofKind(t TypeKind, structTag string, structDefs map[string]*StructDef) 
 			}
 		}
 		return 8
+	case TypeInt128, TypeUint128:
+		return 16
 	default:
 		// TypeDouble, TypePtr, TypeFuncPtr, TypeCharPtr, TypeIntArray, TypeVoid → 8 bytes
 		return 8
@@ -211,6 +231,14 @@ func semCheck(prog *Node, requireMain bool) error {
 				st.structDefs[sd.Name] = sd
 			}
 		case KindVarDecl:
+			// Resolve typeof(expr) at global scope (rare but possible).
+			if decl.Type == TypeTypeof && decl.TypeofExpr != nil {
+				resolvedType := checkExpr(decl.TypeofExpr, st, &errs)
+				decl.Type = resolvedType
+				decl.Pointee = decl.TypeofExpr.Pointee
+				decl.StructTag = decl.TypeofExpr.StructTag
+				decl.TypeofExpr = nil
+			}
 			if decl.IsExtern {
 				if err := st.declareGlobal(decl.Name, decl.Type, decl.StructTag); err != nil {
 					errs = append(errs, err.Error())
@@ -234,7 +262,10 @@ func semCheck(prog *Node, requireMain bool) error {
 					st.globals[decl.Name].innerDim = decl.Dim2
 				}
 				if len(decl.Children) > 0 {
-					if decl.Children[0].Kind != KindNum {
+					init := decl.Children[0]
+					if init.Kind == KindInitList {
+						checkInitList(init, decl, st, &errs)
+					} else if init.Kind != KindNum {
 						errs = append(errs, fmt.Sprintf("global '%s': initializer must be a constant", decl.Name))
 					} else if decl.Type == TypeIntArray {
 						errs = append(errs, fmt.Sprintf("global array '%s' cannot have a scalar initializer", decl.Name))
@@ -398,6 +429,8 @@ func checkFunDecl(n *Node, st *symTable, errs *[]string) {
 		}
 	}
 	body := n.Children[len(n.Children)-1]
+	st.currentFunc = n
+	defer func() { st.currentFunc = nil }()
 	checkCompound(body, st, n, errs)
 }
 
@@ -405,6 +438,14 @@ func checkCompound(n *Node, st *symTable, fn *Node, errs *[]string) {
 	for _, child := range n.Children {
 		switch child.Kind {
 		case KindVarDecl:
+			// Resolve typeof(expr) before processing the declaration.
+			if child.Type == TypeTypeof && child.TypeofExpr != nil {
+				resolvedType := checkExpr(child.TypeofExpr, st, errs)
+				child.Type = resolvedType
+				child.Pointee = child.TypeofExpr.Pointee
+				child.StructTag = child.TypeofExpr.StructTag
+				child.TypeofExpr = nil // resolved
+			}
 			if child.IsConst {
 				if err := st.declareConst(child.Name, child.Type, child.Val, false); err != nil {
 					*errs = append(*errs, err.Error())
@@ -442,9 +483,14 @@ func checkCompound(n *Node, st *symTable, fn *Node, errs *[]string) {
 					st.locals[child.Name].innerDim = child.Dim2
 				}
 				if len(child.Children) > 0 {
-					// For VLA: Children[0] is the size variable expression.
-					// For non-VLA: Children[0] is the initializer expression.
-					checkExpr(child.Children[0], st, errs)
+					init := child.Children[0]
+					if init.Kind == KindInitList {
+						checkInitList(init, child, st, errs)
+					} else {
+						// For VLA: Children[0] is the size variable expression.
+						// For non-VLA: Children[0] is the initializer expression.
+						checkExpr(init, st, errs)
+					}
 				}
 			}
 		default:
@@ -818,6 +864,10 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 				n.Pointee = n.Children[1].Pointee
 			} else if isFPType(lt) || isFPType(rt) {
 				n.Type = TypeDouble
+			} else if lt == TypeUint128 || rt == TypeUint128 {
+				n.Type = TypeUint128
+			} else if lt == TypeInt128 || rt == TypeInt128 {
+				n.Type = TypeInt128
 			} else if lt == TypeUnsignedLong || rt == TypeUnsignedLong {
 				n.Type = TypeUnsignedLong
 			} else if lt == TypeLong || rt == TypeLong {
@@ -946,6 +996,96 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		checkExpr(n.Children[0], st, errs)
 		return n.Type
 
+	case KindCompoundLit:
+		// (Type){ init_list } — type already annotated by grammar action.
+		// Reuse checkInitList exactly as for a named local variable.
+		// For &(struct T){...}: n.Type==TypePtr, n.Pointee.Kind==TypeStruct.
+		// Build the synthDecl using the inner struct type for init-list checking.
+		synthType := n.Type
+		synthTag := n.StructTag
+		synthElem := n.ElemType
+		if n.Type == TypePtr && n.Pointee != nil && n.Pointee.Kind == TypeStruct {
+			synthType = TypeStruct
+			synthTag = n.Pointee.Tag
+		}
+		// Infer array size from init list when not explicit.
+		if n.Type == TypeIntArray && n.Val == 0 {
+			if len(n.Children) > 0 && n.Children[0].Kind == KindInitList {
+				n.Val = len(n.Children[0].Children)
+			}
+			if n.Val == 0 {
+				n.Val = 1
+			}
+		}
+		synthDecl := &Node{
+			Kind:      KindVarDecl,
+			Type:      synthType,
+			Pointee:   n.Pointee,
+			StructTag: synthTag,
+			Val:       n.Val,
+			ElemType:  synthElem,
+		}
+		if len(n.Children) > 0 && n.Children[0].Kind == KindInitList {
+			checkInitList(n.Children[0], synthDecl, st, errs)
+		}
+		return n.Type
+
+	case KindStmtExpr:
+		// ({ local_decls... stmts... }) — GCC statement expression.
+		if st.locals == nil {
+			*errs = append(*errs, "statement expression not allowed at file scope")
+			return TypeVoid
+		}
+		fn := st.currentFunc
+		// Step 1: declare and type-check all KindVarDecl children.
+		for _, child := range n.Children {
+			if child.Kind != KindVarDecl {
+				break
+			}
+			// Resolve TypeTypeof if present.
+			if child.Type == TypeTypeof && child.TypeofExpr != nil {
+				resolvedType := checkExpr(child.TypeofExpr, st, errs)
+				child.Type = resolvedType
+				child.Pointee = child.TypeofExpr.Pointee
+				child.StructTag = child.TypeofExpr.StructTag
+				child.TypeofExpr = nil
+			}
+			if err := st.declareLocalFull(child, false); err != nil {
+				*errs = append(*errs, err.Error())
+			} else if child.Type == TypeIntArray {
+				st.locals[child.Name].arrSize = child.Val
+				st.locals[child.Name].elemType = child.ElemType
+				st.locals[child.Name].elemPointee = child.ElemPointee
+				st.locals[child.Name].innerDim = child.Dim2
+			}
+			if len(child.Children) > 0 && child.Children[0].Kind != KindInitList {
+				checkExpr(child.Children[0], st, errs)
+			}
+		}
+		// Step 2: type-check all statement children, noting the last one.
+		lastType := TypeVoid
+		var lastPointee *CType
+		var lastStructTag string
+		for _, child := range n.Children {
+			if child.Kind == KindVarDecl {
+				continue
+			}
+			if child.Kind == KindExprStmt && len(child.Children) > 0 {
+				lastType = checkExpr(child.Children[0], st, errs)
+				lastPointee = child.Children[0].Pointee
+				lastStructTag = child.Children[0].StructTag
+			} else {
+				if fn != nil {
+					checkStmt(child, st, fn, errs)
+				}
+			}
+		}
+		// Step 3: annotate the KindStmtExpr node with the result type.
+		n.Type = lastType
+		n.Pointee = lastPointee
+		n.StructTag = lastStructTag
+		return lastType
+
 	case KindCall:
 		// Check if the callee name is a TypeFuncPtr variable (not a direct function).
 		if e := st.lookup(n.Name); e != nil && e.typ == TypeFuncPtr {
@@ -1055,4 +1195,129 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		return TypeInt
 	}
 	return TypeVoid
+}
+
+// checkInitList type-checks a KindInitList node used to initialise decl.
+// For struct/union: resolves .field designators → sets entry.Val to byte offset.
+// For array: resolves [index] designators → sets entry.Val to element index.
+// Plain entries (Op=="") are assigned positions left-to-right.
+func checkInitList(list *Node, decl *Node, st *symTable, errs *[]string) {
+	switch decl.Type {
+	case TypeStruct:
+		sd, ok := st.structDefs[decl.StructTag]
+		if !ok {
+			*errs = append(*errs, fmt.Sprintf("struct '%s' not defined", decl.StructTag))
+			return
+		}
+		checkStructInitList(list, sd, st, errs)
+	case TypeIntArray:
+		checkArrayInitList(list, decl, st, errs)
+	default:
+		// Scalar with braces: {expr} — accept, check single plain entry.
+		if len(list.Children) == 1 && list.Children[0].Op == "" {
+			checkExpr(list.Children[0].Children[0], st, errs)
+			list.Children[0].Val = 0
+			list.Children[0].Type = decl.Type
+		} else {
+			*errs = append(*errs, "scalar initializer must have exactly one element")
+		}
+	}
+}
+
+// checkStructInitList resolves field designators and type-checks entries for a struct init list.
+func checkStructInitList(list *Node, sd *StructDef, st *symTable, errs *[]string) {
+	// Build a slice of "addressable" fields (skip anonymous wrapper members).
+	nonAnonFields := nonAnonFieldList(sd, st.structDefs)
+	cursor := 0
+
+	for _, entry := range list.Children {
+		switch entry.Op {
+		case ".":
+			f := sd.FindFieldDeep(entry.Name, st.structDefs)
+			if f == nil {
+				*errs = append(*errs, fmt.Sprintf("struct has no field '%s'", entry.Name))
+				entry.Val = 0
+				entry.Type = TypeInt
+			} else {
+				entry.Val = f.ByteOffset
+				entry.Type = f.Type
+				entry.StructTag = f.StructTag
+				// advance cursor past this field
+				for i, nf := range nonAnonFields {
+					if nf.Name == f.Name && nf.ByteOffset == f.ByteOffset {
+						cursor = i + 1
+						break
+					}
+				}
+			}
+		case "":
+			if cursor < len(nonAnonFields) {
+				f := nonAnonFields[cursor]
+				entry.Val = f.ByteOffset
+				entry.Type = f.Type
+				entry.StructTag = f.StructTag
+				cursor++
+			} else {
+				*errs = append(*errs, "too many initializer elements for struct")
+			}
+		default:
+			*errs = append(*errs, fmt.Sprintf("index designator '[%d]' used in struct initializer", entry.Val))
+		}
+		// Type-check the value.
+		if len(entry.Children) > 0 {
+			child := entry.Children[0]
+			if child.Kind == KindInitList {
+				// Nested struct init: synthesize a decl node.
+				synthDecl := &Node{Kind: KindVarDecl, Type: entry.Type, StructTag: entry.StructTag}
+				checkInitList(child, synthDecl, st, errs)
+			} else {
+				checkExpr(child, st, errs)
+			}
+		}
+	}
+}
+
+// nonAnonFieldList returns the named (non-anonymous) fields of a struct, in order,
+// including fields promoted from anonymous sub-structs (flattened).
+func nonAnonFieldList(sd *StructDef, structDefs map[string]*StructDef) []StructField {
+	var result []StructField
+	for _, f := range sd.Fields {
+		if f.Name != "" {
+			result = append(result, f)
+		} else if f.Type == TypeStruct && f.StructTag != "" && structDefs != nil {
+			// Anonymous member: flatten its fields (with absolute offsets).
+			if inner, ok := structDefs[f.StructTag]; ok {
+				for _, innerF := range nonAnonFieldList(inner, structDefs) {
+					copy := innerF
+					copy.ByteOffset = f.ByteOffset + innerF.ByteOffset
+					result = append(result, copy)
+				}
+			}
+		}
+	}
+	return result
+}
+
+// checkArrayInitList resolves index designators and type-checks entries for an array init list.
+func checkArrayInitList(list *Node, decl *Node, st *symTable, errs *[]string) {
+	arraySize := decl.Val
+	nextIdx := 0
+	for _, entry := range list.Children {
+		switch entry.Op {
+		case "[":
+			nextIdx = entry.Val
+		case "":
+			entry.Val = nextIdx
+		default:
+			*errs = append(*errs, fmt.Sprintf("field designator '.%s' used in array initializer", entry.Name))
+		}
+		if arraySize > 0 && nextIdx >= arraySize {
+			*errs = append(*errs, fmt.Sprintf("array index %d out of bounds (size %d)", nextIdx, arraySize))
+		}
+		entry.Val = nextIdx
+		nextIdx++
+		if len(entry.Children) > 0 {
+			checkExpr(entry.Children[0], st, errs)
+		}
+	}
 }

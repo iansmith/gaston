@@ -379,6 +379,37 @@ func (g *elfGen) fpLoad(addr IRAddr, fd int) {
 	}
 }
 
+// load128 loads a 128-bit value (lo, hi) from a 16-byte frame slot into (rdLo, rdHi).
+// The slot at offsets[addr.Name] is the lo word; offsets[addr.Name]+8 is the hi word.
+func (g *elfGen) load128(addr IRAddr, rdLo, rdHi int) {
+	switch addr.Kind {
+	case AddrTemp, AddrLocal:
+		off := g.fr.offsets[addr.Name]
+		base := g.frameBase()
+		g.cb.emit(encLDRuoff(rdLo, base, off))
+		g.cb.emit(encLDRuoff(rdHi, base, off+8))
+	case AddrGlobal:
+		g.cb.emitLDRglobal(addr.Name) // X9 = &global
+		g.cb.emit(encLDRuoff(rdLo, regX9, 0))
+		g.cb.emit(encLDRuoff(rdHi, regX9, 8))
+	}
+}
+
+// store128 stores (rdLo, rdHi) into a 16-byte frame slot at dst.
+func (g *elfGen) store128(rdLo, rdHi int, dst IRAddr) {
+	switch dst.Kind {
+	case AddrTemp, AddrLocal:
+		off := g.fr.offsets[dst.Name]
+		base := g.frameBase()
+		g.cb.emit(encSTRuoff(rdLo, base, off))
+		g.cb.emit(encSTRuoff(rdHi, base, off+8))
+	case AddrGlobal:
+		g.cb.emitLDRglobal(dst.Name) // X9 = &global
+		g.cb.emit(encSTRuoff(rdLo, regX9, 0))
+		g.cb.emit(encSTRuoff(rdHi, regX9, 8))
+	}
+}
+
 // fpStore emits instructions to store D register fd into an FP stack/global slot.
 func (g *elfGen) fpStore(fd int, dst IRAddr) {
 	switch dst.Kind {
@@ -706,6 +737,228 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 			}
 			g.store(regX0, q.Dst)
 
+		case IRCLZ:
+			g.load(q.Src1, regX0)
+			if q.TypeHint == TypeUnsignedInt {
+				// 32-bit __builtin_clz: use 32-bit CLZ (counts from bit 31)
+				g.cb.emit(encCLZ32(regX0, regX0))
+			} else {
+				g.cb.emit(encCLZ(regX0, regX0))
+			}
+			g.store(regX0, q.Dst)
+
+		case IRCTZ:
+			g.load(q.Src1, regX0)
+			if q.TypeHint == TypeUnsignedInt {
+				g.cb.emit(encRBIT32(regX0, regX0))
+				g.cb.emit(encCLZ32(regX0, regX0))
+			} else {
+				g.cb.emit(encRBIT(regX0, regX0))
+				g.cb.emit(encCLZ(regX0, regX0))
+			}
+			g.store(regX0, q.Dst)
+
+		case IRPopcount:
+			// FMOV D0, X0; CNT V0.8B, V0.8B; ADDV B0, V0.8B; UMOV W0, V0.B[0]
+			g.load(q.Src1, regX0)
+			g.cb.emit(encFMOVfromGP(0, regX0)) // FMOV D0, X0
+			g.cb.emit(encCNT8B(0, 0))           // CNT  V0.8B, V0.8B
+			g.cb.emit(encADDVb(0, 0))           // ADDV B0, V0.8B
+			g.cb.emit(encUMOVb0(regX0, 0))      // UMOV W0, V0.B[0]
+			g.store(regX0, q.Dst)
+
+		case IR128Copy:
+			g.load128(q.Src1, regX0, regX1)
+			g.store128(regX0, regX1, q.Dst)
+
+		case IR128Add:
+			g.load128(q.Src1, regX0, regX1) // X0=lo1, X1=hi1
+			g.load128(q.Src2, regX2, regX3) // X2=lo2, X3=hi2
+			g.cb.emit(encADDS(regX0, regX0, regX2)) // X0 = lo1+lo2, flags
+			g.cb.emit(encADC(regX1, regX1, regX3))  // X1 = hi1+hi2+carry
+			g.store128(regX0, regX1, q.Dst)
+
+		case IR128Sub:
+			g.load128(q.Src1, regX0, regX1)
+			g.load128(q.Src2, regX2, regX3)
+			g.cb.emit(encSUBS(regX0, regX0, regX2)) // X0 = lo1-lo2, flags
+			g.cb.emit(encSBC(regX1, regX1, regX3))  // X1 = hi1-hi2-borrow
+			g.store128(regX0, regX1, q.Dst)
+
+		case IR128Mul:
+			// Full 64×64→128-bit multiply.
+			// For unsigned: lo = MUL(a_lo, b_lo); hi = UMULH(a_lo, b_lo)
+			// For signed:   lo = MUL(a_lo, b_lo); hi = SMULH(a_lo, b_lo)
+			g.load128(q.Src1, regX0, regX1)
+			g.load128(q.Src2, regX2, regX3)
+			g.cb.emit(encMUL(regX4, regX0, regX2)) // X4 = lo(a*b)
+			if q.TypeHint == TypeUint128 {
+				g.cb.emit(encUMULH(regX5, regX0, regX2)) // X5 = hi(a*b) unsigned
+			} else {
+				g.cb.emit(encSMULH(regX5, regX0, regX2)) // X5 = hi(a*b) signed
+			}
+			g.store128(regX4, regX5, q.Dst)
+
+		case IR128And:
+			g.load128(q.Src1, regX0, regX1)
+			g.load128(q.Src2, regX2, regX3)
+			g.cb.emit(encAND(regX0, regX0, regX2))
+			g.cb.emit(encAND(regX1, regX1, regX3))
+			g.store128(regX0, regX1, q.Dst)
+
+		case IR128Or:
+			g.load128(q.Src1, regX0, regX1)
+			g.load128(q.Src2, regX2, regX3)
+			g.cb.emit(encORR(regX0, regX0, regX2))
+			g.cb.emit(encORR(regX1, regX1, regX3))
+			g.store128(regX0, regX1, q.Dst)
+
+		case IR128Xor:
+			g.load128(q.Src1, regX0, regX1)
+			g.load128(q.Src2, regX2, regX3)
+			g.cb.emit(encEOR(regX0, regX0, regX2))
+			g.cb.emit(encEOR(regX1, regX1, regX3))
+			g.store128(regX0, regX1, q.Dst)
+
+		case IR128Neg:
+			g.load128(q.Src1, regX0, regX1)
+			g.cb.emit(encNEGS(regX0, regX0)) // X0 = -lo, flags
+			g.cb.emit(encNGC(regX1, regX1))  // X1 = ~hi + carry
+			g.store128(regX0, regX1, q.Dst)
+
+		case IR128Shl:
+			n := q.Src2.IVal
+			g.load128(q.Src1, regX0, regX1) // X0=lo, X1=hi
+			switch {
+			case n == 0:
+				g.store128(regX0, regX1, q.Dst)
+			case n == 64:
+				g.cb.emit(encMOVreg(regX1, regX0)) // hi = lo
+				g.cb.emit(encMOVZ(regX0, 0, 0))    // lo = 0
+				g.store128(regX0, regX1, q.Dst)
+			case n > 0 && n < 64:
+				g.emit128Shl(regX0, regX1, n)
+				g.store128(regX0, regX1, q.Dst)
+			case n > 64 && n < 128:
+				g.cb.emit(encUBFM(regX1, regX0, 64-(n-64), 63-(n-64))) // hi = lo << (n-64)
+				g.cb.emit(encMOVZ(regX0, 0, 0))                         // lo = 0
+				g.store128(regX0, regX1, q.Dst)
+			default: // n >= 128
+				g.cb.emit(encMOVZ(regX0, 0, 0))
+				g.cb.emit(encMOVZ(regX1, 0, 0))
+				g.store128(regX0, regX1, q.Dst)
+			}
+
+		case IR128LShr:
+			n := q.Src2.IVal
+			g.load128(q.Src1, regX0, regX1) // X0=lo, X1=hi
+			switch {
+			case n == 0:
+				g.store128(regX0, regX1, q.Dst)
+			case n == 64:
+				g.cb.emit(encMOVreg(regX0, regX1)) // lo = hi
+				g.cb.emit(encMOVZ(regX1, 0, 0))    // hi = 0
+				g.store128(regX0, regX1, q.Dst)
+			case n > 0 && n < 64:
+				g.emit128LShr(regX0, regX1, n)
+				g.store128(regX0, regX1, q.Dst)
+			case n > 64 && n < 128:
+				g.cb.emit(encUBFM(regX0, regX1, n-64, 63)) // lo = hi >> (n-64)
+				g.cb.emit(encMOVZ(regX1, 0, 0))             // hi = 0
+				g.store128(regX0, regX1, q.Dst)
+			default: // n >= 128
+				g.cb.emit(encMOVZ(regX0, 0, 0))
+				g.cb.emit(encMOVZ(regX1, 0, 0))
+				g.store128(regX0, regX1, q.Dst)
+			}
+
+		case IR128AShr:
+			// Arithmetic right shift: hi half is sign-extended.
+			n := q.Src2.IVal
+			g.load128(q.Src1, regX0, regX1) // X0=lo, X1=hi
+			switch {
+			case n == 0:
+				g.store128(regX0, regX1, q.Dst)
+			case n == 64:
+				g.cb.emit(encMOVreg(regX0, regX1))   // lo = hi
+				g.cb.emit(encASR(regX1, regX1, 63))  // hi = sign bit
+				g.store128(regX0, regX1, q.Dst)
+			case n > 0 && n < 64:
+				// lo = (lo >> n) | (hi << (64-n))
+				// hi = hi >> n  (arithmetic)
+				g.cb.emit(encUBFM(regX0, regX0, n, 63))       // lo = lo >> n (logical)
+				g.cb.emit(encUBFM(regX2, regX1, 64-n, 63-n))  // X2 = hi << (64-n)
+				g.cb.emit(encORR(regX0, regX0, regX2))         // lo |= X2
+				g.cb.emit(encASR(regX1, regX1, n))             // hi = hi >> n (arithmetic)
+				g.store128(regX0, regX1, q.Dst)
+			default: // n >= 64
+				g.cb.emit(encASR(regX0, regX1, 63)) // lo = sign bit
+				g.cb.emit(encASR(regX1, regX1, 63)) // hi = sign bit
+				g.store128(regX0, regX1, q.Dst)
+			}
+
+		case IR128FromU64:
+			// 128-bit zero-extension of a 64-bit value.
+			g.load(q.Src1, regX0)
+			g.cb.emit(encMOVZ(regX1, 0, 0)) // hi = 0
+			g.store128(regX0, regX1, q.Dst)
+
+		case IR128FromI64:
+			// 128-bit sign-extension of a 64-bit signed value.
+			g.load(q.Src1, regX0)
+			g.cb.emit(encASR(regX1, regX0, 63)) // hi = sign bit replicated
+			g.store128(regX0, regX1, q.Dst)
+
+		case IR64From128:
+			// Narrow 128→64: take the lo half.
+			g.load128(q.Src1, regX0, regX1)
+			g.store(regX0, q.Dst)
+
+		case IR128Eq:
+			// (a_lo^b_lo)|(a_hi^b_hi) == 0
+			g.load128(q.Src1, regX0, regX1)
+			g.load128(q.Src2, regX2, regX3)
+			g.cb.emit(encEOR(regX0, regX0, regX2))
+			g.cb.emit(encEOR(regX1, regX1, regX3))
+			g.cb.emit(encORR(regX0, regX0, regX1))
+			g.cb.emit(encCMPimm0(regX0))
+			g.cb.emit(encCSET(regX0, condEQ))
+			g.store(regX0, q.Dst)
+
+		case IR128Ne:
+			// (a_lo^b_lo)|(a_hi^b_hi) != 0
+			g.load128(q.Src1, regX0, regX1)
+			g.load128(q.Src2, regX2, regX3)
+			g.cb.emit(encEOR(regX0, regX0, regX2))
+			g.cb.emit(encEOR(regX1, regX1, regX3))
+			g.cb.emit(encORR(regX0, regX0, regX1))
+			g.cb.emit(encCMPimm0(regX0))
+			g.cb.emit(encCSET(regX0, condNE))
+			g.store(regX0, q.Dst)
+
+		// 128-bit unsigned comparisons.
+		// Pattern: SUBS lo; SBCS hi; CSET cond.
+		// For < and >= : no operand swap (a - b), CSET LO/HS.
+		// For > and <= : swap operands (b - a), CSET LO/HS.
+		case IR128ULt:
+			g.emit128Cmp(q, false, condLO) // a < b: a-b, LO (C=0)
+		case IR128ULe:
+			g.emit128Cmp(q, true, condHS)  // a <= b: b-a, HS (C=1 = b>=a)
+		case IR128UGt:
+			g.emit128Cmp(q, true, condLO)  // a > b: b-a, LO (C=0 = b<a)
+		case IR128UGe:
+			g.emit128Cmp(q, false, condHS) // a >= b: a-b, HS (C=1)
+
+		// 128-bit signed comparisons. Same swap pattern but with signed conditions.
+		case IR128SLt:
+			g.emit128Cmp(q, false, condLT) // a < b: a-b, LT (N≠V)
+		case IR128SLe:
+			g.emit128Cmp(q, true, condGE)  // a <= b: b-a, GE (N=V = b>=a)
+		case IR128SGt:
+			g.emit128Cmp(q, true, condLT)  // a > b: b-a, LT (N≠V = b<a)
+		case IR128SGe:
+			g.emit128Cmp(q, false, condGE) // a >= b: a-b, GE (N=V)
+
 		case IRStrAddr:
 			// Load the address of a string literal via the pool.
 			g.cb.emitLDRglobal(q.Extra)              // X9 = VA of string literal
@@ -986,6 +1239,64 @@ func (g *elfGen) emitCmpBool(q Quad, cond int) {
 	g.store(regX0, q.Dst)
 }
 
+// emit128Shl emits a 128-bit logical left shift by constant n (0 < n < 64).
+// On entry: lo=regX0, hi=regX1. On exit: regX0=new lo, regX1=new hi.
+// Uses regX2 as scratch.
+func (g *elfGen) emit128Shl(lo, hi, n int) {
+	// hi = (hi << n) | (lo >> (64-n))
+	// lo = lo << n
+	// LSL hi, hi, #n  = UBFM hi, hi, #(64-n), #(63-n)
+	// LSR X2, lo, #(64-n) = UBFM X2, lo, #(64-n), #63
+	// ORR hi, hi, X2
+	// LSL lo, lo, #n  = UBFM lo, lo, #(64-n), #(63-n)
+	g.cb.emit(encUBFM(hi, hi, 64-n, 63-n))           // hi = hi << n
+	g.cb.emit(encUBFM(regX2, lo, 64-n, 63))          // X2 = lo >> (64-n)
+	g.cb.emit(encORR(hi, hi, regX2))                  // hi |= X2
+	g.cb.emit(encUBFM(lo, lo, 64-n, 63-n))           // lo = lo << n
+}
+
+// emit128LShr emits a 128-bit logical right shift by constant n (0 < n < 64).
+// On entry: lo=regX0, hi=regX1. On exit: regX0=new lo, regX1=new hi.
+// Uses regX2 as scratch.
+func (g *elfGen) emit128LShr(lo, hi, n int) {
+	// lo = (lo >> n) | (hi << (64-n))
+	// hi = hi >> n
+	// LSR lo, lo, #n  = UBFM lo, lo, #n, #63
+	// LSL X2, hi, #(64-n) = UBFM X2, hi, #(64-n), #(63-n)
+	// ORR lo, lo, X2
+	// LSR hi, hi, #n  = UBFM hi, hi, #n, #63
+	g.cb.emit(encUBFM(lo, lo, n, 63))                 // lo = lo >> n
+	g.cb.emit(encUBFM(regX2, hi, 64-n, 63-n))        // X2 = hi << (64-n)
+	g.cb.emit(encORR(lo, lo, regX2))                  // lo |= X2
+	g.cb.emit(encUBFM(hi, hi, n, 63))                 // hi = hi >> n
+}
+
+// emit128Cmp emits a branchless 128-bit comparison using SUBS + SBCS.
+//
+// For LT/LE (a < b, a <= b): compute a - b via SUBS a_lo, b_lo; SBCS a_hi, b_hi
+//   Then CSET with LO/LS (unsigned) or LT/LE (signed).
+//
+// For GT/GE (a > b, a >= b): equivalent to b < a / b <= a, so swap operands:
+//   SUBS b_lo, a_lo; SBCS b_hi, a_hi; CSET LO/LS (unsigned) or LT/LE (signed).
+//
+// swapOps: true for GT/GE (swap Src1 and Src2 before subtraction).
+// finalCond: the ARM64 condition for the desired relation after the swap.
+func (g *elfGen) emit128Cmp(q Quad, swapOps bool, finalCond int) {
+	g.load128(q.Src1, regX0, regX1) // X0=a_lo, X1=a_hi
+	g.load128(q.Src2, regX2, regX3) // X2=b_lo, X3=b_hi
+	if swapOps {
+		// Compute b - a: SUBS b_lo, a_lo; SBCS b_hi, a_hi
+		g.cb.emit(encSUBS(regXZR, regX2, regX0))
+		g.cb.emit(encSBCS(regXZR, regX3, regX1))
+	} else {
+		// Compute a - b: SUBS a_lo, b_lo; SBCS a_hi, b_hi
+		g.cb.emit(encSUBS(regXZR, regX0, regX2))
+		g.cb.emit(encSBCS(regXZR, regX1, regX3))
+	}
+	g.cb.emit(encCSET(regX0, finalCond))
+	g.store(regX0, q.Dst)
+}
+
 func (g *elfGen) emitArrayLoad(q Quad) {
 	g.arrayBase(q.Src1, regX0)              // X0 = base address
 	g.load(q.Src2, regX1)                   // X1 = index
@@ -1203,12 +1514,36 @@ func (g *elfGen) emitStart(globals []IRGlobal) {
 	g.cb.defineLabel("_start")
 	// Initialize globals that have a constant initializer.
 	for _, gbl := range globals {
-		if !gbl.HasInitVal || gbl.IsArr {
+		if gbl.IsArr {
 			continue
 		}
-		g.cb.emitMOVimm(regX0, int64(gbl.InitVal)) // value → X0
-		g.cb.emitLDRglobal(gbl.Name)               // X9 = &global
-		g.cb.emit(encSTRuoff(regX0, regX9, 0))     // *X9 = value
+		if gbl.HasInitVal {
+			g.cb.emitMOVimm(regX0, int64(gbl.InitVal)) // value → X0
+			g.cb.emitLDRglobal(gbl.Name)               // X9 = &global
+			g.cb.emit(encSTRuoff(regX0, regX9, 0))     // *X9 = value
+		} else if len(gbl.InitData) > 0 {
+			g.cb.emitLDRglobal(gbl.Name) // X9 = &global
+			data := gbl.InitData
+			off := 0
+			for off+8 <= len(data) {
+				var word uint64
+				for i := 0; i < 8; i++ {
+					word |= uint64(data[off+i]) << (uint(i) * 8)
+				}
+				if word != 0 {
+					g.cb.emitMOVimm(regX0, int64(word))
+					g.cb.emit(encSTRuoff(regX0, regX9, off))
+				}
+				off += 8
+			}
+			// Handle sub-8-byte tail (shouldn't be needed for aligned structs).
+			for ; off < len(data); off++ {
+				if data[off] != 0 {
+					g.cb.emitMOVimm(regX0, int64(data[off]))
+					g.cb.emit(encSTRBuoff(regX0, regX9, off))
+				}
+			}
+		}
 	}
 	g.cb.emitBL(funcLabel("main"))
 	g.cb.emitMOVimm(regX0, 0)  // exit code 0

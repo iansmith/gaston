@@ -371,6 +371,37 @@ var featureTests = []dockerTest{
 	// sizeof(unsigned int)=4; no sign extension at 200
 	{name: "wchar_t_basic", want: "65\n4\n100\n200\n300\n400\n75\n200\n"},
 
+	// ── Designated initializers (C99 §6.7.8) ─────────────────────────────
+	// desinit_struct: .field designators on 3-field struct, out-of-order
+	{name: "desinit_struct", want: "10\n20\n30\n"},
+	// desinit_partial: only some fields designated; unspecified fields zero
+	{name: "desinit_partial", want: "5\n0\n99\n"},
+	// desinit_array: [index] designators; sparse array; zeros for unset slots
+	{name: "desinit_array", want: "1\n0\n0\n4\n9\n"},
+	// desinit_mixed: mix of plain and designated entries; position tracking
+	{name: "desinit_mixed", want: "0\n10\n20\n0\n"},
+	// desinit_nested: struct with a struct field init using nested braces
+	{name: "desinit_nested", want: "10\n1\n2\n99\n"},
+	// desinit_union: single designator on a union; aliased value
+	{name: "desinit_union", want: "42\n42\n"},
+	// desinit_global: global struct with constant designator initializers
+	{name: "desinit_global", want: "1\n2\n3\n"},
+
+	// ── Torture test: combined features 10+11+12+14 ──────────────────────
+	{name: "torture_mix", want: "30\n40\n3\n4\n0\n24\n10\n20\n100\n200\n0\n330\n2500\n116\n116\n101\n65\n66\n67\n7\n42\n42\n42\n10\n20\n30\n15\n"},
+
+	// ── Compound literals (C99 §6.5.2.5) ─────────────────────────────────
+	// clit_struct: (struct T){...} passed by pointer; fields read back
+	{name: "clit_struct", want: "1\n2\n"},
+	// clit_array: (int[]){...} — pointer to first element; subscript read
+	{name: "clit_array", want: "10\n20\n30\n"},
+	// clit_scalar: (int){42} — scalar compound literal used as rvalue
+	{name: "clit_scalar", want: "42\n"},
+	// clit_nested: compound literal containing a designated nested struct field
+	{name: "clit_nested", want: "7\n8\n"},
+	// clit_arg: compound literal passed directly as a function argument
+	{name: "clit_arg", want: "99\n"},
+
 	// ── PRINTF-FEATURES items 1–3 ─────────────────────────────────────────
 	// static/inline on functions: static and inline qualifiers parse and compile
 	{name: "static_inline_func", want: "6\n16\n"},
@@ -384,6 +415,33 @@ var featureTests = []dockerTest{
 	{name: "ternary_basic", want: "-1\n0\n1\n7\n4\n8\n10\n"},
 	// ternary_fp: double abs and max via ternary (FP branch selection)
 	{name: "ternary_fp", want: "3.140000\n2.710000\n2.500000\n"},
+	// hexfloat_basic: C99 hex float literals (0x<hex>p<exp>)
+	{name: "hexfloat_basic", want: "1.000000\n3.000000\n0.500000\n1024.000000\n1.937500\n"},
+
+	// ── GCC bit-manipulation intrinsics ──────────────────────────────────
+	// builtin_bitops: __builtin_clz, __builtin_ctz, __builtin_popcount (32-bit variants)
+	{name: "builtin_bitops", want: "31\n0\n15\n0\n3\n4\n0\n1\n8\n32\n16\n"},
+
+	// ── typeof / __typeof__ GCC extension ────────────────────────────────
+	// typeof_basic: typeof(var), typeof(type), typeof(expr) in declarations
+	{name: "typeof_basic", want: "43\n6.280000\n100\n85\n"},
+
+	// ── Statement expressions (GCC extension, Tier 4 item 17) ────────────
+	{name: "stmtexpr_basic", want: "42\n"},
+	{name: "stmtexpr_decl", want: "84\n"},
+	{name: "stmtexpr_typeof", want: "3\n7\n"},
+	{name: "stmtexpr_fp", want: "3.140000\n"},
+	{name: "stmtexpr_nested", want: "10\n"},
+
+	// ── __int128 / __uint128_t (Tier 4 item 19) ──────────────────────────
+	// int128_basic: __int128 declaration, assignment, cast to/from long
+	{name: "int128_basic", want: "42\n"},
+	// int128_mul: (__uint128_t)a * b >> 64 — high word of 2^63 * 2 = 2^64
+	{name: "int128_mul", want: "1\n"},
+	// int128_arith: equality, less-than, addition
+	{name: "int128_arith", want: "1\n0\n1\n"},
+	// int128_cast: cast chain long → __uint128_t → long
+	{name: "int128_cast", want: "100\n"},
 }
 
 // sepTest describes a separate-compilation test: compile multiple .cm files
