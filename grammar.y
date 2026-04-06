@@ -739,6 +739,7 @@ fun_declaration
 params
 	: param_list { $$ = $1 }
 	| VOID       { $$ = nil }
+	|            { $$ = nil }
 	;
 
 param_list

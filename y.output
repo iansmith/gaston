@@ -1096,6 +1096,7 @@ state 74
 	extern_declaration:  type_specifier ID '('.param_list ',' ELLIPSIS ')' ';' 
 	fun_declaration:  type_specifier ID '('.params ')' compound_stmt 
 	fun_declaration:  type_specifier ID '('.param_list ',' ELLIPSIS ')' compound_stmt 
+	params: .    (207)
 
 	INT  shift 176
 	VOID  shift 171
@@ -1111,7 +1112,7 @@ state 74
 	INT128  shift 184
 	SIGNED  shift 183
 	TYPENAME  shift 185
-	.  error
+	.  reduce 207 (src line 742)
 
 	params  goto 169
 	param_list  goto 170
@@ -1371,9 +1372,9 @@ state 92
 	type_specifier  goto 94
 
 state 93
-	field_list:  field.    (486)
+	field_list:  field.    (487)
 
-	.  reduce 486 (src line 1558)
+	.  reduce 487 (src line 1559)
 
 
 state 94
@@ -1730,17 +1731,17 @@ state 118
 
 
 state 119
-	enum_list:  enum_member.    (452)
+	enum_list:  enum_member.    (453)
 
-	.  reduce 452 (src line 1432)
+	.  reduce 453 (src line 1433)
 
 
 state 120
-	enum_member:  ID.    (453)
+	enum_member:  ID.    (454)
 	enum_member:  ID.'=' NUM 
 
 	'='  shift 274
-	.  reduce 453 (src line 1436)
+	.  reduce 454 (src line 1437)
 
 
 state 121
@@ -1955,7 +1956,7 @@ state 143
 	expression:  postfix_expr.XOREQ expression 
 	expression:  postfix_expr.SHLEQ expression 
 	expression:  postfix_expr.SHREQ expression 
-	factor:  postfix_expr.    (390)
+	factor:  postfix_expr.    (391)
 
 	INC  shift 295
 	DEC  shift 296
@@ -1973,7 +1974,7 @@ state 143
 	'['  shift 297
 	'='  shift 298
 	'.'  shift 294
-	.  reduce 390 (src line 1239)
+	.  reduce 391 (src line 1240)
 
 
 state 144
@@ -2087,62 +2088,62 @@ state 145
 	call  goto 148
 
 state 146
-	expression:  simple_expression.    (355)
+	expression:  simple_expression.    (356)
 
-	.  reduce 355 (src line 1147)
+	.  reduce 356 (src line 1148)
 
 
 state 147
-	postfix_expr:  var.    (323)
+	postfix_expr:  var.    (324)
 
-	.  reduce 323 (src line 1072)
+	.  reduce 324 (src line 1073)
 
 
 state 148
-	postfix_expr:  call.    (324)
+	postfix_expr:  call.    (325)
 
-	.  reduce 324 (src line 1075)
+	.  reduce 325 (src line 1076)
 
 
 state 149
-	simple_expression:  ternary_expression.    (359)
+	simple_expression:  ternary_expression.    (360)
 
-	.  reduce 359 (src line 1160)
+	.  reduce 360 (src line 1161)
 
 
-150: shift/reduce conflict (shift 321(0), red'n 356(0)) on '['
+150: shift/reduce conflict (shift 321(0), red'n 357(0)) on '['
 state 150
-	var:  ID.    (356)
+	var:  ID.    (357)
 	var:  ID.'[' expression ']' '[' expression ']' 
 	var:  ID.'[' expression ']' 
 	call:  ID.'(' args ')' 
 
 	'['  shift 321
 	'('  shift 322
-	.  reduce 356 (src line 1151)
+	.  reduce 357 (src line 1152)
 
 
 state 151
 	ternary_expression:  logical_expression.QUESTION ternary_expression ':' ternary_expression 
-	ternary_expression:  logical_expression.    (361)
+	ternary_expression:  logical_expression.    (362)
 	logical_expression:  logical_expression.ANDAND comparison_expression 
 	logical_expression:  logical_expression.OROR comparison_expression 
 
 	ANDAND  shift 324
 	OROR  shift 325
 	QUESTION  shift 323
-	.  reduce 361 (src line 1168)
+	.  reduce 362 (src line 1169)
 
 
 state 152
-	logical_expression:  comparison_expression.    (364)
+	logical_expression:  comparison_expression.    (365)
 
-	.  reduce 364 (src line 1177)
+	.  reduce 365 (src line 1178)
 
 
 state 153
 	comparison_expression:  bitwise_expression.relop bitwise_expression 
-	comparison_expression:  bitwise_expression.    (366)
+	comparison_expression:  bitwise_expression.    (367)
 	bitwise_expression:  bitwise_expression.bitwiseop additive_expression 
 
 	LE  shift 328
@@ -2156,60 +2157,60 @@ state 153
 	'^'  shift 336
 	'<'  shift 329
 	'>'  shift 330
-	.  reduce 366 (src line 1184)
+	.  reduce 367 (src line 1185)
 
 	relop  goto 326
 	bitwiseop  goto 327
 
 state 154
-	bitwise_expression:  additive_expression.    (368)
+	bitwise_expression:  additive_expression.    (369)
 	additive_expression:  additive_expression.addop term 
 
 	'+'  shift 340
 	'-'  shift 341
-	.  reduce 368 (src line 1191)
+	.  reduce 369 (src line 1192)
 
 	addop  goto 339
 
 state 155
-	additive_expression:  term.    (381)
+	additive_expression:  term.    (382)
 	term:  term.mulop factor 
 
 	'*'  shift 343
 	'/'  shift 344
 	'%'  shift 345
-	.  reduce 381 (src line 1215)
+	.  reduce 382 (src line 1216)
 
 	mulop  goto 342
 
 state 156
-	term:  factor.    (385)
+	term:  factor.    (386)
 
-	.  reduce 385 (src line 1227)
+	.  reduce 386 (src line 1228)
 
 
 state 157
-	factor:  NUM.    (391)
-
-	.  reduce 391 (src line 1240)
-
-
-state 158
-	factor:  FNUM.    (392)
+	factor:  NUM.    (392)
 
 	.  reduce 392 (src line 1241)
 
 
-state 159
-	factor:  CHAR_LIT.    (393)
+state 158
+	factor:  FNUM.    (393)
 
 	.  reduce 393 (src line 1242)
 
 
-state 160
-	factor:  STRING_LIT.    (394)
+state 159
+	factor:  CHAR_LIT.    (394)
 
 	.  reduce 394 (src line 1243)
+
+
+state 160
+	factor:  STRING_LIT.    (395)
+
+	.  reduce 395 (src line 1244)
 
 
 state 161
@@ -2406,9 +2407,9 @@ state 171
 
 
 state 172
-	param_list:  param.    (209)
+	param_list:  param.    (210)
 
-	.  reduce 209 (src line 749)
+	.  reduce 210 (src line 750)
 
 
 state 173
@@ -2477,19 +2478,19 @@ state 175
 
 state 176
 	type_specifier:  INT.    (143)
-	param:  INT.    (233)
+	param:  INT.    (234)
 
-	')'  reduce 233 (src line 803)
-	','  reduce 233 (src line 803)
+	')'  reduce 234 (src line 804)
+	','  reduce 234 (src line 804)
 	.  reduce 143 (src line 565)
 
 
 state 177
 	type_specifier:  CHAR.    (145)
-	param:  CHAR.    (234)
+	param:  CHAR.    (235)
 
-	')'  reduce 234 (src line 804)
-	','  reduce 234 (src line 804)
+	')'  reduce 235 (src line 805)
+	','  reduce 235 (src line 805)
 	.  reduce 145 (src line 568)
 
 
@@ -2507,7 +2508,7 @@ state 178
 	type_specifier:  LONG.LONG SIGNED 
 	type_specifier:  LONG.LONG SIGNED INT 
 	type_specifier:  LONG.DOUBLE 
-	param:  LONG.    (235)
+	param:  LONG.    (236)
 	param:  LONG.LONG 
 	param:  LONG.INT 
 	param:  LONG.DOUBLE 
@@ -2517,38 +2518,38 @@ state 178
 	UNSIGNED  shift 58
 	DOUBLE  shift 367
 	SIGNED  shift 59
-	')'  reduce 235 (src line 805)
-	','  reduce 235 (src line 805)
+	')'  reduce 236 (src line 806)
+	','  reduce 236 (src line 806)
 	.  reduce 146 (src line 569)
 
 
 state 179
 	type_specifier:  SHORT.    (150)
 	type_specifier:  SHORT.INT 
-	param:  SHORT.    (239)
+	param:  SHORT.    (240)
 	param:  SHORT.INT 
 
 	INT  shift 368
-	')'  reduce 239 (src line 809)
-	','  reduce 239 (src line 809)
+	')'  reduce 240 (src line 810)
+	','  reduce 240 (src line 810)
 	.  reduce 150 (src line 573)
 
 
 state 180
 	type_specifier:  FLOAT.    (169)
-	param:  FLOAT.    (241)
+	param:  FLOAT.    (242)
 
-	')'  reduce 241 (src line 811)
-	','  reduce 241 (src line 811)
+	')'  reduce 242 (src line 812)
+	','  reduce 242 (src line 812)
 	.  reduce 169 (src line 592)
 
 
 state 181
 	type_specifier:  DOUBLE.    (170)
-	param:  DOUBLE.    (242)
+	param:  DOUBLE.    (243)
 
-	')'  reduce 242 (src line 812)
-	','  reduce 242 (src line 812)
+	')'  reduce 243 (src line 813)
+	','  reduce 243 (src line 813)
 	.  reduce 170 (src line 593)
 
 
@@ -2563,7 +2564,7 @@ state 182
 	type_specifier:  UNSIGNED.SHORT 
 	type_specifier:  UNSIGNED.SHORT INT 
 	type_specifier:  UNSIGNED.INT128 
-	param:  UNSIGNED.    (243)
+	param:  UNSIGNED.    (244)
 	param:  UNSIGNED.INT 
 	param:  UNSIGNED.LONG 
 	param:  UNSIGNED.CHAR 
@@ -2577,8 +2578,8 @@ state 182
 	LONG  shift 370
 	SHORT  shift 372
 	INT128  shift 373
-	')'  reduce 243 (src line 813)
-	','  reduce 243 (src line 813)
+	')'  reduce 244 (src line 814)
+	','  reduce 244 (src line 814)
 	.  reduce 152 (src line 575)
 
 
@@ -2593,7 +2594,7 @@ state 183
 	type_specifier:  SIGNED.LONG LONG 
 	type_specifier:  SIGNED.LONG LONG INT 
 	type_specifier:  SIGNED.INT128 
-	param:  SIGNED.    (250)
+	param:  SIGNED.    (251)
 	param:  SIGNED.INT 
 	param:  SIGNED.CHAR 
 	param:  SIGNED.LONG 
@@ -2603,28 +2604,28 @@ state 183
 	LONG  shift 376
 	SHORT  shift 69
 	INT128  shift 71
-	')'  reduce 250 (src line 820)
-	','  reduce 250 (src line 820)
+	')'  reduce 251 (src line 821)
+	','  reduce 251 (src line 821)
 	.  reduce 172 (src line 595)
 
 
 state 184
 	type_specifier:  INT128.    (181)
 	type_specifier:  INT128.UNSIGNED 
-	param:  INT128.    (254)
+	param:  INT128.    (255)
 
 	UNSIGNED  shift 72
-	')'  reduce 254 (src line 824)
-	','  reduce 254 (src line 824)
+	')'  reduce 255 (src line 825)
+	','  reduce 255 (src line 825)
 	.  reduce 181 (src line 604)
 
 
 state 185
 	type_specifier:  TYPENAME.    (185)
-	param:  TYPENAME.    (256)
+	param:  TYPENAME.    (257)
 
-	')'  reduce 256 (src line 826)
-	','  reduce 256 (src line 826)
+	')'  reduce 257 (src line 827)
+	','  reduce 257 (src line 827)
 	.  reduce 185 (src line 608)
 
 
@@ -2641,13 +2642,13 @@ state 186
 	.  error
 
 
-187: shift/reduce conflict (shift 378(0), red'n 537(0)) on ']'
+187: shift/reduce conflict (shift 378(0), red'n 538(0)) on ']'
 state 187
 	var_declaration:  type_specifier ID '[' ID.']' ';' 
-	const_int_primary:  ID.    (537)
+	const_int_primary:  ID.    (538)
 
 	']'  shift 378
-	.  reduce 537 (src line 1690)
+	.  reduce 538 (src line 1691)
 
 
 state 188
@@ -2659,13 +2660,13 @@ state 188
 
 
 state 189
-	const_int_expr:  const_int_ternary.    (509)
+	const_int_expr:  const_int_ternary.    (510)
 
-	.  reduce 509 (src line 1640)
+	.  reduce 510 (src line 1641)
 
 
 state 190
-	const_int_ternary:  const_int_cmp.    (510)
+	const_int_ternary:  const_int_cmp.    (511)
 	const_int_ternary:  const_int_cmp.QUESTION const_int_cmp ':' const_int_cmp 
 	const_int_cmp:  const_int_cmp.EQ const_int_shift 
 	const_int_cmp:  const_int_cmp.NE const_int_shift 
@@ -2677,31 +2678,31 @@ state 190
 	QUESTION  shift 380
 	'<'  shift 383
 	'>'  shift 384
-	.  reduce 510 (src line 1644)
+	.  reduce 511 (src line 1645)
 
 
 state 191
-	const_int_cmp:  const_int_shift.    (512)
+	const_int_cmp:  const_int_shift.    (513)
 	const_int_shift:  const_int_shift.LSHIFT const_int_add 
 	const_int_shift:  const_int_shift.RSHIFT const_int_add 
 
 	LSHIFT  shift 385
 	RSHIFT  shift 386
-	.  reduce 512 (src line 1649)
+	.  reduce 513 (src line 1650)
 
 
 state 192
-	const_int_shift:  const_int_add.    (517)
+	const_int_shift:  const_int_add.    (518)
 	const_int_add:  const_int_add.'+' const_int_mul 
 	const_int_add:  const_int_add.'-' const_int_mul 
 
 	'+'  shift 387
 	'-'  shift 388
-	.  reduce 517 (src line 1657)
+	.  reduce 518 (src line 1658)
 
 
 state 193
-	const_int_add:  const_int_mul.    (520)
+	const_int_add:  const_int_mul.    (521)
 	const_int_mul:  const_int_mul.'*' const_int_unary 
 	const_int_mul:  const_int_mul.'/' const_int_unary 
 	const_int_mul:  const_int_mul.'%' const_int_unary 
@@ -2709,19 +2710,19 @@ state 193
 	'*'  shift 389
 	'/'  shift 390
 	'%'  shift 391
-	.  reduce 520 (src line 1663)
+	.  reduce 521 (src line 1664)
 
 
 state 194
-	const_int_mul:  const_int_unary.    (523)
+	const_int_mul:  const_int_unary.    (524)
 
-	.  reduce 523 (src line 1669)
+	.  reduce 524 (src line 1670)
 
 
 state 195
-	const_int_unary:  const_int_primary.    (527)
+	const_int_unary:  const_int_primary.    (528)
 
-	.  reduce 527 (src line 1676)
+	.  reduce 528 (src line 1677)
 
 
 state 196
@@ -2747,9 +2748,9 @@ state 197
 	const_int_primary  goto 394
 
 state 198
-	const_int_primary:  NUM.    (530)
+	const_int_primary:  NUM.    (531)
 
-	.  reduce 530 (src line 1682)
+	.  reduce 531 (src line 1683)
 
 
 state 199
@@ -2837,17 +2838,18 @@ state 202
 state 203
 	var_declaration:  type_specifier ID ',' ID.'[' const_int_expr ']' ';' 
 	var_declaration:  type_specifier ID ',' ID.'[' const_int_expr ']' ',' ID '[' const_int_expr ']' ';' 
-	id_list:  ID ',' ID.    (272)
+	id_list:  ID ',' ID.    (273)
 	multi_init_id_list:  ID ',' ID.'[' const_int_expr ']' 
 
 	'['  shift 406
-	.  reduce 272 (src line 871)
+	.  reduce 273 (src line 872)
 
 
 state 204
 	extern_declaration:  type_specifier '*' ID '('.params ')' ';' 
 	fun_declaration:  type_specifier '*' ID '('.params ')' compound_stmt 
 	fun_declaration:  type_specifier '*' ID '('.param_list ',' ELLIPSIS ')' compound_stmt 
+	params: .    (207)
 
 	INT  shift 176
 	VOID  shift 171
@@ -2863,7 +2865,7 @@ state 204
 	INT128  shift 184
 	SIGNED  shift 183
 	TYPENAME  shift 185
-	.  error
+	.  reduce 207 (src line 742)
 
 	params  goto 407
 	param_list  goto 408
@@ -2962,13 +2964,13 @@ state 211
 
 
 state 212
-	id_list:  id_list ',' ID.    (269)
+	id_list:  id_list ',' ID.    (270)
 	id_list:  id_list ',' ID.'[' const_int_expr ']' 
 	id_list:  id_list ',' ID.'=' expression 
 
 	'['  shift 417
 	'='  shift 418
-	.  reduce 269 (src line 863)
+	.  reduce 270 (src line 864)
 
 
 state 213
@@ -2988,20 +2990,21 @@ state 214
 
 state 215
 	multi_init_id_list:  multi_init_id_list ',' ID.'=' expression 
-	multi_init_id_list:  multi_init_id_list ',' ID.    (280)
+	multi_init_id_list:  multi_init_id_list ',' ID.    (281)
 	multi_init_id_list:  multi_init_id_list ',' ID.'[' ']' '=' '{' init_list '}' 
 	multi_init_id_list:  multi_init_id_list ',' ID.'[' ']' '=' '{' init_list ',' '}' 
 	multi_init_id_list:  multi_init_id_list ',' ID.'[' const_int_expr ']' 
 
 	'['  shift 422
 	'='  shift 421
-	.  reduce 280 (src line 919)
+	.  reduce 281 (src line 920)
 
 
 state 216
 	extern_declaration:  STRUCT ID ID '('.params ')' ';' 
 	fun_declaration:  STRUCT ID ID '('.params ')' compound_stmt 
 	fun_declaration:  STRUCT ID ID '('.param_list ',' ELLIPSIS ')' compound_stmt 
+	params: .    (207)
 
 	INT  shift 176
 	VOID  shift 171
@@ -3017,7 +3020,7 @@ state 216
 	INT128  shift 184
 	SIGNED  shift 183
 	TYPENAME  shift 185
-	.  error
+	.  reduce 207 (src line 742)
 
 	params  goto 423
 	param_list  goto 424
@@ -3098,9 +3101,9 @@ state 223
 
 
 state 224
-	field_list:  field_list field.    (485)
+	field_list:  field_list field.    (486)
 
-	.  reduce 485 (src line 1555)
+	.  reduce 486 (src line 1556)
 
 
 state 225
@@ -3425,6 +3428,7 @@ state 248
 	extern_declaration:  STATIC type_specifier ID '('.params ')' ',' ID '(' params ')' ';' 
 	fun_declaration:  STATIC type_specifier ID '('.params ')' compound_stmt 
 	fun_declaration:  STATIC type_specifier ID '('.param_list ',' ELLIPSIS ')' compound_stmt 
+	params: .    (207)
 
 	INT  shift 176
 	VOID  shift 171
@@ -3440,7 +3444,7 @@ state 248
 	INT128  shift 184
 	SIGNED  shift 183
 	TYPENAME  shift 185
-	.  error
+	.  reduce 207 (src line 742)
 
 	params  goto 465
 	param_list  goto 466
@@ -3631,6 +3635,7 @@ state 261
 state 262
 	extern_declaration:  EXTERN type_specifier ID '('.params ')' ';' 
 	extern_declaration:  EXTERN type_specifier ID '('.param_list ',' ELLIPSIS ')' ';' 
+	params: .    (207)
 
 	INT  shift 176
 	VOID  shift 171
@@ -3646,7 +3651,7 @@ state 262
 	INT128  shift 184
 	SIGNED  shift 183
 	TYPENAME  shift 185
-	.  error
+	.  reduce 207 (src line 742)
 
 	params  goto 482
 	param_list  goto 483
@@ -3764,15 +3769,15 @@ state 274
 
 
 state 275
-	typedef_declaration:  TYPEDEF type_specifier ID ';'.    (455)
+	typedef_declaration:  TYPEDEF type_specifier ID ';'.    (456)
 
-	.  reduce 455 (src line 1451)
+	.  reduce 456 (src line 1452)
 
 
 state 276
-	typedef_declaration:  TYPEDEF type_specifier TYPENAME ';'.    (456)
+	typedef_declaration:  TYPEDEF type_specifier TYPENAME ';'.    (457)
 
-	.  reduce 456 (src line 1457)
+	.  reduce 457 (src line 1458)
 
 
 state 277
@@ -3970,15 +3975,15 @@ state 294
 
 
 state 295
-	postfix_expr:  postfix_expr INC.    (327)
+	postfix_expr:  postfix_expr INC.    (328)
 
-	.  reduce 327 (src line 1081)
+	.  reduce 328 (src line 1082)
 
 
 state 296
-	postfix_expr:  postfix_expr DEC.    (328)
+	postfix_expr:  postfix_expr DEC.    (329)
 
-	.  reduce 328 (src line 1083)
+	.  reduce 329 (src line 1084)
 
 
 state 297
@@ -4491,7 +4496,7 @@ state 314
 	expression:  postfix_expr.XOREQ expression 
 	expression:  postfix_expr.SHLEQ expression 
 	expression:  postfix_expr.SHREQ expression 
-	factor:  postfix_expr.    (390)
+	factor:  postfix_expr.    (391)
 	factor:  '(' postfix_expr.ARROW ID ')' '(' args ')' 
 
 	INC  shift 295
@@ -4510,7 +4515,7 @@ state 314
 	'['  shift 297
 	'='  shift 298
 	'.'  shift 294
-	.  reduce 390 (src line 1239)
+	.  reduce 391 (src line 1240)
 
 
 state 315
@@ -4523,9 +4528,9 @@ state 315
 
 state 316
 	factor:  '(' '{'.block_item_list '}' ')' 
-	block_item_list: .    (268)
+	block_item_list: .    (269)
 
-	.  reduce 268 (src line 859)
+	.  reduce 269 (src line 860)
 
 	block_item_list  goto 531
 
@@ -4538,7 +4543,7 @@ state 317
 	expression:  '*' factor.SHLEQ expression 
 	expression:  '*' factor.OREQ expression 
 	expression:  '*' factor.ANDEQ expression 
-	factor:  '*' factor.    (405)
+	factor:  '*' factor.    (406)
 
 	PLUSEQ  shift 533
 	MINUSEQ  shift 534
@@ -4548,7 +4553,7 @@ state 317
 	SHLEQ  shift 537
 	SHREQ  shift 536
 	'='  shift 532
-	.  reduce 405 (src line 1255)
+	.  reduce 406 (src line 1256)
 
 
 state 318
@@ -4635,14 +4640,14 @@ state 319
 	postfix_expr:  postfix_expr.'[' expression ']' 
 	postfix_expr:  postfix_expr.ARROW ID '(' args ')' 
 	postfix_expr:  postfix_expr.'.' ID '(' args ')' 
-	factor:  postfix_expr.    (390)
+	factor:  postfix_expr.    (391)
 
 	INC  shift 295
 	DEC  shift 296
 	ARROW  shift 293
 	'['  shift 297
 	'.'  shift 294
-	.  reduce 390 (src line 1239)
+	.  reduce 391 (src line 1240)
 
 
 state 320
@@ -4706,7 +4711,7 @@ state 321
 
 state 322
 	call:  ID '('.args ')' 
-	args: .    (445)
+	args: .    (446)
 
 	NUM  shift 157
 	CHAR_LIT  shift 159
@@ -4723,7 +4728,7 @@ state 322
 	'-'  shift 161
 	'!'  shift 162
 	'~'  shift 163
-	.  reduce 445 (src line 1404)
+	.  reduce 446 (src line 1405)
 
 	postfix_expr  goto 143
 	expression  goto 545
@@ -4885,69 +4890,69 @@ state 327
 	call  goto 148
 
 state 328
-	relop:  LE.    (374)
+	relop:  LE.    (375)
 
-	.  reduce 374 (src line 1203)
+	.  reduce 375 (src line 1204)
 
 
 state 329
-	relop:  '<'.    (375)
-
-	.  reduce 375 (src line 1205)
-
-
-state 330
-	relop:  '>'.    (376)
+	relop:  '<'.    (376)
 
 	.  reduce 376 (src line 1206)
 
 
-state 331
-	relop:  GE.    (377)
+state 330
+	relop:  '>'.    (377)
 
 	.  reduce 377 (src line 1207)
 
 
-state 332
-	relop:  EQ.    (378)
+state 331
+	relop:  GE.    (378)
 
 	.  reduce 378 (src line 1208)
 
 
-state 333
-	relop:  NE.    (379)
+state 332
+	relop:  EQ.    (379)
 
 	.  reduce 379 (src line 1209)
 
 
-state 334
-	bitwiseop:  '&'.    (369)
+state 333
+	relop:  NE.    (380)
 
-	.  reduce 369 (src line 1195)
+	.  reduce 380 (src line 1210)
+
+
+state 334
+	bitwiseop:  '&'.    (370)
+
+	.  reduce 370 (src line 1196)
 
 
 state 335
-	bitwiseop:  '|'.    (370)
-
-	.  reduce 370 (src line 1197)
-
-
-state 336
-	bitwiseop:  '^'.    (371)
+	bitwiseop:  '|'.    (371)
 
 	.  reduce 371 (src line 1198)
 
 
-state 337
-	bitwiseop:  LSHIFT.    (372)
+state 336
+	bitwiseop:  '^'.    (372)
 
 	.  reduce 372 (src line 1199)
 
 
-state 338
-	bitwiseop:  RSHIFT.    (373)
+state 337
+	bitwiseop:  LSHIFT.    (373)
 
 	.  reduce 373 (src line 1200)
+
+
+state 338
+	bitwiseop:  RSHIFT.    (374)
+
+	.  reduce 374 (src line 1201)
 
 
 state 339
@@ -4977,15 +4982,15 @@ state 339
 	call  goto 148
 
 state 340
-	addop:  '+'.    (382)
+	addop:  '+'.    (383)
 
-	.  reduce 382 (src line 1219)
+	.  reduce 383 (src line 1220)
 
 
 state 341
-	addop:  '-'.    (383)
+	addop:  '-'.    (384)
 
-	.  reduce 383 (src line 1221)
+	.  reduce 384 (src line 1222)
 
 
 state 342
@@ -5014,63 +5019,63 @@ state 342
 	call  goto 148
 
 state 343
-	mulop:  '*'.    (386)
+	mulop:  '*'.    (387)
 
-	.  reduce 386 (src line 1231)
+	.  reduce 387 (src line 1232)
 
 
 state 344
-	mulop:  '/'.    (387)
-
-	.  reduce 387 (src line 1233)
-
-
-state 345
-	mulop:  '%'.    (388)
+	mulop:  '/'.    (388)
 
 	.  reduce 388 (src line 1234)
 
 
+state 345
+	mulop:  '%'.    (389)
+
+	.  reduce 389 (src line 1235)
+
+
 state 346
-	factor:  '-' factor.    (395)
-
-	.  reduce 395 (src line 1244)
-
-
-state 347
-	factor:  '!' factor.    (396)
+	factor:  '-' factor.    (396)
 
 	.  reduce 396 (src line 1245)
 
 
-state 348
-	factor:  '~' factor.    (397)
+state 347
+	factor:  '!' factor.    (397)
 
 	.  reduce 397 (src line 1246)
 
 
-state 349
-	factor:  INC factor.    (398)
+state 348
+	factor:  '~' factor.    (398)
 
 	.  reduce 398 (src line 1247)
 
 
-state 350
-	factor:  DEC factor.    (399)
+state 349
+	factor:  INC factor.    (399)
 
 	.  reduce 399 (src line 1248)
 
 
-state 351
-	postfix_expr:  var.    (323)
-	factor:  '&' var.    (400)
+state 350
+	factor:  DEC factor.    (400)
 
-	INC  reduce 323 (src line 1072)
-	DEC  reduce 323 (src line 1072)
-	ARROW  reduce 323 (src line 1072)
-	'['  reduce 323 (src line 1072)
-	'.'  reduce 323 (src line 1072)
 	.  reduce 400 (src line 1249)
+
+
+state 351
+	postfix_expr:  var.    (324)
+	factor:  '&' var.    (401)
+
+	INC  reduce 324 (src line 1073)
+	DEC  reduce 324 (src line 1073)
+	ARROW  reduce 324 (src line 1073)
+	'['  reduce 324 (src line 1073)
+	'.'  reduce 324 (src line 1073)
+	.  reduce 401 (src line 1250)
 
 
 state 352
@@ -5260,20 +5265,20 @@ state 357
 	type_specifier  goto 173
 
 state 358
-	param:  type_specifier ID.    (210)
+	param:  type_specifier ID.    (211)
 	param:  type_specifier ID.'[' const_int_expr ']' '[' const_int_expr ']' 
 	param:  type_specifier ID.'[' const_int_expr ']' 
 	param:  type_specifier ID.'[' ']' 
 
 	'['  shift 568
-	.  reduce 210 (src line 753)
+	.  reduce 211 (src line 754)
 
 
 state 359
 	param:  type_specifier '*'.ID '[' ']' 
 	param:  type_specifier '*'.ID 
 	param:  type_specifier '*'.'*' ID 
-	param:  type_specifier '*'.    (221)
+	param:  type_specifier '*'.    (222)
 	param:  type_specifier '*'.CONST ID 
 	param:  type_specifier '*'.CONST ID '[' ']' 
 	param:  type_specifier '*'.CONST '[' ']' 
@@ -5285,7 +5290,7 @@ state 359
 	ID  shift 569
 	CONST  shift 571
 	'*'  shift 570
-	.  reduce 221 (src line 778)
+	.  reduce 222 (src line 779)
 
 
 state 360
@@ -5333,11 +5338,11 @@ state 363
 	param:  CONST type_specifier.'*' CONST 
 	param:  CONST type_specifier.'*' 
 	param:  CONST type_specifier.ID 
-	param:  CONST type_specifier.    (261)
+	param:  CONST type_specifier.    (262)
 
 	ID  shift 577
 	'*'  shift 576
-	.  reduce 261 (src line 837)
+	.  reduce 262 (src line 838)
 
 
 state 364
@@ -5355,49 +5360,49 @@ state 365
 	type_specifier:  LONG LONG.UNSIGNED INT 
 	type_specifier:  LONG LONG.SIGNED 
 	type_specifier:  LONG LONG.SIGNED INT 
-	param:  LONG LONG.    (236)
+	param:  LONG LONG.    (237)
 
 	INT  shift 129
 	UNSIGNED  shift 130
 	SIGNED  shift 131
-	')'  reduce 236 (src line 806)
-	','  reduce 236 (src line 806)
+	')'  reduce 237 (src line 807)
+	','  reduce 237 (src line 807)
 	.  reduce 147 (src line 570)
 
 
 state 366
 	type_specifier:  LONG INT.    (148)
-	param:  LONG INT.    (237)
+	param:  LONG INT.    (238)
 
-	')'  reduce 237 (src line 807)
-	','  reduce 237 (src line 807)
+	')'  reduce 238 (src line 808)
+	','  reduce 238 (src line 808)
 	.  reduce 148 (src line 571)
 
 
 state 367
 	type_specifier:  LONG DOUBLE.    (171)
-	param:  LONG DOUBLE.    (238)
+	param:  LONG DOUBLE.    (239)
 
-	')'  reduce 238 (src line 808)
-	','  reduce 238 (src line 808)
+	')'  reduce 239 (src line 809)
+	','  reduce 239 (src line 809)
 	.  reduce 171 (src line 594)
 
 
 state 368
 	type_specifier:  SHORT INT.    (151)
-	param:  SHORT INT.    (240)
+	param:  SHORT INT.    (241)
 
-	')'  reduce 240 (src line 810)
-	','  reduce 240 (src line 810)
+	')'  reduce 241 (src line 811)
+	','  reduce 241 (src line 811)
 	.  reduce 151 (src line 574)
 
 
 state 369
 	type_specifier:  UNSIGNED INT.    (153)
-	param:  UNSIGNED INT.    (244)
+	param:  UNSIGNED INT.    (245)
 
-	')'  reduce 244 (src line 814)
-	','  reduce 244 (src line 814)
+	')'  reduce 245 (src line 815)
+	','  reduce 245 (src line 815)
 	.  reduce 153 (src line 576)
 
 
@@ -5406,21 +5411,21 @@ state 370
 	type_specifier:  UNSIGNED LONG.LONG 
 	type_specifier:  UNSIGNED LONG.INT 
 	type_specifier:  UNSIGNED LONG.LONG INT 
-	param:  UNSIGNED LONG.    (245)
+	param:  UNSIGNED LONG.    (246)
 
 	INT  shift 135
 	LONG  shift 134
-	')'  reduce 245 (src line 815)
-	','  reduce 245 (src line 815)
+	')'  reduce 246 (src line 816)
+	','  reduce 246 (src line 816)
 	.  reduce 154 (src line 577)
 
 
 state 371
 	type_specifier:  UNSIGNED CHAR.    (166)
-	param:  UNSIGNED CHAR.    (246)
+	param:  UNSIGNED CHAR.    (247)
 
-	')'  reduce 246 (src line 816)
-	','  reduce 246 (src line 816)
+	')'  reduce 247 (src line 817)
+	','  reduce 247 (src line 817)
 	.  reduce 166 (src line 589)
 
 
@@ -5429,42 +5434,42 @@ state 371
 state 372
 	type_specifier:  UNSIGNED SHORT.    (167)
 	type_specifier:  UNSIGNED SHORT.INT 
-	param:  UNSIGNED SHORT.    (247)
+	param:  UNSIGNED SHORT.    (248)
 	param:  UNSIGNED SHORT.'[' const_int_expr ']' 
 	param:  UNSIGNED SHORT.ID '[' const_int_expr ']' 
 
 	ID  shift 580
 	INT  shift 136
 	'['  shift 579
-	')'  reduce 247 (src line 817)
-	','  reduce 247 (src line 817)
+	')'  reduce 248 (src line 818)
+	','  reduce 248 (src line 818)
 	.  reduce 167 (src line 590)
 
 
 state 373
 	type_specifier:  UNSIGNED INT128.    (182)
-	param:  UNSIGNED INT128.    (255)
+	param:  UNSIGNED INT128.    (256)
 
-	')'  reduce 255 (src line 825)
-	','  reduce 255 (src line 825)
+	')'  reduce 256 (src line 826)
+	','  reduce 256 (src line 826)
 	.  reduce 182 (src line 605)
 
 
 state 374
 	type_specifier:  SIGNED INT.    (173)
-	param:  SIGNED INT.    (251)
+	param:  SIGNED INT.    (252)
 
-	')'  reduce 251 (src line 821)
-	','  reduce 251 (src line 821)
+	')'  reduce 252 (src line 822)
+	','  reduce 252 (src line 822)
 	.  reduce 173 (src line 596)
 
 
 state 375
 	type_specifier:  SIGNED CHAR.    (174)
-	param:  SIGNED CHAR.    (252)
+	param:  SIGNED CHAR.    (253)
 
-	')'  reduce 252 (src line 822)
-	','  reduce 252 (src line 822)
+	')'  reduce 253 (src line 823)
+	','  reduce 253 (src line 823)
 	.  reduce 174 (src line 597)
 
 
@@ -5473,12 +5478,12 @@ state 376
 	type_specifier:  SIGNED LONG.INT 
 	type_specifier:  SIGNED LONG.LONG 
 	type_specifier:  SIGNED LONG.LONG INT 
-	param:  SIGNED LONG.    (253)
+	param:  SIGNED LONG.    (254)
 
 	INT  shift 138
 	LONG  shift 139
-	')'  reduce 253 (src line 823)
-	','  reduce 253 (src line 823)
+	')'  reduce 254 (src line 824)
+	','  reduce 254 (src line 824)
 	.  reduce 177 (src line 600)
 
 
@@ -5704,21 +5709,21 @@ state 391
 	const_int_primary  goto 195
 
 state 392
-	const_int_unary:  '-' const_int_primary.    (528)
+	const_int_unary:  '-' const_int_primary.    (529)
 
-	.  reduce 528 (src line 1678)
+	.  reduce 529 (src line 1679)
 
 
 state 393
-	const_int_primary:  ID.    (537)
+	const_int_primary:  ID.    (538)
 
-	.  reduce 537 (src line 1690)
+	.  reduce 538 (src line 1691)
 
 
 state 394
-	const_int_unary:  '!' const_int_primary.    (529)
+	const_int_unary:  '!' const_int_primary.    (530)
 
-	.  reduce 529 (src line 1679)
+	.  reduce 530 (src line 1680)
 
 
 state 395
@@ -6075,6 +6080,7 @@ state 419
 
 state 420
 	fun_declaration:  type_specifier '(' ID ')' '('.params ')' compound_stmt 
+	params: .    (207)
 
 	INT  shift 176
 	VOID  shift 171
@@ -6090,7 +6096,7 @@ state 420
 	INT128  shift 184
 	SIGNED  shift 183
 	TYPENAME  shift 185
-	.  error
+	.  reduce 207 (src line 742)
 
 	params  goto 620
 	param_list  goto 621
@@ -6259,6 +6265,7 @@ state 428
 
 state 429
 	fun_declaration:  STRUCT ID '*' ID '('.params ')' compound_stmt 
+	params: .    (207)
 
 	INT  shift 176
 	VOID  shift 171
@@ -6274,7 +6281,7 @@ state 429
 	INT128  shift 184
 	SIGNED  shift 183
 	TYPENAME  shift 185
-	.  error
+	.  reduce 207 (src line 742)
 
 	params  goto 630
 	param_list  goto 621
@@ -6313,9 +6320,9 @@ state 433
 
 
 state 434
-	field:  type_specifier ID ';'.    (487)
+	field:  type_specifier ID ';'.    (488)
 
-	.  reduce 487 (src line 1562)
+	.  reduce 488 (src line 1563)
 
 
 state 435
@@ -6348,9 +6355,9 @@ state 436
 	const_int_primary  goto 195
 
 state 437
-	field:  type_specifier id_list ';'.    (488)
+	field:  type_specifier id_list ';'.    (489)
 
-	.  reduce 488 (src line 1565)
+	.  reduce 489 (src line 1566)
 
 
 state 438
@@ -6575,6 +6582,7 @@ state 453
 	extern_declaration:  CONST type_specifier '*' ID '('.params ')' ';' 
 	extern_declaration:  CONST type_specifier '*' ID '('.param_list ',' ELLIPSIS ')' ';' 
 	fun_declaration:  CONST type_specifier '*' ID '('.params ')' compound_stmt 
+	params: .    (207)
 
 	INT  shift 176
 	VOID  shift 171
@@ -6590,7 +6598,7 @@ state 453
 	INT128  shift 184
 	SIGNED  shift 183
 	TYPENAME  shift 185
-	.  error
+	.  reduce 207 (src line 742)
 
 	params  goto 656
 	param_list  goto 657
@@ -6664,13 +6672,13 @@ state 458
 	.  error
 
 
-459: shift/reduce conflict (shift 663(0), red'n 391(0)) on ';'
+459: shift/reduce conflict (shift 663(0), red'n 392(0)) on ';'
 state 459
 	const_declaration:  CONST type_specifier ID '=' NUM.';' 
-	factor:  NUM.    (391)
+	factor:  NUM.    (392)
 
 	';'  shift 663
-	.  reduce 391 (src line 1240)
+	.  reduce 392 (src line 1241)
 
 
 state 460
@@ -6792,6 +6800,7 @@ state 470
 state 471
 	fun_declaration:  STATIC type_specifier '*' ID '('.params ')' compound_stmt 
 	fun_declaration:  STATIC type_specifier '*' ID '('.param_list ',' ELLIPSIS ')' compound_stmt 
+	params: .    (207)
 
 	INT  shift 176
 	VOID  shift 171
@@ -6807,7 +6816,7 @@ state 471
 	INT128  shift 184
 	SIGNED  shift 183
 	TYPENAME  shift 185
-	.  error
+	.  reduce 207 (src line 742)
 
 	params  goto 676
 	param_list  goto 677
@@ -6918,6 +6927,7 @@ state 478
 
 state 479
 	fun_declaration:  STATIC STRUCT ID ID '('.params ')' compound_stmt 
+	params: .    (207)
 
 	INT  shift 176
 	VOID  shift 171
@@ -6933,7 +6943,7 @@ state 479
 	INT128  shift 184
 	SIGNED  shift 183
 	TYPENAME  shift 185
-	.  error
+	.  reduce 207 (src line 742)
 
 	params  goto 684
 	param_list  goto 621
@@ -6996,6 +7006,7 @@ state 486
 state 487
 	extern_declaration:  EXTERN type_specifier '*' ID '('.params ')' ';' 
 	extern_declaration:  EXTERN type_specifier '*' ID '('.param_list ',' ELLIPSIS ')' ';' 
+	params: .    (207)
 
 	INT  shift 176
 	VOID  shift 171
@@ -7011,7 +7022,7 @@ state 487
 	INT128  shift 184
 	SIGNED  shift 183
 	TYPENAME  shift 185
-	.  error
+	.  reduce 207 (src line 742)
 
 	params  goto 692
 	param_list  goto 693
@@ -7088,6 +7099,7 @@ state 492
 state 493
 	extern_declaration:  EXTERN STRUCT ID ID '('.params ')' ';' 
 	extern_declaration:  EXTERN STRUCT ID ID '('.param_list ',' ELLIPSIS ')' ';' 
+	params: .    (207)
 
 	INT  shift 176
 	VOID  shift 171
@@ -7103,7 +7115,7 @@ state 493
 	INT128  shift 184
 	SIGNED  shift 183
 	TYPENAME  shift 185
-	.  error
+	.  reduce 207 (src line 742)
 
 	params  goto 700
 	param_list  goto 701
@@ -7136,33 +7148,33 @@ state 494
 	type_specifier  goto 94
 
 state 495
-	enum_declaration:  ENUM '{' enum_list '}' ';'.    (450)
+	enum_declaration:  ENUM '{' enum_list '}' ';'.    (451)
 
-	.  reduce 450 (src line 1424)
+	.  reduce 451 (src line 1425)
 
 
 state 496
-	enum_list:  enum_list ',' enum_member.    (451)
+	enum_list:  enum_list ',' enum_member.    (452)
 
-	.  reduce 451 (src line 1429)
+	.  reduce 452 (src line 1430)
 
 
 state 497
-	enum_member:  ID '=' NUM.    (454)
+	enum_member:  ID '=' NUM.    (455)
 
-	.  reduce 454 (src line 1444)
+	.  reduce 455 (src line 1445)
 
 
 state 498
-	typedef_declaration:  TYPEDEF type_specifier '*' ID ';'.    (457)
+	typedef_declaration:  TYPEDEF type_specifier '*' ID ';'.    (458)
 
-	.  reduce 457 (src line 1462)
+	.  reduce 458 (src line 1463)
 
 
 state 499
-	typedef_declaration:  TYPEDEF type_specifier '*' TYPENAME ';'.    (458)
+	typedef_declaration:  TYPEDEF type_specifier '*' TYPENAME ';'.    (459)
 
-	.  reduce 458 (src line 1467)
+	.  reduce 459 (src line 1468)
 
 
 state 500
@@ -7173,9 +7185,9 @@ state 500
 
 
 state 501
-	typedef_declaration:  TYPEDEF STRUCT ID ID ';'.    (459)
+	typedef_declaration:  TYPEDEF STRUCT ID ID ';'.    (460)
 
-	.  reduce 459 (src line 1472)
+	.  reduce 460 (src line 1473)
 
 
 state 502
@@ -7258,19 +7270,19 @@ state 507
 
 
 state 508
-	postfix_expr:  postfix_expr ARROW ID.    (325)
+	postfix_expr:  postfix_expr ARROW ID.    (326)
 	postfix_expr:  postfix_expr ARROW ID.'(' args ')' 
 
 	'('  shift 709
-	.  reduce 325 (src line 1077)
+	.  reduce 326 (src line 1078)
 
 
 state 509
-	postfix_expr:  postfix_expr '.' ID.    (326)
+	postfix_expr:  postfix_expr '.' ID.    (327)
 	postfix_expr:  postfix_expr '.' ID.'(' args ')' 
 
 	'('  shift 710
-	.  reduce 326 (src line 1079)
+	.  reduce 327 (src line 1080)
 
 
 state 510
@@ -7281,69 +7293,69 @@ state 510
 
 
 state 511
-	expression:  postfix_expr '=' expression.    (335)
+	expression:  postfix_expr '=' expression.    (336)
 
-	.  reduce 335 (src line 1105)
+	.  reduce 336 (src line 1106)
 
 
 state 512
-	expression:  postfix_expr PLUSEQ expression.    (345)
+	expression:  postfix_expr PLUSEQ expression.    (346)
 
-	.  reduce 345 (src line 1127)
+	.  reduce 346 (src line 1128)
 
 
 state 513
-	expression:  postfix_expr MINUSEQ expression.    (346)
+	expression:  postfix_expr MINUSEQ expression.    (347)
 
-	.  reduce 346 (src line 1129)
+	.  reduce 347 (src line 1130)
 
 
 state 514
-	expression:  postfix_expr STAREQ expression.    (347)
+	expression:  postfix_expr STAREQ expression.    (348)
 
-	.  reduce 347 (src line 1131)
+	.  reduce 348 (src line 1132)
 
 
 state 515
-	expression:  postfix_expr DIVEQ expression.    (348)
+	expression:  postfix_expr DIVEQ expression.    (349)
 
-	.  reduce 348 (src line 1133)
+	.  reduce 349 (src line 1134)
 
 
 state 516
-	expression:  postfix_expr MODEQ expression.    (349)
+	expression:  postfix_expr MODEQ expression.    (350)
 
-	.  reduce 349 (src line 1135)
+	.  reduce 350 (src line 1136)
 
 
 state 517
-	expression:  postfix_expr ANDEQ expression.    (350)
+	expression:  postfix_expr ANDEQ expression.    (351)
 
-	.  reduce 350 (src line 1137)
+	.  reduce 351 (src line 1138)
 
 
 state 518
-	expression:  postfix_expr OREQ expression.    (351)
+	expression:  postfix_expr OREQ expression.    (352)
 
-	.  reduce 351 (src line 1139)
+	.  reduce 352 (src line 1140)
 
 
 state 519
-	expression:  postfix_expr XOREQ expression.    (352)
+	expression:  postfix_expr XOREQ expression.    (353)
 
-	.  reduce 352 (src line 1141)
+	.  reduce 353 (src line 1142)
 
 
 state 520
-	expression:  postfix_expr SHLEQ expression.    (353)
+	expression:  postfix_expr SHLEQ expression.    (354)
 
-	.  reduce 353 (src line 1143)
+	.  reduce 354 (src line 1144)
 
 
 state 521
-	expression:  postfix_expr SHREQ expression.    (354)
+	expression:  postfix_expr SHREQ expression.    (355)
 
-	.  reduce 354 (src line 1145)
+	.  reduce 355 (src line 1146)
 
 
 state 522
@@ -7351,13 +7363,13 @@ state 522
 	postfix_expr:  '(' expression ')'.ARROW ID 
 	postfix_expr:  '(' expression ')'.'[' expression ']' 
 	expression:  '(' expression ')'.'=' expression 
-	factor:  '(' expression ')'.    (389)
+	factor:  '(' expression ')'.    (390)
 
 	ARROW  shift 713
 	'['  shift 714
 	'='  shift 715
 	'.'  shift 712
-	.  reduce 389 (src line 1237)
+	.  reduce 390 (src line 1238)
 
 
 state 523
@@ -7451,7 +7463,7 @@ state 528
 	postfix_expr:  postfix_expr.'[' expression ']' 
 	postfix_expr:  postfix_expr.ARROW ID '(' args ')' 
 	postfix_expr:  postfix_expr.'.' ID '(' args ')' 
-	factor:  postfix_expr.    (390)
+	factor:  postfix_expr.    (391)
 	factor:  '(' '*' postfix_expr.ARROW ID ')' '(' args ')' 
 
 	INC  shift 295
@@ -7459,7 +7471,7 @@ state 528
 	ARROW  shift 725
 	'['  shift 297
 	'.'  shift 294
-	.  reduce 390 (src line 1239)
+	.  reduce 391 (src line 1240)
 
 
 state 529
@@ -7833,9 +7845,9 @@ state 540
 
 
 state 541
-	factor:  '*' factor.    (405)
+	factor:  '*' factor.    (406)
 
-	.  reduce 405 (src line 1255)
+	.  reduce 406 (src line 1256)
 
 
 state 542
@@ -7854,17 +7866,17 @@ state 543
 
 
 state 544
-	args:  arg_list.    (444)
+	args:  arg_list.    (445)
 	arg_list:  arg_list.',' expression 
 
 	','  shift 771
-	.  reduce 444 (src line 1402)
+	.  reduce 445 (src line 1403)
 
 
 state 545
-	arg_list:  expression.    (447)
+	arg_list:  expression.    (448)
 
-	.  reduce 447 (src line 1410)
+	.  reduce 448 (src line 1411)
 
 
 state 546
@@ -7875,19 +7887,19 @@ state 546
 
 
 state 547
-	logical_expression:  logical_expression ANDAND comparison_expression.    (362)
+	logical_expression:  logical_expression ANDAND comparison_expression.    (363)
 
-	.  reduce 362 (src line 1172)
+	.  reduce 363 (src line 1173)
 
 
 state 548
-	logical_expression:  logical_expression OROR comparison_expression.    (363)
+	logical_expression:  logical_expression OROR comparison_expression.    (364)
 
-	.  reduce 363 (src line 1175)
+	.  reduce 364 (src line 1176)
 
 
 state 549
-	comparison_expression:  bitwise_expression relop bitwise_expression.    (365)
+	comparison_expression:  bitwise_expression relop bitwise_expression.    (366)
 	bitwise_expression:  bitwise_expression.bitwiseop additive_expression 
 
 	LSHIFT  shift 337
@@ -7895,35 +7907,35 @@ state 549
 	'&'  shift 334
 	'|'  shift 335
 	'^'  shift 336
-	.  reduce 365 (src line 1181)
+	.  reduce 366 (src line 1182)
 
 	bitwiseop  goto 327
 
 state 550
-	bitwise_expression:  bitwise_expression bitwiseop additive_expression.    (367)
+	bitwise_expression:  bitwise_expression bitwiseop additive_expression.    (368)
 	additive_expression:  additive_expression.addop term 
 
 	'+'  shift 340
 	'-'  shift 341
-	.  reduce 367 (src line 1188)
+	.  reduce 368 (src line 1189)
 
 	addop  goto 339
 
 state 551
-	additive_expression:  additive_expression addop term.    (380)
+	additive_expression:  additive_expression addop term.    (381)
 	term:  term.mulop factor 
 
 	'*'  shift 343
 	'/'  shift 344
 	'%'  shift 345
-	.  reduce 380 (src line 1212)
+	.  reduce 381 (src line 1213)
 
 	mulop  goto 342
 
 state 552
-	term:  term mulop factor.    (384)
+	term:  term mulop factor.    (385)
 
-	.  reduce 384 (src line 1224)
+	.  reduce 385 (src line 1225)
 
 
 state 553
@@ -7972,7 +7984,7 @@ state 556
 	expression:  postfix_expr.XOREQ expression 
 	expression:  postfix_expr.SHLEQ expression 
 	expression:  postfix_expr.SHREQ expression 
-	factor:  postfix_expr.    (390)
+	factor:  postfix_expr.    (391)
 	factor:  '&' '(' postfix_expr.ARROW ID ')' 
 	factor:  '&' '(' postfix_expr.'.' ID ')' 
 
@@ -7992,7 +8004,7 @@ state 556
 	'['  shift 297
 	'='  shift 298
 	'.'  shift 777
-	.  reduce 390 (src line 1239)
+	.  reduce 391 (src line 1240)
 
 
 state 557
@@ -8060,26 +8072,26 @@ state 564
 
 state 565
 	compound_stmt:  '{'.block_item_list '}' 
-	block_item_list: .    (268)
+	block_item_list: .    (269)
 
-	.  reduce 268 (src line 859)
+	.  reduce 269 (src line 860)
 
 	block_item_list  goto 785
 
-566: shift/reduce conflict (shift 786(0), red'n 208(0)) on ')'
+566: shift/reduce conflict (shift 786(0), red'n 209(0)) on ')'
 state 566
 	extern_declaration:  type_specifier ID '(' param_list ',' ELLIPSIS.')' ';' 
 	fun_declaration:  type_specifier ID '(' param_list ',' ELLIPSIS.')' compound_stmt 
-	param_list:  param_list ',' ELLIPSIS.    (208)
+	param_list:  param_list ',' ELLIPSIS.    (209)
 
 	')'  shift 786
-	.  reduce 208 (src line 747)
+	.  reduce 209 (src line 748)
 
 
 state 567
-	param_list:  param_list ',' param.    (207)
+	param_list:  param_list ',' param.    (208)
 
-	.  reduce 207 (src line 744)
+	.  reduce 208 (src line 745)
 
 
 state 568
@@ -8107,18 +8119,18 @@ state 568
 
 state 569
 	param:  type_specifier '*' ID.'[' ']' 
-	param:  type_specifier '*' ID.    (215)
+	param:  type_specifier '*' ID.    (216)
 
 	'['  shift 789
-	.  reduce 215 (src line 764)
+	.  reduce 216 (src line 765)
 
 
 state 570
 	param:  type_specifier '*' '*'.ID 
-	param:  type_specifier '*' '*'.    (228)
+	param:  type_specifier '*' '*'.    (229)
 
 	ID  shift 790
-	.  reduce 228 (src line 792)
+	.  reduce 229 (src line 793)
 
 
 state 571
@@ -8152,36 +8164,36 @@ state 573
 
 
 state 574
-	param:  STRUCT ID ID.    (217)
+	param:  STRUCT ID ID.    (218)
 
-	.  reduce 217 (src line 768)
+	.  reduce 218 (src line 769)
 
 
 state 575
 	param:  STRUCT ID '*'.ID 
 	param:  STRUCT ID '*'.'*' ID 
-	param:  STRUCT ID '*'.    (232)
+	param:  STRUCT ID '*'.    (233)
 
 	ID  shift 797
 	'*'  shift 798
-	.  reduce 232 (src line 800)
+	.  reduce 233 (src line 801)
 
 
 state 576
 	param:  CONST type_specifier '*'.ID 
 	param:  CONST type_specifier '*'.CONST ID 
 	param:  CONST type_specifier '*'.CONST 
-	param:  CONST type_specifier '*'.    (231)
+	param:  CONST type_specifier '*'.    (232)
 
 	ID  shift 799
 	CONST  shift 800
-	.  reduce 231 (src line 798)
+	.  reduce 232 (src line 799)
 
 
 state 577
-	param:  CONST type_specifier ID.    (260)
+	param:  CONST type_specifier ID.    (261)
 
-	.  reduce 260 (src line 835)
+	.  reduce 261 (src line 836)
 
 
 state 578
@@ -8325,17 +8337,7 @@ state 587
 
 
 state 588
-	const_int_cmp:  const_int_cmp EQ const_int_shift.    (513)
-	const_int_shift:  const_int_shift.LSHIFT const_int_add 
-	const_int_shift:  const_int_shift.RSHIFT const_int_add 
-
-	LSHIFT  shift 385
-	RSHIFT  shift 386
-	.  reduce 513 (src line 1651)
-
-
-state 589
-	const_int_cmp:  const_int_cmp NE const_int_shift.    (514)
+	const_int_cmp:  const_int_cmp EQ const_int_shift.    (514)
 	const_int_shift:  const_int_shift.LSHIFT const_int_add 
 	const_int_shift:  const_int_shift.RSHIFT const_int_add 
 
@@ -8344,8 +8346,8 @@ state 589
 	.  reduce 514 (src line 1652)
 
 
-state 590
-	const_int_cmp:  const_int_cmp '<' const_int_shift.    (515)
+state 589
+	const_int_cmp:  const_int_cmp NE const_int_shift.    (515)
 	const_int_shift:  const_int_shift.LSHIFT const_int_add 
 	const_int_shift:  const_int_shift.RSHIFT const_int_add 
 
@@ -8354,8 +8356,8 @@ state 590
 	.  reduce 515 (src line 1653)
 
 
-state 591
-	const_int_cmp:  const_int_cmp '>' const_int_shift.    (516)
+state 590
+	const_int_cmp:  const_int_cmp '<' const_int_shift.    (516)
 	const_int_shift:  const_int_shift.LSHIFT const_int_add 
 	const_int_shift:  const_int_shift.RSHIFT const_int_add 
 
@@ -8364,18 +8366,18 @@ state 591
 	.  reduce 516 (src line 1654)
 
 
+state 591
+	const_int_cmp:  const_int_cmp '>' const_int_shift.    (517)
+	const_int_shift:  const_int_shift.LSHIFT const_int_add 
+	const_int_shift:  const_int_shift.RSHIFT const_int_add 
+
+	LSHIFT  shift 385
+	RSHIFT  shift 386
+	.  reduce 517 (src line 1655)
+
+
 state 592
-	const_int_shift:  const_int_shift LSHIFT const_int_add.    (518)
-	const_int_add:  const_int_add.'+' const_int_mul 
-	const_int_add:  const_int_add.'-' const_int_mul 
-
-	'+'  shift 387
-	'-'  shift 388
-	.  reduce 518 (src line 1659)
-
-
-state 593
-	const_int_shift:  const_int_shift RSHIFT const_int_add.    (519)
+	const_int_shift:  const_int_shift LSHIFT const_int_add.    (519)
 	const_int_add:  const_int_add.'+' const_int_mul 
 	const_int_add:  const_int_add.'-' const_int_mul 
 
@@ -8384,20 +8386,18 @@ state 593
 	.  reduce 519 (src line 1660)
 
 
+state 593
+	const_int_shift:  const_int_shift RSHIFT const_int_add.    (520)
+	const_int_add:  const_int_add.'+' const_int_mul 
+	const_int_add:  const_int_add.'-' const_int_mul 
+
+	'+'  shift 387
+	'-'  shift 388
+	.  reduce 520 (src line 1661)
+
+
 state 594
-	const_int_add:  const_int_add '+' const_int_mul.    (521)
-	const_int_mul:  const_int_mul.'*' const_int_unary 
-	const_int_mul:  const_int_mul.'/' const_int_unary 
-	const_int_mul:  const_int_mul.'%' const_int_unary 
-
-	'*'  shift 389
-	'/'  shift 390
-	'%'  shift 391
-	.  reduce 521 (src line 1665)
-
-
-state 595
-	const_int_add:  const_int_add '-' const_int_mul.    (522)
+	const_int_add:  const_int_add '+' const_int_mul.    (522)
 	const_int_mul:  const_int_mul.'*' const_int_unary 
 	const_int_mul:  const_int_mul.'/' const_int_unary 
 	const_int_mul:  const_int_mul.'%' const_int_unary 
@@ -8408,28 +8408,40 @@ state 595
 	.  reduce 522 (src line 1666)
 
 
+state 595
+	const_int_add:  const_int_add '-' const_int_mul.    (523)
+	const_int_mul:  const_int_mul.'*' const_int_unary 
+	const_int_mul:  const_int_mul.'/' const_int_unary 
+	const_int_mul:  const_int_mul.'%' const_int_unary 
+
+	'*'  shift 389
+	'/'  shift 390
+	'%'  shift 391
+	.  reduce 523 (src line 1667)
+
+
 state 596
-	const_int_mul:  const_int_mul '*' const_int_unary.    (524)
-
-	.  reduce 524 (src line 1671)
-
-
-state 597
-	const_int_mul:  const_int_mul '/' const_int_unary.    (525)
+	const_int_mul:  const_int_mul '*' const_int_unary.    (525)
 
 	.  reduce 525 (src line 1672)
 
 
-state 598
-	const_int_mul:  const_int_mul '%' const_int_unary.    (526)
+state 597
+	const_int_mul:  const_int_mul '/' const_int_unary.    (526)
 
 	.  reduce 526 (src line 1673)
 
 
-state 599
-	const_int_primary:  '(' const_int_ternary ')'.    (531)
+state 598
+	const_int_mul:  const_int_mul '%' const_int_unary.    (527)
 
-	.  reduce 531 (src line 1684)
+	.  reduce 527 (src line 1674)
+
+
+state 599
+	const_int_primary:  '(' const_int_ternary ')'.    (532)
+
+	.  reduce 532 (src line 1685)
 
 
 state 600
@@ -8454,13 +8466,13 @@ state 601
 
 state 602
 	multi_init_id_list:  ID '=' expression ',' ID.'=' expression 
-	multi_init_id_list:  ID '=' expression ',' ID.    (276)
+	multi_init_id_list:  ID '=' expression ',' ID.    (277)
 	multi_init_id_list:  ID '=' expression ',' ID.'[' ']' '=' '{' init_list '}' 
 	multi_init_id_list:  ID '=' expression ',' ID.'[' ']' '=' '{' init_list ',' '}' 
 
 	'['  shift 816
 	'='  shift 815
-	.  reduce 276 (src line 897)
+	.  reduce 277 (src line 898)
 
 
 state 603
@@ -8629,15 +8641,15 @@ state 617
 
 
 state 618
-	id_list:  id_list ',' ID '=' expression.    (271)
+	id_list:  id_list ',' ID '=' expression.    (272)
 
-	.  reduce 271 (src line 869)
+	.  reduce 272 (src line 870)
 
 
 state 619
 	var_declaration:  type_specifier '(' '*' ID ')' '('.fp_param_types ')' ';' 
 	var_declaration:  type_specifier '(' '*' ID ')' '('.fp_param_types ')' '=' expression ';' 
-	fp_param_types: .    (469)
+	fp_param_types: .    (470)
 
 	INT  shift 21
 	VOID  shift 22
@@ -8653,7 +8665,7 @@ state 619
 	INT128  shift 30
 	SIGNED  shift 29
 	TYPENAME  shift 31
-	.  reduce 469 (src line 1529)
+	.  reduce 470 (src line 1530)
 
 	fp_param_types  goto 833
 	fp_param_type_list  goto 834
@@ -8677,9 +8689,9 @@ state 621
 
 
 state 622
-	multi_init_id_list:  multi_init_id_list ',' ID '=' expression.    (279)
+	multi_init_id_list:  multi_init_id_list ',' ID '=' expression.    (280)
 
-	.  reduce 279 (src line 916)
+	.  reduce 280 (src line 917)
 
 
 state 623
@@ -8769,9 +8781,9 @@ state 631
 
 
 state 632
-	struct_declaration:  STRUCT ID '{' field_list '}' ';'.    (448)
+	struct_declaration:  STRUCT ID '{' field_list '}' ';'.    (449)
 
-	.  reduce 448 (src line 1414)
+	.  reduce 449 (src line 1415)
 
 
 state 633
@@ -8789,9 +8801,9 @@ state 634
 
 
 state 635
-	id_list:  ID ',' ID.    (272)
+	id_list:  ID ',' ID.    (273)
 
-	.  reduce 272 (src line 871)
+	.  reduce 273 (src line 872)
 
 
 state 636
@@ -8816,9 +8828,9 @@ state 638
 
 
 state 639
-	field:  type_specifier '*' ID ';'.    (492)
+	field:  type_specifier '*' ID ';'.    (493)
 
-	.  reduce 492 (src line 1573)
+	.  reduce 493 (src line 1574)
 
 
 state 640
@@ -8856,9 +8868,9 @@ state 642
 
 
 state 643
-	field:  STRUCT ID ID ';'.    (495)
+	field:  STRUCT ID ID ';'.    (496)
 
-	.  reduce 495 (src line 1579)
+	.  reduce 496 (src line 1580)
 
 
 state 644
@@ -8917,9 +8929,9 @@ state 646
 
 
 state 647
-	field:  UNION ID ID ';'.    (497)
+	field:  UNION ID ID ';'.    (498)
 
-	.  reduce 497 (src line 1583)
+	.  reduce 498 (src line 1584)
 
 
 state 648
@@ -8982,9 +8994,9 @@ state 652
 
 
 state 653
-	union_declaration:  UNION ID '{' field_list '}' ';'.    (449)
+	union_declaration:  UNION ID '{' field_list '}' ';'.    (450)
 
-	.  reduce 449 (src line 1419)
+	.  reduce 450 (src line 1420)
 
 
 state 654
@@ -9326,6 +9338,7 @@ state 680
 state 681
 	fun_declaration:  STATIC CONST type_specifier '*' ID '('.params ')' compound_stmt 
 	fun_declaration:  STATIC CONST type_specifier '*' ID '('.param_list ',' ELLIPSIS ')' compound_stmt 
+	params: .    (207)
 
 	INT  shift 176
 	VOID  shift 171
@@ -9341,7 +9354,7 @@ state 681
 	INT128  shift 184
 	SIGNED  shift 183
 	TYPENAME  shift 185
-	.  error
+	.  reduce 207 (src line 742)
 
 	params  goto 894
 	param_list  goto 895
@@ -9574,9 +9587,9 @@ state 703
 
 
 state 704
-	typedef_declaration:  TYPEDEF STRUCT ID '*' ID ';'.    (460)
+	typedef_declaration:  TYPEDEF STRUCT ID '*' ID ';'.    (461)
 
-	.  reduce 460 (src line 1477)
+	.  reduce 461 (src line 1478)
 
 
 state 705
@@ -9613,7 +9626,7 @@ state 708
 
 state 709
 	postfix_expr:  postfix_expr ARROW ID '('.args ')' 
-	args: .    (445)
+	args: .    (446)
 
 	NUM  shift 157
 	CHAR_LIT  shift 159
@@ -9630,7 +9643,7 @@ state 709
 	'-'  shift 161
 	'!'  shift 162
 	'~'  shift 163
-	.  reduce 445 (src line 1404)
+	.  reduce 446 (src line 1405)
 
 	postfix_expr  goto 143
 	expression  goto 545
@@ -9649,7 +9662,7 @@ state 709
 
 state 710
 	postfix_expr:  postfix_expr '.' ID '('.args ')' 
-	args: .    (445)
+	args: .    (446)
 
 	NUM  shift 157
 	CHAR_LIT  shift 159
@@ -9666,7 +9679,7 @@ state 710
 	'-'  shift 161
 	'!'  shift 162
 	'~'  shift 163
-	.  reduce 445 (src line 1404)
+	.  reduce 446 (src line 1405)
 
 	postfix_expr  goto 143
 	expression  goto 545
@@ -9684,9 +9697,9 @@ state 710
 	arg_list  goto 544
 
 state 711
-	postfix_expr:  postfix_expr '[' expression ']'.    (329)
+	postfix_expr:  postfix_expr '[' expression ']'.    (330)
 
-	.  reduce 329 (src line 1085)
+	.  reduce 330 (src line 1086)
 
 
 state 712
@@ -9770,9 +9783,9 @@ state 715
 	call  goto 148
 
 state 716
-	factor:  '(' type_specifier ')' factor.    (417)
+	factor:  '(' type_specifier ')' factor.    (418)
 
-	.  reduce 417 (src line 1297)
+	.  reduce 418 (src line 1298)
 
 
 state 717
@@ -9920,15 +9933,15 @@ state 725
 	.  error
 
 
-726: shift/reduce conflict (shift 937(0), red'n 325(0)) on ')'
+726: shift/reduce conflict (shift 937(0), red'n 326(0)) on ')'
 state 726
-	postfix_expr:  postfix_expr ARROW ID.    (325)
+	postfix_expr:  postfix_expr ARROW ID.    (326)
 	postfix_expr:  postfix_expr ARROW ID.'(' args ')' 
 	factor:  '(' postfix_expr ARROW ID.')' '(' args ')' 
 
 	'('  shift 709
 	')'  shift 937
-	.  reduce 325 (src line 1077)
+	.  reduce 326 (src line 1078)
 
 
 state 727
@@ -9940,21 +9953,21 @@ state 727
 
 
 state 728
-	block_item_list:  block_item_list statement.    (265)
+	block_item_list:  block_item_list statement.    (266)
 
-	.  reduce 265 (src line 852)
+	.  reduce 266 (src line 853)
 
 
 state 729
-	block_item_list:  block_item_list var_declaration.    (266)
+	block_item_list:  block_item_list var_declaration.    (267)
 
-	.  reduce 266 (src line 855)
+	.  reduce 267 (src line 856)
 
 
 state 730
-	block_item_list:  block_item_list const_declaration.    (267)
+	block_item_list:  block_item_list const_declaration.    (268)
 
-	.  reduce 267 (src line 857)
+	.  reduce 268 (src line 858)
 
 
 state 731
@@ -9965,75 +9978,75 @@ state 731
 
 
 state 732
-	statement:  expression_stmt.    (286)
+	statement:  expression_stmt.    (287)
 
-	.  reduce 286 (src line 940)
+	.  reduce 287 (src line 941)
 
 
 state 733
-	statement:  compound_stmt.    (287)
-
-	.  reduce 287 (src line 942)
-
-
-state 734
-	statement:  selection_stmt.    (288)
+	statement:  compound_stmt.    (288)
 
 	.  reduce 288 (src line 943)
 
 
-state 735
-	statement:  iteration_stmt.    (289)
+state 734
+	statement:  selection_stmt.    (289)
 
 	.  reduce 289 (src line 944)
 
 
-state 736
-	statement:  for_stmt.    (290)
+state 735
+	statement:  iteration_stmt.    (290)
 
 	.  reduce 290 (src line 945)
 
 
-state 737
-	statement:  do_while_stmt.    (291)
+state 736
+	statement:  for_stmt.    (291)
 
 	.  reduce 291 (src line 946)
 
 
-state 738
-	statement:  switch_stmt.    (292)
+state 737
+	statement:  do_while_stmt.    (292)
 
 	.  reduce 292 (src line 947)
 
 
-state 739
-	statement:  return_stmt.    (293)
+state 738
+	statement:  switch_stmt.    (293)
 
 	.  reduce 293 (src line 948)
 
 
-state 740
-	statement:  break_stmt.    (294)
+state 739
+	statement:  return_stmt.    (294)
 
 	.  reduce 294 (src line 949)
 
 
-state 741
-	statement:  continue_stmt.    (295)
+state 740
+	statement:  break_stmt.    (295)
 
 	.  reduce 295 (src line 950)
 
 
-state 742
-	statement:  goto_stmt.    (296)
+state 741
+	statement:  continue_stmt.    (296)
 
 	.  reduce 296 (src line 951)
 
 
-743: shift/reduce conflict (shift 321(0), red'n 356(0)) on '['
+state 742
+	statement:  goto_stmt.    (297)
+
+	.  reduce 297 (src line 952)
+
+
+743: shift/reduce conflict (shift 321(0), red'n 357(0)) on '['
 state 743
 	statement:  ID.':' statement 
-	var:  ID.    (356)
+	var:  ID.    (357)
 	var:  ID.'[' expression ']' '[' expression ']' 
 	var:  ID.'[' expression ']' 
 	call:  ID.'(' args ')' 
@@ -10041,7 +10054,7 @@ state 743
 	'['  shift 321
 	'('  shift 322
 	':'  shift 940
-	.  reduce 356 (src line 1151)
+	.  reduce 357 (src line 1152)
 
 
 state 744
@@ -10201,9 +10214,9 @@ state 749
 
 
 state 750
-	expression_stmt:  ';'.    (299)
+	expression_stmt:  ';'.    (300)
 
-	.  reduce 299 (src line 958)
+	.  reduce 300 (src line 959)
 
 
 state 751
@@ -10354,78 +10367,78 @@ state 759
 
 
 state 760
-	expression:  '*' factor '=' expression.    (337)
+	expression:  '*' factor '=' expression.    (338)
 
-	.  reduce 337 (src line 1110)
+	.  reduce 338 (src line 1111)
 
 
 state 761
-	expression:  '*' factor PLUSEQ expression.    (338)
+	expression:  '*' factor PLUSEQ expression.    (339)
 
-	.  reduce 338 (src line 1113)
+	.  reduce 339 (src line 1114)
 
 
 state 762
-	expression:  '*' factor MINUSEQ expression.    (339)
+	expression:  '*' factor MINUSEQ expression.    (340)
 
-	.  reduce 339 (src line 1115)
+	.  reduce 340 (src line 1116)
 
 
 state 763
-	expression:  '*' factor STAREQ expression.    (340)
+	expression:  '*' factor STAREQ expression.    (341)
 
-	.  reduce 340 (src line 1117)
+	.  reduce 341 (src line 1118)
 
 
 state 764
-	expression:  '*' factor SHREQ expression.    (341)
+	expression:  '*' factor SHREQ expression.    (342)
 
-	.  reduce 341 (src line 1119)
+	.  reduce 342 (src line 1120)
 
 
 state 765
-	expression:  '*' factor SHLEQ expression.    (342)
+	expression:  '*' factor SHLEQ expression.    (343)
 
-	.  reduce 342 (src line 1121)
+	.  reduce 343 (src line 1122)
 
 
 state 766
-	expression:  '*' factor OREQ expression.    (343)
+	expression:  '*' factor OREQ expression.    (344)
 
-	.  reduce 343 (src line 1123)
+	.  reduce 344 (src line 1124)
 
 
 state 767
-	expression:  '*' factor ANDEQ expression.    (344)
+	expression:  '*' factor ANDEQ expression.    (345)
 
-	.  reduce 344 (src line 1125)
+	.  reduce 345 (src line 1126)
 
 
 state 768
 	postfix_expr:  '(' expression ')'.'.' ID 
 	postfix_expr:  '(' expression ')'.ARROW ID 
 	postfix_expr:  '(' expression ')'.'[' expression ']' 
-	factor:  '(' expression ')'.    (389)
+	factor:  '(' expression ')'.    (390)
 
 	ARROW  shift 713
 	'['  shift 714
 	'.'  shift 712
-	.  reduce 389 (src line 1237)
+	.  reduce 390 (src line 1238)
 
 
-769: shift/reduce conflict (shift 962(0), red'n 358(0)) on '['
+769: shift/reduce conflict (shift 962(0), red'n 359(0)) on '['
 state 769
 	var:  ID '[' expression ']'.'[' expression ']' 
-	var:  ID '[' expression ']'.    (358)
+	var:  ID '[' expression ']'.    (359)
 
 	'['  shift 962
-	.  reduce 358 (src line 1156)
+	.  reduce 359 (src line 1157)
 
 
 state 770
-	call:  ID '(' args ')'.    (443)
+	call:  ID '(' args ')'.    (444)
 
-	.  reduce 443 (src line 1397)
+	.  reduce 444 (src line 1398)
 
 
 state 771
@@ -10493,31 +10506,31 @@ state 772
 	call  goto 148
 
 state 773
-	postfix_expr:  postfix_expr ARROW ID.    (325)
+	postfix_expr:  postfix_expr ARROW ID.    (326)
 	postfix_expr:  postfix_expr ARROW ID.'(' args ')' 
-	factor:  '&' postfix_expr ARROW ID.    (401)
+	factor:  '&' postfix_expr ARROW ID.    (402)
 
-	INC  reduce 325 (src line 1077)
-	DEC  reduce 325 (src line 1077)
-	ARROW  reduce 325 (src line 1077)
-	'['  reduce 325 (src line 1077)
+	INC  reduce 326 (src line 1078)
+	DEC  reduce 326 (src line 1078)
+	ARROW  reduce 326 (src line 1078)
+	'['  reduce 326 (src line 1078)
 	'('  shift 709
-	'.'  reduce 325 (src line 1077)
-	.  reduce 401 (src line 1251)
+	'.'  reduce 326 (src line 1078)
+	.  reduce 402 (src line 1252)
 
 
 state 774
-	postfix_expr:  postfix_expr '.' ID.    (326)
+	postfix_expr:  postfix_expr '.' ID.    (327)
 	postfix_expr:  postfix_expr '.' ID.'(' args ')' 
-	factor:  '&' postfix_expr '.' ID.    (402)
+	factor:  '&' postfix_expr '.' ID.    (403)
 
-	INC  reduce 326 (src line 1079)
-	DEC  reduce 326 (src line 1079)
-	ARROW  reduce 326 (src line 1079)
-	'['  reduce 326 (src line 1079)
+	INC  reduce 327 (src line 1080)
+	DEC  reduce 327 (src line 1080)
+	ARROW  reduce 327 (src line 1080)
+	'['  reduce 327 (src line 1080)
 	'('  shift 710
-	'.'  reduce 326 (src line 1079)
-	.  reduce 402 (src line 1252)
+	'.'  reduce 327 (src line 1080)
+	.  reduce 403 (src line 1253)
 
 
 state 775
@@ -10559,9 +10572,9 @@ state 778
 
 
 state 779
-	factor:  SIZEOF '(' type_specifier ')'.    (406)
+	factor:  SIZEOF '(' type_specifier ')'.    (407)
 
-	.  reduce 406 (src line 1256)
+	.  reduce 407 (src line 1257)
 
 
 state 780
@@ -10590,9 +10603,9 @@ state 782
 
 
 state 783
-	factor:  SIZEOF '(' expression ')'.    (412)
+	factor:  SIZEOF '(' expression ')'.    (413)
 
-	.  reduce 412 (src line 1268)
+	.  reduce 413 (src line 1269)
 
 
 state 784
@@ -10716,9 +10729,9 @@ state 787
 
 
 state 788
-	param:  type_specifier ID '[' ']'.    (213)
+	param:  type_specifier ID '[' ']'.    (214)
 
-	.  reduce 213 (src line 760)
+	.  reduce 214 (src line 761)
 
 
 state 789
@@ -10729,18 +10742,18 @@ state 789
 
 
 state 790
-	param:  type_specifier '*' '*' ID.    (216)
+	param:  type_specifier '*' '*' ID.    (217)
 
-	.  reduce 216 (src line 766)
+	.  reduce 217 (src line 767)
 
 
 state 791
-	param:  type_specifier '*' CONST ID.    (222)
+	param:  type_specifier '*' CONST ID.    (223)
 	param:  type_specifier '*' CONST ID.'[' ']' 
 	param:  type_specifier '*' CONST ID.'[' const_int_expr ']' 
 
 	'['  shift 980
-	.  reduce 222 (src line 780)
+	.  reduce 223 (src line 781)
 
 
 state 792
@@ -10751,11 +10764,11 @@ state 792
 
 
 state 793
-	param:  type_specifier '*' CONST '*'.    (229)
+	param:  type_specifier '*' CONST '*'.    (230)
 	param:  type_specifier '*' CONST '*'.ID 
 
 	ID  shift 982
-	.  reduce 229 (src line 794)
+	.  reduce 230 (src line 795)
 
 
 state 794
@@ -10773,15 +10786,15 @@ state 795
 
 
 state 796
-	param:  type_specifier '[' const_int_expr ']'.    (259)
+	param:  type_specifier '[' const_int_expr ']'.    (260)
 
-	.  reduce 259 (src line 832)
+	.  reduce 260 (src line 833)
 
 
 state 797
-	param:  STRUCT ID '*' ID.    (218)
+	param:  STRUCT ID '*' ID.    (219)
 
-	.  reduce 218 (src line 770)
+	.  reduce 219 (src line 771)
 
 
 state 798
@@ -10792,17 +10805,17 @@ state 798
 
 
 state 799
-	param:  CONST type_specifier '*' ID.    (220)
+	param:  CONST type_specifier '*' ID.    (221)
 
-	.  reduce 220 (src line 774)
+	.  reduce 221 (src line 775)
 
 
 state 800
 	param:  CONST type_specifier '*' CONST.ID 
-	param:  CONST type_specifier '*' CONST.    (224)
+	param:  CONST type_specifier '*' CONST.    (225)
 
 	ID  shift 986
-	.  reduce 224 (src line 784)
+	.  reduce 225 (src line 785)
 
 
 state 801
@@ -10906,15 +10919,15 @@ state 806
 	factor  goto 156
 	call  goto 148
 
-807: shift/reduce conflict (shift 993(0), red'n 274(0)) on ';'
+807: shift/reduce conflict (shift 993(0), red'n 275(0)) on ';'
 state 807
 	var_declaration:  type_specifier ID '[' const_int_expr ']' ',' ID.';' 
 	var_declaration:  type_specifier ID '[' const_int_expr ']' ',' ID.'=' expression ';' 
-	multi_init_id_list:  ID '[' const_int_expr ']' ',' ID.    (274)
+	multi_init_id_list:  ID '[' const_int_expr ']' ',' ID.    (275)
 
 	';'  shift 993
 	'='  shift 994
-	.  reduce 274 (src line 885)
+	.  reduce 275 (src line 886)
 
 
 state 808
@@ -10946,9 +10959,9 @@ state 809
 	const_int_primary  goto 195
 
 state 810
-	const_int_primary:  SIZEOF '(' type_specifier ')'.    (532)
+	const_int_primary:  SIZEOF '(' type_specifier ')'.    (533)
 
-	.  reduce 532 (src line 1685)
+	.  reduce 533 (src line 1686)
 
 
 state 811
@@ -10966,9 +10979,9 @@ state 812
 
 
 state 813
-	const_int_primary:  SIZEOF '(' ID ')'.    (535)
+	const_int_primary:  SIZEOF '(' ID ')'.    (536)
 
-	.  reduce 535 (src line 1688)
+	.  reduce 536 (src line 1689)
 
 
 state 814
@@ -11129,12 +11142,12 @@ state 823
 	.  reduce 139 (src line 547)
 
 
-824: shift/reduce conflict (shift 1008(0), red'n 273(0)) on ';'
-824: shift/reduce conflict (shift 1009(0), red'n 273(0)) on ','
+824: shift/reduce conflict (shift 1008(0), red'n 274(0)) on ';'
+824: shift/reduce conflict (shift 1009(0), red'n 274(0)) on ','
 state 824
 	var_declaration:  type_specifier ID ',' ID '[' const_int_expr ']'.';' 
 	var_declaration:  type_specifier ID ',' ID '[' const_int_expr ']'.',' ID '[' const_int_expr ']' ';' 
-	multi_init_id_list:  ID ',' ID '[' const_int_expr ']'.    (273)
+	multi_init_id_list:  ID ',' ID '[' const_int_expr ']'.    (274)
 
 	';'  shift 1008
 	','  shift 1009
@@ -11153,13 +11166,13 @@ state 826
 	.  reduce 192 (src line 639)
 
 
-827: shift/reduce conflict (shift 1010(0), red'n 208(0)) on ')'
+827: shift/reduce conflict (shift 1010(0), red'n 209(0)) on ')'
 state 827
 	fun_declaration:  type_specifier '*' ID '(' param_list ',' ELLIPSIS.')' compound_stmt 
-	param_list:  param_list ',' ELLIPSIS.    (208)
+	param_list:  param_list ',' ELLIPSIS.    (209)
 
 	')'  shift 1010
-	.  reduce 208 (src line 747)
+	.  reduce 209 (src line 748)
 
 
 state 828
@@ -11187,9 +11200,9 @@ state 831
 
 
 state 832
-	id_list:  id_list ',' ID '[' const_int_expr ']'.    (270)
+	id_list:  id_list ',' ID '[' const_int_expr ']'.    (271)
 
-	.  reduce 270 (src line 866)
+	.  reduce 271 (src line 867)
 
 
 state 833
@@ -11201,21 +11214,21 @@ state 833
 
 
 state 834
-	fp_param_types:  fp_param_type_list.    (468)
+	fp_param_types:  fp_param_type_list.    (469)
 	fp_param_type_list:  fp_param_type_list.',' fp_param_type 
 
 	','  shift 1012
-	.  reduce 468 (src line 1527)
+	.  reduce 469 (src line 1528)
 
 
 state 835
-	fp_param_type_list:  fp_param_type.    (471)
+	fp_param_type_list:  fp_param_type.    (472)
 
-	.  reduce 471 (src line 1535)
+	.  reduce 472 (src line 1536)
 
 
 state 836
-	fp_param_type:  type_specifier.    (472)
+	fp_param_type:  type_specifier.    (473)
 	fp_param_type:  type_specifier.'*' 
 	fp_param_type:  type_specifier.ID 
 	fp_param_type:  type_specifier.'*' ID 
@@ -11224,7 +11237,7 @@ state 836
 	ID  shift 1014
 	'['  shift 1015
 	'*'  shift 1013
-	.  reduce 472 (src line 1539)
+	.  reduce 473 (src line 1540)
 
 
 state 837
@@ -11301,9 +11314,9 @@ state 841
 
 
 state 842
-	multi_init_id_list:  multi_init_id_list ',' ID '[' const_int_expr ']'.    (283)
+	multi_init_id_list:  multi_init_id_list ',' ID '[' const_int_expr ']'.    (284)
 
-	.  reduce 283 (src line 929)
+	.  reduce 284 (src line 930)
 
 
 state 843
@@ -11318,13 +11331,13 @@ state 844
 	.  reduce 195 (src line 661)
 
 
-845: shift/reduce conflict (shift 1022(0), red'n 208(0)) on ')'
+845: shift/reduce conflict (shift 1022(0), red'n 209(0)) on ')'
 state 845
 	fun_declaration:  STRUCT ID ID '(' param_list ',' ELLIPSIS.')' compound_stmt 
-	param_list:  param_list ',' ELLIPSIS.    (208)
+	param_list:  param_list ',' ELLIPSIS.    (209)
 
 	')'  shift 1022
-	.  reduce 208 (src line 747)
+	.  reduce 209 (src line 748)
 
 
 state 846
@@ -11429,9 +11442,9 @@ state 850
 	call  goto 148
 
 state 851
-	field:  type_specifier ID ':' NUM ';'.    (489)
+	field:  type_specifier ID ':' NUM ';'.    (490)
 
-	.  reduce 489 (src line 1567)
+	.  reduce 490 (src line 1568)
 
 
 state 852
@@ -11442,9 +11455,9 @@ state 852
 
 
 state 853
-	field:  type_specifier ID '[' ']' ';'.    (491)
+	field:  type_specifier ID '[' ']' ';'.    (492)
 
-	.  reduce 491 (src line 1571)
+	.  reduce 492 (src line 1572)
 
 
 state 854
@@ -11462,9 +11475,9 @@ state 855
 
 
 state 856
-	field:  STRUCT ID '*' ID ';'.    (494)
+	field:  STRUCT ID '*' ID ';'.    (495)
 
-	.  reduce 494 (src line 1577)
+	.  reduce 495 (src line 1578)
 
 
 state 857
@@ -11482,9 +11495,9 @@ state 858
 
 
 state 859
-	field:  STRUCT '{' field_list '}' ';'.    (499)
+	field:  STRUCT '{' field_list '}' ';'.    (500)
 
-	.  reduce 499 (src line 1587)
+	.  reduce 500 (src line 1588)
 
 
 state 860
@@ -11497,9 +11510,9 @@ state 860
 
 
 state 861
-	field:  UNION ID '*' ID ';'.    (498)
+	field:  UNION ID '*' ID ';'.    (499)
 
-	.  reduce 498 (src line 1585)
+	.  reduce 499 (src line 1586)
 
 
 state 862
@@ -11510,9 +11523,9 @@ state 862
 
 
 state 863
-	field:  UNION '{' field_list '}' ';'.    (500)
+	field:  UNION '{' field_list '}' ';'.    (501)
 
-	.  reduce 500 (src line 1592)
+	.  reduce 501 (src line 1593)
 
 
 state 864
@@ -11799,13 +11812,13 @@ state 884
 	.  reduce 198 (src line 681)
 
 
-885: shift/reduce conflict (shift 1056(0), red'n 208(0)) on ')'
+885: shift/reduce conflict (shift 1056(0), red'n 209(0)) on ')'
 state 885
 	fun_declaration:  STATIC type_specifier ID '(' param_list ',' ELLIPSIS.')' compound_stmt 
-	param_list:  param_list ',' ELLIPSIS.    (208)
+	param_list:  param_list ',' ELLIPSIS.    (209)
 
 	')'  shift 1056
-	.  reduce 208 (src line 747)
+	.  reduce 209 (src line 748)
 
 
 state 886
@@ -12012,13 +12025,13 @@ state 900
 	.  reduce 29 (src line 135)
 
 
-901: shift/reduce conflict (shift 1072(0), red'n 208(0)) on ')'
+901: shift/reduce conflict (shift 1072(0), red'n 209(0)) on ')'
 state 901
 	extern_declaration:  EXTERN type_specifier ID '(' param_list ',' ELLIPSIS.')' ';' 
-	param_list:  param_list ',' ELLIPSIS.    (208)
+	param_list:  param_list ',' ELLIPSIS.    (209)
 
 	')'  shift 1072
-	.  reduce 208 (src line 747)
+	.  reduce 209 (src line 748)
 
 
 state 902
@@ -12127,7 +12140,7 @@ state 911
 
 state 912
 	typedef_declaration:  TYPEDEF type_specifier '(' '*' ID ')' '('.fp_param_types ')' ';' 
-	fp_param_types: .    (469)
+	fp_param_types: .    (470)
 
 	INT  shift 21
 	VOID  shift 22
@@ -12143,7 +12156,7 @@ state 912
 	INT128  shift 30
 	SIGNED  shift 29
 	TYPENAME  shift 31
-	.  reduce 469 (src line 1529)
+	.  reduce 470 (src line 1530)
 
 	fp_param_types  goto 1081
 	fp_param_type_list  goto 834
@@ -12158,21 +12171,21 @@ state 913
 
 
 state 914
-	typedef_declaration:  TYPEDEF STRUCT ID '{' field_list '}' ';'.    (466)
+	typedef_declaration:  TYPEDEF STRUCT ID '{' field_list '}' ';'.    (467)
 
-	.  reduce 466 (src line 1515)
+	.  reduce 467 (src line 1516)
 
 
 state 915
-	typedef_declaration:  TYPEDEF STRUCT '{' field_list '}' ID ';'.    (462)
+	typedef_declaration:  TYPEDEF STRUCT '{' field_list '}' ID ';'.    (463)
 
-	.  reduce 462 (src line 1488)
+	.  reduce 463 (src line 1489)
 
 
 state 916
-	typedef_declaration:  TYPEDEF UNION '{' field_list '}' ID ';'.    (463)
+	typedef_declaration:  TYPEDEF UNION '{' field_list '}' ID ';'.    (464)
 
-	.  reduce 463 (src line 1495)
+	.  reduce 464 (src line 1496)
 
 
 state 917
@@ -12183,9 +12196,9 @@ state 917
 
 
 state 918
-	typedef_declaration:  TYPEDEF UNION ID '{' field_list '}' ';'.    (467)
+	typedef_declaration:  TYPEDEF UNION ID '{' field_list '}' ';'.    (468)
 
-	.  reduce 467 (src line 1520)
+	.  reduce 468 (src line 1521)
 
 
 state 919
@@ -12203,15 +12216,15 @@ state 920
 
 
 state 921
-	postfix_expr:  '(' expression ')' '.' ID.    (332)
+	postfix_expr:  '(' expression ')' '.' ID.    (333)
 
-	.  reduce 332 (src line 1095)
+	.  reduce 333 (src line 1096)
 
 
 state 922
-	postfix_expr:  '(' expression ')' ARROW ID.    (333)
+	postfix_expr:  '(' expression ')' ARROW ID.    (334)
 
-	.  reduce 333 (src line 1098)
+	.  reduce 334 (src line 1099)
 
 
 state 923
@@ -12222,9 +12235,9 @@ state 923
 
 
 state 924
-	expression:  '(' expression ')' '=' expression.    (336)
+	expression:  '(' expression ')' '=' expression.    (337)
 
-	.  reduce 336 (src line 1108)
+	.  reduce 337 (src line 1109)
 
 
 state 925
@@ -12238,15 +12251,15 @@ state 925
 
 
 state 926
-	factor:  '(' type_specifier ')' '{' '}'.    (434)
+	factor:  '(' type_specifier ')' '{' '}'.    (435)
 
-	.  reduce 434 (src line 1358)
+	.  reduce 435 (src line 1359)
 
 
 state 927
-	factor:  '(' type_specifier '*' ')' factor.    (418)
+	factor:  '(' type_specifier '*' ')' factor.    (419)
 
-	.  reduce 418 (src line 1299)
+	.  reduce 419 (src line 1300)
 
 
 state 928
@@ -12381,9 +12394,9 @@ state 933
 	call  goto 148
 
 state 934
-	factor:  '(' STRUCT ID ')' factor.    (422)
+	factor:  '(' STRUCT ID ')' factor.    (423)
 
-	.  reduce 422 (src line 1307)
+	.  reduce 423 (src line 1308)
 
 
 state 935
@@ -12428,15 +12441,15 @@ state 935
 	factor  goto 156
 	call  goto 148
 
-936: shift/reduce conflict (shift 1097(0), red'n 325(0)) on ')'
+936: shift/reduce conflict (shift 1097(0), red'n 326(0)) on ')'
 state 936
-	postfix_expr:  postfix_expr ARROW ID.    (325)
+	postfix_expr:  postfix_expr ARROW ID.    (326)
 	postfix_expr:  postfix_expr ARROW ID.'(' args ')' 
 	factor:  '(' '*' postfix_expr ARROW ID.')' '(' args ')' 
 
 	'('  shift 709
 	')'  shift 1097
-	.  reduce 325 (src line 1077)
+	.  reduce 326 (src line 1078)
 
 
 state 937
@@ -12487,9 +12500,9 @@ state 938
 	call  goto 148
 
 state 939
-	factor:  '(' '{' block_item_list '}' ')'.    (442)
+	factor:  '(' '{' block_item_list '}' ')'.    (443)
 
-	.  reduce 442 (src line 1393)
+	.  reduce 443 (src line 1394)
 
 
 state 940
@@ -12718,9 +12731,9 @@ state 950
 
 
 state 951
-	expression_stmt:  expression ';'.    (298)
+	expression_stmt:  expression ';'.    (299)
 
-	.  reduce 298 (src line 956)
+	.  reduce 299 (src line 957)
 
 
 state 952
@@ -12798,7 +12811,7 @@ state 954
 	for_stmt:  FOR '('.expression ',' expression ',' expression ';' opt_expression ';' opt_expression ')' statement 
 	for_stmt:  FOR '('.expression ',' expression ';' opt_expression ';' expression ',' expression ')' statement 
 	for_stmt:  FOR '('.expression ',' expression ',' expression ';' opt_expression ';' expression ',' expression ')' statement 
-	opt_expression: .    (320)
+	opt_expression: .    (321)
 
 	NUM  shift 157
 	CHAR_LIT  shift 159
@@ -12815,7 +12828,7 @@ state 954
 	'-'  shift 161
 	'!'  shift 162
 	'~'  shift 163
-	.  reduce 320 (src line 1062)
+	.  reduce 321 (src line 1063)
 
 	postfix_expr  goto 143
 	opt_expression  goto 1112
@@ -12872,9 +12885,9 @@ state 956
 	call  goto 148
 
 state 957
-	return_stmt:  RETURN ';'.    (321)
+	return_stmt:  RETURN ';'.    (322)
 
-	.  reduce 321 (src line 1065)
+	.  reduce 322 (src line 1066)
 
 
 state 958
@@ -12885,15 +12898,15 @@ state 958
 
 
 state 959
-	break_stmt:  BREAK ';'.    (317)
+	break_stmt:  BREAK ';'.    (318)
 
-	.  reduce 317 (src line 1050)
+	.  reduce 318 (src line 1051)
 
 
 state 960
-	continue_stmt:  CONTINUE ';'.    (318)
+	continue_stmt:  CONTINUE ';'.    (319)
 
-	.  reduce 318 (src line 1055)
+	.  reduce 319 (src line 1056)
 
 
 state 961
@@ -12937,37 +12950,37 @@ state 962
 	call  goto 148
 
 state 963
-	arg_list:  arg_list ',' expression.    (446)
+	arg_list:  arg_list ',' expression.    (447)
 
-	.  reduce 446 (src line 1407)
+	.  reduce 447 (src line 1408)
 
 
 state 964
-	ternary_expression:  logical_expression QUESTION ternary_expression ':' ternary_expression.    (360)
+	ternary_expression:  logical_expression QUESTION ternary_expression ':' ternary_expression.    (361)
 
-	.  reduce 360 (src line 1165)
+	.  reduce 361 (src line 1166)
 
 
-965: shift/reduce conflict (shift 1119(0), red'n 325(0)) on ')'
+965: shift/reduce conflict (shift 1119(0), red'n 326(0)) on ')'
 state 965
-	postfix_expr:  postfix_expr ARROW ID.    (325)
+	postfix_expr:  postfix_expr ARROW ID.    (326)
 	postfix_expr:  postfix_expr ARROW ID.'(' args ')' 
 	factor:  '&' '(' postfix_expr ARROW ID.')' 
 
 	'('  shift 709
 	')'  shift 1119
-	.  reduce 325 (src line 1077)
+	.  reduce 326 (src line 1078)
 
 
-966: shift/reduce conflict (shift 1120(0), red'n 326(0)) on ')'
+966: shift/reduce conflict (shift 1120(0), red'n 327(0)) on ')'
 state 966
-	postfix_expr:  postfix_expr '.' ID.    (326)
+	postfix_expr:  postfix_expr '.' ID.    (327)
 	postfix_expr:  postfix_expr '.' ID.'(' args ')' 
 	factor:  '&' '(' postfix_expr '.' ID.')' 
 
 	'('  shift 710
 	')'  shift 1120
-	.  reduce 326 (src line 1079)
+	.  reduce 327 (src line 1080)
 
 
 state 967
@@ -12980,9 +12993,9 @@ state 967
 
 
 state 968
-	factor:  SIZEOF '(' type_specifier '*' ')'.    (407)
+	factor:  SIZEOF '(' type_specifier '*' ')'.    (408)
 
-	.  reduce 407 (src line 1258)
+	.  reduce 408 (src line 1259)
 
 
 state 969
@@ -12993,9 +13006,9 @@ state 969
 
 
 state 970
-	factor:  SIZEOF '(' STRUCT ID ')'.    (409)
+	factor:  SIZEOF '(' STRUCT ID ')'.    (410)
 
-	.  reduce 409 (src line 1262)
+	.  reduce 410 (src line 1263)
 
 
 state 971
@@ -13006,9 +13019,9 @@ state 971
 
 
 state 972
-	factor:  SIZEOF '(' UNION ID ')'.    (411)
+	factor:  SIZEOF '(' UNION ID ')'.    (412)
 
-	.  reduce 411 (src line 1266)
+	.  reduce 412 (src line 1267)
 
 
 state 973
@@ -13029,9 +13042,9 @@ state 974
 
 
 state 975
-	compound_stmt:  '{' block_item_list '}'.    (264)
+	compound_stmt:  '{' block_item_list '}'.    (265)
 
-	.  reduce 264 (src line 846)
+	.  reduce 265 (src line 847)
 
 
 state 976
@@ -13048,16 +13061,16 @@ state 977
 
 state 978
 	param:  type_specifier ID '[' const_int_expr ']'.'[' const_int_expr ']' 
-	param:  type_specifier ID '[' const_int_expr ']'.    (212)
+	param:  type_specifier ID '[' const_int_expr ']'.    (213)
 
 	'['  shift 1127
-	.  reduce 212 (src line 758)
+	.  reduce 213 (src line 759)
 
 
 state 979
-	param:  type_specifier '*' ID '[' ']'.    (214)
+	param:  type_specifier '*' ID '[' ']'.    (215)
 
-	.  reduce 214 (src line 762)
+	.  reduce 215 (src line 763)
 
 
 state 980
@@ -13083,15 +13096,15 @@ state 980
 	const_int_primary  goto 195
 
 state 981
-	param:  type_specifier '*' CONST '[' ']'.    (226)
+	param:  type_specifier '*' CONST '[' ']'.    (227)
 
-	.  reduce 226 (src line 788)
+	.  reduce 227 (src line 789)
 
 
 state 982
-	param:  type_specifier '*' CONST '*' ID.    (230)
+	param:  type_specifier '*' CONST '*' ID.    (231)
 
-	.  reduce 230 (src line 796)
+	.  reduce 231 (src line 797)
 
 
 state 983
@@ -13103,7 +13116,7 @@ state 983
 
 state 984
 	param:  type_specifier '(' '*' ')' '('.fp_param_types ')' 
-	fp_param_types: .    (469)
+	fp_param_types: .    (470)
 
 	INT  shift 21
 	VOID  shift 22
@@ -13119,7 +13132,7 @@ state 984
 	INT128  shift 30
 	SIGNED  shift 29
 	TYPENAME  shift 31
-	.  reduce 469 (src line 1529)
+	.  reduce 470 (src line 1530)
 
 	fp_param_types  goto 1131
 	fp_param_type_list  goto 834
@@ -13127,15 +13140,15 @@ state 984
 	type_specifier  goto 836
 
 state 985
-	param:  STRUCT ID '*' '*' ID.    (219)
+	param:  STRUCT ID '*' '*' ID.    (220)
 
-	.  reduce 219 (src line 772)
+	.  reduce 220 (src line 773)
 
 
 state 986
-	param:  CONST type_specifier '*' CONST ID.    (223)
+	param:  CONST type_specifier '*' CONST ID.    (224)
 
-	.  reduce 223 (src line 782)
+	.  reduce 224 (src line 783)
 
 
 state 987
@@ -13166,9 +13179,9 @@ state 988
 	const_int_primary  goto 195
 
 state 989
-	param:  UNSIGNED SHORT '[' const_int_expr ']'.    (248)
+	param:  UNSIGNED SHORT '[' const_int_expr ']'.    (249)
 
-	.  reduce 248 (src line 818)
+	.  reduce 249 (src line 819)
 
 
 state 990
@@ -13282,7 +13295,7 @@ state 996
 	call  goto 148
 
 state 997
-	const_int_ternary:  const_int_cmp QUESTION const_int_cmp ':' const_int_cmp.    (511)
+	const_int_ternary:  const_int_cmp QUESTION const_int_cmp ':' const_int_cmp.    (512)
 	const_int_cmp:  const_int_cmp.EQ const_int_shift 
 	const_int_cmp:  const_int_cmp.NE const_int_shift 
 	const_int_cmp:  const_int_cmp.'<' const_int_shift 
@@ -13292,13 +13305,13 @@ state 997
 	NE  shift 382
 	'<'  shift 383
 	'>'  shift 384
-	.  reduce 511 (src line 1646)
+	.  reduce 512 (src line 1647)
 
 
 state 998
-	const_int_primary:  SIZEOF '(' type_specifier '*' ')'.    (533)
+	const_int_primary:  SIZEOF '(' type_specifier '*' ')'.    (534)
 
-	.  reduce 533 (src line 1686)
+	.  reduce 534 (src line 1687)
 
 
 state 999
@@ -13316,9 +13329,9 @@ state 1000
 
 
 state 1001
-	multi_init_id_list:  ID '=' expression ',' ID '=' expression.    (275)
+	multi_init_id_list:  ID '=' expression ',' ID '=' expression.    (276)
 
-	.  reduce 275 (src line 891)
+	.  reduce 276 (src line 892)
 
 
 state 1002
@@ -13476,17 +13489,17 @@ state 1012
 	type_specifier  goto 836
 
 state 1013
-	fp_param_type:  type_specifier '*'.    (473)
+	fp_param_type:  type_specifier '*'.    (474)
 	fp_param_type:  type_specifier '*'.ID 
 
 	ID  shift 1152
-	.  reduce 473 (src line 1541)
+	.  reduce 474 (src line 1542)
 
 
 state 1014
-	fp_param_type:  type_specifier ID.    (474)
+	fp_param_type:  type_specifier ID.    (475)
 
-	.  reduce 474 (src line 1542)
+	.  reduce 475 (src line 1543)
 
 
 state 1015
@@ -13521,11 +13534,11 @@ state 1017
 	fp_param_type:  CONST type_specifier.'*' 
 	fp_param_type:  CONST type_specifier.'*' ID 
 	fp_param_type:  CONST type_specifier.ID 
-	fp_param_type:  CONST type_specifier.    (482)
+	fp_param_type:  CONST type_specifier.    (483)
 
 	ID  shift 1156
 	'*'  shift 1155
-	.  reduce 482 (src line 1550)
+	.  reduce 483 (src line 1551)
 
 
 state 1018
@@ -13543,9 +13556,9 @@ state 1019
 
 
 state 1020
-	param_list:  param_list ',' ELLIPSIS.    (208)
+	param_list:  param_list ',' ELLIPSIS.    (209)
 
-	.  reduce 208 (src line 747)
+	.  reduce 209 (src line 748)
 
 
 state 1021
@@ -13626,9 +13639,9 @@ state 1026
 
 
 state 1027
-	field:  type_specifier ID '[' const_int_expr ']' ';'.    (490)
+	field:  type_specifier ID '[' const_int_expr ']' ';'.    (491)
 
-	.  reduce 490 (src line 1569)
+	.  reduce 491 (src line 1570)
 
 
 state 1028
@@ -13640,7 +13653,7 @@ state 1028
 
 state 1029
 	field:  type_specifier '(' '*' ID ')' '('.fp_param_types ')' ';' 
-	fp_param_types: .    (469)
+	fp_param_types: .    (470)
 
 	INT  shift 21
 	VOID  shift 22
@@ -13656,7 +13669,7 @@ state 1029
 	INT128  shift 30
 	SIGNED  shift 29
 	TYPENAME  shift 31
-	.  reduce 469 (src line 1529)
+	.  reduce 470 (src line 1530)
 
 	fp_param_types  goto 1164
 	fp_param_type_list  goto 834
@@ -13671,15 +13684,15 @@ state 1030
 
 
 state 1031
-	field:  STRUCT ID '{' field_list '}' ';'.    (503)
+	field:  STRUCT ID '{' field_list '}' ';'.    (504)
 
-	.  reduce 503 (src line 1607)
+	.  reduce 504 (src line 1608)
 
 
 state 1032
-	field:  STRUCT '{' field_list '}' ID ';'.    (502)
+	field:  STRUCT '{' field_list '}' ID ';'.    (503)
 
-	.  reduce 502 (src line 1602)
+	.  reduce 503 (src line 1603)
 
 
 state 1033
@@ -13703,15 +13716,15 @@ state 1033
 	const_int_primary  goto 195
 
 state 1034
-	field:  UNION ID '{' field_list '}' ';'.    (504)
+	field:  UNION ID '{' field_list '}' ';'.    (505)
 
-	.  reduce 504 (src line 1612)
+	.  reduce 505 (src line 1613)
 
 
 state 1035
-	field:  UNION '{' field_list '}' ID ';'.    (501)
+	field:  UNION '{' field_list '}' ID ';'.    (502)
 
-	.  reduce 501 (src line 1597)
+	.  reduce 502 (src line 1598)
 
 
 state 1036
@@ -13776,13 +13789,13 @@ state 1042
 	.  reduce 204 (src line 730)
 
 
-1043: shift/reduce conflict (shift 1172(0), red'n 208(0)) on ')'
+1043: shift/reduce conflict (shift 1172(0), red'n 209(0)) on ')'
 state 1043
 	extern_declaration:  CONST type_specifier '*' ID '(' param_list ',' ELLIPSIS.')' ';' 
-	param_list:  param_list ',' ELLIPSIS.    (208)
+	param_list:  param_list ',' ELLIPSIS.    (209)
 
 	')'  shift 1172
-	.  reduce 208 (src line 747)
+	.  reduce 209 (src line 748)
 
 
 state 1044
@@ -13846,9 +13859,9 @@ state 1047
 	call  goto 148
 
 state 1048
-	multi_init_id_list:  ID '[' const_int_expr ']' ',' ID.    (274)
+	multi_init_id_list:  ID '[' const_int_expr ']' ',' ID.    (275)
 
-	.  reduce 274 (src line 885)
+	.  reduce 275 (src line 886)
 
 
 state 1049
@@ -13868,9 +13881,9 @@ state 1050
 
 
 state 1051
-	multi_init_id_list:  ID ',' ID '[' const_int_expr ']'.    (273)
+	multi_init_id_list:  ID ',' ID '[' const_int_expr ']'.    (274)
 
-	.  reduce 273 (src line 878)
+	.  reduce 274 (src line 879)
 
 
 state 1052
@@ -13963,13 +13976,13 @@ state 1059
 	.  reduce 200 (src line 696)
 
 
-1060: shift/reduce conflict (shift 1183(0), red'n 208(0)) on ')'
+1060: shift/reduce conflict (shift 1183(0), red'n 209(0)) on ')'
 state 1060
 	fun_declaration:  STATIC type_specifier '*' ID '(' param_list ',' ELLIPSIS.')' compound_stmt 
-	param_list:  param_list ',' ELLIPSIS.    (208)
+	param_list:  param_list ',' ELLIPSIS.    (209)
 
 	')'  shift 1183
-	.  reduce 208 (src line 747)
+	.  reduce 209 (src line 748)
 
 
 state 1061
@@ -14169,13 +14182,13 @@ state 1074
 	.  reduce 31 (src line 147)
 
 
-1075: shift/reduce conflict (shift 1195(0), red'n 208(0)) on ')'
+1075: shift/reduce conflict (shift 1195(0), red'n 209(0)) on ')'
 state 1075
 	extern_declaration:  EXTERN type_specifier '*' ID '(' param_list ',' ELLIPSIS.')' ';' 
-	param_list:  param_list ',' ELLIPSIS.    (208)
+	param_list:  param_list ',' ELLIPSIS.    (209)
 
 	')'  shift 1195
-	.  reduce 208 (src line 747)
+	.  reduce 209 (src line 748)
 
 
 state 1076
@@ -14197,13 +14210,13 @@ state 1078
 	.  reduce 27 (src line 123)
 
 
-1079: shift/reduce conflict (shift 1197(0), red'n 208(0)) on ')'
+1079: shift/reduce conflict (shift 1197(0), red'n 209(0)) on ')'
 state 1079
 	extern_declaration:  EXTERN STRUCT ID ID '(' param_list ',' ELLIPSIS.')' ';' 
-	param_list:  param_list ',' ELLIPSIS.    (208)
+	param_list:  param_list ',' ELLIPSIS.    (209)
 
 	')'  shift 1197
-	.  reduce 208 (src line 747)
+	.  reduce 209 (src line 748)
 
 
 state 1080
@@ -14220,33 +14233,33 @@ state 1081
 
 
 state 1082
-	typedef_declaration:  TYPEDEF STRUCT ID '{' field_list '}' ID ';'.    (464)
+	typedef_declaration:  TYPEDEF STRUCT ID '{' field_list '}' ID ';'.    (465)
 
-	.  reduce 464 (src line 1503)
+	.  reduce 465 (src line 1504)
 
 
 state 1083
-	typedef_declaration:  TYPEDEF UNION ID '{' field_list '}' ID ';'.    (465)
+	typedef_declaration:  TYPEDEF UNION ID '{' field_list '}' ID ';'.    (466)
 
-	.  reduce 465 (src line 1509)
+	.  reduce 466 (src line 1510)
 
 
 state 1084
-	postfix_expr:  postfix_expr ARROW ID '(' args ')'.    (330)
+	postfix_expr:  postfix_expr ARROW ID '(' args ')'.    (331)
 
-	.  reduce 330 (src line 1088)
+	.  reduce 331 (src line 1089)
 
 
 state 1085
-	postfix_expr:  postfix_expr '.' ID '(' args ')'.    (331)
+	postfix_expr:  postfix_expr '.' ID '(' args ')'.    (332)
 
-	.  reduce 331 (src line 1091)
+	.  reduce 332 (src line 1092)
 
 
 state 1086
-	postfix_expr:  '(' expression ')' '[' expression ']'.    (334)
+	postfix_expr:  '(' expression ')' '[' expression ']'.    (335)
 
-	.  reduce 334 (src line 1101)
+	.  reduce 335 (src line 1102)
 
 
 state 1087
@@ -14290,9 +14303,9 @@ state 1087
 	call  goto 148
 
 state 1088
-	factor:  '(' type_specifier ')' '{' init_list '}'.    (432)
+	factor:  '(' type_specifier ')' '{' init_list '}'.    (433)
 
-	.  reduce 432 (src line 1350)
+	.  reduce 433 (src line 1351)
 
 
 state 1089
@@ -14306,9 +14319,9 @@ state 1089
 
 
 state 1090
-	factor:  '(' type_specifier '*' '*' ')' factor.    (420)
+	factor:  '(' type_specifier '*' '*' ')' factor.    (421)
 
-	.  reduce 420 (src line 1303)
+	.  reduce 421 (src line 1304)
 
 
 state 1091
@@ -14360,15 +14373,15 @@ state 1092
 
 
 state 1093
-	factor:  '(' CONST type_specifier '*' ')' factor.    (419)
+	factor:  '(' CONST type_specifier '*' ')' factor.    (420)
 
-	.  reduce 419 (src line 1301)
+	.  reduce 420 (src line 1302)
 
 
 state 1094
-	factor:  '(' STRUCT ID '*' ')' factor.    (421)
+	factor:  '(' STRUCT ID '*' ')' factor.    (422)
 
-	.  reduce 421 (src line 1305)
+	.  reduce 422 (src line 1306)
 
 
 state 1095
@@ -14382,9 +14395,9 @@ state 1095
 
 
 state 1096
-	factor:  '(' STRUCT ID ')' '{' '}'.    (439)
+	factor:  '(' STRUCT ID ')' '{' '}'.    (440)
 
-	.  reduce 439 (src line 1380)
+	.  reduce 440 (src line 1381)
 
 
 state 1097
@@ -14396,7 +14409,7 @@ state 1097
 
 state 1098
 	factor:  '(' postfix_expr ARROW ID ')' '('.args ')' 
-	args: .    (445)
+	args: .    (446)
 
 	NUM  shift 157
 	CHAR_LIT  shift 159
@@ -14413,7 +14426,7 @@ state 1098
 	'-'  shift 161
 	'!'  shift 162
 	'~'  shift 163
-	.  reduce 445 (src line 1404)
+	.  reduce 446 (src line 1405)
 
 	postfix_expr  goto 143
 	expression  goto 545
@@ -14441,9 +14454,9 @@ state 1099
 
 
 state 1100
-	statement:  ID ':' statement.    (297)
+	statement:  ID ':' statement.    (298)
 
-	.  reduce 297 (src line 952)
+	.  reduce 298 (src line 953)
 
 
 state 1101
@@ -14584,10 +14597,10 @@ state 1113
 	for_stmt:  FOR '(' expression.',' expression ',' expression ';' opt_expression ';' opt_expression ')' statement 
 	for_stmt:  FOR '(' expression.',' expression ';' opt_expression ';' expression ',' expression ')' statement 
 	for_stmt:  FOR '(' expression.',' expression ',' expression ';' opt_expression ';' expression ',' expression ')' statement 
-	opt_expression:  expression.    (319)
+	opt_expression:  expression.    (320)
 
 	','  shift 1216
-	.  reduce 319 (src line 1060)
+	.  reduce 320 (src line 1061)
 
 
 state 1114
@@ -14605,15 +14618,15 @@ state 1115
 
 
 state 1116
-	return_stmt:  RETURN expression ';'.    (322)
+	return_stmt:  RETURN expression ';'.    (323)
 
-	.  reduce 322 (src line 1068)
+	.  reduce 323 (src line 1069)
 
 
 state 1117
-	goto_stmt:  GOTO ID ';'.    (316)
+	goto_stmt:  GOTO ID ';'.    (317)
 
-	.  reduce 316 (src line 1045)
+	.  reduce 317 (src line 1046)
 
 
 state 1118
@@ -14624,15 +14637,15 @@ state 1118
 
 
 state 1119
-	factor:  '&' '(' postfix_expr ARROW ID ')'.    (403)
+	factor:  '&' '(' postfix_expr ARROW ID ')'.    (404)
 
-	.  reduce 403 (src line 1253)
+	.  reduce 404 (src line 1254)
 
 
 state 1120
-	factor:  '&' '(' postfix_expr '.' ID ')'.    (404)
+	factor:  '&' '(' postfix_expr '.' ID ')'.    (405)
 
-	.  reduce 404 (src line 1254)
+	.  reduce 405 (src line 1255)
 
 
 state 1121
@@ -14678,21 +14691,21 @@ state 1121
 	call  goto 148
 
 state 1122
-	factor:  SIZEOF '(' type_specifier '*' '*' ')'.    (408)
+	factor:  SIZEOF '(' type_specifier '*' '*' ')'.    (409)
 
-	.  reduce 408 (src line 1260)
+	.  reduce 409 (src line 1261)
 
 
 state 1123
-	factor:  SIZEOF '(' STRUCT ID '*' ')'.    (410)
+	factor:  SIZEOF '(' STRUCT ID '*' ')'.    (411)
 
-	.  reduce 410 (src line 1264)
+	.  reduce 411 (src line 1265)
 
 
 state 1124
-	factor:  VA_ARG '(' expression ',' type_specifier ')'.    (413)
+	factor:  VA_ARG '(' expression ',' type_specifier ')'.    (414)
 
-	.  reduce 413 (src line 1270)
+	.  reduce 414 (src line 1271)
 
 
 state 1125
@@ -14732,9 +14745,9 @@ state 1127
 	const_int_primary  goto 195
 
 state 1128
-	param:  type_specifier '*' CONST ID '[' ']'.    (225)
+	param:  type_specifier '*' CONST ID '[' ']'.    (226)
 
-	.  reduce 225 (src line 786)
+	.  reduce 226 (src line 787)
 
 
 state 1129
@@ -14746,7 +14759,7 @@ state 1129
 
 state 1130
 	param:  type_specifier '(' '*' ID ')' '('.fp_param_types ')' 
-	fp_param_types: .    (469)
+	fp_param_types: .    (470)
 
 	INT  shift 21
 	VOID  shift 22
@@ -14762,7 +14775,7 @@ state 1130
 	INT128  shift 30
 	SIGNED  shift 29
 	TYPENAME  shift 31
-	.  reduce 469 (src line 1529)
+	.  reduce 470 (src line 1530)
 
 	fp_param_types  goto 1227
 	fp_param_type_list  goto 834
@@ -14777,9 +14790,9 @@ state 1131
 
 
 state 1132
-	param:  CONST STRUCT ID '[' const_int_expr ']'.    (262)
+	param:  CONST STRUCT ID '[' const_int_expr ']'.    (263)
 
-	.  reduce 262 (src line 840)
+	.  reduce 263 (src line 841)
 
 
 state 1133
@@ -14790,9 +14803,9 @@ state 1133
 
 
 state 1134
-	param:  UNSIGNED SHORT ID '[' const_int_expr ']'.    (249)
+	param:  UNSIGNED SHORT ID '[' const_int_expr ']'.    (250)
 
-	.  reduce 249 (src line 819)
+	.  reduce 250 (src line 820)
 
 
 state 1135
@@ -14998,15 +15011,15 @@ state 1150
 	call  goto 148
 
 state 1151
-	fp_param_type_list:  fp_param_type_list ',' fp_param_type.    (470)
+	fp_param_type_list:  fp_param_type_list ',' fp_param_type.    (471)
 
-	.  reduce 470 (src line 1532)
+	.  reduce 471 (src line 1533)
 
 
 state 1152
-	fp_param_type:  type_specifier '*' ID.    (475)
+	fp_param_type:  type_specifier '*' ID.    (476)
 
-	.  reduce 475 (src line 1543)
+	.  reduce 476 (src line 1544)
 
 
 state 1153
@@ -15017,25 +15030,25 @@ state 1153
 
 
 state 1154
-	fp_param_type:  STRUCT ID '*'.    (476)
+	fp_param_type:  STRUCT ID '*'.    (477)
 	fp_param_type:  STRUCT ID '*'.ID 
 
 	ID  shift 1243
-	.  reduce 476 (src line 1544)
+	.  reduce 477 (src line 1545)
 
 
 state 1155
-	fp_param_type:  CONST type_specifier '*'.    (478)
+	fp_param_type:  CONST type_specifier '*'.    (479)
 	fp_param_type:  CONST type_specifier '*'.ID 
 
 	ID  shift 1244
-	.  reduce 478 (src line 1546)
+	.  reduce 479 (src line 1547)
 
 
 state 1156
-	fp_param_type:  CONST type_specifier ID.    (481)
+	fp_param_type:  CONST type_specifier ID.    (482)
 
-	.  reduce 481 (src line 1549)
+	.  reduce 482 (src line 1550)
 
 
 state 1157
@@ -15116,9 +15129,9 @@ state 1162
 	call  goto 148
 
 state 1163
-	field:  type_specifier '*' ID '[' const_int_expr ']' ';'.    (493)
+	field:  type_specifier '*' ID '[' const_int_expr ']' ';'.    (494)
 
-	.  reduce 493 (src line 1575)
+	.  reduce 494 (src line 1576)
 
 
 state 1164
@@ -15129,9 +15142,9 @@ state 1164
 
 
 state 1165
-	field:  STRUCT ID ID '[' const_int_expr ']' ';'.    (496)
+	field:  STRUCT ID ID '[' const_int_expr ']' ';'.    (497)
 
-	.  reduce 496 (src line 1581)
+	.  reduce 497 (src line 1582)
 
 
 state 1166
@@ -15150,7 +15163,7 @@ state 1167
 
 state 1168
 	field:  CONST type_specifier '(' '*' ID ')' '('.fp_param_types ')' ';' 
-	fp_param_types: .    (469)
+	fp_param_types: .    (470)
 
 	INT  shift 21
 	VOID  shift 22
@@ -15166,7 +15179,7 @@ state 1168
 	INT128  shift 30
 	SIGNED  shift 29
 	TYPENAME  shift 31
-	.  reduce 469 (src line 1529)
+	.  reduce 470 (src line 1530)
 
 	fp_param_types  goto 1253
 	fp_param_type_list  goto 834
@@ -15313,6 +15326,7 @@ state 1178
 
 state 1179
 	extern_declaration:  STATIC type_specifier ID '(' params ')' ',' ID '('.params ')' ';' 
+	params: .    (207)
 
 	INT  shift 176
 	VOID  shift 171
@@ -15328,7 +15342,7 @@ state 1179
 	INT128  shift 184
 	SIGNED  shift 183
 	TYPENAME  shift 185
-	.  error
+	.  reduce 207 (src line 742)
 
 	params  goto 1263
 	param_list  goto 621
@@ -15466,13 +15480,13 @@ state 1188
 	.  reduce 202 (src line 713)
 
 
-1189: shift/reduce conflict (shift 1271(0), red'n 208(0)) on ')'
+1189: shift/reduce conflict (shift 1271(0), red'n 209(0)) on ')'
 state 1189
 	fun_declaration:  STATIC CONST type_specifier '*' ID '(' param_list ',' ELLIPSIS.')' compound_stmt 
-	param_list:  param_list ',' ELLIPSIS.    (208)
+	param_list:  param_list ',' ELLIPSIS.    (209)
 
 	')'  shift 1271
-	.  reduce 208 (src line 747)
+	.  reduce 209 (src line 748)
 
 
 state 1190
@@ -15569,9 +15583,9 @@ state 1198
 
 
 state 1199
-	factor:  '(' type_specifier ')' '{' init_list ',' '}'.    (433)
+	factor:  '(' type_specifier ')' '{' init_list ',' '}'.    (434)
 
-	.  reduce 433 (src line 1354)
+	.  reduce 434 (src line 1355)
 
 
 state 1200
@@ -15615,9 +15629,9 @@ state 1200
 	call  goto 148
 
 state 1201
-	factor:  '(' type_specifier '*' ')' '{' init_list '}'.    (435)
+	factor:  '(' type_specifier '*' ')' '{' init_list '}'.    (436)
 
-	.  reduce 435 (src line 1362)
+	.  reduce 436 (src line 1363)
 
 
 state 1202
@@ -15711,14 +15725,14 @@ state 1204
 	call  goto 148
 
 state 1205
-	factor:  '(' STRUCT ID ')' '{' init_list '}'.    (437)
+	factor:  '(' STRUCT ID ')' '{' init_list '}'.    (438)
 
-	.  reduce 437 (src line 1372)
+	.  reduce 438 (src line 1373)
 
 
 state 1206
 	factor:  '(' '*' postfix_expr ARROW ID ')' '('.args ')' 
-	args: .    (445)
+	args: .    (446)
 
 	NUM  shift 157
 	CHAR_LIT  shift 159
@@ -15735,7 +15749,7 @@ state 1206
 	'-'  shift 161
 	'!'  shift 162
 	'~'  shift 163
-	.  reduce 445 (src line 1404)
+	.  reduce 446 (src line 1405)
 
 	postfix_expr  goto 143
 	expression  goto 545
@@ -15800,9 +15814,9 @@ state 1208
 	call  goto 148
 
 state 1209
-	factor:  '(' UNION ID ')' '{' init_list '}'.    (440)
+	factor:  '(' UNION ID ')' '{' init_list '}'.    (441)
 
-	.  reduce 440 (src line 1384)
+	.  reduce 441 (src line 1385)
 
 
 state 1210
@@ -15950,7 +15964,7 @@ state 1215
 	for_stmt:  FOR '(' opt_expression ';'.opt_expression ';' opt_expression ')' statement 
 	for_stmt:  FOR '(' opt_expression ';'.opt_expression ';' expression ',' expression ')' statement 
 	for_stmt:  FOR '(' opt_expression ';'.opt_expression ';' expression ',' expression ',' expression ')' statement 
-	opt_expression: .    (320)
+	opt_expression: .    (321)
 
 	NUM  shift 157
 	CHAR_LIT  shift 159
@@ -15967,7 +15981,7 @@ state 1215
 	'-'  shift 161
 	'!'  shift 162
 	'~'  shift 163
-	.  reduce 320 (src line 1062)
+	.  reduce 321 (src line 1063)
 
 	postfix_expr  goto 143
 	opt_expression  goto 1288
@@ -16060,9 +16074,9 @@ state 1218
 
 
 state 1219
-	var:  ID '[' expression ']' '[' expression ']'.    (357)
+	var:  ID '[' expression ']' '[' expression ']'.    (358)
 
-	.  reduce 357 (src line 1154)
+	.  reduce 358 (src line 1155)
 
 
 state 1220
@@ -16076,15 +16090,15 @@ state 1220
 
 
 state 1221
-	factor:  '&' '(' STRUCT ID ')' '{' '}'.    (427)
+	factor:  '&' '(' STRUCT ID ')' '{' '}'.    (428)
 
-	.  reduce 427 (src line 1327)
+	.  reduce 428 (src line 1328)
 
 
 state 1222
-	factor:  VA_ARG '(' expression ',' type_specifier '*' ')'.    (414)
+	factor:  VA_ARG '(' expression ',' type_specifier '*' ')'.    (415)
 
-	.  reduce 414 (src line 1276)
+	.  reduce 415 (src line 1277)
 
 
 state 1223
@@ -16109,9 +16123,9 @@ state 1225
 
 
 state 1226
-	param:  type_specifier '*' CONST ID '[' const_int_expr ']'.    (227)
+	param:  type_specifier '*' CONST ID '[' const_int_expr ']'.    (228)
 
-	.  reduce 227 (src line 790)
+	.  reduce 228 (src line 791)
 
 
 state 1227
@@ -16122,15 +16136,15 @@ state 1227
 
 
 state 1228
-	param:  type_specifier '(' '*' ')' '(' fp_param_types ')'.    (258)
+	param:  type_specifier '(' '*' ')' '(' fp_param_types ')'.    (259)
 
-	.  reduce 258 (src line 829)
+	.  reduce 259 (src line 830)
 
 
 state 1229
-	param:  CONST STRUCT ID ID '[' const_int_expr ']'.    (263)
+	param:  CONST STRUCT ID ID '[' const_int_expr ']'.    (264)
 
-	.  reduce 263 (src line 842)
+	.  reduce 264 (src line 843)
 
 
 state 1230
@@ -16159,15 +16173,15 @@ state 1233
 
 
 state 1234
-	const_int_primary:  SIZEOF '(' type_specifier '[' NUM ']' ')'.    (534)
+	const_int_primary:  SIZEOF '(' type_specifier '[' NUM ']' ')'.    (535)
 
-	.  reduce 534 (src line 1687)
+	.  reduce 535 (src line 1688)
 
 
 state 1235
-	const_int_primary:  SIZEOF '(' ID '[' NUM ']' ')'.    (536)
+	const_int_primary:  SIZEOF '(' ID '[' NUM ']' ')'.    (537)
 
-	.  reduce 536 (src line 1689)
+	.  reduce 537 (src line 1690)
 
 
 state 1236
@@ -16293,21 +16307,21 @@ state 1241
 
 
 state 1242
-	fp_param_type:  type_specifier '[' const_int_expr ']'.    (480)
+	fp_param_type:  type_specifier '[' const_int_expr ']'.    (481)
 
-	.  reduce 480 (src line 1548)
+	.  reduce 481 (src line 1549)
 
 
 state 1243
-	fp_param_type:  STRUCT ID '*' ID.    (477)
+	fp_param_type:  STRUCT ID '*' ID.    (478)
 
-	.  reduce 477 (src line 1545)
+	.  reduce 478 (src line 1546)
 
 
 state 1244
-	fp_param_type:  CONST type_specifier '*' ID.    (479)
+	fp_param_type:  CONST type_specifier '*' ID.    (480)
 
-	.  reduce 479 (src line 1547)
+	.  reduce 480 (src line 1548)
 
 
 state 1245
@@ -16373,9 +16387,9 @@ state 1246
 	call  goto 148
 
 state 1247
-	multi_init_id_list:  multi_init_id_list ',' ID '[' ']' '=' '{' init_list '}'.    (281)
+	multi_init_id_list:  multi_init_id_list ',' ID '[' ']' '=' '{' init_list '}'.    (282)
 
-	.  reduce 281 (src line 922)
+	.  reduce 282 (src line 923)
 
 
 state 1248
@@ -16643,15 +16657,15 @@ state 1276
 
 
 state 1277
-	typedef_declaration:  TYPEDEF type_specifier '(' '*' ID ')' '(' fp_param_types ')' ';'.    (461)
+	typedef_declaration:  TYPEDEF type_specifier '(' '*' ID ')' '(' fp_param_types ')' ';'.    (462)
 
-	.  reduce 461 (src line 1482)
+	.  reduce 462 (src line 1483)
 
 
 state 1278
-	factor:  '(' type_specifier '*' ')' '{' init_list ',' '}'.    (436)
+	factor:  '(' type_specifier '*' ')' '{' init_list ',' '}'.    (437)
 
-	.  reduce 436 (src line 1367)
+	.  reduce 437 (src line 1368)
 
 
 state 1279
@@ -16695,9 +16709,9 @@ state 1279
 	call  goto 148
 
 state 1280
-	factor:  '(' type_specifier '[' ']' ')' '{' init_list '}'.    (428)
+	factor:  '(' type_specifier '[' ']' ')' '{' init_list '}'.    (429)
 
-	.  reduce 428 (src line 1333)
+	.  reduce 429 (src line 1334)
 
 
 state 1281
@@ -16711,9 +16725,9 @@ state 1281
 
 
 state 1282
-	factor:  '(' STRUCT ID ')' '{' init_list ',' '}'.    (438)
+	factor:  '(' STRUCT ID ')' '{' init_list ',' '}'.    (439)
 
-	.  reduce 438 (src line 1376)
+	.  reduce 439 (src line 1377)
 
 
 state 1283
@@ -16724,29 +16738,29 @@ state 1283
 
 
 state 1284
-	factor:  '(' postfix_expr ARROW ID ')' '(' args ')'.    (424)
+	factor:  '(' postfix_expr ARROW ID ')' '(' args ')'.    (425)
 
-	.  reduce 424 (src line 1313)
+	.  reduce 425 (src line 1314)
 
 
 state 1285
-	factor:  '(' UNION ID ')' '{' init_list ',' '}'.    (441)
+	factor:  '(' UNION ID ')' '{' init_list ',' '}'.    (442)
 
-	.  reduce 441 (src line 1388)
+	.  reduce 442 (src line 1389)
 
 
 state 1286
-	selection_stmt:  IF '(' expression ')' statement.    (300)
+	selection_stmt:  IF '(' expression ')' statement.    (301)
 	selection_stmt:  IF '(' expression ')' statement.ELSE statement 
 
 	ELSE  shift 1332
-	.  reduce 300 (src line 961)
+	.  reduce 301 (src line 962)
 
 
 state 1287
-	iteration_stmt:  WHILE '(' expression ')' statement.    (302)
+	iteration_stmt:  WHILE '(' expression ')' statement.    (303)
 
-	.  reduce 302 (src line 968)
+	.  reduce 303 (src line 969)
 
 
 state 1288
@@ -16759,9 +16773,9 @@ state 1288
 
 
 state 1289
-	opt_expression:  expression.    (319)
+	opt_expression:  expression.    (320)
 
-	.  reduce 319 (src line 1060)
+	.  reduce 320 (src line 1061)
 
 
 state 1290
@@ -16784,9 +16798,9 @@ state 1291
 
 state 1292
 	switch_stmt:  SWITCH '(' expression ')' '{'.case_list '}' 
-	case_list: .    (313)
+	case_list: .    (314)
 
-	.  reduce 313 (src line 1034)
+	.  reduce 314 (src line 1035)
 
 	case_list  goto 1337
 
@@ -16831,33 +16845,33 @@ state 1293
 	call  goto 148
 
 state 1294
-	factor:  '&' '(' STRUCT ID ')' '{' init_list '}'.    (425)
+	factor:  '&' '(' STRUCT ID ')' '{' init_list '}'.    (426)
 
-	.  reduce 425 (src line 1317)
+	.  reduce 426 (src line 1318)
 
 
 state 1295
-	factor:  VA_ARG '(' expression ',' type_specifier '*' '*' ')'.    (415)
+	factor:  VA_ARG '(' expression ',' type_specifier '*' '*' ')'.    (416)
 
-	.  reduce 415 (src line 1283)
+	.  reduce 416 (src line 1284)
 
 
 state 1296
-	factor:  VA_ARG '(' expression ',' STRUCT ID '*' ')'.    (416)
+	factor:  VA_ARG '(' expression ',' STRUCT ID '*' ')'.    (417)
 
-	.  reduce 416 (src line 1290)
+	.  reduce 417 (src line 1291)
 
 
 state 1297
-	param:  type_specifier ID '[' const_int_expr ']' '[' const_int_expr ']'.    (211)
+	param:  type_specifier ID '[' const_int_expr ']' '[' const_int_expr ']'.    (212)
 
-	.  reduce 211 (src line 756)
+	.  reduce 212 (src line 757)
 
 
 state 1298
-	param:  type_specifier '(' '*' ID ')' '(' fp_param_types ')'.    (257)
+	param:  type_specifier '(' '*' ID ')' '(' fp_param_types ')'.    (258)
 
-	.  reduce 257 (src line 827)
+	.  reduce 258 (src line 828)
 
 
 state 1299
@@ -16947,15 +16961,15 @@ state 1306
 
 
 state 1307
-	fp_param_type:  CONST STRUCT ID '[' ']'.    (484)
+	fp_param_type:  CONST STRUCT ID '[' ']'.    (485)
 
-	.  reduce 484 (src line 1552)
+	.  reduce 485 (src line 1553)
 
 
 state 1308
-	multi_init_id_list:  multi_init_id_list ',' ID '[' ']' '=' '{' init_list ',' '}'.    (282)
+	multi_init_id_list:  multi_init_id_list ',' ID '[' ']' '=' '{' init_list ',' '}'.    (283)
 
-	.  reduce 282 (src line 925)
+	.  reduce 283 (src line 926)
 
 
 state 1309
@@ -16965,21 +16979,21 @@ state 1309
 
 
 state 1310
-	field:  type_specifier '(' '*' ID ')' '(' fp_param_types ')' ';'.    (507)
+	field:  type_specifier '(' '*' ID ')' '(' fp_param_types ')' ';'.    (508)
 
-	.  reduce 507 (src line 1634)
+	.  reduce 508 (src line 1635)
 
 
 state 1311
-	field:  STRUCT '{' field_list '}' ID '[' const_int_expr ']' ';'.    (505)
+	field:  STRUCT '{' field_list '}' ID '[' const_int_expr ']' ';'.    (506)
 
-	.  reduce 505 (src line 1618)
+	.  reduce 506 (src line 1619)
 
 
 state 1312
-	field:  UNION '{' field_list '}' ID '[' const_int_expr ']' ';'.    (506)
+	field:  UNION '{' field_list '}' ID '[' const_int_expr ']' ';'.    (507)
 
-	.  reduce 506 (src line 1626)
+	.  reduce 507 (src line 1627)
 
 
 state 1313
@@ -17148,9 +17162,9 @@ state 1327
 
 
 state 1328
-	factor:  '(' type_specifier '[' ']' ')' '{' init_list ',' '}'.    (429)
+	factor:  '(' type_specifier '[' ']' ')' '{' init_list ',' '}'.    (430)
 
-	.  reduce 429 (src line 1337)
+	.  reduce 430 (src line 1338)
 
 
 state 1329
@@ -17194,15 +17208,15 @@ state 1329
 	call  goto 148
 
 state 1330
-	factor:  '(' type_specifier '[' const_int_expr ']' ')' '{' init_list '}'.    (430)
+	factor:  '(' type_specifier '[' const_int_expr ']' ')' '{' init_list '}'.    (431)
 
-	.  reduce 430 (src line 1341)
+	.  reduce 431 (src line 1342)
 
 
 state 1331
-	factor:  '(' '*' postfix_expr ARROW ID ')' '(' args ')'.    (423)
+	factor:  '(' '*' postfix_expr ARROW ID ')' '(' args ')'.    (424)
 
-	.  reduce 423 (src line 1310)
+	.  reduce 424 (src line 1311)
 
 
 state 1332
@@ -17265,7 +17279,7 @@ state 1333
 	for_stmt:  FOR '(' opt_expression ';' opt_expression ';'.opt_expression ')' statement 
 	for_stmt:  FOR '(' opt_expression ';' opt_expression ';'.expression ',' expression ')' statement 
 	for_stmt:  FOR '(' opt_expression ';' opt_expression ';'.expression ',' expression ',' expression ')' statement 
-	opt_expression: .    (320)
+	opt_expression: .    (321)
 
 	NUM  shift 157
 	CHAR_LIT  shift 159
@@ -17282,7 +17296,7 @@ state 1333
 	'-'  shift 161
 	'!'  shift 162
 	'~'  shift 163
-	.  reduce 320 (src line 1062)
+	.  reduce 321 (src line 1063)
 
 	postfix_expr  goto 143
 	opt_expression  goto 1353
@@ -17301,7 +17315,7 @@ state 1333
 state 1334
 	for_stmt:  FOR '(' expression ',' expression ';'.opt_expression ';' opt_expression ')' statement 
 	for_stmt:  FOR '(' expression ',' expression ';'.opt_expression ';' expression ',' expression ')' statement 
-	opt_expression: .    (320)
+	opt_expression: .    (321)
 
 	NUM  shift 157
 	CHAR_LIT  shift 159
@@ -17318,7 +17332,7 @@ state 1334
 	'-'  shift 161
 	'!'  shift 162
 	'~'  shift 163
-	.  reduce 320 (src line 1062)
+	.  reduce 321 (src line 1063)
 
 	postfix_expr  goto 143
 	opt_expression  goto 1355
@@ -17387,9 +17401,9 @@ state 1337
 	case_item  goto 1359
 
 state 1338
-	factor:  '&' '(' STRUCT ID ')' '{' init_list ',' '}'.    (426)
+	factor:  '&' '(' STRUCT ID ')' '{' init_list ',' '}'.    (427)
 
-	.  reduce 426 (src line 1322)
+	.  reduce 427 (src line 1323)
 
 
 state 1339
@@ -17433,9 +17447,9 @@ state 1339
 	call  goto 148
 
 state 1340
-	multi_init_id_list:  ID '=' expression ',' ID '[' ']' '=' '{' init_list '}'.    (277)
+	multi_init_id_list:  ID '=' expression ',' ID '[' ']' '=' '{' init_list '}'.    (278)
 
-	.  reduce 277 (src line 903)
+	.  reduce 278 (src line 904)
 
 
 state 1341
@@ -17446,15 +17460,15 @@ state 1341
 
 
 state 1342
-	fp_param_type:  CONST STRUCT ID '[' const_int_expr ']'.    (483)
+	fp_param_type:  CONST STRUCT ID '[' const_int_expr ']'.    (484)
 
-	.  reduce 483 (src line 1551)
+	.  reduce 484 (src line 1552)
 
 
 state 1343
-	field:  CONST type_specifier '(' '*' ID ')' '(' fp_param_types ')' ';'.    (508)
+	field:  CONST type_specifier '(' '*' ID ')' '(' fp_param_types ')' ';'.    (509)
 
-	.  reduce 508 (src line 1636)
+	.  reduce 509 (src line 1637)
 
 
 state 1344
@@ -17539,15 +17553,15 @@ state 1350
 
 
 state 1351
-	factor:  '(' type_specifier '[' const_int_expr ']' ')' '{' init_list ',' '}'.    (431)
+	factor:  '(' type_specifier '[' const_int_expr ']' ')' '{' init_list ',' '}'.    (432)
 
-	.  reduce 431 (src line 1345)
+	.  reduce 432 (src line 1346)
 
 
 state 1352
-	selection_stmt:  IF '(' expression ')' statement ELSE statement.    (301)
+	selection_stmt:  IF '(' expression ')' statement ELSE statement.    (302)
 
-	.  reduce 301 (src line 964)
+	.  reduce 302 (src line 965)
 
 
 state 1353
@@ -17560,10 +17574,10 @@ state 1353
 state 1354
 	for_stmt:  FOR '(' opt_expression ';' opt_expression ';' expression.',' expression ')' statement 
 	for_stmt:  FOR '(' opt_expression ';' opt_expression ';' expression.',' expression ',' expression ')' statement 
-	opt_expression:  expression.    (319)
+	opt_expression:  expression.    (320)
 
 	','  shift 1369
-	.  reduce 319 (src line 1060)
+	.  reduce 320 (src line 1061)
 
 
 state 1355
@@ -17583,21 +17597,21 @@ state 1356
 
 
 state 1357
-	do_while_stmt:  DO statement WHILE '(' expression ')' ';'.    (310)
+	do_while_stmt:  DO statement WHILE '(' expression ')' ';'.    (311)
 
-	.  reduce 310 (src line 1021)
+	.  reduce 311 (src line 1022)
 
 
 state 1358
-	switch_stmt:  SWITCH '(' expression ')' '{' case_list '}'.    (311)
+	switch_stmt:  SWITCH '(' expression ')' '{' case_list '}'.    (312)
 
-	.  reduce 311 (src line 1026)
+	.  reduce 312 (src line 1027)
 
 
 state 1359
-	case_list:  case_list case_item.    (312)
+	case_list:  case_list case_item.    (313)
 
-	.  reduce 312 (src line 1031)
+	.  reduce 313 (src line 1032)
 
 
 state 1360
@@ -17641,9 +17655,9 @@ state 1361
 
 
 state 1362
-	multi_init_id_list:  ID '=' expression ',' ID '[' ']' '=' '{' init_list ',' '}'.    (278)
+	multi_init_id_list:  ID '=' expression ',' ID '[' ']' '=' '{' init_list ',' '}'.    (279)
 
-	.  reduce 278 (src line 909)
+	.  reduce 279 (src line 910)
 
 
 state 1363
@@ -17808,7 +17822,7 @@ state 1369
 state 1370
 	for_stmt:  FOR '(' expression ',' expression ';' opt_expression ';'.opt_expression ')' statement 
 	for_stmt:  FOR '(' expression ',' expression ';' opt_expression ';'.expression ',' expression ')' statement 
-	opt_expression: .    (320)
+	opt_expression: .    (321)
 
 	NUM  shift 157
 	CHAR_LIT  shift 159
@@ -17825,7 +17839,7 @@ state 1370
 	'-'  shift 161
 	'!'  shift 162
 	'~'  shift 163
-	.  reduce 320 (src line 1062)
+	.  reduce 321 (src line 1063)
 
 	postfix_expr  goto 143
 	opt_expression  goto 1380
@@ -17844,7 +17858,7 @@ state 1370
 state 1371
 	for_stmt:  FOR '(' expression ',' expression ',' expression ';'.opt_expression ';' opt_expression ')' statement 
 	for_stmt:  FOR '(' expression ',' expression ',' expression ';'.opt_expression ';' expression ',' expression ')' statement 
-	opt_expression: .    (320)
+	opt_expression: .    (321)
 
 	NUM  shift 157
 	CHAR_LIT  shift 159
@@ -17861,7 +17875,7 @@ state 1371
 	'-'  shift 161
 	'!'  shift 162
 	'~'  shift 163
-	.  reduce 320 (src line 1062)
+	.  reduce 321 (src line 1063)
 
 	postfix_expr  goto 143
 	opt_expression  goto 1382
@@ -17886,9 +17900,9 @@ state 1372
 
 state 1373
 	case_item:  DEFAULT ':'.statement_list 
-	statement_list: .    (285)
+	statement_list: .    (286)
 
-	.  reduce 285 (src line 936)
+	.  reduce 286 (src line 937)
 
 	statement_list  goto 1384
 
@@ -17953,9 +17967,9 @@ state 1377
 	call  goto 148
 
 state 1378
-	for_stmt:  FOR '(' opt_expression ';' opt_expression ';' opt_expression ')' statement.    (303)
+	for_stmt:  FOR '(' opt_expression ';' opt_expression ';' opt_expression ')' statement.    (304)
 
-	.  reduce 303 (src line 973)
+	.  reduce 304 (src line 974)
 
 
 state 1379
@@ -17976,10 +17990,10 @@ state 1380
 
 state 1381
 	for_stmt:  FOR '(' expression ',' expression ';' opt_expression ';' expression.',' expression ')' statement 
-	opt_expression:  expression.    (319)
+	opt_expression:  expression.    (320)
 
 	','  shift 1391
-	.  reduce 319 (src line 1060)
+	.  reduce 320 (src line 1061)
 
 
 state 1382
@@ -17992,15 +18006,15 @@ state 1382
 
 state 1383
 	case_item:  CASE expression ':'.statement_list 
-	statement_list: .    (285)
+	statement_list: .    (286)
 
-	.  reduce 285 (src line 936)
+	.  reduce 286 (src line 937)
 
 	statement_list  goto 1393
 
 state 1384
 	statement_list:  statement_list.statement 
-	case_item:  DEFAULT ':' statement_list.    (315)
+	case_item:  DEFAULT ':' statement_list.    (316)
 
 	NUM  shift 157
 	CHAR_LIT  shift 159
@@ -18028,7 +18042,7 @@ state 1384
 	'-'  shift 161
 	'!'  shift 162
 	'~'  shift 163
-	.  reduce 315 (src line 1041)
+	.  reduce 316 (src line 1042)
 
 	compound_stmt  goto 733
 	postfix_expr  goto 143
@@ -18255,7 +18269,7 @@ state 1391
 state 1392
 	for_stmt:  FOR '(' expression ',' expression ',' expression ';' opt_expression ';'.opt_expression ')' statement 
 	for_stmt:  FOR '(' expression ',' expression ',' expression ';' opt_expression ';'.expression ',' expression ')' statement 
-	opt_expression: .    (320)
+	opt_expression: .    (321)
 
 	NUM  shift 157
 	CHAR_LIT  shift 159
@@ -18272,7 +18286,7 @@ state 1392
 	'-'  shift 161
 	'!'  shift 162
 	'~'  shift 163
-	.  reduce 320 (src line 1062)
+	.  reduce 321 (src line 1063)
 
 	postfix_expr  goto 143
 	opt_expression  goto 1400
@@ -18290,7 +18304,7 @@ state 1392
 
 state 1393
 	statement_list:  statement_list.statement 
-	case_item:  CASE expression ':' statement_list.    (314)
+	case_item:  CASE expression ':' statement_list.    (315)
 
 	NUM  shift 157
 	CHAR_LIT  shift 159
@@ -18318,7 +18332,7 @@ state 1393
 	'-'  shift 161
 	'!'  shift 162
 	'~'  shift 163
-	.  reduce 314 (src line 1038)
+	.  reduce 315 (src line 1039)
 
 	compound_stmt  goto 733
 	postfix_expr  goto 143
@@ -18346,9 +18360,9 @@ state 1393
 	call  goto 148
 
 state 1394
-	statement_list:  statement_list statement.    (284)
+	statement_list:  statement_list statement.    (285)
 
-	.  reduce 284 (src line 933)
+	.  reduce 285 (src line 934)
 
 
 state 1395
@@ -18358,9 +18372,9 @@ state 1395
 
 
 state 1396
-	for_stmt:  FOR '(' opt_expression ';' opt_expression ';' expression ',' expression ')' statement.    (304)
+	for_stmt:  FOR '(' opt_expression ';' opt_expression ';' expression ',' expression ')' statement.    (305)
 
-	.  reduce 304 (src line 977)
+	.  reduce 305 (src line 978)
 
 
 state 1397
@@ -18371,9 +18385,9 @@ state 1397
 
 
 state 1398
-	for_stmt:  FOR '(' expression ',' expression ';' opt_expression ';' opt_expression ')' statement.    (306)
+	for_stmt:  FOR '(' expression ',' expression ';' opt_expression ';' opt_expression ')' statement.    (307)
 
-	.  reduce 306 (src line 989)
+	.  reduce 307 (src line 990)
 
 
 state 1399
@@ -18392,10 +18406,10 @@ state 1400
 
 state 1401
 	for_stmt:  FOR '(' expression ',' expression ',' expression ';' opt_expression ';' expression.',' expression ')' statement 
-	opt_expression:  expression.    (319)
+	opt_expression:  expression.    (320)
 
 	','  shift 1405
-	.  reduce 319 (src line 1060)
+	.  reduce 320 (src line 1061)
 
 
 state 1402
@@ -18600,21 +18614,21 @@ state 1405
 	call  goto 148
 
 state 1406
-	for_stmt:  FOR '(' opt_expression ';' opt_expression ';' expression ',' expression ',' expression ')' statement.    (305)
+	for_stmt:  FOR '(' opt_expression ';' opt_expression ';' expression ',' expression ',' expression ')' statement.    (306)
 
-	.  reduce 305 (src line 982)
+	.  reduce 306 (src line 983)
 
 
 state 1407
-	for_stmt:  FOR '(' expression ',' expression ';' opt_expression ';' expression ',' expression ')' statement.    (308)
+	for_stmt:  FOR '(' expression ',' expression ';' opt_expression ';' expression ',' expression ')' statement.    (309)
 
-	.  reduce 308 (src line 1001)
+	.  reduce 309 (src line 1002)
 
 
 state 1408
-	for_stmt:  FOR '(' expression ',' expression ',' expression ';' opt_expression ';' opt_expression ')' statement.    (307)
+	for_stmt:  FOR '(' expression ',' expression ',' expression ';' opt_expression ';' opt_expression ')' statement.    (308)
 
-	.  reduce 307 (src line 994)
+	.  reduce 308 (src line 995)
 
 
 state 1409
@@ -18681,13 +18695,13 @@ state 1410
 	call  goto 148
 
 state 1411
-	for_stmt:  FOR '(' expression ',' expression ',' expression ';' opt_expression ';' expression ',' expression ')' statement.    (309)
+	for_stmt:  FOR '(' expression ',' expression ',' expression ';' opt_expression ';' expression ',' expression ')' statement.    (310)
 
-	.  reduce 309 (src line 1010)
+	.  reduce 310 (src line 1011)
 
 
 88 terminals, 71 nonterminals
-538 grammar rules, 1412/16000 states
+539 grammar rules, 1412/16000 states
 24 shift/reduce, 0 reduce/reduce conflicts reported
 320 working sets used
 memory: parser 2898/240000

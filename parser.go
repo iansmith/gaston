@@ -178,7 +178,7 @@ const yyEofCode = 1
 const yyErrCode = 2
 const yyInitialStackSize = 16
 
-//line grammar.y:1693
+//line grammar.y:1694
 
 //line yacctab:1
 var yyExca = [...]int16{
@@ -189,114 +189,114 @@ var yyExca = [...]int16{
 	71, 206,
 	-2, 144,
 	-1, 176,
-	71, 233,
-	72, 233,
-	-2, 143,
-	-1, 177,
 	71, 234,
 	72, 234,
-	-2, 145,
-	-1, 178,
+	-2, 143,
+	-1, 177,
 	71, 235,
 	72, 235,
-	-2, 146,
-	-1, 179,
-	71, 239,
-	72, 239,
-	-2, 150,
-	-1, 180,
-	71, 241,
-	72, 241,
-	-2, 169,
-	-1, 181,
-	71, 242,
-	72, 242,
-	-2, 170,
-	-1, 182,
-	71, 243,
-	72, 243,
-	-2, 152,
-	-1, 183,
-	71, 250,
-	72, 250,
-	-2, 172,
-	-1, 184,
-	71, 254,
-	72, 254,
-	-2, 181,
-	-1, 185,
-	71, 256,
-	72, 256,
-	-2, 185,
-	-1, 351,
-	48, 323,
-	49, 323,
-	60, 323,
-	67, 323,
-	76, 323,
-	-2, 400,
-	-1, 365,
+	-2, 145,
+	-1, 178,
 	71, 236,
 	72, 236,
-	-2, 147,
-	-1, 366,
-	71, 237,
-	72, 237,
-	-2, 148,
-	-1, 367,
-	71, 238,
-	72, 238,
-	-2, 171,
-	-1, 368,
+	-2, 146,
+	-1, 179,
 	71, 240,
 	72, 240,
-	-2, 151,
-	-1, 369,
+	-2, 150,
+	-1, 180,
+	71, 242,
+	72, 242,
+	-2, 169,
+	-1, 181,
+	71, 243,
+	72, 243,
+	-2, 170,
+	-1, 182,
 	71, 244,
 	72, 244,
-	-2, 153,
-	-1, 370,
-	71, 245,
-	72, 245,
-	-2, 154,
-	-1, 371,
-	71, 246,
-	72, 246,
-	-2, 166,
-	-1, 372,
-	71, 247,
-	72, 247,
-	-2, 167,
-	-1, 373,
-	71, 255,
-	72, 255,
-	-2, 182,
-	-1, 374,
+	-2, 152,
+	-1, 183,
 	71, 251,
 	72, 251,
-	-2, 173,
-	-1, 375,
+	-2, 172,
+	-1, 184,
+	71, 255,
+	72, 255,
+	-2, 181,
+	-1, 185,
+	71, 257,
+	72, 257,
+	-2, 185,
+	-1, 351,
+	48, 324,
+	49, 324,
+	60, 324,
+	67, 324,
+	76, 324,
+	-2, 401,
+	-1, 365,
+	71, 237,
+	72, 237,
+	-2, 147,
+	-1, 366,
+	71, 238,
+	72, 238,
+	-2, 148,
+	-1, 367,
+	71, 239,
+	72, 239,
+	-2, 171,
+	-1, 368,
+	71, 241,
+	72, 241,
+	-2, 151,
+	-1, 369,
+	71, 245,
+	72, 245,
+	-2, 153,
+	-1, 370,
+	71, 246,
+	72, 246,
+	-2, 154,
+	-1, 371,
+	71, 247,
+	72, 247,
+	-2, 166,
+	-1, 372,
+	71, 248,
+	72, 248,
+	-2, 167,
+	-1, 373,
+	71, 256,
+	72, 256,
+	-2, 182,
+	-1, 374,
 	71, 252,
 	72, 252,
-	-2, 174,
-	-1, 376,
+	-2, 173,
+	-1, 375,
 	71, 253,
 	72, 253,
+	-2, 174,
+	-1, 376,
+	71, 254,
+	72, 254,
 	-2, 177,
 	-1, 773,
-	48, 325,
-	49, 325,
-	60, 325,
-	67, 325,
-	76, 325,
-	-2, 401,
-	-1, 774,
 	48, 326,
 	49, 326,
 	60, 326,
 	67, 326,
 	76, 326,
 	-2, 402,
+	-1, 774,
+	48, 327,
+	49, 327,
+	60, 327,
+	67, 327,
+	76, 327,
+	-2, 403,
 }
 
 const yyPrivate = 57344
@@ -908,40 +908,40 @@ var yyR1 = [...]int8{
 	66, 66, 66, 66, 66, 66, 66, 66, 66, 66,
 	66, 66, 66, 66, 66, 66, 66, 66, 66, 2,
 	2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-	2, 2, 2, 2, 2, 8, 8, 9, 9, 9,
+	2, 2, 2, 2, 2, 8, 8, 8, 9, 9,
+	9, 29, 29, 29, 29, 29, 29, 29, 29, 29,
 	29, 29, 29, 29, 29, 29, 29, 29, 29, 29,
 	29, 29, 29, 29, 29, 29, 29, 29, 29, 29,
 	29, 29, 29, 29, 29, 29, 29, 29, 29, 29,
 	29, 29, 29, 29, 29, 29, 29, 29, 29, 29,
-	29, 29, 29, 29, 29, 29, 29, 29, 29, 29,
-	29, 29, 29, 29, 30, 34, 34, 34, 34, 10,
-	10, 10, 10, 11, 11, 11, 11, 11, 11, 11,
-	11, 11, 11, 11, 35, 35, 39, 39, 39, 39,
-	39, 39, 39, 39, 39, 39, 39, 39, 40, 40,
-	41, 41, 42, 43, 43, 43, 43, 43, 43, 43,
-	44, 45, 51, 51, 46, 46, 50, 48, 49, 52,
-	52, 47, 47, 31, 31, 31, 31, 31, 31, 31,
-	31, 31, 31, 31, 31, 53, 53, 53, 53, 53,
+	29, 29, 29, 29, 29, 30, 34, 34, 34, 34,
+	10, 10, 10, 10, 11, 11, 11, 11, 11, 11,
+	11, 11, 11, 11, 11, 35, 35, 39, 39, 39,
+	39, 39, 39, 39, 39, 39, 39, 39, 39, 40,
+	40, 41, 41, 42, 43, 43, 43, 43, 43, 43,
+	43, 44, 45, 51, 51, 46, 46, 50, 48, 49,
+	52, 52, 47, 47, 31, 31, 31, 31, 31, 31,
+	31, 31, 31, 31, 31, 31, 53, 53, 53, 53,
 	53, 53, 53, 53, 53, 53, 53, 53, 53, 53,
-	53, 53, 53, 53, 53, 53, 54, 54, 54, 55,
-	56, 56, 57, 57, 57, 58, 58, 59, 59, 70,
-	70, 70, 70, 70, 67, 67, 67, 67, 67, 67,
-	60, 60, 68, 68, 61, 61, 69, 69, 69, 62,
+	53, 53, 53, 53, 53, 53, 53, 54, 54, 54,
+	55, 56, 56, 57, 57, 57, 58, 58, 59, 59,
+	70, 70, 70, 70, 70, 67, 67, 67, 67, 67,
+	67, 60, 60, 68, 68, 61, 61, 69, 69, 69,
 	62, 62, 62, 62, 62, 62, 62, 62, 62, 62,
 	62, 62, 62, 62, 62, 62, 62, 62, 62, 62,
 	62, 62, 62, 62, 62, 62, 62, 62, 62, 62,
 	62, 62, 62, 62, 62, 62, 62, 62, 62, 62,
 	62, 62, 62, 62, 62, 62, 62, 62, 62, 62,
-	62, 62, 62, 63, 64, 64, 65, 65, 12, 14,
-	15, 16, 16, 32, 32, 17, 17, 17, 17, 17,
-	17, 17, 17, 17, 17, 17, 17, 17, 18, 18,
-	19, 19, 33, 33, 33, 33, 33, 33, 33, 33,
-	33, 33, 33, 33, 33, 13, 13, 20, 20, 20,
+	62, 62, 62, 62, 63, 64, 64, 65, 65, 12,
+	14, 15, 16, 16, 32, 32, 17, 17, 17, 17,
+	17, 17, 17, 17, 17, 17, 17, 17, 17, 18,
+	18, 19, 19, 33, 33, 33, 33, 33, 33, 33,
+	33, 33, 33, 33, 33, 33, 13, 13, 20, 20,
 	20, 20, 20, 20, 20, 20, 20, 20, 20, 20,
-	20, 20, 20, 20, 20, 20, 20, 20, 20, 21,
-	22, 22, 23, 23, 23, 23, 23, 24, 24, 24,
-	25, 25, 25, 26, 26, 26, 26, 27, 27, 27,
-	28, 28, 28, 28, 28, 28, 28, 28,
+	20, 20, 20, 20, 20, 20, 20, 20, 20, 20,
+	21, 22, 22, 23, 23, 23, 23, 23, 24, 24,
+	24, 25, 25, 25, 26, 26, 26, 26, 27, 27,
+	27, 28, 28, 28, 28, 28, 28, 28, 28,
 }
 
 var yyR2 = [...]int8{
@@ -965,40 +965,40 @@ var yyR2 = [...]int8{
 	1, 2, 1, 2, 2, 2, 3, 2, 3, 3,
 	4, 1, 2, 2, 2, 1, 4, 4, 5, 6,
 	8, 8, 7, 9, 8, 7, 9, 8, 7, 9,
-	8, 10, 9, 11, 8, 1, 1, 3, 3, 1,
-	2, 8, 5, 4, 5, 3, 4, 3, 4, 5,
-	4, 2, 4, 5, 4, 6, 5, 7, 3, 4,
-	5, 3, 3, 1, 1, 1, 2, 2, 2, 1,
-	2, 1, 1, 1, 2, 2, 2, 2, 5, 6,
-	1, 2, 2, 2, 1, 2, 1, 8, 7, 4,
-	3, 2, 6, 7, 3, 2, 2, 2, 0, 3,
-	6, 5, 3, 6, 6, 7, 5, 11, 12, 5,
-	3, 9, 10, 6, 2, 0, 1, 1, 1, 1,
-	1, 1, 1, 1, 1, 1, 1, 3, 2, 1,
-	5, 7, 5, 9, 11, 13, 11, 13, 13, 15,
-	7, 7, 2, 0, 4, 3, 3, 2, 2, 1,
-	0, 2, 3, 1, 1, 3, 3, 2, 2, 4,
-	6, 6, 5, 5, 6, 3, 5, 4, 4, 4,
-	4, 4, 4, 4, 4, 3, 3, 3, 3, 3,
-	3, 3, 3, 3, 3, 1, 1, 7, 4, 1,
-	5, 1, 3, 3, 1, 3, 1, 3, 1, 1,
+	8, 10, 9, 11, 8, 1, 1, 0, 3, 3,
+	1, 2, 8, 5, 4, 5, 3, 4, 3, 4,
+	5, 4, 2, 4, 5, 4, 6, 5, 7, 3,
+	4, 5, 3, 3, 1, 1, 1, 2, 2, 2,
+	1, 2, 1, 1, 1, 2, 2, 2, 2, 5,
+	6, 1, 2, 2, 2, 1, 2, 1, 8, 7,
+	4, 3, 2, 6, 7, 3, 2, 2, 2, 0,
+	3, 6, 5, 3, 6, 6, 7, 5, 11, 12,
+	5, 3, 9, 10, 6, 2, 0, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 3, 2,
+	1, 5, 7, 5, 9, 11, 13, 11, 13, 13,
+	15, 7, 7, 2, 0, 4, 3, 3, 2, 2,
+	1, 0, 2, 3, 1, 1, 3, 3, 2, 2,
+	4, 6, 6, 5, 5, 6, 3, 5, 4, 4,
+	4, 4, 4, 4, 4, 4, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 1, 1, 7, 4,
+	1, 5, 1, 3, 3, 1, 3, 1, 3, 1,
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-	3, 1, 1, 1, 3, 1, 1, 1, 1, 3,
-	1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
-	2, 4, 4, 6, 6, 2, 4, 5, 6, 5,
-	6, 5, 4, 6, 7, 8, 8, 4, 5, 6,
-	6, 6, 5, 9, 8, 8, 9, 7, 8, 9,
-	9, 10, 6, 7, 5, 7, 8, 7, 8, 6,
-	7, 8, 5, 4, 1, 0, 3, 1, 6, 6,
-	5, 3, 1, 1, 3, 4, 4, 5, 5, 5,
-	6, 10, 7, 7, 8, 8, 7, 7, 1, 0,
-	3, 1, 1, 2, 2, 3, 3, 4, 3, 4,
-	4, 3, 2, 6, 5, 2, 1, 3, 3, 5,
-	6, 5, 4, 7, 5, 4, 7, 4, 5, 5,
-	5, 6, 6, 6, 6, 9, 9, 9, 10, 1,
-	1, 5, 1, 3, 3, 3, 3, 1, 3, 3,
-	1, 3, 3, 1, 3, 3, 3, 1, 2, 2,
-	1, 3, 4, 5, 7, 4, 7, 1,
+	1, 3, 1, 1, 1, 3, 1, 1, 1, 1,
+	3, 1, 1, 1, 1, 1, 2, 2, 2, 2,
+	2, 2, 4, 4, 6, 6, 2, 4, 5, 6,
+	5, 6, 5, 4, 6, 7, 8, 8, 4, 5,
+	6, 6, 6, 5, 9, 8, 8, 9, 7, 8,
+	9, 9, 10, 6, 7, 5, 7, 8, 7, 8,
+	6, 7, 8, 5, 4, 1, 0, 3, 1, 6,
+	6, 5, 3, 1, 1, 3, 4, 4, 5, 5,
+	5, 6, 10, 7, 7, 8, 8, 7, 7, 1,
+	0, 3, 1, 1, 2, 2, 3, 3, 4, 3,
+	4, 4, 3, 2, 6, 5, 2, 1, 3, 3,
+	5, 6, 5, 4, 7, 5, 4, 7, 4, 5,
+	5, 5, 6, 6, 6, 6, 9, 9, 9, 10,
+	1, 1, 5, 1, 3, 3, 3, 3, 1, 3,
+	3, 1, 3, 3, 1, 3, 3, 3, 1, 2,
+	2, 1, 3, 4, 5, 7, 4, 7, 1,
 }
 
 var yyChk = [...]int16{
@@ -1154,141 +1154,141 @@ var yyDef = [...]int16{
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 147, 148, 158, 162,
 	171, 151, 153, 154, 166, 167, 182, 173, 174, 175,
-	177, 184, 183, 0, 0, 46, 0, 0, 0, 0,
+	177, 184, 183, 0, 207, 46, 0, 0, 0, 0,
 	0, 0, 51, 0, 0, 0, 106, 0, 15, 0,
-	0, 0, 0, 486, 0, 0, 0, 0, 16, 0,
+	0, 0, 0, 487, 0, 0, 0, 0, 16, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 452,
-	453, 0, 0, 0, 0, 0, 0, 0, 0, 149,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 453,
+	454, 0, 0, 0, 0, 0, 0, 0, 0, 149,
 	160, 164, 159, 163, 155, 156, 168, 176, 178, 179,
-	0, 0, 0, 390, 0, 0, 355, 323, 324, 359,
-	356, 361, 364, 366, 368, 381, 385, 391, 392, 393,
-	394, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	205, -2, 209, 0, 0, 0, -2, -2, -2, -2,
-	-2, -2, -2, -2, -2, -2, 0, 537, 0, 509,
-	510, 512, 517, 520, 523, 527, 0, 0, 530, 0,
-	0, 0, 0, 272, 0, 0, 53, 0, 0, 0,
-	0, 0, 269, 0, 0, 280, 0, 58, 0, 0,
-	0, 0, 0, 0, 485, 0, 0, 0, 0, 0,
+	0, 0, 0, 391, 0, 0, 356, 324, 325, 360,
+	357, 362, 365, 367, 369, 382, 386, 392, 393, 394,
+	395, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	205, -2, 210, 0, 0, 0, -2, -2, -2, -2,
+	-2, -2, -2, -2, -2, -2, 0, 538, 0, 510,
+	511, 513, 518, 521, 524, 528, 0, 0, 531, 0,
+	0, 0, 0, 273, 207, 0, 53, 0, 0, 0,
+	0, 0, 270, 0, 0, 281, 207, 58, 0, 0,
+	0, 0, 0, 0, 486, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 63, 0, 0, 0, 0, 0,
-	0, 77, 0, 0, 0, 103, 0, 0, 0, 79,
+	0, 77, 0, 0, 0, 103, 0, 0, 207, 79,
 	0, 0, 0, 0, 104, 0, 0, 0, 0, 0,
-	17, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 455, 456, 0, 0, 0,
+	17, 0, 207, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 456, 457, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 161, 165, 157, 180,
-	186, 187, 0, 0, 0, 327, 328, 0, 0, 0,
+	186, 187, 0, 0, 0, 328, 329, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 390, 0, 268, 405, 0, 390,
-	0, 0, 445, 0, 0, 0, 0, 0, 374, 375,
-	376, 377, 378, 379, 369, 370, 371, 372, 373, 0,
-	382, 383, 0, 386, 387, 388, 395, 396, 397, 398,
-	399, -2, 0, 0, 0, 0, 0, 0, 210, 221,
-	0, 0, 0, 261, 0, -2, -2, -2, -2, -2,
+	0, 0, 0, 0, 391, 0, 269, 406, 0, 391,
+	0, 0, 446, 0, 0, 0, 0, 0, 375, 376,
+	377, 378, 379, 380, 370, 371, 372, 373, 374, 0,
+	383, 384, 0, 387, 388, 389, 396, 397, 398, 399,
+	400, -2, 0, 0, 0, 0, 0, 0, 211, 222,
+	0, 0, 0, 262, 0, -2, -2, -2, -2, -2,
 	-2, -2, -2, -2, -2, -2, -2, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 528, 537, 529, 0, 0, 50, 0, 0,
+	0, 0, 529, 538, 530, 0, 0, 50, 0, 0,
 	131, 133, 0, 0, 0, 141, 0, 0, 205, 0,
 	0, 0, 55, 0, 0, 71, 0, 0, 0, 0,
-	0, 0, 0, 0, 205, 0, 0, 60, 0, 0,
-	0, 0, 0, 0, 487, 0, 0, 488, 0, 0,
+	207, 0, 0, 0, 205, 0, 0, 60, 0, 207,
+	0, 0, 0, 0, 488, 0, 0, 489, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	64, 0, 0, 0, 67, 0, 0, 0, 0, 391,
+	64, 0, 0, 207, 67, 0, 0, 0, 0, 392,
 	0, 0, 0, 0, 0, 0, 205, 0, 0, 0,
-	0, 0, 82, 0, 0, 105, 0, 0, 0, 0,
-	0, 0, 0, 205, 0, 0, 23, 0, 0, 0,
-	0, 0, 0, 0, 0, 450, 451, 454, 457, 458,
-	0, 459, 0, 0, 0, 0, 0, 188, 325, 326,
-	0, 335, 345, 346, 347, 348, 349, 350, 351, 352,
-	353, 354, 389, 0, 0, 0, 0, 0, 390, 0,
+	0, 207, 82, 0, 0, 105, 0, 0, 0, 207,
+	0, 0, 0, 205, 0, 0, 23, 207, 0, 0,
+	0, 0, 0, 207, 0, 451, 452, 455, 458, 459,
+	0, 460, 0, 0, 0, 0, 0, 188, 326, 327,
+	0, 336, 346, 347, 348, 349, 350, 351, 352, 353,
+	354, 355, 390, 0, 0, 0, 0, 0, 391, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 405, 0, 0, 444, 447, 0, 362, 363, 365,
-	367, 380, 384, 0, 0, 0, 390, 0, 0, 0,
-	0, 0, 0, 33, 189, 268, 208, 207, 0, 215,
-	228, 0, 0, 0, 217, 232, 231, 260, 0, 0,
-	0, 0, 48, 0, 0, 49, 0, 0, 513, 514,
-	515, 516, 518, 519, 521, 522, 524, 525, 526, 531,
-	0, 0, 276, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 54, 0, 0, 57, 0, 0, 271, 469,
-	0, 205, 279, 0, 0, 0, 0, 59, 0, 0,
-	0, 62, 448, 124, 0, 272, 0, 0, 0, 492,
-	0, 0, 0, 495, 0, 0, 0, 497, 0, 0,
-	0, 0, 0, 449, 121, 0, 0, 205, 0, 0,
+	0, 406, 0, 0, 445, 448, 0, 363, 364, 366,
+	368, 381, 385, 0, 0, 0, 391, 0, 0, 0,
+	0, 0, 0, 33, 189, 269, 209, 208, 0, 216,
+	229, 0, 0, 0, 218, 233, 232, 261, 0, 0,
+	0, 0, 48, 0, 0, 49, 0, 0, 514, 515,
+	516, 517, 519, 520, 522, 523, 525, 526, 527, 532,
+	0, 0, 277, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 54, 0, 0, 57, 0, 0, 272, 470,
+	0, 205, 280, 0, 0, 0, 0, 59, 0, 0,
+	0, 62, 449, 124, 0, 273, 0, 0, 0, 493,
+	0, 0, 0, 496, 0, 0, 0, 498, 0, 0,
+	0, 0, 0, 450, 121, 0, 0, 205, 0, 0,
 	69, 0, 78, 142, 0, 0, 0, 0, 0, 0,
 	0, 80, 0, 0, 73, 0, 0, 205, 0, 0,
-	0, 0, 0, 0, 0, 18, 0, 0, 0, 38,
+	0, 207, 0, 0, 0, 18, 0, 0, 0, 38,
 	0, 0, 0, 205, 24, 25, 0, 0, 0, 26,
-	0, 205, 0, 0, 460, 0, 0, 0, 0, 445,
-	445, 329, 0, 0, 0, 0, 417, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 325, 0, 265, 266,
-	267, 0, 286, 287, 288, 289, 290, 291, 292, 293,
-	294, 295, 296, 356, 0, 0, 0, 0, 0, 0,
-	299, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	337, 338, 339, 340, 341, 342, 343, 344, 389, 358,
-	443, 0, 0, -2, -2, 0, 0, 0, 0, 406,
-	0, 0, 0, 412, 0, 0, 0, 0, 213, 0,
-	216, 222, 0, 229, 0, 0, 259, 218, 0, 220,
-	224, 0, 0, 0, 0, 0, 0, 274, 0, 0,
-	532, 0, 0, 535, 0, 0, 0, 107, 0, 132,
-	0, 0, 0, 139, 0, 35, 192, 208, 52, 75,
-	56, 72, 270, 0, 468, 471, 472, 0, 0, 0,
-	0, 0, 283, 40, 195, 208, 0, 0, 61, 0,
-	0, 489, 0, 491, 0, 0, 494, 0, 0, 499,
-	0, 498, 0, 500, 0, 0, 0, 0, 0, 0,
+	0, 205, 0, 0, 461, 0, 0, 0, 0, 446,
+	446, 330, 0, 0, 0, 0, 418, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 326, 0, 266, 267,
+	268, 0, 287, 288, 289, 290, 291, 292, 293, 294,
+	295, 296, 297, 357, 0, 0, 0, 0, 0, 0,
+	300, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	338, 339, 340, 341, 342, 343, 344, 345, 390, 359,
+	444, 0, 0, -2, -2, 0, 0, 0, 0, 407,
+	0, 0, 0, 413, 0, 0, 0, 0, 214, 0,
+	217, 223, 0, 230, 0, 0, 260, 219, 0, 221,
+	225, 0, 0, 0, 0, 0, 0, 275, 0, 0,
+	533, 0, 0, 536, 0, 0, 0, 107, 0, 132,
+	0, 0, 0, 139, 0, 35, 192, 209, 52, 75,
+	56, 72, 271, 0, 469, 472, 473, 0, 0, 0,
+	0, 0, 284, 40, 195, 209, 0, 0, 61, 0,
+	0, 490, 0, 492, 0, 0, 495, 0, 0, 500,
+	0, 499, 0, 501, 0, 0, 0, 0, 0, 0,
 	0, 68, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 41, 0, 198, 208, 81, 0, 0, 0,
+	0, 0, 41, 0, 198, 209, 81, 0, 0, 0,
 	0, 83, 0, 0, 0, 205, 0, 0, 0, 19,
-	29, 208, 0, 22, 0, 0, 0, 21, 0, 0,
-	0, 0, 469, 0, 466, 462, 463, 0, 467, 0,
-	0, 332, 333, 0, 336, 0, 434, 418, 0, 0,
-	0, 0, 0, 0, 422, 0, 325, 0, 0, 442,
+	29, 209, 0, 22, 0, 0, 0, 21, 0, 0,
+	0, 0, 470, 0, 467, 463, 464, 0, 468, 0,
+	0, 333, 334, 0, 337, 0, 435, 419, 0, 0,
+	0, 0, 0, 0, 423, 0, 326, 0, 0, 443,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 298, 0, 0, 320, 0, 0, 321, 0, 317,
-	318, 0, 0, 446, 360, 325, 326, 0, 407, 0,
-	409, 0, 411, 0, 0, 264, 34, 191, 212, 214,
-	0, 226, 230, 0, 469, 219, 223, 0, 0, 248,
-	0, 0, 0, 127, 0, 0, 0, 511, 533, 0,
-	0, 275, 0, 108, 134, 0, 0, 140, 129, 0,
-	0, 0, 0, 473, 474, 0, 0, 482, 0, 190,
-	208, 0, 0, 111, 0, 194, 0, 490, 0, 469,
-	0, 503, 502, 0, 504, 501, 0, 0, 119, 0,
-	0, 36, 204, 208, 76, 70, 0, 0, 274, 0,
-	99, 273, 45, 0, 0, 0, 0, 0, 74, 200,
-	208, 84, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 197, 0, 39, 31, 208, 20, 0, 27, 208,
-	43, 0, 464, 465, 330, 331, 334, 0, 432, 0,
-	420, 0, 0, 419, 421, 0, 439, 0, 445, 0,
-	297, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 319, 0, 0, 322, 316, 0, 403,
-	404, 0, 408, 410, 413, 0, 0, 0, 225, 0,
-	469, 0, 262, 0, 249, 47, 0, 0, 0, 91,
+	0, 299, 0, 0, 321, 0, 0, 322, 0, 318,
+	319, 0, 0, 447, 361, 326, 327, 0, 408, 0,
+	410, 0, 412, 0, 0, 265, 34, 191, 213, 215,
+	0, 227, 231, 0, 470, 220, 224, 0, 0, 249,
+	0, 0, 0, 127, 0, 0, 0, 512, 534, 0,
+	0, 276, 0, 108, 134, 0, 0, 140, 129, 0,
+	0, 0, 0, 474, 475, 0, 0, 483, 0, 190,
+	209, 0, 0, 111, 0, 194, 0, 491, 0, 470,
+	0, 504, 503, 0, 505, 502, 0, 0, 119, 0,
+	0, 36, 204, 209, 76, 70, 0, 0, 275, 0,
+	99, 274, 45, 0, 0, 0, 0, 0, 74, 200,
+	209, 84, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 197, 0, 39, 31, 209, 20, 0, 27, 209,
+	43, 0, 465, 466, 331, 332, 335, 0, 433, 0,
+	421, 0, 0, 420, 422, 0, 440, 0, 446, 0,
+	298, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 320, 0, 0, 323, 317, 0, 404,
+	405, 0, 409, 411, 414, 0, 0, 0, 226, 0,
+	470, 0, 263, 0, 250, 47, 0, 0, 0, 91,
 	0, 0, 0, 0, 0, 137, 0, 0, 193, 65,
-	0, 470, 475, 0, 476, 478, 481, 0, 0, 196,
-	112, 0, 0, 493, 0, 496, 0, 0, 469, 120,
-	0, 0, 0, 0, 0, 0, 0, 113, 0, 0,
-	199, 0, 0, 0, 0, 0, 0, 100, 202, 208,
-	0, 0, 117, 0, 30, 0, 44, 0, 0, 433,
-	0, 435, 0, 0, 0, 437, 445, 0, 0, 440,
-	0, 0, 0, 0, 0, 320, 0, 0, 0, 357,
-	0, 427, 414, 0, 0, 0, 227, 0, 258, 263,
-	109, 0, 128, 92, 534, 536, 0, 0, 135, 0,
-	0, 0, 480, 477, 479, 0, 0, 281, 125, 0,
+	0, 471, 476, 0, 477, 479, 482, 0, 0, 196,
+	112, 0, 0, 494, 0, 497, 0, 0, 470, 120,
+	0, 0, 0, 0, 0, 0, 0, 113, 0, 207,
+	199, 0, 0, 0, 0, 0, 0, 100, 202, 209,
+	0, 0, 117, 0, 30, 0, 44, 0, 0, 434,
+	0, 436, 0, 0, 0, 438, 446, 0, 0, 441,
+	0, 0, 0, 0, 0, 321, 0, 0, 0, 358,
+	0, 428, 415, 0, 0, 0, 228, 0, 259, 264,
+	109, 0, 128, 92, 535, 537, 0, 0, 135, 0,
+	0, 0, 481, 478, 480, 0, 0, 282, 125, 0,
 	0, 0, 0, 0, 122, 0, 37, 0, 0, 0,
 	97, 0, 114, 0, 93, 0, 201, 0, 0, 0,
-	0, 0, 115, 0, 118, 32, 28, 461, 436, 0,
-	428, 0, 438, 0, 424, 441, 300, 302, 0, 319,
-	0, 0, 313, 0, 425, 415, 416, 211, 257, 110,
-	0, 136, 0, 138, 0, 66, 0, 484, 282, 126,
-	507, 505, 506, 0, 123, 0, 101, 0, 98, 0,
-	94, 0, 0, 0, 95, 0, 203, 116, 429, 0,
-	430, 423, 0, 320, 320, 0, 0, 0, 426, 0,
-	277, 0, 483, 508, 0, 102, 42, 85, 0, 0,
-	96, 431, 301, 0, 319, 0, 0, 310, 311, 312,
-	0, 0, 278, 130, 0, 0, 86, 0, 0, 0,
-	320, 320, 0, 285, 89, 0, 0, 0, 303, 0,
-	0, 319, 0, 285, 315, 90, 87, 0, 0, 0,
-	0, 0, 320, 314, 284, 88, 304, 0, 306, 0,
-	0, 319, 0, 0, 0, 0, 305, 308, 307, 0,
-	0, 309,
+	0, 0, 115, 0, 118, 32, 28, 462, 437, 0,
+	429, 0, 439, 0, 425, 442, 301, 303, 0, 320,
+	0, 0, 314, 0, 426, 416, 417, 212, 258, 110,
+	0, 136, 0, 138, 0, 66, 0, 485, 283, 126,
+	508, 506, 507, 0, 123, 0, 101, 0, 98, 0,
+	94, 0, 0, 0, 95, 0, 203, 116, 430, 0,
+	431, 424, 0, 321, 321, 0, 0, 0, 427, 0,
+	278, 0, 484, 509, 0, 102, 42, 85, 0, 0,
+	96, 432, 302, 0, 320, 0, 0, 311, 312, 313,
+	0, 0, 279, 130, 0, 0, 86, 0, 0, 0,
+	321, 321, 0, 286, 89, 0, 0, 0, 304, 0,
+	0, 320, 0, 286, 316, 90, 87, 0, 0, 0,
+	0, 0, 321, 315, 285, 88, 305, 0, 307, 0,
+	0, 320, 0, 0, 0, 0, 306, 309, 308, 0,
+	0, 310,
 }
 
 var yyTok1 = [...]int8{
@@ -3189,209 +3189,209 @@ yydefault:
 			yyVAL.nodes = nil
 		}
 	case 207:
-		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:746
+		yyDollar = yyS[yypt-0 : yypt+1]
+//line grammar.y:742
 		{
-			yyVAL.nodes = append(yyDollar[1].nodes, yyDollar[3].node)
+			yyVAL.nodes = nil
 		}
 	case 208:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:748
+//line grammar.y:747
+		{
+			yyVAL.nodes = append(yyDollar[1].nodes, yyDollar[3].node)
+		}
+	case 209:
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line grammar.y:749
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, &Node{Kind: KindParam, Type: TypeVoid, Name: "..."})
 		}
-	case 209:
+	case 210:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:750
+//line grammar.y:751
 		{
 			yyVAL.nodes = []*Node{yyDollar[1].node}
 		}
-	case 210:
+	case 211:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line grammar.y:755
+//line grammar.y:756
 		{
 			yyVAL.node = ctNode(KindParam, yyDollar[1].typ, yyDollar[2].sval)
 		}
-	case 211:
+	case 212:
 		yyDollar = yyS[yypt-8 : yypt+1]
-//line grammar.y:757
+//line grammar.y:758
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeIntArray, Name: yyDollar[2].sval, ElemType: yyDollar[1].typ.Kind, Dim2: yyDollar[7].ival}
 		}
-	case 212:
+	case 213:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:759
+//line grammar.y:760
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeIntArray, Name: yyDollar[2].sval, ElemType: yyDollar[1].typ.Kind, Val: yyDollar[4].ival}
 		}
-	case 213:
+	case 214:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:761
+//line grammar.y:762
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeIntArray, Name: yyDollar[2].sval, ElemType: yyDollar[1].typ.Kind}
 		}
-	case 214:
+	case 215:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:763
+//line grammar.y:764
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeIntArray, Name: yyDollar[3].sval, ElemType: TypePtr, ElemPointee: yyDollar[1].typ}
 		}
-	case 215:
+	case 216:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:765
+//line grammar.y:766
 		{
 			n := &Node{Kind: KindParam, Type: TypePtr, Name: yyDollar[3].sval}
 			n.Pointee = yyDollar[1].typ
 			yyVAL.node = n
 		}
-	case 216:
+	case 217:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:767
+//line grammar.y:768
 		{
 			n := &Node{Kind: KindParam, Type: TypePtr, Name: yyDollar[4].sval}
 			n.Pointee = ptrCType(yyDollar[1].typ)
 			yyVAL.node = n
 		}
-	case 217:
+	case 218:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:769
+//line grammar.y:770
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeStruct, Name: yyDollar[3].sval, StructTag: yyDollar[2].sval}
 		}
-	case 218:
+	case 219:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:771
+//line grammar.y:772
 		{
 			n := &Node{Kind: KindParam, Type: TypePtr, Name: yyDollar[4].sval}
 			n.Pointee = structCType(yyDollar[2].sval)
 			yyVAL.node = n
 		}
-	case 219:
+	case 220:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:773
+//line grammar.y:774
 		{
 			n := &Node{Kind: KindParam, Type: TypePtr, Name: yyDollar[5].sval}
 			n.Pointee = ptrCType(structCType(yyDollar[2].sval))
 			yyVAL.node = n
 		}
-	case 220:
+	case 221:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:775
+//line grammar.y:776
 		{
 			n := &Node{Kind: KindParam, Type: TypePtr, Name: yyDollar[4].sval, IsConstTarget: true}
 			n.Pointee = yyDollar[2].typ
 			yyVAL.node = n
 		}
-	case 221:
+	case 222:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line grammar.y:779
+//line grammar.y:780
 		{
 			n := &Node{Kind: KindParam, Type: TypePtr, Name: ""}
 			n.Pointee = yyDollar[1].typ
 			yyVAL.node = n
 		}
-	case 222:
+	case 223:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:781
+//line grammar.y:782
 		{
 			n := &Node{Kind: KindParam, Type: TypePtr, Name: yyDollar[4].sval}
 			n.Pointee = yyDollar[1].typ
 			yyVAL.node = n
 		}
-	case 223:
+	case 224:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:783
+//line grammar.y:784
 		{
 			n := &Node{Kind: KindParam, Type: TypePtr, Name: yyDollar[5].sval, IsConstTarget: true}
 			n.Pointee = yyDollar[2].typ
 			yyVAL.node = n
 		}
-	case 224:
+	case 225:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:785
+//line grammar.y:786
 		{
 			n := &Node{Kind: KindParam, Type: TypePtr, IsConstTarget: true}
 			n.Pointee = yyDollar[2].typ
 			yyVAL.node = n
 		}
-	case 225:
+	case 226:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:787
+//line grammar.y:788
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeIntArray, Name: yyDollar[4].sval, ElemType: TypePtr, ElemPointee: yyDollar[1].typ}
 		}
-	case 226:
+	case 227:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:789
+//line grammar.y:790
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: TypePtr, ElemPointee: yyDollar[1].typ}
 		}
-	case 227:
+	case 228:
 		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:791
+//line grammar.y:792
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeIntArray, Name: yyDollar[4].sval, ElemType: TypePtr, ElemPointee: yyDollar[1].typ, Val: yyDollar[6].ival}
 		}
-	case 228:
-		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:793
-		{
-			n := &Node{Kind: KindParam, Type: TypePtr, Name: ""}
-			n.Pointee = ptrCType(yyDollar[1].typ)
-			yyVAL.node = n
-		}
 	case 229:
-		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:795
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line grammar.y:794
 		{
 			n := &Node{Kind: KindParam, Type: TypePtr, Name: ""}
 			n.Pointee = ptrCType(yyDollar[1].typ)
 			yyVAL.node = n
 		}
 	case 230:
+		yyDollar = yyS[yypt-4 : yypt+1]
+//line grammar.y:796
+		{
+			n := &Node{Kind: KindParam, Type: TypePtr, Name: ""}
+			n.Pointee = ptrCType(yyDollar[1].typ)
+			yyVAL.node = n
+		}
+	case 231:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:797
+//line grammar.y:798
 		{
 			n := &Node{Kind: KindParam, Type: TypePtr, Name: yyDollar[5].sval}
 			n.Pointee = ptrCType(yyDollar[1].typ)
 			yyVAL.node = n
 		}
-	case 231:
+	case 232:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:799
+//line grammar.y:800
 		{
 			n := &Node{Kind: KindParam, Type: TypePtr, Name: "", IsConstTarget: true}
 			n.Pointee = yyDollar[2].typ
 			yyVAL.node = n
 		}
-	case 232:
+	case 233:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:801
+//line grammar.y:802
 		{
 			n := &Node{Kind: KindParam, Type: TypePtr, Name: ""}
 			n.Pointee = structCType(yyDollar[2].sval)
 			yyVAL.node = n
 		}
-	case 233:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:803
-		{
-			yyVAL.node = &Node{Kind: KindParam, Type: TypeInt, Name: ""}
-		}
 	case 234:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:804
 		{
-			yyVAL.node = &Node{Kind: KindParam, Type: TypeChar, Name: ""}
+			yyVAL.node = &Node{Kind: KindParam, Type: TypeInt, Name: ""}
 		}
 	case 235:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:805
 		{
-			yyVAL.node = &Node{Kind: KindParam, Type: TypeLong, Name: ""}
+			yyVAL.node = &Node{Kind: KindParam, Type: TypeChar, Name: ""}
 		}
 	case 236:
-		yyDollar = yyS[yypt-2 : yypt+1]
+		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:806
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeLong, Name: ""}
@@ -3406,40 +3406,40 @@ yydefault:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:808
 		{
-			yyVAL.node = &Node{Kind: KindParam, Type: TypeDouble, Name: ""}
+			yyVAL.node = &Node{Kind: KindParam, Type: TypeLong, Name: ""}
 		}
 	case 239:
-		yyDollar = yyS[yypt-1 : yypt+1]
+		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:809
 		{
-			yyVAL.node = &Node{Kind: KindParam, Type: TypeShort, Name: ""}
+			yyVAL.node = &Node{Kind: KindParam, Type: TypeDouble, Name: ""}
 		}
 	case 240:
-		yyDollar = yyS[yypt-2 : yypt+1]
+		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:810
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeShort, Name: ""}
 		}
 	case 241:
-		yyDollar = yyS[yypt-1 : yypt+1]
+		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:811
 		{
-			yyVAL.node = &Node{Kind: KindParam, Type: TypeFloat, Name: ""}
+			yyVAL.node = &Node{Kind: KindParam, Type: TypeShort, Name: ""}
 		}
 	case 242:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:812
 		{
-			yyVAL.node = &Node{Kind: KindParam, Type: TypeDouble, Name: ""}
+			yyVAL.node = &Node{Kind: KindParam, Type: TypeFloat, Name: ""}
 		}
 	case 243:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:813
 		{
-			yyVAL.node = &Node{Kind: KindParam, Type: TypeUnsignedInt, Name: ""}
+			yyVAL.node = &Node{Kind: KindParam, Type: TypeDouble, Name: ""}
 		}
 	case 244:
-		yyDollar = yyS[yypt-2 : yypt+1]
+		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:814
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeUnsignedInt, Name: ""}
@@ -3448,40 +3448,40 @@ yydefault:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:815
 		{
-			yyVAL.node = &Node{Kind: KindParam, Type: TypeUnsignedLong, Name: ""}
+			yyVAL.node = &Node{Kind: KindParam, Type: TypeUnsignedInt, Name: ""}
 		}
 	case 246:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:816
 		{
-			yyVAL.node = &Node{Kind: KindParam, Type: TypeUnsignedChar, Name: ""}
+			yyVAL.node = &Node{Kind: KindParam, Type: TypeUnsignedLong, Name: ""}
 		}
 	case 247:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:817
 		{
-			yyVAL.node = &Node{Kind: KindParam, Type: TypeUnsignedShort, Name: ""}
+			yyVAL.node = &Node{Kind: KindParam, Type: TypeUnsignedChar, Name: ""}
 		}
 	case 248:
-		yyDollar = yyS[yypt-5 : yypt+1]
+		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:818
+		{
+			yyVAL.node = &Node{Kind: KindParam, Type: TypeUnsignedShort, Name: ""}
+		}
+	case 249:
+		yyDollar = yyS[yypt-5 : yypt+1]
+//line grammar.y:819
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: TypeUnsignedShort, Val: yyDollar[4].ival}
 		}
-	case 249:
+	case 250:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:819
+//line grammar.y:820
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeIntArray, Name: yyDollar[3].sval, ElemType: TypeUnsignedShort, Val: yyDollar[5].ival}
 		}
-	case 250:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:820
-		{
-			yyVAL.node = &Node{Kind: KindParam, Type: TypeInt, Name: ""}
-		}
 	case 251:
-		yyDollar = yyS[yypt-2 : yypt+1]
+		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:821
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeInt, Name: ""}
@@ -3490,178 +3490,174 @@ yydefault:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:822
 		{
-			yyVAL.node = &Node{Kind: KindParam, Type: TypeChar, Name: ""}
+			yyVAL.node = &Node{Kind: KindParam, Type: TypeInt, Name: ""}
 		}
 	case 253:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:823
 		{
-			yyVAL.node = &Node{Kind: KindParam, Type: TypeLong, Name: ""}
+			yyVAL.node = &Node{Kind: KindParam, Type: TypeChar, Name: ""}
 		}
 	case 254:
-		yyDollar = yyS[yypt-1 : yypt+1]
+		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:824
+		{
+			yyVAL.node = &Node{Kind: KindParam, Type: TypeLong, Name: ""}
+		}
+	case 255:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line grammar.y:825
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeInt128, Name: ""}
 		}
-	case 255:
+	case 256:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line grammar.y:825
+//line grammar.y:826
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeUint128, Name: ""}
 		}
-	case 256:
+	case 257:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:826
+//line grammar.y:827
 		{
 			ct := yylex.(*lexer).lookupTypedefCType(yyDollar[1].sval)
 			yyVAL.node = &Node{Kind: KindParam, Type: ct.Kind, Name: "", StructTag: ct.Tag}
 		}
-	case 257:
+	case 258:
 		yyDollar = yyS[yypt-8 : yypt+1]
-//line grammar.y:828
+//line grammar.y:829
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeFuncPtr, Name: yyDollar[4].sval}
 		}
-	case 258:
+	case 259:
 		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:830
+//line grammar.y:831
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeFuncPtr, Name: ""}
 		}
-	case 259:
+	case 260:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:833
+//line grammar.y:834
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: yyDollar[1].typ.Kind, Val: yyDollar[3].ival}
 		}
-	case 260:
+	case 261:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:836
+//line grammar.y:837
 		{
 			yyVAL.node = ctNode(KindParam, yyDollar[2].typ, yyDollar[3].sval)
 		}
-	case 261:
+	case 262:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line grammar.y:838
+//line grammar.y:839
 		{
 			yyVAL.node = ctNode(KindParam, yyDollar[2].typ, "")
 		}
-	case 262:
+	case 263:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:841
+//line grammar.y:842
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: TypeStruct, ElemPointee: structCType(yyDollar[3].sval), Val: yyDollar[5].ival}
 		}
-	case 263:
+	case 264:
 		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:843
+//line grammar.y:844
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeIntArray, Name: yyDollar[4].sval, ElemType: TypeStruct, ElemPointee: structCType(yyDollar[3].sval), Val: yyDollar[6].ival}
 		}
-	case 264:
+	case 265:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:848
+//line grammar.y:849
 		{
 			yyVAL.node = &Node{Kind: KindCompound, Children: yyDollar[2].nodes}
 		}
-	case 265:
+	case 266:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line grammar.y:854
+//line grammar.y:855
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, yyDollar[2].node)
 		}
-	case 266:
-		yyDollar = yyS[yypt-2 : yypt+1]
-//line grammar.y:856
-		{
-			yyVAL.nodes = append(yyDollar[1].nodes, yyDollar[2].nodes...)
-		}
 	case 267:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line grammar.y:858
+//line grammar.y:857
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, yyDollar[2].nodes...)
 		}
 	case 268:
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line grammar.y:859
+		{
+			yyVAL.nodes = append(yyDollar[1].nodes, yyDollar[2].nodes...)
+		}
+	case 269:
 		yyDollar = yyS[yypt-0 : yypt+1]
-//line grammar.y:860
+//line grammar.y:861
 		{
 			yyVAL.nodes = nil
 		}
-	case 269:
+	case 270:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:865
+//line grammar.y:866
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, &Node{Kind: KindVar, Name: yyDollar[3].sval})
 		}
-	case 270:
+	case 271:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:867
+//line grammar.y:868
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, &Node{Kind: KindVar, Name: yyDollar[3].sval, Val: yyDollar[5].ival, Type: TypeIntArray})
 		}
-	case 271:
+	case 272:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:870
+//line grammar.y:871
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, &Node{Kind: KindVarDecl, Name: yyDollar[3].sval, Children: []*Node{yyDollar[5].node}})
 		}
-	case 272:
+	case 273:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:872
+//line grammar.y:873
 		{
 			yyVAL.nodes = []*Node{{Kind: KindVar, Name: yyDollar[1].sval}, {Kind: KindVar, Name: yyDollar[3].sval}}
 		}
-	case 273:
+	case 274:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:881
+//line grammar.y:882
 		{
 			yyVAL.nodes = []*Node{
 				{Kind: KindVarDecl, Name: yyDollar[1].sval},
 				{Kind: KindVarDecl, Type: TypeIntArray, Name: yyDollar[3].sval, Val: yyDollar[5].ival},
 			}
 		}
-	case 274:
+	case 275:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:886
+//line grammar.y:887
 		{
 			yyVAL.nodes = []*Node{
 				{Kind: KindVarDecl, Type: TypeIntArray, Name: yyDollar[1].sval, Val: yyDollar[3].ival},
 				{Kind: KindVarDecl, Name: yyDollar[6].sval},
 			}
 		}
-	case 275:
+	case 276:
 		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:892
+//line grammar.y:893
 		{
 			yyVAL.nodes = []*Node{
 				{Kind: KindVarDecl, Name: yyDollar[1].sval, Children: []*Node{yyDollar[3].node}},
 				{Kind: KindVarDecl, Name: yyDollar[5].sval, Children: []*Node{yyDollar[7].node}},
 			}
 		}
-	case 276:
+	case 277:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:898
+//line grammar.y:899
 		{
 			yyVAL.nodes = []*Node{
 				{Kind: KindVarDecl, Name: yyDollar[1].sval, Children: []*Node{yyDollar[3].node}},
 				{Kind: KindVarDecl, Name: yyDollar[5].sval},
 			}
 		}
-	case 277:
-		yyDollar = yyS[yypt-11 : yypt+1]
-//line grammar.y:904
-		{
-			yyVAL.nodes = []*Node{
-				{Kind: KindVarDecl, Name: yyDollar[1].sval, Children: []*Node{yyDollar[3].node}},
-				{Kind: KindVarDecl, Type: TypeIntArray, Name: yyDollar[5].sval, Val: 0,
-					Children: []*Node{{Kind: KindInitList, Children: yyDollar[10].nodes}}},
-			}
-		}
 	case 278:
-		yyDollar = yyS[yypt-12 : yypt+1]
-//line grammar.y:910
+		yyDollar = yyS[yypt-11 : yypt+1]
+//line grammar.y:905
 		{
 			yyVAL.nodes = []*Node{
 				{Kind: KindVarDecl, Name: yyDollar[1].sval, Children: []*Node{yyDollar[3].node}},
@@ -3670,54 +3666,58 @@ yydefault:
 			}
 		}
 	case 279:
+		yyDollar = yyS[yypt-12 : yypt+1]
+//line grammar.y:911
+		{
+			yyVAL.nodes = []*Node{
+				{Kind: KindVarDecl, Name: yyDollar[1].sval, Children: []*Node{yyDollar[3].node}},
+				{Kind: KindVarDecl, Type: TypeIntArray, Name: yyDollar[5].sval, Val: 0,
+					Children: []*Node{{Kind: KindInitList, Children: yyDollar[10].nodes}}},
+			}
+		}
+	case 280:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:917
+//line grammar.y:918
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, &Node{Kind: KindVarDecl, Name: yyDollar[3].sval, Children: []*Node{yyDollar[5].node}})
 		}
-	case 280:
+	case 281:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:920
+//line grammar.y:921
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, &Node{Kind: KindVarDecl, Name: yyDollar[3].sval})
 		}
-	case 281:
-		yyDollar = yyS[yypt-9 : yypt+1]
-//line grammar.y:923
-		{
-			yyVAL.nodes = append(yyDollar[1].nodes, &Node{Kind: KindVarDecl, Type: TypeIntArray, Name: yyDollar[3].sval, Val: 0,
-				Children: []*Node{{Kind: KindInitList, Children: yyDollar[8].nodes}}})
-		}
 	case 282:
-		yyDollar = yyS[yypt-10 : yypt+1]
-//line grammar.y:926
+		yyDollar = yyS[yypt-9 : yypt+1]
+//line grammar.y:924
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, &Node{Kind: KindVarDecl, Type: TypeIntArray, Name: yyDollar[3].sval, Val: 0,
 				Children: []*Node{{Kind: KindInitList, Children: yyDollar[8].nodes}}})
 		}
 	case 283:
+		yyDollar = yyS[yypt-10 : yypt+1]
+//line grammar.y:927
+		{
+			yyVAL.nodes = append(yyDollar[1].nodes, &Node{Kind: KindVarDecl, Type: TypeIntArray, Name: yyDollar[3].sval, Val: 0,
+				Children: []*Node{{Kind: KindInitList, Children: yyDollar[8].nodes}}})
+		}
+	case 284:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:930
+//line grammar.y:931
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, &Node{Kind: KindVarDecl, Type: TypeIntArray, Name: yyDollar[3].sval, Val: yyDollar[5].ival})
 		}
-	case 284:
+	case 285:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line grammar.y:935
+//line grammar.y:936
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, yyDollar[2].node)
 		}
-	case 285:
+	case 286:
 		yyDollar = yyS[yypt-0 : yypt+1]
-//line grammar.y:937
+//line grammar.y:938
 		{
 			yyVAL.nodes = nil
-		}
-	case 286:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:941
-		{
-			yyVAL.node = yyDollar[1].node
 		}
 	case 287:
 		yyDollar = yyS[yypt-1 : yypt+1]
@@ -3780,59 +3780,65 @@ yydefault:
 			yyVAL.node = yyDollar[1].node
 		}
 	case 297:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line grammar.y:952
+		{
+			yyVAL.node = yyDollar[1].node
+		}
+	case 298:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:953
+//line grammar.y:954
 		{
 			yyVAL.node = &Node{Kind: KindLabel, Name: yyDollar[1].sval, Children: []*Node{yyDollar[3].node}}
 		}
-	case 298:
+	case 299:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line grammar.y:957
+//line grammar.y:958
 		{
 			yyVAL.node = &Node{Kind: KindExprStmt, Children: []*Node{yyDollar[1].node}}
 		}
-	case 299:
+	case 300:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:958
+//line grammar.y:959
 		{
 			yyVAL.node = &Node{Kind: KindExprStmt}
 		}
-	case 300:
+	case 301:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:963
+//line grammar.y:964
 		{
 			yyVAL.node = &Node{Kind: KindSelection, Children: []*Node{yyDollar[3].node, yyDollar[5].node}}
 		}
-	case 301:
+	case 302:
 		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:965
+//line grammar.y:966
 		{
 			yyVAL.node = &Node{Kind: KindSelection, Children: []*Node{yyDollar[3].node, yyDollar[5].node, yyDollar[7].node}}
 		}
-	case 302:
+	case 303:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:970
+//line grammar.y:971
 		{
 			yyVAL.node = &Node{Kind: KindIteration, Children: []*Node{yyDollar[3].node, yyDollar[5].node}}
 		}
-	case 303:
+	case 304:
 		yyDollar = yyS[yypt-9 : yypt+1]
-//line grammar.y:975
+//line grammar.y:976
 		{
 			yyVAL.node = &Node{Kind: KindFor, Children: []*Node{yyDollar[3].node, yyDollar[5].node, yyDollar[7].node, yyDollar[9].node}}
 		}
-	case 304:
+	case 305:
 		yyDollar = yyS[yypt-11 : yypt+1]
-//line grammar.y:978
+//line grammar.y:979
 		{
 			inc := &Node{Kind: KindCompound, Children: []*Node{
 				&Node{Kind: KindExprStmt, Children: []*Node{yyDollar[7].node}},
 				&Node{Kind: KindExprStmt, Children: []*Node{yyDollar[9].node}}}}
 			yyVAL.node = &Node{Kind: KindFor, Children: []*Node{yyDollar[3].node, yyDollar[5].node, inc, yyDollar[11].node}}
 		}
-	case 305:
+	case 306:
 		yyDollar = yyS[yypt-13 : yypt+1]
-//line grammar.y:983
+//line grammar.y:984
 		{
 			inc := &Node{Kind: KindCompound, Children: []*Node{
 				&Node{Kind: KindExprStmt, Children: []*Node{yyDollar[7].node}},
@@ -3840,18 +3846,18 @@ yydefault:
 				&Node{Kind: KindExprStmt, Children: []*Node{yyDollar[11].node}}}}
 			yyVAL.node = &Node{Kind: KindFor, Children: []*Node{yyDollar[3].node, yyDollar[5].node, inc, yyDollar[13].node}}
 		}
-	case 306:
+	case 307:
 		yyDollar = yyS[yypt-11 : yypt+1]
-//line grammar.y:990
+//line grammar.y:991
 		{
 			init := &Node{Kind: KindExprStmt, Children: []*Node{yyDollar[3].node}}
 			init2 := &Node{Kind: KindExprStmt, Children: []*Node{yyDollar[5].node}}
 			yyVAL.node = &Node{Kind: KindFor, Children: []*Node{
 				&Node{Kind: KindCompound, Children: []*Node{init, init2}}, yyDollar[7].node, yyDollar[9].node, yyDollar[11].node}}
 		}
-	case 307:
+	case 308:
 		yyDollar = yyS[yypt-13 : yypt+1]
-//line grammar.y:995
+//line grammar.y:996
 		{
 			init := &Node{Kind: KindExprStmt, Children: []*Node{yyDollar[3].node}}
 			init2 := &Node{Kind: KindExprStmt, Children: []*Node{yyDollar[5].node}}
@@ -3859,9 +3865,9 @@ yydefault:
 			yyVAL.node = &Node{Kind: KindFor, Children: []*Node{
 				&Node{Kind: KindCompound, Children: []*Node{init, init2, init3}}, yyDollar[9].node, yyDollar[11].node, yyDollar[13].node}}
 		}
-	case 308:
+	case 309:
 		yyDollar = yyS[yypt-13 : yypt+1]
-//line grammar.y:1002
+//line grammar.y:1003
 		{
 			init := &Node{Kind: KindCompound, Children: []*Node{
 				&Node{Kind: KindExprStmt, Children: []*Node{yyDollar[3].node}},
@@ -3871,9 +3877,9 @@ yydefault:
 				&Node{Kind: KindExprStmt, Children: []*Node{yyDollar[11].node}}}}
 			yyVAL.node = &Node{Kind: KindFor, Children: []*Node{init, yyDollar[7].node, inc, yyDollar[13].node}}
 		}
-	case 309:
+	case 310:
 		yyDollar = yyS[yypt-15 : yypt+1]
-//line grammar.y:1011
+//line grammar.y:1012
 		{
 			init := &Node{Kind: KindCompound, Children: []*Node{
 				&Node{Kind: KindExprStmt, Children: []*Node{yyDollar[3].node}},
@@ -3884,749 +3890,740 @@ yydefault:
 				&Node{Kind: KindExprStmt, Children: []*Node{yyDollar[13].node}}}}
 			yyVAL.node = &Node{Kind: KindFor, Children: []*Node{init, yyDollar[9].node, inc, yyDollar[15].node}}
 		}
-	case 310:
+	case 311:
 		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:1023
+//line grammar.y:1024
 		{
 			yyVAL.node = &Node{Kind: KindDoWhile, Children: []*Node{yyDollar[2].node, yyDollar[5].node}}
 		}
-	case 311:
+	case 312:
 		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:1028
+//line grammar.y:1029
 		{
 			yyVAL.node = &Node{Kind: KindSwitch, Children: append([]*Node{yyDollar[3].node}, yyDollar[6].nodes...)}
 		}
-	case 312:
+	case 313:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line grammar.y:1033
+//line grammar.y:1034
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, yyDollar[2].node)
 		}
-	case 313:
+	case 314:
 		yyDollar = yyS[yypt-0 : yypt+1]
-//line grammar.y:1035
+//line grammar.y:1036
 		{
 			yyVAL.nodes = nil
 		}
-	case 314:
+	case 315:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1040
+//line grammar.y:1041
 		{
 			yyVAL.node = &Node{Kind: KindCase, Children: append([]*Node{yyDollar[2].node}, yyDollar[4].nodes...)}
 		}
-	case 315:
+	case 316:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1042
+//line grammar.y:1043
 		{
 			yyVAL.node = &Node{Kind: KindCase, Val: -1, Children: yyDollar[3].nodes}
 		}
-	case 316:
+	case 317:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1047
+//line grammar.y:1048
 		{
 			yyVAL.node = &Node{Kind: KindGoto, Name: yyDollar[2].sval}
 		}
-	case 317:
+	case 318:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line grammar.y:1052
+//line grammar.y:1053
 		{
 			yyVAL.node = &Node{Kind: KindBreak}
 		}
-	case 318:
+	case 319:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line grammar.y:1057
+//line grammar.y:1058
 		{
 			yyVAL.node = &Node{Kind: KindContinue}
 		}
-	case 319:
+	case 320:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1061
+//line grammar.y:1062
 		{
 			yyVAL.node = yyDollar[1].node
 		}
-	case 320:
+	case 321:
 		yyDollar = yyS[yypt-0 : yypt+1]
-//line grammar.y:1062
+//line grammar.y:1063
 		{
 			yyVAL.node = nil
 		}
-	case 321:
+	case 322:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line grammar.y:1067
+//line grammar.y:1068
 		{
 			yyVAL.node = &Node{Kind: KindReturn}
 		}
-	case 322:
+	case 323:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1069
+//line grammar.y:1070
 		{
 			yyVAL.node = &Node{Kind: KindReturn, Children: []*Node{yyDollar[2].node}}
 		}
-	case 323:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1074
-		{
-			yyVAL.node = yyDollar[1].node
-		}
 	case 324:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1076
+//line grammar.y:1075
 		{
 			yyVAL.node = yyDollar[1].node
 		}
 	case 325:
-		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1078
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line grammar.y:1077
 		{
-			yyVAL.node = &Node{Kind: KindFieldAccess, Op: "->", Name: yyDollar[3].sval, Children: []*Node{yyDollar[1].node}}
+			yyVAL.node = yyDollar[1].node
 		}
 	case 326:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1080
+//line grammar.y:1079
+		{
+			yyVAL.node = &Node{Kind: KindFieldAccess, Op: "->", Name: yyDollar[3].sval, Children: []*Node{yyDollar[1].node}}
+		}
+	case 327:
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line grammar.y:1081
 		{
 			yyVAL.node = &Node{Kind: KindFieldAccess, Op: ".", Name: yyDollar[3].sval, Children: []*Node{yyDollar[1].node}}
 		}
-	case 327:
+	case 328:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line grammar.y:1082
+//line grammar.y:1083
 		{
 			yyVAL.node = &Node{Kind: KindPostInc, Children: []*Node{yyDollar[1].node}}
 		}
-	case 328:
+	case 329:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line grammar.y:1084
+//line grammar.y:1085
 		{
 			yyVAL.node = &Node{Kind: KindPostDec, Children: []*Node{yyDollar[1].node}}
 		}
-	case 329:
+	case 330:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1086
+//line grammar.y:1087
 		{
 			yyVAL.node = &Node{Kind: KindIndexExpr, Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
-	case 330:
+	case 331:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:1089
+//line grammar.y:1090
 		{
 			callee := &Node{Kind: KindFieldAccess, Op: "->", Name: yyDollar[3].sval, Children: []*Node{yyDollar[1].node}}
 			yyVAL.node = &Node{Kind: KindIndirectCall, Children: append([]*Node{callee}, yyDollar[5].nodes...)}
 		}
-	case 331:
+	case 332:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:1092
+//line grammar.y:1093
 		{
 			callee := &Node{Kind: KindFieldAccess, Op: ".", Name: yyDollar[3].sval, Children: []*Node{yyDollar[1].node}}
 			yyVAL.node = &Node{Kind: KindIndirectCall, Children: append([]*Node{callee}, yyDollar[5].nodes...)}
 		}
-	case 332:
+	case 333:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1096
+//line grammar.y:1097
 		{
 			yyVAL.node = &Node{Kind: KindFieldAccess, Op: ".", Name: yyDollar[5].sval, Children: []*Node{yyDollar[2].node}}
 		}
-	case 333:
+	case 334:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1099
+//line grammar.y:1100
 		{
 			yyVAL.node = &Node{Kind: KindFieldAccess, Op: "->", Name: yyDollar[5].sval, Children: []*Node{yyDollar[2].node}}
 		}
-	case 334:
+	case 335:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:1102
+//line grammar.y:1103
 		{
 			yyVAL.node = &Node{Kind: KindIndexExpr, Children: []*Node{yyDollar[2].node, yyDollar[5].node}}
 		}
-	case 335:
+	case 336:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1107
+//line grammar.y:1108
 		{
 			yyVAL.node = &Node{Kind: KindAssign, Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
-	case 336:
+	case 337:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1109
+//line grammar.y:1110
 		{
 			yyVAL.node = &Node{Kind: KindAssign, Children: []*Node{yyDollar[2].node, yyDollar[5].node}}
 		}
-	case 337:
+	case 338:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1111
+//line grammar.y:1112
 		{
 			lhs := &Node{Kind: KindDeref, Children: []*Node{yyDollar[2].node}}
 			yyVAL.node = &Node{Kind: KindAssign, Children: []*Node{lhs, yyDollar[4].node}}
 		}
-	case 338:
+	case 339:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1114
+//line grammar.y:1115
 		{
 			lhs := &Node{Kind: KindDeref, Children: []*Node{yyDollar[2].node}}
 			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "+", Children: []*Node{lhs, yyDollar[4].node}}
 		}
-	case 339:
+	case 340:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1116
+//line grammar.y:1117
 		{
 			lhs := &Node{Kind: KindDeref, Children: []*Node{yyDollar[2].node}}
 			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "-", Children: []*Node{lhs, yyDollar[4].node}}
 		}
-	case 340:
+	case 341:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1118
+//line grammar.y:1119
 		{
 			lhs := &Node{Kind: KindDeref, Children: []*Node{yyDollar[2].node}}
 			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "*", Children: []*Node{lhs, yyDollar[4].node}}
 		}
-	case 341:
+	case 342:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1120
+//line grammar.y:1121
 		{
 			lhs := &Node{Kind: KindDeref, Children: []*Node{yyDollar[2].node}}
 			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: ">>", Children: []*Node{lhs, yyDollar[4].node}}
 		}
-	case 342:
+	case 343:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1122
+//line grammar.y:1123
 		{
 			lhs := &Node{Kind: KindDeref, Children: []*Node{yyDollar[2].node}}
 			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "<<", Children: []*Node{lhs, yyDollar[4].node}}
 		}
-	case 343:
+	case 344:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1124
+//line grammar.y:1125
 		{
 			lhs := &Node{Kind: KindDeref, Children: []*Node{yyDollar[2].node}}
 			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "|", Children: []*Node{lhs, yyDollar[4].node}}
 		}
-	case 344:
+	case 345:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1126
+//line grammar.y:1127
 		{
 			lhs := &Node{Kind: KindDeref, Children: []*Node{yyDollar[2].node}}
 			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "&", Children: []*Node{lhs, yyDollar[4].node}}
 		}
-	case 345:
+	case 346:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1128
+//line grammar.y:1129
 		{
 			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "+", Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
-	case 346:
+	case 347:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1130
+//line grammar.y:1131
 		{
 			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "-", Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
-	case 347:
+	case 348:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1132
+//line grammar.y:1133
 		{
 			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "*", Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
-	case 348:
+	case 349:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1134
+//line grammar.y:1135
 		{
 			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "/", Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
-	case 349:
+	case 350:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1136
+//line grammar.y:1137
 		{
 			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "%", Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
-	case 350:
+	case 351:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1138
+//line grammar.y:1139
 		{
 			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "&", Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
-	case 351:
+	case 352:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1140
+//line grammar.y:1141
 		{
 			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "|", Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
-	case 352:
+	case 353:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1142
+//line grammar.y:1143
 		{
 			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "^", Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
-	case 353:
+	case 354:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1144
+//line grammar.y:1145
 		{
 			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: "<<", Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
-	case 354:
+	case 355:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1146
+//line grammar.y:1147
 		{
 			yyVAL.node = &Node{Kind: KindCompoundAssign, Op: ">>", Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
-	case 355:
+	case 356:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1148
+//line grammar.y:1149
 		{
 			yyVAL.node = yyDollar[1].node
 		}
-	case 356:
+	case 357:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1153
+//line grammar.y:1154
 		{
 			yyVAL.node = &Node{Kind: KindVar, Name: yyDollar[1].sval}
 		}
-	case 357:
+	case 358:
 		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:1155
+//line grammar.y:1156
 		{
 			yyVAL.node = &Node{Kind: KindArray2D, Name: yyDollar[1].sval, Children: []*Node{yyDollar[3].node, yyDollar[6].node}}
 		}
-	case 358:
+	case 359:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1157
+//line grammar.y:1158
 		{
 			yyVAL.node = &Node{Kind: KindArrayVar, Name: yyDollar[1].sval, Children: []*Node{yyDollar[3].node}}
 		}
-	case 359:
+	case 360:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1162
+//line grammar.y:1163
 		{
 			yyVAL.node = yyDollar[1].node
 		}
-	case 360:
+	case 361:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1167
+//line grammar.y:1168
 		{
 			yyVAL.node = &Node{Kind: KindTernary, Children: []*Node{yyDollar[1].node, yyDollar[3].node, yyDollar[5].node}}
 		}
-	case 361:
+	case 362:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1169
+//line grammar.y:1170
 		{
 			yyVAL.node = yyDollar[1].node
-		}
-	case 362:
-		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1174
-		{
-			yyVAL.node = &Node{Kind: KindLogAnd, Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
 	case 363:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1176
+//line grammar.y:1175
+		{
+			yyVAL.node = &Node{Kind: KindLogAnd, Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
+		}
+	case 364:
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line grammar.y:1177
 		{
 			yyVAL.node = &Node{Kind: KindLogOr, Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
-	case 364:
+	case 365:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1178
+//line grammar.y:1179
 		{
 			yyVAL.node = yyDollar[1].node
-		}
-	case 365:
-		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1183
-		{
-			yyVAL.node = &Node{Kind: KindBinOp, Op: yyDollar[2].sval, Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
 	case 366:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1185
-		{
-			yyVAL.node = yyDollar[1].node
-		}
-	case 367:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1190
+//line grammar.y:1184
 		{
 			yyVAL.node = &Node{Kind: KindBinOp, Op: yyDollar[2].sval, Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
-	case 368:
+	case 367:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1192
+//line grammar.y:1186
 		{
 			yyVAL.node = yyDollar[1].node
+		}
+	case 368:
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line grammar.y:1191
+		{
+			yyVAL.node = &Node{Kind: KindBinOp, Op: yyDollar[2].sval, Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
 	case 369:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1196
+//line grammar.y:1193
 		{
-			yyVAL.sval = "&"
+			yyVAL.node = yyDollar[1].node
 		}
 	case 370:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1197
 		{
-			yyVAL.sval = "|"
+			yyVAL.sval = "&"
 		}
 	case 371:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1198
 		{
-			yyVAL.sval = "^"
+			yyVAL.sval = "|"
 		}
 	case 372:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1199
 		{
-			yyVAL.sval = "<<"
+			yyVAL.sval = "^"
 		}
 	case 373:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1200
 		{
-			yyVAL.sval = ">>"
+			yyVAL.sval = "<<"
 		}
 	case 374:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1204
+//line grammar.y:1201
 		{
-			yyVAL.sval = "<="
+			yyVAL.sval = ">>"
 		}
 	case 375:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1205
 		{
-			yyVAL.sval = "<"
+			yyVAL.sval = "<="
 		}
 	case 376:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1206
 		{
-			yyVAL.sval = ">"
+			yyVAL.sval = "<"
 		}
 	case 377:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1207
 		{
-			yyVAL.sval = ">="
+			yyVAL.sval = ">"
 		}
 	case 378:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1208
 		{
-			yyVAL.sval = "=="
+			yyVAL.sval = ">="
 		}
 	case 379:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1209
 		{
-			yyVAL.sval = "!="
+			yyVAL.sval = "=="
 		}
 	case 380:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line grammar.y:1210
+		{
+			yyVAL.sval = "!="
+		}
+	case 381:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1214
+//line grammar.y:1215
 		{
 			yyVAL.node = &Node{Kind: KindBinOp, Op: yyDollar[2].sval, Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
-	case 381:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1216
-		{
-			yyVAL.node = yyDollar[1].node
-		}
 	case 382:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1220
+//line grammar.y:1217
 		{
-			yyVAL.sval = "+"
+			yyVAL.node = yyDollar[1].node
 		}
 	case 383:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1221
 		{
-			yyVAL.sval = "-"
+			yyVAL.sval = "+"
 		}
 	case 384:
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line grammar.y:1222
+		{
+			yyVAL.sval = "-"
+		}
+	case 385:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1226
+//line grammar.y:1227
 		{
 			yyVAL.node = &Node{Kind: KindBinOp, Op: yyDollar[2].sval, Children: []*Node{yyDollar[1].node, yyDollar[3].node}}
 		}
-	case 385:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1228
-		{
-			yyVAL.node = yyDollar[1].node
-		}
 	case 386:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1232
+//line grammar.y:1229
 		{
-			yyVAL.sval = "*"
+			yyVAL.node = yyDollar[1].node
 		}
 	case 387:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1233
 		{
-			yyVAL.sval = "/"
+			yyVAL.sval = "*"
 		}
 	case 388:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1234
 		{
-			yyVAL.sval = "%"
+			yyVAL.sval = "/"
 		}
 	case 389:
-		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1238
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line grammar.y:1235
 		{
-			yyVAL.node = yyDollar[2].node
+			yyVAL.sval = "%"
 		}
 	case 390:
-		yyDollar = yyS[yypt-1 : yypt+1]
+		yyDollar = yyS[yypt-3 : yypt+1]
 //line grammar.y:1239
 		{
-			yyVAL.node = yyDollar[1].node
+			yyVAL.node = yyDollar[2].node
 		}
 	case 391:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1240
 		{
-			yyVAL.node = &Node{Kind: KindNum, Val: yyDollar[1].ival}
+			yyVAL.node = yyDollar[1].node
 		}
 	case 392:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1241
 		{
-			yyVAL.node = &Node{Kind: KindFNum, FVal: yyDollar[1].fval, Type: TypeDouble}
+			yyVAL.node = &Node{Kind: KindNum, Val: yyDollar[1].ival}
 		}
 	case 393:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1242
 		{
-			yyVAL.node = &Node{Kind: KindCharLit, Val: yyDollar[1].ival, Type: TypeInt}
+			yyVAL.node = &Node{Kind: KindFNum, FVal: yyDollar[1].fval, Type: TypeDouble}
 		}
 	case 394:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1243
 		{
-			yyVAL.node = &Node{Kind: KindStrLit, Name: yyDollar[1].sval, Type: TypeCharPtr}
+			yyVAL.node = &Node{Kind: KindCharLit, Val: yyDollar[1].ival, Type: TypeInt}
 		}
 	case 395:
-		yyDollar = yyS[yypt-2 : yypt+1]
+		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1244
 		{
-			yyVAL.node = &Node{Kind: KindUnary, Op: "-", Children: []*Node{yyDollar[2].node}}
+			yyVAL.node = &Node{Kind: KindStrLit, Name: yyDollar[1].sval, Type: TypeCharPtr}
 		}
 	case 396:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:1245
 		{
-			yyVAL.node = &Node{Kind: KindUnary, Op: "!", Children: []*Node{yyDollar[2].node}}
+			yyVAL.node = &Node{Kind: KindUnary, Op: "-", Children: []*Node{yyDollar[2].node}}
 		}
 	case 397:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:1246
 		{
-			yyVAL.node = &Node{Kind: KindUnary, Op: "~", Children: []*Node{yyDollar[2].node}}
+			yyVAL.node = &Node{Kind: KindUnary, Op: "!", Children: []*Node{yyDollar[2].node}}
 		}
 	case 398:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:1247
 		{
-			yyVAL.node = &Node{Kind: KindPreInc, Children: []*Node{yyDollar[2].node}}
+			yyVAL.node = &Node{Kind: KindUnary, Op: "~", Children: []*Node{yyDollar[2].node}}
 		}
 	case 399:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:1248
 		{
-			yyVAL.node = &Node{Kind: KindPreDec, Children: []*Node{yyDollar[2].node}}
+			yyVAL.node = &Node{Kind: KindPreInc, Children: []*Node{yyDollar[2].node}}
 		}
 	case 400:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:1249
 		{
-			yyVAL.node = &Node{Kind: KindAddrOf, Children: []*Node{yyDollar[2].node}}
+			yyVAL.node = &Node{Kind: KindPreDec, Children: []*Node{yyDollar[2].node}}
 		}
 	case 401:
-		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1251
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line grammar.y:1250
 		{
-			fa := &Node{Kind: KindFieldAccess, Op: "->", Name: yyDollar[4].sval, Children: []*Node{yyDollar[2].node}}
-			yyVAL.node = &Node{Kind: KindAddrOf, Children: []*Node{fa}}
+			yyVAL.node = &Node{Kind: KindAddrOf, Children: []*Node{yyDollar[2].node}}
 		}
 	case 402:
 		yyDollar = yyS[yypt-4 : yypt+1]
 //line grammar.y:1252
 		{
-			fa := &Node{Kind: KindFieldAccess, Op: ".", Name: yyDollar[4].sval, Children: []*Node{yyDollar[2].node}}
+			fa := &Node{Kind: KindFieldAccess, Op: "->", Name: yyDollar[4].sval, Children: []*Node{yyDollar[2].node}}
 			yyVAL.node = &Node{Kind: KindAddrOf, Children: []*Node{fa}}
 		}
 	case 403:
-		yyDollar = yyS[yypt-6 : yypt+1]
+		yyDollar = yyS[yypt-4 : yypt+1]
 //line grammar.y:1253
 		{
-			fa := &Node{Kind: KindFieldAccess, Op: "->", Name: yyDollar[5].sval, Children: []*Node{yyDollar[3].node}}
+			fa := &Node{Kind: KindFieldAccess, Op: ".", Name: yyDollar[4].sval, Children: []*Node{yyDollar[2].node}}
 			yyVAL.node = &Node{Kind: KindAddrOf, Children: []*Node{fa}}
 		}
 	case 404:
 		yyDollar = yyS[yypt-6 : yypt+1]
 //line grammar.y:1254
 		{
-			fa := &Node{Kind: KindFieldAccess, Op: ".", Name: yyDollar[5].sval, Children: []*Node{yyDollar[3].node}}
+			fa := &Node{Kind: KindFieldAccess, Op: "->", Name: yyDollar[5].sval, Children: []*Node{yyDollar[3].node}}
 			yyVAL.node = &Node{Kind: KindAddrOf, Children: []*Node{fa}}
 		}
 	case 405:
-		yyDollar = yyS[yypt-2 : yypt+1]
+		yyDollar = yyS[yypt-6 : yypt+1]
 //line grammar.y:1255
+		{
+			fa := &Node{Kind: KindFieldAccess, Op: ".", Name: yyDollar[5].sval, Children: []*Node{yyDollar[3].node}}
+			yyVAL.node = &Node{Kind: KindAddrOf, Children: []*Node{fa}}
+		}
+	case 406:
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line grammar.y:1256
 		{
 			yyVAL.node = &Node{Kind: KindDeref, Children: []*Node{yyDollar[2].node}}
 		}
-	case 406:
+	case 407:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1257
+//line grammar.y:1258
 		{
 			yyVAL.node = &Node{Kind: KindSizeof, Type: yyDollar[3].typ.Kind, StructTag: yyDollar[3].typ.Tag}
 		}
-	case 407:
-		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1259
-		{
-			yyVAL.node = &Node{Kind: KindSizeof, Type: TypePtr}
-		}
 	case 408:
-		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:1261
+		yyDollar = yyS[yypt-5 : yypt+1]
+//line grammar.y:1260
 		{
 			yyVAL.node = &Node{Kind: KindSizeof, Type: TypePtr}
 		}
 	case 409:
-		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1263
-		{
-			yyVAL.node = &Node{Kind: KindSizeof, StructTag: yyDollar[4].sval}
-		}
-	case 410:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:1265
+//line grammar.y:1262
 		{
 			yyVAL.node = &Node{Kind: KindSizeof, Type: TypePtr}
 		}
-	case 411:
+	case 410:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1267
+//line grammar.y:1264
 		{
 			yyVAL.node = &Node{Kind: KindSizeof, StructTag: yyDollar[4].sval}
 		}
+	case 411:
+		yyDollar = yyS[yypt-6 : yypt+1]
+//line grammar.y:1266
+		{
+			yyVAL.node = &Node{Kind: KindSizeof, Type: TypePtr}
+		}
 	case 412:
+		yyDollar = yyS[yypt-5 : yypt+1]
+//line grammar.y:1268
+		{
+			yyVAL.node = &Node{Kind: KindSizeof, StructTag: yyDollar[4].sval}
+		}
+	case 413:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1269
+//line grammar.y:1270
 		{
 			yyVAL.node = &Node{Kind: KindSizeof, Children: []*Node{yyDollar[3].node}}
 		}
-	case 413:
+	case 414:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:1271
+//line grammar.y:1272
 		{
 			n := ctNode(KindVAArg, yyDollar[5].typ, "")
 			n.Children = []*Node{yyDollar[3].node}
 			yyVAL.node = n
 		}
-	case 414:
+	case 415:
 		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:1277
+//line grammar.y:1278
 		{
 			n := &Node{Kind: KindVAArg, Type: TypePtr}
 			n.Pointee = yyDollar[5].typ
 			n.Children = []*Node{yyDollar[3].node}
 			yyVAL.node = n
 		}
-	case 415:
+	case 416:
 		yyDollar = yyS[yypt-8 : yypt+1]
-//line grammar.y:1284
+//line grammar.y:1285
 		{
 			n := &Node{Kind: KindVAArg, Type: TypePtr}
 			n.Pointee = ptrCType(yyDollar[5].typ)
 			n.Children = []*Node{yyDollar[3].node}
 			yyVAL.node = n
 		}
-	case 416:
+	case 417:
 		yyDollar = yyS[yypt-8 : yypt+1]
-//line grammar.y:1291
+//line grammar.y:1292
 		{
 			n := &Node{Kind: KindVAArg, Type: TypePtr}
 			n.Pointee = structCType(yyDollar[6].sval)
 			n.Children = []*Node{yyDollar[3].node}
 			yyVAL.node = n
 		}
-	case 417:
+	case 418:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1298
+//line grammar.y:1299
 		{
 			yyVAL.node = castNode(yyDollar[2].typ, yyDollar[4].node)
 		}
-	case 418:
+	case 419:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1300
+//line grammar.y:1301
 		{
 			n := &Node{Kind: KindCast, Type: TypePtr}
 			n.Pointee = yyDollar[2].typ
 			n.Children = []*Node{yyDollar[5].node}
 			yyVAL.node = n
 		}
-	case 419:
+	case 420:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:1302
+//line grammar.y:1303
 		{
 			n := &Node{Kind: KindCast, Type: TypePtr}
 			n.Pointee = yyDollar[3].typ
 			n.Children = []*Node{yyDollar[6].node}
 			yyVAL.node = n
 		}
-	case 420:
+	case 421:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:1304
+//line grammar.y:1305
 		{
 			n := &Node{Kind: KindCast, Type: TypePtr}
 			n.Pointee = ptrCType(yyDollar[2].typ)
 			n.Children = []*Node{yyDollar[6].node}
 			yyVAL.node = n
 		}
-	case 421:
+	case 422:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:1306
+//line grammar.y:1307
 		{
 			n := &Node{Kind: KindCast, Type: TypePtr}
 			n.Pointee = structCType(yyDollar[3].sval)
 			n.Children = []*Node{yyDollar[6].node}
 			yyVAL.node = n
 		}
-	case 422:
+	case 423:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1308
+//line grammar.y:1309
 		{
 			n := &Node{Kind: KindCast, Type: TypeStruct, StructTag: yyDollar[3].sval}
 			n.Children = []*Node{yyDollar[5].node}
 			yyVAL.node = n
 		}
-	case 423:
+	case 424:
 		yyDollar = yyS[yypt-9 : yypt+1]
-//line grammar.y:1311
+//line grammar.y:1312
 		{
 			callee := &Node{Kind: KindFieldAccess, Op: "->", Name: yyDollar[5].sval, Children: []*Node{yyDollar[3].node}}
 			yyVAL.node = &Node{Kind: KindIndirectCall, Children: append([]*Node{callee}, yyDollar[8].nodes...)}
 		}
-	case 424:
+	case 425:
 		yyDollar = yyS[yypt-8 : yypt+1]
-//line grammar.y:1314
+//line grammar.y:1315
 		{
 			callee := &Node{Kind: KindFieldAccess, Op: "->", Name: yyDollar[4].sval, Children: []*Node{yyDollar[2].node}}
 			yyVAL.node = &Node{Kind: KindIndirectCall, Children: append([]*Node{callee}, yyDollar[7].nodes...)}
 		}
-	case 425:
-		yyDollar = yyS[yypt-8 : yypt+1]
-//line grammar.y:1318
-		{
-			n := &Node{Kind: KindCompoundLit, Type: TypePtr}
-			n.Pointee = structCType(yyDollar[4].sval)
-			n.Children = []*Node{{Kind: KindInitList, Children: yyDollar[7].nodes}}
-			yyVAL.node = n
-		}
 	case 426:
-		yyDollar = yyS[yypt-9 : yypt+1]
-//line grammar.y:1323
+		yyDollar = yyS[yypt-8 : yypt+1]
+//line grammar.y:1319
 		{
 			n := &Node{Kind: KindCompoundLit, Type: TypePtr}
 			n.Pointee = structCType(yyDollar[4].sval)
@@ -4634,25 +4631,26 @@ yydefault:
 			yyVAL.node = n
 		}
 	case 427:
+		yyDollar = yyS[yypt-9 : yypt+1]
+//line grammar.y:1324
+		{
+			n := &Node{Kind: KindCompoundLit, Type: TypePtr}
+			n.Pointee = structCType(yyDollar[4].sval)
+			n.Children = []*Node{{Kind: KindInitList, Children: yyDollar[7].nodes}}
+			yyVAL.node = n
+		}
+	case 428:
 		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:1328
+//line grammar.y:1329
 		{
 			n := &Node{Kind: KindCompoundLit, Type: TypePtr}
 			n.Pointee = structCType(yyDollar[4].sval)
 			n.Children = []*Node{{Kind: KindInitList}}
 			yyVAL.node = n
 		}
-	case 428:
-		yyDollar = yyS[yypt-8 : yypt+1]
-//line grammar.y:1334
-		{
-			n := &Node{Kind: KindCompoundLit, Type: TypeIntArray, ElemType: yyDollar[2].typ.Kind}
-			n.Children = []*Node{{Kind: KindInitList, Children: yyDollar[7].nodes}}
-			yyVAL.node = n
-		}
 	case 429:
-		yyDollar = yyS[yypt-9 : yypt+1]
-//line grammar.y:1338
+		yyDollar = yyS[yypt-8 : yypt+1]
+//line grammar.y:1335
 		{
 			n := &Node{Kind: KindCompoundLit, Type: TypeIntArray, ElemType: yyDollar[2].typ.Kind}
 			n.Children = []*Node{{Kind: KindInitList, Children: yyDollar[7].nodes}}
@@ -4660,56 +4658,55 @@ yydefault:
 		}
 	case 430:
 		yyDollar = yyS[yypt-9 : yypt+1]
-//line grammar.y:1342
+//line grammar.y:1339
 		{
-			n := &Node{Kind: KindCompoundLit, Type: TypeIntArray, ElemType: yyDollar[2].typ.Kind, Val: yyDollar[4].ival}
-			n.Children = []*Node{{Kind: KindInitList, Children: yyDollar[8].nodes}}
+			n := &Node{Kind: KindCompoundLit, Type: TypeIntArray, ElemType: yyDollar[2].typ.Kind}
+			n.Children = []*Node{{Kind: KindInitList, Children: yyDollar[7].nodes}}
 			yyVAL.node = n
 		}
 	case 431:
-		yyDollar = yyS[yypt-10 : yypt+1]
-//line grammar.y:1346
+		yyDollar = yyS[yypt-9 : yypt+1]
+//line grammar.y:1343
 		{
 			n := &Node{Kind: KindCompoundLit, Type: TypeIntArray, ElemType: yyDollar[2].typ.Kind, Val: yyDollar[4].ival}
 			n.Children = []*Node{{Kind: KindInitList, Children: yyDollar[8].nodes}}
 			yyVAL.node = n
 		}
 	case 432:
-		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:1351
+		yyDollar = yyS[yypt-10 : yypt+1]
+//line grammar.y:1347
 		{
-			n := ctNode(KindCompoundLit, yyDollar[2].typ, "")
-			n.Children = []*Node{{Kind: KindInitList, Children: yyDollar[5].nodes}}
+			n := &Node{Kind: KindCompoundLit, Type: TypeIntArray, ElemType: yyDollar[2].typ.Kind, Val: yyDollar[4].ival}
+			n.Children = []*Node{{Kind: KindInitList, Children: yyDollar[8].nodes}}
 			yyVAL.node = n
 		}
 	case 433:
-		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:1355
+		yyDollar = yyS[yypt-6 : yypt+1]
+//line grammar.y:1352
 		{
 			n := ctNode(KindCompoundLit, yyDollar[2].typ, "")
 			n.Children = []*Node{{Kind: KindInitList, Children: yyDollar[5].nodes}}
 			yyVAL.node = n
 		}
 	case 434:
+		yyDollar = yyS[yypt-7 : yypt+1]
+//line grammar.y:1356
+		{
+			n := ctNode(KindCompoundLit, yyDollar[2].typ, "")
+			n.Children = []*Node{{Kind: KindInitList, Children: yyDollar[5].nodes}}
+			yyVAL.node = n
+		}
+	case 435:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1359
+//line grammar.y:1360
 		{
 			n := ctNode(KindCompoundLit, yyDollar[2].typ, "")
 			n.Children = []*Node{{Kind: KindInitList}}
 			yyVAL.node = n
 		}
-	case 435:
-		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:1363
-		{
-			n := &Node{Kind: KindCompoundLit, Type: TypePtr}
-			n.Pointee = yyDollar[2].typ
-			n.Children = []*Node{{Kind: KindInitList, Children: yyDollar[6].nodes}}
-			yyVAL.node = n
-		}
 	case 436:
-		yyDollar = yyS[yypt-8 : yypt+1]
-//line grammar.y:1368
+		yyDollar = yyS[yypt-7 : yypt+1]
+//line grammar.y:1364
 		{
 			n := &Node{Kind: KindCompoundLit, Type: TypePtr}
 			n.Pointee = yyDollar[2].typ
@@ -4717,305 +4714,306 @@ yydefault:
 			yyVAL.node = n
 		}
 	case 437:
-		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:1373
+		yyDollar = yyS[yypt-8 : yypt+1]
+//line grammar.y:1369
 		{
-			n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: yyDollar[3].sval}
+			n := &Node{Kind: KindCompoundLit, Type: TypePtr}
+			n.Pointee = yyDollar[2].typ
 			n.Children = []*Node{{Kind: KindInitList, Children: yyDollar[6].nodes}}
 			yyVAL.node = n
 		}
 	case 438:
-		yyDollar = yyS[yypt-8 : yypt+1]
-//line grammar.y:1377
+		yyDollar = yyS[yypt-7 : yypt+1]
+//line grammar.y:1374
 		{
 			n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: yyDollar[3].sval}
 			n.Children = []*Node{{Kind: KindInitList, Children: yyDollar[6].nodes}}
 			yyVAL.node = n
 		}
 	case 439:
-		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:1381
-		{
-			n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: yyDollar[3].sval}
-			n.Children = []*Node{{Kind: KindInitList}}
-			yyVAL.node = n
-		}
-	case 440:
-		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:1385
+		yyDollar = yyS[yypt-8 : yypt+1]
+//line grammar.y:1378
 		{
 			n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: yyDollar[3].sval}
 			n.Children = []*Node{{Kind: KindInitList, Children: yyDollar[6].nodes}}
 			yyVAL.node = n
 		}
+	case 440:
+		yyDollar = yyS[yypt-6 : yypt+1]
+//line grammar.y:1382
+		{
+			n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: yyDollar[3].sval}
+			n.Children = []*Node{{Kind: KindInitList}}
+			yyVAL.node = n
+		}
 	case 441:
-		yyDollar = yyS[yypt-8 : yypt+1]
-//line grammar.y:1389
+		yyDollar = yyS[yypt-7 : yypt+1]
+//line grammar.y:1386
 		{
 			n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: yyDollar[3].sval}
 			n.Children = []*Node{{Kind: KindInitList, Children: yyDollar[6].nodes}}
 			yyVAL.node = n
 		}
 	case 442:
+		yyDollar = yyS[yypt-8 : yypt+1]
+//line grammar.y:1390
+		{
+			n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: yyDollar[3].sval}
+			n.Children = []*Node{{Kind: KindInitList, Children: yyDollar[6].nodes}}
+			yyVAL.node = n
+		}
+	case 443:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1394
+//line grammar.y:1395
 		{
 			yyVAL.node = &Node{Kind: KindStmtExpr, Children: yyDollar[3].nodes}
 		}
-	case 443:
+	case 444:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1399
+//line grammar.y:1400
 		{
 			yyVAL.node = &Node{Kind: KindCall, Name: yyDollar[1].sval, Children: yyDollar[3].nodes}
 		}
-	case 444:
+	case 445:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1403
+//line grammar.y:1404
 		{
 			yyVAL.nodes = yyDollar[1].nodes
 		}
-	case 445:
+	case 446:
 		yyDollar = yyS[yypt-0 : yypt+1]
-//line grammar.y:1404
+//line grammar.y:1405
 		{
 			yyVAL.nodes = nil
 		}
-	case 446:
+	case 447:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1409
+//line grammar.y:1410
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, yyDollar[3].node)
 		}
-	case 447:
+	case 448:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1411
+//line grammar.y:1412
 		{
 			yyVAL.nodes = []*Node{yyDollar[1].node}
-		}
-	case 448:
-		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:1416
-		{
-			yyVAL.nodes = []*Node{{Kind: KindStructDef, Name: yyDollar[2].sval, Children: yyDollar[4].nodes}}
 		}
 	case 449:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:1421
+//line grammar.y:1417
+		{
+			yyVAL.nodes = []*Node{{Kind: KindStructDef, Name: yyDollar[2].sval, Children: yyDollar[4].nodes}}
+		}
+	case 450:
+		yyDollar = yyS[yypt-6 : yypt+1]
+//line grammar.y:1422
 		{
 			yyVAL.nodes = []*Node{{Kind: KindStructDef, Name: yyDollar[2].sval, Children: yyDollar[4].nodes, IsUnion: true}}
 		}
-	case 450:
+	case 451:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1426
+//line grammar.y:1427
 		{
 			yyVAL.nodes = yyDollar[3].nodes
 		}
-	case 451:
+	case 452:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1431
+//line grammar.y:1432
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, yyDollar[3].node)
 		}
-	case 452:
+	case 453:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1433
+//line grammar.y:1434
 		{
 			yyVAL.nodes = []*Node{yyDollar[1].node}
 		}
-	case 453:
+	case 454:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1438
+//line grammar.y:1439
 		{
 			n := &Node{Kind: KindVarDecl, Type: TypeInt, Name: yyDollar[1].sval,
 				Val: yylex.(*lexer).enumAutoVal, IsConst: true}
 			yylex.(*lexer).enumAutoVal++
 			yyVAL.node = n
 		}
-	case 454:
+	case 455:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1445
+//line grammar.y:1446
 		{
 			yylex.(*lexer).enumAutoVal = yyDollar[3].ival + 1
 			yyVAL.node = &Node{Kind: KindVarDecl, Type: TypeInt, Name: yyDollar[1].sval, Val: yyDollar[3].ival, IsConst: true}
 		}
-	case 455:
-		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1453
-		{
-			yylex.(*lexer).registerTypedef(yyDollar[3].sval, yyDollar[2].typ)
-			yyVAL.nodes = nil
-		}
 	case 456:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1458
+//line grammar.y:1454
 		{
 			yylex.(*lexer).registerTypedef(yyDollar[3].sval, yyDollar[2].typ)
 			yyVAL.nodes = nil
 		}
 	case 457:
-		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1463
+		yyDollar = yyS[yypt-4 : yypt+1]
+//line grammar.y:1459
 		{
-			yylex.(*lexer).registerTypedef(yyDollar[4].sval, ptrCType(yyDollar[2].typ))
+			yylex.(*lexer).registerTypedef(yyDollar[3].sval, yyDollar[2].typ)
 			yyVAL.nodes = nil
 		}
 	case 458:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1468
+//line grammar.y:1464
 		{
 			yylex.(*lexer).registerTypedef(yyDollar[4].sval, ptrCType(yyDollar[2].typ))
 			yyVAL.nodes = nil
 		}
 	case 459:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1473
+//line grammar.y:1469
+		{
+			yylex.(*lexer).registerTypedef(yyDollar[4].sval, ptrCType(yyDollar[2].typ))
+			yyVAL.nodes = nil
+		}
+	case 460:
+		yyDollar = yyS[yypt-5 : yypt+1]
+//line grammar.y:1474
 		{
 			yylex.(*lexer).registerTypedef(yyDollar[4].sval, structCType(yyDollar[3].sval))
 			yyVAL.nodes = nil
 		}
-	case 460:
+	case 461:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:1478
+//line grammar.y:1479
 		{
 			yylex.(*lexer).registerTypedef(yyDollar[5].sval, ptrCType(structCType(yyDollar[3].sval)))
 			yyVAL.nodes = nil
 		}
-	case 461:
+	case 462:
 		yyDollar = yyS[yypt-10 : yypt+1]
-//line grammar.y:1483
+//line grammar.y:1484
 		{
 			yylex.(*lexer).registerTypedef(yyDollar[5].sval, leafCType(TypeFuncPtr))
 			yyVAL.nodes = nil
 		}
-	case 462:
+	case 463:
 		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:1489
+//line grammar.y:1490
 		{
 			tag := yylex.(*lexer).nextAnon()
 			sd := &Node{Kind: KindStructDef, Name: tag, Children: yyDollar[4].nodes}
 			yylex.(*lexer).registerTypedef(yyDollar[6].sval, structCType(tag))
 			yyVAL.nodes = []*Node{sd}
 		}
-	case 463:
+	case 464:
 		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:1496
+//line grammar.y:1497
 		{
 			tag := yylex.(*lexer).nextAnon()
 			sd := &Node{Kind: KindStructDef, Name: tag, Children: yyDollar[4].nodes, IsUnion: true}
 			yylex.(*lexer).registerTypedef(yyDollar[6].sval, structCType(tag))
 			yyVAL.nodes = []*Node{sd}
 		}
-	case 464:
-		yyDollar = yyS[yypt-8 : yypt+1]
-//line grammar.y:1504
-		{
-			sd := &Node{Kind: KindStructDef, Name: yyDollar[3].sval, Children: yyDollar[5].nodes}
-			yylex.(*lexer).registerTypedef(yyDollar[7].sval, structCType(yyDollar[3].sval))
-			yyVAL.nodes = []*Node{sd}
-		}
 	case 465:
 		yyDollar = yyS[yypt-8 : yypt+1]
-//line grammar.y:1510
+//line grammar.y:1505
 		{
-			sd := &Node{Kind: KindStructDef, Name: yyDollar[3].sval, Children: yyDollar[5].nodes, IsUnion: true}
+			sd := &Node{Kind: KindStructDef, Name: yyDollar[3].sval, Children: yyDollar[5].nodes}
 			yylex.(*lexer).registerTypedef(yyDollar[7].sval, structCType(yyDollar[3].sval))
 			yyVAL.nodes = []*Node{sd}
 		}
 	case 466:
-		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:1516
+		yyDollar = yyS[yypt-8 : yypt+1]
+//line grammar.y:1511
 		{
-			sd := &Node{Kind: KindStructDef, Name: yyDollar[3].sval, Children: yyDollar[5].nodes}
+			sd := &Node{Kind: KindStructDef, Name: yyDollar[3].sval, Children: yyDollar[5].nodes, IsUnion: true}
+			yylex.(*lexer).registerTypedef(yyDollar[7].sval, structCType(yyDollar[3].sval))
 			yyVAL.nodes = []*Node{sd}
 		}
 	case 467:
 		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:1521
+//line grammar.y:1517
+		{
+			sd := &Node{Kind: KindStructDef, Name: yyDollar[3].sval, Children: yyDollar[5].nodes}
+			yyVAL.nodes = []*Node{sd}
+		}
+	case 468:
+		yyDollar = yyS[yypt-7 : yypt+1]
+//line grammar.y:1522
 		{
 			sd := &Node{Kind: KindStructDef, Name: yyDollar[3].sval, Children: yyDollar[5].nodes, IsUnion: true}
 			yyVAL.nodes = []*Node{sd}
 		}
-	case 468:
+	case 469:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1528
+//line grammar.y:1529
 		{
 			yyVAL.nodes = yyDollar[1].nodes
 		}
-	case 469:
+	case 470:
 		yyDollar = yyS[yypt-0 : yypt+1]
-//line grammar.y:1529
+//line grammar.y:1530
 		{
 			yyVAL.nodes = nil
 		}
-	case 470:
+	case 471:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1534
+//line grammar.y:1535
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, yyDollar[3].node)
 		}
-	case 471:
+	case 472:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1536
+//line grammar.y:1537
 		{
 			yyVAL.nodes = []*Node{yyDollar[1].node}
 		}
-	case 472:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1540
-		{
-			yyVAL.node = ctNode(KindParam, yyDollar[1].typ, "")
-		}
 	case 473:
-		yyDollar = yyS[yypt-2 : yypt+1]
+		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1541
 		{
-			n := &Node{Kind: KindParam, Type: TypePtr}
-			n.Pointee = yyDollar[1].typ
-			yyVAL.node = n
+			yyVAL.node = ctNode(KindParam, yyDollar[1].typ, "")
 		}
 	case 474:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:1542
 		{
-			yyVAL.node = ctNode(KindParam, yyDollar[1].typ, yyDollar[2].sval)
-		}
-	case 475:
-		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1543
-		{
-			n := &Node{Kind: KindParam, Type: TypePtr, Name: yyDollar[3].sval}
+			n := &Node{Kind: KindParam, Type: TypePtr}
 			n.Pointee = yyDollar[1].typ
 			yyVAL.node = n
+		}
+	case 475:
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line grammar.y:1543
+		{
+			yyVAL.node = ctNode(KindParam, yyDollar[1].typ, yyDollar[2].sval)
 		}
 	case 476:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line grammar.y:1544
 		{
-			n := &Node{Kind: KindParam, Type: TypePtr}
-			n.Pointee = structCType(yyDollar[2].sval)
+			n := &Node{Kind: KindParam, Type: TypePtr, Name: yyDollar[3].sval}
+			n.Pointee = yyDollar[1].typ
 			yyVAL.node = n
 		}
 	case 477:
-		yyDollar = yyS[yypt-4 : yypt+1]
+		yyDollar = yyS[yypt-3 : yypt+1]
 //line grammar.y:1545
 		{
-			n := &Node{Kind: KindParam, Type: TypePtr, Name: yyDollar[4].sval}
+			n := &Node{Kind: KindParam, Type: TypePtr}
 			n.Pointee = structCType(yyDollar[2].sval)
 			yyVAL.node = n
 		}
 	case 478:
-		yyDollar = yyS[yypt-3 : yypt+1]
+		yyDollar = yyS[yypt-4 : yypt+1]
 //line grammar.y:1546
 		{
-			n := &Node{Kind: KindParam, Type: TypePtr}
-			n.Pointee = yyDollar[2].typ
+			n := &Node{Kind: KindParam, Type: TypePtr, Name: yyDollar[4].sval}
+			n.Pointee = structCType(yyDollar[2].sval)
 			yyVAL.node = n
 		}
 	case 479:
-		yyDollar = yyS[yypt-4 : yypt+1]
+		yyDollar = yyS[yypt-3 : yypt+1]
 //line grammar.y:1547
 		{
-			n := &Node{Kind: KindParam, Type: TypePtr, Name: yyDollar[4].sval}
+			n := &Node{Kind: KindParam, Type: TypePtr}
 			n.Pointee = yyDollar[2].typ
 			yyVAL.node = n
 		}
@@ -5023,169 +5021,177 @@ yydefault:
 		yyDollar = yyS[yypt-4 : yypt+1]
 //line grammar.y:1548
 		{
-			yyVAL.node = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: yyDollar[1].typ.Kind, Val: yyDollar[3].ival}
+			n := &Node{Kind: KindParam, Type: TypePtr, Name: yyDollar[4].sval}
+			n.Pointee = yyDollar[2].typ
+			yyVAL.node = n
 		}
 	case 481:
-		yyDollar = yyS[yypt-3 : yypt+1]
+		yyDollar = yyS[yypt-4 : yypt+1]
 //line grammar.y:1549
+		{
+			yyVAL.node = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: yyDollar[1].typ.Kind, Val: yyDollar[3].ival}
+		}
+	case 482:
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line grammar.y:1550
 		{
 			yyVAL.node = ctNode(KindParam, yyDollar[2].typ, yyDollar[3].sval)
 		}
-	case 482:
+	case 483:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line grammar.y:1550
+//line grammar.y:1551
 		{
 			yyVAL.node = ctNode(KindParam, yyDollar[2].typ, "")
 		}
-	case 483:
+	case 484:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:1551
+//line grammar.y:1552
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: TypeStruct, ElemPointee: structCType(yyDollar[3].sval), Val: yyDollar[5].ival}
 		}
-	case 484:
+	case 485:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1552
+//line grammar.y:1553
 		{
 			yyVAL.node = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: TypeStruct, ElemPointee: structCType(yyDollar[3].sval)}
 		}
-	case 485:
+	case 486:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line grammar.y:1557
+//line grammar.y:1558
 		{
 			yyVAL.nodes = append(yyDollar[1].nodes, yyDollar[2].nodes...)
 		}
-	case 486:
+	case 487:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1559
+//line grammar.y:1560
 		{
 			yyVAL.nodes = yyDollar[1].nodes
 		}
-	case 487:
+	case 488:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1564
+//line grammar.y:1565
 		{
 			yyVAL.nodes = []*Node{ctNode(KindVarDecl, yyDollar[1].typ, yyDollar[2].sval)}
 		}
-	case 488:
+	case 489:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1566
+//line grammar.y:1567
 		{
 			yyVAL.nodes = makeMultiDecl(yyDollar[1].typ, yyDollar[2].nodes)
 		}
-	case 489:
+	case 490:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1568
+//line grammar.y:1569
 		{
 			n := ctNode(KindVarDecl, yyDollar[1].typ, yyDollar[2].sval)
 			n.BitWidth = yyDollar[4].ival
 			yyVAL.nodes = []*Node{n}
 		}
-	case 490:
+	case 491:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:1570
+//line grammar.y:1571
 		{
 			yyVAL.nodes = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: yyDollar[2].sval, Val: yyDollar[4].ival, ElemType: yyDollar[1].typ.Kind}}
 		}
-	case 491:
+	case 492:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1572
+//line grammar.y:1573
 		{
 			yyVAL.nodes = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: yyDollar[2].sval, Val: -1, ElemType: yyDollar[1].typ.Kind}}
 		}
-	case 492:
+	case 493:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1574
+//line grammar.y:1575
 		{
 			n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: yyDollar[3].sval}
 			n.Pointee = yyDollar[1].typ
 			yyVAL.nodes = []*Node{n}
 		}
-	case 493:
+	case 494:
 		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:1576
+//line grammar.y:1577
 		{
 			yyVAL.nodes = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: yyDollar[3].sval, Val: yyDollar[5].ival, ElemType: TypePtr, ElemPointee: yyDollar[1].typ}}
 		}
-	case 494:
+	case 495:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1578
+//line grammar.y:1579
 		{
 			n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: yyDollar[4].sval}
 			n.Pointee = structCType(yyDollar[2].sval)
 			yyVAL.nodes = []*Node{n}
 		}
-	case 495:
+	case 496:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1580
+//line grammar.y:1581
 		{
 			yyVAL.nodes = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: yyDollar[3].sval, StructTag: yyDollar[2].sval}}
 		}
-	case 496:
+	case 497:
 		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:1582
+//line grammar.y:1583
 		{
 			yyVAL.nodes = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: yyDollar[3].sval, Val: yyDollar[5].ival, ElemType: TypeStruct, ElemPointee: structCType(yyDollar[2].sval)}}
 		}
-	case 497:
+	case 498:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1584
+//line grammar.y:1585
 		{
 			yyVAL.nodes = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: yyDollar[3].sval, StructTag: yyDollar[2].sval}}
 		}
-	case 498:
+	case 499:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1586
+//line grammar.y:1587
 		{
 			n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: yyDollar[4].sval}
 			n.Pointee = structCType(yyDollar[2].sval)
 			yyVAL.nodes = []*Node{n}
 		}
-	case 499:
+	case 500:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1588
+//line grammar.y:1589
 		{
 			tag := yylex.(*lexer).nextAnon()
 			yyVAL.nodes = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: "", StructTag: tag, Children: yyDollar[3].nodes}}
 		}
-	case 500:
+	case 501:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1593
+//line grammar.y:1594
 		{
 			tag := yylex.(*lexer).nextAnon()
 			yyVAL.nodes = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: "", StructTag: tag, Children: yyDollar[3].nodes, IsUnion: true}}
 		}
-	case 501:
+	case 502:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:1598
+//line grammar.y:1599
 		{
 			tag := yylex.(*lexer).nextAnon()
 			yyVAL.nodes = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: yyDollar[5].sval, StructTag: tag, Children: yyDollar[3].nodes, IsUnion: true}}
 		}
-	case 502:
+	case 503:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:1603
+//line grammar.y:1604
 		{
 			tag := yylex.(*lexer).nextAnon()
 			yyVAL.nodes = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: yyDollar[5].sval, StructTag: tag, Children: yyDollar[3].nodes}}
 		}
-	case 503:
+	case 504:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:1608
+//line grammar.y:1609
 		{
 			tag := yylex.(*lexer).nextAnon()
 			yyVAL.nodes = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: "", StructTag: tag, Children: yyDollar[4].nodes}}
 		}
-	case 504:
+	case 505:
 		yyDollar = yyS[yypt-6 : yypt+1]
-//line grammar.y:1613
+//line grammar.y:1614
 		{
 			tag := yylex.(*lexer).nextAnon()
 			yyVAL.nodes = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: "", StructTag: tag, Children: yyDollar[4].nodes, IsUnion: true}}
 		}
-	case 505:
+	case 506:
 		yyDollar = yyS[yypt-9 : yypt+1]
-//line grammar.y:1619
+//line grammar.y:1620
 		{
 			tag := yylex.(*lexer).nextAnon()
 			sd := &Node{Kind: KindStructDef, Name: tag, Children: yyDollar[3].nodes}
@@ -5193,9 +5199,9 @@ yydefault:
 				ElemType: TypeStruct, ElemPointee: structCType(tag), StructTag: tag}
 			yyVAL.nodes = []*Node{sd, f}
 		}
-	case 506:
+	case 507:
 		yyDollar = yyS[yypt-9 : yypt+1]
-//line grammar.y:1627
+//line grammar.y:1628
 		{
 			tag := yylex.(*lexer).nextAnon()
 			sd := &Node{Kind: KindStructDef, Name: tag, Children: yyDollar[3].nodes, IsUnion: true}
@@ -5203,33 +5209,33 @@ yydefault:
 				ElemType: TypeStruct, ElemPointee: structCType(tag), StructTag: tag}
 			yyVAL.nodes = []*Node{sd, f}
 		}
-	case 507:
+	case 508:
 		yyDollar = yyS[yypt-9 : yypt+1]
-//line grammar.y:1635
+//line grammar.y:1636
 		{
 			yyVAL.nodes = []*Node{{Kind: KindVarDecl, Type: TypeFuncPtr, Name: yyDollar[4].sval}}
 		}
-	case 508:
+	case 509:
 		yyDollar = yyS[yypt-10 : yypt+1]
-//line grammar.y:1637
+//line grammar.y:1638
 		{
 			yyVAL.nodes = []*Node{{Kind: KindVarDecl, Type: TypeFuncPtr, Name: yyDollar[5].sval}}
 		}
-	case 509:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1641
-		{
-			yyVAL.ival = yyDollar[1].ival
-		}
 	case 510:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1645
+//line grammar.y:1642
 		{
 			yyVAL.ival = yyDollar[1].ival
 		}
 	case 511:
-		yyDollar = yyS[yypt-5 : yypt+1]
+		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1646
+		{
+			yyVAL.ival = yyDollar[1].ival
+		}
+	case 512:
+		yyDollar = yyS[yypt-5 : yypt+1]
+//line grammar.y:1647
 		{
 			if yyDollar[1].ival != 0 {
 				yyVAL.ival = yyDollar[3].ival
@@ -5237,27 +5243,17 @@ yydefault:
 				yyVAL.ival = yyDollar[5].ival
 			}
 		}
-	case 512:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1650
-		{
-			yyVAL.ival = yyDollar[1].ival
-		}
 	case 513:
-		yyDollar = yyS[yypt-3 : yypt+1]
+		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1651
 		{
-			if yyDollar[1].ival == yyDollar[3].ival {
-				yyVAL.ival = 1
-			} else {
-				yyVAL.ival = 0
-			}
+			yyVAL.ival = yyDollar[1].ival
 		}
 	case 514:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line grammar.y:1652
 		{
-			if yyDollar[1].ival != yyDollar[3].ival {
+			if yyDollar[1].ival == yyDollar[3].ival {
 				yyVAL.ival = 1
 			} else {
 				yyVAL.ival = 0
@@ -5267,7 +5263,7 @@ yydefault:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line grammar.y:1653
 		{
-			if yyDollar[1].ival < yyDollar[3].ival {
+			if yyDollar[1].ival != yyDollar[3].ival {
 				yyVAL.ival = 1
 			} else {
 				yyVAL.ival = 0
@@ -5277,63 +5273,73 @@ yydefault:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line grammar.y:1654
 		{
-			if yyDollar[1].ival > yyDollar[3].ival {
+			if yyDollar[1].ival < yyDollar[3].ival {
 				yyVAL.ival = 1
 			} else {
 				yyVAL.ival = 0
 			}
 		}
 	case 517:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1658
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line grammar.y:1655
 		{
-			yyVAL.ival = yyDollar[1].ival
+			if yyDollar[1].ival > yyDollar[3].ival {
+				yyVAL.ival = 1
+			} else {
+				yyVAL.ival = 0
+			}
 		}
 	case 518:
-		yyDollar = yyS[yypt-3 : yypt+1]
+		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1659
 		{
-			yyVAL.ival = yyDollar[1].ival << yyDollar[3].ival
+			yyVAL.ival = yyDollar[1].ival
 		}
 	case 519:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line grammar.y:1660
 		{
-			yyVAL.ival = yyDollar[1].ival >> yyDollar[3].ival
+			yyVAL.ival = yyDollar[1].ival << yyDollar[3].ival
 		}
 	case 520:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1664
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line grammar.y:1661
 		{
-			yyVAL.ival = yyDollar[1].ival
+			yyVAL.ival = yyDollar[1].ival >> yyDollar[3].ival
 		}
 	case 521:
-		yyDollar = yyS[yypt-3 : yypt+1]
+		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1665
 		{
-			yyVAL.ival = yyDollar[1].ival + yyDollar[3].ival
+			yyVAL.ival = yyDollar[1].ival
 		}
 	case 522:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line grammar.y:1666
 		{
-			yyVAL.ival = yyDollar[1].ival - yyDollar[3].ival
+			yyVAL.ival = yyDollar[1].ival + yyDollar[3].ival
 		}
 	case 523:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1670
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line grammar.y:1667
 		{
-			yyVAL.ival = yyDollar[1].ival
+			yyVAL.ival = yyDollar[1].ival - yyDollar[3].ival
 		}
 	case 524:
-		yyDollar = yyS[yypt-3 : yypt+1]
+		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1671
 		{
-			yyVAL.ival = yyDollar[1].ival * yyDollar[3].ival
+			yyVAL.ival = yyDollar[1].ival
 		}
 	case 525:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line grammar.y:1672
+		{
+			yyVAL.ival = yyDollar[1].ival * yyDollar[3].ival
+		}
+	case 526:
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line grammar.y:1673
 		{
 			if yyDollar[3].ival != 0 {
 				yyVAL.ival = yyDollar[1].ival / yyDollar[3].ival
@@ -5341,9 +5347,9 @@ yydefault:
 				yyVAL.ival = 0
 			}
 		}
-	case 526:
+	case 527:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1673
+//line grammar.y:1674
 		{
 			if yyDollar[3].ival != 0 {
 				yyVAL.ival = yyDollar[1].ival % yyDollar[3].ival
@@ -5351,21 +5357,21 @@ yydefault:
 				yyVAL.ival = 0
 			}
 		}
-	case 527:
-		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1677
-		{
-			yyVAL.ival = yyDollar[1].ival
-		}
 	case 528:
-		yyDollar = yyS[yypt-2 : yypt+1]
+		yyDollar = yyS[yypt-1 : yypt+1]
 //line grammar.y:1678
 		{
-			yyVAL.ival = -yyDollar[2].ival
+			yyVAL.ival = yyDollar[1].ival
 		}
 	case 529:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:1679
+		{
+			yyVAL.ival = -yyDollar[2].ival
+		}
+	case 530:
+		yyDollar = yyS[yypt-2 : yypt+1]
+//line grammar.y:1680
 		{
 			if yyDollar[2].ival == 0 {
 				yyVAL.ival = 1
@@ -5373,51 +5379,51 @@ yydefault:
 				yyVAL.ival = 0
 			}
 		}
-	case 530:
+	case 531:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1683
+//line grammar.y:1684
 		{
 			yyVAL.ival = yyDollar[1].ival
 		}
-	case 531:
+	case 532:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line grammar.y:1684
+//line grammar.y:1685
 		{
 			yyVAL.ival = yyDollar[2].ival
 		}
-	case 532:
+	case 533:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1685
+//line grammar.y:1686
 		{
 			yyVAL.ival = sizeofType(yyDollar[3].typ)
 		}
-	case 533:
+	case 534:
 		yyDollar = yyS[yypt-5 : yypt+1]
-//line grammar.y:1686
+//line grammar.y:1687
 		{
 			yyVAL.ival = 8
 		}
-	case 534:
+	case 535:
 		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:1687
+//line grammar.y:1688
 		{
 			yyVAL.ival = sizeofType(yyDollar[3].typ) * yyDollar[5].ival
 		}
-	case 535:
+	case 536:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line grammar.y:1688
+//line grammar.y:1689
 		{
 			yyVAL.ival = 8 /* opaque sizeof(varname): assume 8 */
 		}
-	case 536:
+	case 537:
 		yyDollar = yyS[yypt-7 : yypt+1]
-//line grammar.y:1689
+//line grammar.y:1690
 		{
 			yyVAL.ival = 8 /* opaque sizeof(arr[i]): return element size */
 		}
-	case 537:
+	case 538:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line grammar.y:1690
+//line grammar.y:1691
 		{
 			yyVAL.ival = yylex.(*lexer).lookupConstInt(yyDollar[1].sval)
 		}
