@@ -109,6 +109,15 @@ typedef long          size_t;
 #define FLT_MIN_EXP  (-125)
 #define DECIMAL_DIG  17
 `,
+	"complex.h": `
+/* gaston stub <complex.h> — _Complex is not supported.
+   Defining __STDC_NO_COMPLEX__ causes conforming code to skip complex
+   declarations; the empty guard here prevents parse errors if this header
+   is included anyway. */
+#ifndef _COMPLEX_H
+#define _COMPLEX_H
+#endif /* _COMPLEX_H */
+`,
 }
 
 // ── preprocessor ─────────────────────────────────────────────────────────────
@@ -505,6 +514,13 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 #define __asm__(x)
 #define __asm(x)
 #define __volatile__(x)
+
+/* ── Complex / imaginary types not supported ─────────────────────────── */
+/* C11 §6.10.8.3: define these to signal no complex/imaginary support.   */
+/* picolibc's build system probes for _Complex; a missing probe causes it */
+/* to skip libm/complex/ entirely. We also provide a stub complex.h.     */
+#define __STDC_NO_COMPLEX__   1
+#define __STDC_NO_IMAGINARY__ 1
 
 /* ── GCC branch-prediction hint ─────────────────────────────────────── */
 /* Expand to the condition itself; the hint is discarded.                 */
