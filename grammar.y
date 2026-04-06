@@ -299,6 +299,15 @@ var_declaration
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $5, IsConstTarget: true}; n.Pointee = $2; $$ = []*Node{n} }
 	| CONST type_specifier '*' CONST ID '=' expression ';'
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $5, IsConstTarget: true}; n.Pointee = $2; n.Children = []*Node{$7}; $$ = []*Node{n} }
+	/* T * const name [= expr]; — const pointer to T (pointer itself is const) */
+	| type_specifier '*' CONST ID ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4}; n.Pointee = $1; $$ = []*Node{n} }
+	| type_specifier '*' CONST ID '=' expression ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4}; n.Pointee = $1; n.Children = []*Node{$6}; $$ = []*Node{n} }
+	| STATIC type_specifier '*' CONST ID ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $5, IsStatic: true}; n.Pointee = $2; $$ = []*Node{n} }
+	| STATIC type_specifier '*' CONST ID '=' expression ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $5, IsStatic: true}; n.Pointee = $2; n.Children = []*Node{$7}; $$ = []*Node{n} }
 	/* ── T *a, *b; — multi-pointer decl ── */
 	| type_specifier '*' ID ',' '*' ID ';'
 		{ n1 := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $3}; n1.Pointee = $1

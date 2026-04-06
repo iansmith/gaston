@@ -664,7 +664,7 @@ func (p *preprocessor) processFile(src, file string, out *strings.Builder) {
 	conds := []condFrame{{active: true}}
 	lineNum := 1
 
-	for _, ll := range splitLogical(src) {
+	for _, ll := range joinOpenLines(splitLogical(src)) {
 		active := conds[len(conds)-1].active
 		trimmed := strings.TrimSpace(ll.text)
 
@@ -1927,6 +1927,69 @@ func splitLogical(src string) []logLine {
 		result = append(result, logLine{text: buf.String(), count: count})
 	}
 	return result
+}
+
+// joinOpenLines merges adjacent logical lines when a line ends with unbalanced
+// open parentheses. This handles function-like macro invocations whose argument
+// lists span multiple physical lines without backslash continuation, e.g.:
+//
+//	.xfile = FDEV_SETUP_EXT(arg1, arg2,
+//	                        arg3);
+//
+// Counts are summed so that blank-line insertion for line-number alignment works.
+func joinOpenLines(lines []logLine) []logLine {
+	result := make([]logLine, 0, len(lines))
+	i := 0
+	for i < len(lines) {
+		ll := lines[i]
+		i++
+		for lineParenDepth(ll.text) > 0 && i < len(lines) {
+			// Never swallow a preprocessor directive line into a code line.
+			if strings.HasPrefix(strings.TrimLeft(lines[i].text, " \t"), "#") {
+				break
+			}
+			ll.text += " " + lines[i].text
+			ll.count += lines[i].count
+			i++
+		}
+		result = append(result, ll)
+	}
+	return result
+}
+
+// lineParenDepth returns the net unbalanced open-paren count in s, ignoring
+// content inside string and character literals.
+func lineParenDepth(s string) int {
+	depth := 0
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '"':
+			i++
+			for i < len(s) {
+				if s[i] == '\\' {
+					i++
+				} else if s[i] == '"' {
+					break
+				}
+				i++
+			}
+		case '\'':
+			i++
+			for i < len(s) {
+				if s[i] == '\\' {
+					i++
+				} else if s[i] == '\'' {
+					break
+				}
+				i++
+			}
+		case '(':
+			depth++
+		case ')':
+			depth--
+		}
+	}
+	return depth
 }
 
 // splitDirective splits "  ifdef FOO" → ("ifdef", "FOO").

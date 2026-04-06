@@ -60,6 +60,10 @@ func isConstantScalar(n *Node) bool {
 		return true
 	case KindUnary:
 		return n.Op == "-" && len(n.Children) == 1 && isConstantScalar(n.Children[0])
+	case KindAddrOf:
+		// &staticvar or &staticvar.field.field... is a link-time constant
+		// and valid as a global variable initializer (C99 §6.6).
+		return true
 	}
 	return false
 }

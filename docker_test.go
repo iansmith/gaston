@@ -577,12 +577,12 @@ func compileTest(name, outPath string) error {
 
 // compileObjPath compiles a .cm file at srcPath to an ET_REL object at outPath,
 // using the given include search paths.
-func compileObjPath(srcPath, outPath string, includePaths []string) error {
+func compileObjPath(srcPath, outPath string, includePaths []string, defines ...string) error {
 	raw, err := os.ReadFile(srcPath)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", srcPath, err)
 	}
-	pp := newPreprocessor(includePaths, nil)
+	pp := newPreprocessor(includePaths, defines)
 	src, err := pp.Preprocess(string(raw), srcPath)
 	if err != nil {
 		return fmt.Errorf("preprocess %s: %w", srcPath, err)
@@ -819,20 +819,22 @@ func TestLibmCommonCompile(t *testing.T) {
 }
 
 // tinystdioSkip is the set of tinystdio .c files excluded from TestTinystdioCompile.
-// - conv_flt.c, vfprintf.c, vfscanf.c, vfprintff.c, vfscanff.c: excluded by user decision.
-// - fdopen.c, fmemopen.c, fopen.c, freopen.c, posixiob.c: require -DPOSIX_IO and
-//   __posix_sflags / FDEV_SETUP_POSIX, which are not provided in the default build.
+// conv_flt.c, vfprintf.c, vfscanf.c, vfprintff.c, vfscanff.c are excluded by user decision.
 var tinystdioSkip = map[string]bool{
-	"conv_flt.c":   true,
-	"vfprintf.c":   true,
-	"vfscanf.c":    true,
-	"vfprintff.c":  true,
-	"vfscanff.c":   true,
-	"fdopen.c":     true,
-	"fmemopen.c":   true,
-	"fopen.c":      true,
-	"freopen.c":    true,
-	"posixiob.c":   true,
+	"conv_flt.c":  true,
+	"vfprintf.c":  true,
+	"vfscanf.c":   true,
+	"vfprintff.c": true,
+	"vfscanff.c":  true,
+}
+
+// tinysydioPosixIO is the set of tinystdio files that require -DPOSIX_IO.
+var tinystdioPosixIO = map[string]bool{
+	"fdopen.c":   true,
+	"fmemopen.c": true,
+	"fopen.c":    true,
+	"freopen.c":  true,
+	"posixiob.c": true,
 }
 
 // tinystdioIncludePaths returns the include search paths for picolibc tinystdio sources.
@@ -847,6 +849,7 @@ func tinystdioIncludePaths() []string {
 
 // TestTinystdioCompile compiles every picolibc tinystdio/*.c source file (minus the
 // known-skipped files) and verifies gaston can parse and codegen each one.
+// Files requiring POSIX_IO are compiled with -DPOSIX_IO.
 func TestTinystdioCompile(t *testing.T) {
 	tsdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/tinystdio"
 	entries, err := os.ReadDir(tsdir)
@@ -867,7 +870,11 @@ func TestTinystdioCompile(t *testing.T) {
 		src := tsdir + "/" + e.Name()
 		obj := fmt.Sprintf("/tmp/tinystdio-%s.o", strings.TrimSuffix(e.Name(), ".c"))
 		t.Cleanup(func() { os.Remove(obj) })
-		if err := compileObjPath(src, obj, includePaths); err != nil {
+		var defines []string
+		if tinystdioPosixIO[e.Name()] {
+			defines = []string{"POSIX_IO"}
+		}
+		if err := compileObjPath(src, obj, includePaths, defines...); err != nil {
 			t.Logf("FAIL %s: %v", e.Name(), err)
 			failed = append(failed, e.Name())
 			continue
