@@ -463,6 +463,10 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 #define __LDBL_MAX_EXP__        16384
 #define __LDBL_MIN_10_EXP__     (-4931)
 #define __LDBL_MAX_10_EXP__     4932
+#define __LDBL_MAX__            1.7976931348623157e+308
+#define __LDBL_MIN__            2.2250738585072014e-308
+#define __LDBL_EPSILON__        2.2204460492503131e-16
+#define __LDBL_DENORM_MIN__     4.9406564584124654e-324
 #define __LDBL_HAS_DENORM__     1
 #define __LDBL_HAS_INFINITY__   1
 #define __LDBL_HAS_QUIET_NAN__  1
@@ -537,6 +541,14 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 #define __builtin_inf()     (1.0/0.0)
 #define __builtin_huge_valf() (1.0/0.0)
 #define __builtin_huge_val()  (1.0/0.0)
+
+/* ── GCC floating-point comparison predicates ────────────────────────── */
+#define __builtin_isless(x,y)        ((x) < (y))
+#define __builtin_isgreater(x,y)     ((x) > (y))
+#define __builtin_islessequal(x,y)   ((x) <= (y))
+#define __builtin_isgreaterequal(x,y) ((x) >= (y))
+#define __builtin_islessgreater(x,y) ((x) < (y) || (x) > (y))
+#define __builtin_isunordered(x,y)   ((x) != (x) || (y) != (y))
 `
 	var dummy strings.Builder
 	pp.processFile(builtinSrc, "<builtin>", &dummy)

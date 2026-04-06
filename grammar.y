@@ -25,6 +25,7 @@ package main
 // Keywords
 %token INT VOID IF ELSE WHILE RETURN FOR DO BREAK CONTINUE CONST CHAR EXTERN GOTO
 %token LONG UNSIGNED SHORT FLOAT DOUBLE STRUCT SIZEOF ENUM UNION TYPEDEF STATIC VA_ARG TYPEOF INT128 SIGNED
+%token SWITCH CASE DEFAULT
 %token <sval> TYPENAME
 
 // Multi-character operators
@@ -37,16 +38,17 @@ package main
 
 // Types for non-terminals
 %type <node>  program fun_declaration
-%type <nodes> declaration var_declaration const_declaration extern_declaration declaration_list params param_list id_list
+%type <nodes> declaration var_declaration const_declaration extern_declaration declaration_list params param_list id_list multi_init_id_list
 %type <nodes> struct_declaration field_list union_declaration enum_declaration enum_list typedef_declaration
 %type <nodes> fp_param_types fp_param_type_list
 %type <nodes> field
 %type <ival>  const_int_expr const_int_add const_int_mul const_int_primary
 %type <node>  param compound_stmt postfix_expr enum_member fp_param_type
-%type <nodes> local_declarations statement_list
+%type <nodes> block_item_list statement_list
 %type <nodes> init_list
 %type <node>  init_entry assign_expr
-%type <node>  statement expression_stmt selection_stmt iteration_stmt for_stmt do_while_stmt return_stmt break_stmt continue_stmt goto_stmt
+%type <node>  statement expression_stmt selection_stmt iteration_stmt for_stmt do_while_stmt switch_stmt case_item return_stmt break_stmt continue_stmt goto_stmt
+%type <nodes> case_list
 %type <node>  opt_expression
 %type <node>  expression var simple_expression ternary_expression logical_expression comparison_expression bitwise_expression additive_expression term factor call
 %type <nodes> args arg_list
@@ -66,13 +68,19 @@ package main
 program
 	: declaration_list
 		{ yylex.(*lexer).result = &Node{Kind: KindProgram, Children: $1} }
+	| /* empty */
+		{ yylex.(*lexer).result = &Node{Kind: KindProgram} }
 	;
 
 declaration_list
 	: declaration_list declaration
 		{ $$ = append($1, $2...) }
+	| declaration_list ';'
+		{ $$ = $1 }
 	| declaration
 		{ $$ = $1 }
+	| ';'
+		{ $$ = nil }
 	;
 
 declaration
@@ -95,7 +103,13 @@ extern_declaration
 	| EXTERN type_specifier ID ';'
 		{ n := ctNode(KindVarDecl, $2, $3); n.IsExtern = true; $$ = []*Node{n} }
 	| EXTERN type_specifier ID '[' ']' ';'
-		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, IsExtern: true, ElemType: $2.Kind}} }
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, IsExtern: true, ElemType: $2.Kind, StructTag: $2.Tag}} }
+	| EXTERN type_specifier ID '[' NUM ']' ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: $5, IsExtern: true, ElemType: $2.Kind, StructTag: $2.Tag}} }
+	| EXTERN CONST type_specifier ID '[' NUM ']' ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $4, Val: $6, IsExtern: true, ElemType: $3.Kind, StructTag: $3.Tag}} }
+	| EXTERN CONST type_specifier ID '[' ']' ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $4, IsExtern: true, ElemType: $3.Kind, StructTag: $3.Tag}} }
 	| EXTERN type_specifier '*' ID '[' ']' ';'
 		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $4, IsExtern: true, ElemType: TypePtr, ElemPointee: $2}} }
 	| EXTERN type_specifier '*' ID ';'
@@ -154,6 +168,19 @@ extern_declaration
 			n.IsExtern = true; n.Children = $5
 			$$ = []*Node{n}
 		}
+	/* Static forward function declarations: "static T f(T);" and "static T f(T), g(T);" */
+	| STATIC type_specifier ID '(' params ')' ';'
+		{
+			n := ctNode(KindFunDecl, $2, $3); n.IsExtern = true
+			n.Children = $5
+			$$ = []*Node{n}
+		}
+	| STATIC type_specifier ID '(' params ')' ',' ID '(' params ')' ';'
+		{
+			n1 := ctNode(KindFunDecl, $2, $3); n1.IsExtern = true; n1.Children = $5
+			n2 := ctNode(KindFunDecl, $2, $8); n2.IsExtern = true; n2.Children = $10
+			$$ = []*Node{n1, n2}
+		}
 	/* Combined struct definition + extern variable: "extern [const] struct Name { fields } var;" */
 	| EXTERN STRUCT ID '{' field_list '}' ID ';'
 		{
@@ -206,6 +233,11 @@ var_declaration
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $5}; n.Pointee = ptrCType(ptrCType($1)); $$ = []*Node{n} }
 	| STRUCT ID ID ';'
 		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeStruct, Name: $3, StructTag: $2}} }
+	| STRUCT ID ID ',' ID ';'
+		{ $$ = []*Node{
+			{Kind: KindVarDecl, Type: TypeStruct, Name: $3, StructTag: $2},
+			{Kind: KindVarDecl, Type: TypeStruct, Name: $5, StructTag: $2},
+		} }
 	| STRUCT ID '*' ID ';'
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4}; n.Pointee = structCType($2); $$ = []*Node{n} }
 	| STRUCT ID '*' ID '=' expression ';'
@@ -222,12 +254,73 @@ var_declaration
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4, IsConstTarget: true}; n.Pointee = $2; $$ = []*Node{n} }
 	| CONST type_specifier '*' ID '=' expression ';'
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4, IsConstTarget: true}; n.Pointee = $2; n.Children = []*Node{$6}; $$ = []*Node{n} }
+	/* ── const T *a, *b; — multi-pointer const decl ── */
+	| CONST type_specifier '*' ID ',' '*' ID ';'
+		{ n1 := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4, IsConstTarget: true}; n1.Pointee = $2
+		  n2 := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $7, IsConstTarget: true}; n2.Pointee = $2
+		  $$ = []*Node{n1, n2} }
+	| CONST type_specifier ID ';'
+		{ n := ctNode(KindVarDecl, $2, $3); $$ = []*Node{n} }
+	| CONST type_specifier ID '=' expression ';'
+		{ n := ctNode(KindVarDecl, $2, $3); n.Children = []*Node{$5}; $$ = []*Node{n} }
 	| STATIC type_specifier ID ';'
 		{ n := ctNode(KindVarDecl, $2, $3); n.IsStatic = true; maybeSetTypeofExpr(n, $2, yylex); $$ = []*Node{n} }
 	| STATIC type_specifier ID '=' expression ';'
 		{ n := ctNode(KindVarDecl, $2, $3); n.IsStatic = true; n.Children = []*Node{$5}; maybeSetTypeofExpr(n, $2, yylex); $$ = []*Node{n} }
 	| STATIC type_specifier ID '[' NUM ']' ';'
 		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: $5, ElemType: $2.Kind, IsStatic: true}} }
+	| STATIC CONST type_specifier ID ';'
+		{ n := ctNode(KindVarDecl, $3, $4); n.IsStatic = true; $$ = []*Node{n} }
+	| STATIC CONST type_specifier ID '=' expression ';'
+		{ n := ctNode(KindVarDecl, $3, $4); n.IsStatic = true; n.Children = []*Node{$6}; $$ = []*Node{n} }
+	| STATIC CONST type_specifier ID '[' NUM ']' ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $4, Val: $6, ElemType: $3.Kind, IsStatic: true}} }
+	| STATIC CONST type_specifier ID '[' NUM ']' '=' '{' init_list '}' ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $4, Val: $6, ElemType: $3.Kind, IsStatic: true,
+		               Children: []*Node{{Kind: KindInitList, Children: $10}}}} }
+	| STATIC CONST type_specifier ID '[' NUM ']' '=' '{' init_list ',' '}' ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $4, Val: $6, ElemType: $3.Kind, IsStatic: true,
+		               Children: []*Node{{Kind: KindInitList, Children: $10}}}} }
+	/* ── Unsized array: "T x[] = { ... };" (size inferred from initializer) ── */
+	| type_specifier ID '[' ']' '=' '{' init_list '}' ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: 0, ElemType: $1.Kind,
+		               Children: []*Node{{Kind: KindInitList, Children: $7}}}} }
+	| type_specifier ID '[' ']' '=' '{' init_list ',' '}' ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: 0, ElemType: $1.Kind,
+		               Children: []*Node{{Kind: KindInitList, Children: $7}}}} }
+	| STATIC type_specifier ID '[' ']' '=' '{' init_list '}' ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: 0, ElemType: $2.Kind, IsStatic: true,
+		               Children: []*Node{{Kind: KindInitList, Children: $8}}}} }
+	| STATIC type_specifier ID '[' ']' '=' '{' init_list ',' '}' ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: 0, ElemType: $2.Kind, IsStatic: true,
+		               Children: []*Node{{Kind: KindInitList, Children: $8}}}} }
+	| STATIC CONST type_specifier ID '[' ']' '=' '{' init_list '}' ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $4, Val: 0, ElemType: $3.Kind, IsStatic: true,
+		               Children: []*Node{{Kind: KindInitList, Children: $9}}}} }
+	| STATIC CONST type_specifier ID '[' ']' '=' '{' init_list ',' '}' ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $4, Val: 0, ElemType: $3.Kind, IsStatic: true,
+		               Children: []*Node{{Kind: KindInitList, Children: $9}}}} }
+	| CONST type_specifier ID '[' ']' '=' '{' init_list '}' ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: 0, ElemType: $2.Kind,
+		               Children: []*Node{{Kind: KindInitList, Children: $8}}}} }
+	| CONST type_specifier ID '[' ']' '=' '{' init_list ',' '}' ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: 0, ElemType: $2.Kind,
+		               Children: []*Node{{Kind: KindInitList, Children: $8}}}} }
+	| CONST type_specifier ID '[' NUM ']' '=' '{' init_list '}' ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: $5, ElemType: $2.Kind, StructTag: $2.Tag,
+		               Children: []*Node{{Kind: KindInitList, Children: $9}}}} }
+	| CONST type_specifier ID '[' NUM ']' '=' '{' init_list ',' '}' ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: $5, ElemType: $2.Kind, StructTag: $2.Tag,
+		               Children: []*Node{{Kind: KindInitList, Children: $9}}}} }
+	/* ── Multi-declarator-with-initializer lists: "static const T a=1, b=2, c=3;" ── */
+	| CONST type_specifier multi_init_id_list ';'
+		{ $$ = applyTypeToDecls($2, $3, false, false) }
+	| STATIC type_specifier multi_init_id_list ';'
+		{ $$ = applyTypeToDecls($2, $3, true, false) }
+	| STATIC CONST type_specifier multi_init_id_list ';'
+		{ $$ = applyTypeToDecls($3, $4, true, false) }
+	| type_specifier multi_init_id_list ';'
+		{ $$ = applyTypeToDecls($1, $2, false, false) }
 	/* ── Brace-initializer for struct/scalar local ── */
 	| type_specifier ID '=' '{' init_list '}' ';'
 		{ n := ctNode(KindVarDecl, $1, $2)
@@ -258,6 +351,31 @@ var_declaration
 	| STRUCT ID ID '=' '{' init_list ',' '}' ';'
 		{ n := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $3, StructTag: $2,
 		             Children: []*Node{{Kind: KindInitList, Children: $6}}}
+		  $$ = []*Node{n} }
+	/* ── const / static const struct variable with initializer ── */
+	| CONST STRUCT ID ID '=' '{' init_list '}' ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $4, StructTag: $3,
+		             Children: []*Node{{Kind: KindInitList, Children: $7}}}
+		  $$ = []*Node{n} }
+	| CONST STRUCT ID ID '=' '{' init_list ',' '}' ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $4, StructTag: $3,
+		             Children: []*Node{{Kind: KindInitList, Children: $7}}}
+		  $$ = []*Node{n} }
+	| STATIC CONST STRUCT ID ID '=' '{' init_list '}' ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $5, StructTag: $4, IsStatic: true,
+		             Children: []*Node{{Kind: KindInitList, Children: $8}}}
+		  $$ = []*Node{n} }
+	| STATIC CONST STRUCT ID ID '=' '{' init_list ',' '}' ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $5, StructTag: $4, IsStatic: true,
+		             Children: []*Node{{Kind: KindInitList, Children: $8}}}
+		  $$ = []*Node{n} }
+	| STATIC STRUCT ID ID '=' '{' init_list '}' ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $4, StructTag: $3, IsStatic: true,
+		             Children: []*Node{{Kind: KindInitList, Children: $7}}}
+		  $$ = []*Node{n} }
+	| STATIC STRUCT ID ID '=' '{' init_list ',' '}' ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $4, StructTag: $3, IsStatic: true,
+		             Children: []*Node{{Kind: KindInitList, Children: $7}}}
 		  $$ = []*Node{n} }
 	| UNION ID ID '=' '{' init_list '}' ';'
 		{ n := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $3, StructTag: $2,
@@ -302,6 +420,26 @@ var_declaration
 		  vd := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $5, StructTag: tag,
 		              Children: []*Node{{Kind: KindInitList, Children: $8}}}
 		  $$ = []*Node{sd, vd} }
+	/* ── Local mixed multi-declarator: "T arr[N], scalar;" / "T arr[N], scalar = val;" ── */
+	| type_specifier ID '[' NUM ']' ',' ID ';'
+		{ arr := &Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: $4, ElemType: $1.Kind}
+		  sc  := ctNode(KindVarDecl, $1, $7)
+		  $$ = []*Node{arr, sc} }
+	| type_specifier ID '[' NUM ']' ',' ID '=' expression ';'
+		{ arr := &Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: $4, ElemType: $1.Kind}
+		  sc  := ctNode(KindVarDecl, $1, $7); sc.Children = []*Node{$9}
+		  $$ = []*Node{arr, sc} }
+	| type_specifier ID ',' ID '[' NUM ']' ';'
+		{ sc  := ctNode(KindVarDecl, $1, $2)
+		  arr := &Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $4, Val: $6, ElemType: $1.Kind}
+		  $$ = []*Node{sc, arr} }
+	/* ── Local plain multi-scalar: "T a, b, c[N], d[N];" (no initializers, any mix) ── */
+	| type_specifier ID ',' ID '[' NUM ']' ',' ID '[' NUM ']' ';'
+		{ $$ = []*Node{
+			ctNode(KindVarDecl, $1, $2),
+			{Kind: KindVarDecl, Type: TypeIntArray, Name: $4, Val: $6, ElemType: $1.Kind},
+			{Kind: KindVarDecl, Type: TypeIntArray, Name: $9, Val: $11, ElemType: $1.Kind},
+		} }
 	;
 
 init_list
@@ -405,6 +543,13 @@ fun_declaration
 			n.Children = append($4, $6)
 			$$ = n
 		}
+	/* ── Parenthesized function name: double(log2)(double x) — prevents macro expansion ── */
+	| type_specifier '(' ID ')' '(' params ')' compound_stmt
+		{
+			n := ctNode(KindFunDecl, $1, $3)
+			n.Children = append($6, $8)
+			$$ = n
+		}
 	| type_specifier ID '(' param_list ',' ELLIPSIS ')' compound_stmt
 		{
 			n := ctNode(KindFunDecl, $1, $2)
@@ -445,6 +590,13 @@ fun_declaration
 			n := &Node{Kind: KindFunDecl, Type: TypeStruct, StructTag: $2, Name: $3}
 			params := append($5, &Node{Kind: KindParam, Type: TypeVoid, Name: "..."})
 			n.Children = append(params, $9)
+			$$ = n
+		}
+	| STATIC STRUCT ID ID '(' params ')' compound_stmt
+		{
+			n := &Node{Kind: KindFunDecl, Type: TypeStruct, StructTag: $3, Name: $4}
+			n.IsStatic = true
+			n.Children = append($6, $8)
 			$$ = n
 		}
 	| STATIC type_specifier ID '(' params ')' compound_stmt
@@ -552,14 +704,17 @@ param
 	;
 
 compound_stmt
-	: '{' local_declarations statement_list '}'
-		{ $$ = &Node{Kind: KindCompound, Children: append($2, $3...)} }
+	: '{' block_item_list '}'
+		{ $$ = &Node{Kind: KindCompound, Children: $2} }
 	;
 
-local_declarations
-	: local_declarations var_declaration
+/* C99-style block: declarations and statements may be freely mixed. */
+block_item_list
+	: block_item_list statement
+		{ $$ = append($1, $2) }
+	| block_item_list var_declaration
 		{ $$ = append($1, $2...) }
-	| local_declarations const_declaration
+	| block_item_list const_declaration
 		{ $$ = append($1, $2...) }
 	| /* empty */
 		{ $$ = nil }
@@ -568,8 +723,71 @@ local_declarations
 id_list
 	: id_list ',' ID
 		{ $$ = append($1, &Node{Kind: KindVar, Name: $3}) }
+	| id_list ',' ID '[' NUM ']'
+		{ $$ = append($1, &Node{Kind: KindVar, Name: $3, Val: $5, Type: TypeIntArray}) }
+	/* ── Allow "a, b, c = val, d, e" — id_list with an initialized item in the middle/end ── */
+	| id_list ',' ID '=' expression
+		{ $$ = append($1, &Node{Kind: KindVarDecl, Name: $3, Children: []*Node{$5}}) }
 	| ID ',' ID
 		{ $$ = []*Node{{Kind: KindVar, Name: $1}, {Kind: KindVar, Name: $3}} }
+	;
+
+/* multi_init_id_list: two or more declarators separated by commas.
+   Requires at least two entries to avoid ambiguity with the single-var rules.
+   Supports: ID=expr, bare ID, ID[]=init, ID[N]=init, ID[N] items. */
+multi_init_id_list
+	/* ── Base cases involving arrays (no initializer on first element) ── */
+	: ID ',' ID '[' NUM ']'
+		{ $$ = []*Node{
+			{Kind: KindVarDecl, Name: $1},
+			{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: $5},
+		} }
+	| ID '[' NUM ']' ',' ID
+		{ $$ = []*Node{
+			{Kind: KindVarDecl, Type: TypeIntArray, Name: $1, Val: $3},
+			{Kind: KindVarDecl, Name: $6},
+		} }
+	/* ── Base: two initialized items ── */
+	| ID '=' expression ',' ID '=' expression
+		{ $$ = []*Node{
+			{Kind: KindVarDecl, Name: $1, Children: []*Node{$3}},
+			{Kind: KindVarDecl, Name: $5, Children: []*Node{$7}},
+		} }
+	/* first item init, second item bare ID */
+	| ID '=' expression ',' ID
+		{ $$ = []*Node{
+			{Kind: KindVarDecl, Name: $1, Children: []*Node{$3}},
+			{Kind: KindVarDecl, Name: $5},
+		} }
+	/* first item init, second item unsized array with init list */
+	| ID '=' expression ',' ID '[' ']' '=' '{' init_list '}'
+		{ $$ = []*Node{
+			{Kind: KindVarDecl, Name: $1, Children: []*Node{$3}},
+			{Kind: KindVarDecl, Type: TypeIntArray, Name: $5, Val: 0,
+			 Children: []*Node{{Kind: KindInitList, Children: $10}}},
+		} }
+	| ID '=' expression ',' ID '[' ']' '=' '{' init_list ',' '}'
+		{ $$ = []*Node{
+			{Kind: KindVarDecl, Name: $1, Children: []*Node{$3}},
+			{Kind: KindVarDecl, Type: TypeIntArray, Name: $5, Val: 0,
+			 Children: []*Node{{Kind: KindInitList, Children: $10}}},
+		} }
+	/* extend with another initialized item */
+	| multi_init_id_list ',' ID '=' expression
+		{ $$ = append($1, &Node{Kind: KindVarDecl, Name: $3, Children: []*Node{$5}}) }
+	/* extend with bare uninitialized ID */
+	| multi_init_id_list ',' ID
+		{ $$ = append($1, &Node{Kind: KindVarDecl, Name: $3}) }
+	/* extend with unsized array + init list */
+	| multi_init_id_list ',' ID '[' ']' '=' '{' init_list '}'
+		{ $$ = append($1, &Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: 0,
+		    Children: []*Node{{Kind: KindInitList, Children: $8}}}) }
+	| multi_init_id_list ',' ID '[' ']' '=' '{' init_list ',' '}'
+		{ $$ = append($1, &Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: 0,
+		    Children: []*Node{{Kind: KindInitList, Children: $8}}}) }
+	/* extend with sized array (no initializer) */
+	| multi_init_id_list ',' ID '[' NUM ']'
+		{ $$ = append($1, &Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: $5}) }
 	;
 
 statement_list
@@ -586,6 +804,7 @@ statement
 	| iteration_stmt  { $$ = $1 }
 	| for_stmt        { $$ = $1 }
 	| do_while_stmt   { $$ = $1 }
+	| switch_stmt     { $$ = $1 }
 	| return_stmt     { $$ = $1 }
 	| break_stmt      { $$ = $1 }
 	| continue_stmt   { $$ = $1 }
@@ -614,11 +833,73 @@ iteration_stmt
 for_stmt
 	: FOR '(' opt_expression ';' opt_expression ';' opt_expression ')' statement
 		{ $$ = &Node{Kind: KindFor, Children: []*Node{$3, $5, $7, $9}} }
+	/* ── For loop with comma expression in increment: "for (i=0; cond; i++, j++)" ── */
+	| FOR '(' opt_expression ';' opt_expression ';' expression ',' expression ')' statement
+		{ inc := &Node{Kind: KindCompound, Children: []*Node{
+		      &Node{Kind: KindExprStmt, Children: []*Node{$7}},
+		      &Node{Kind: KindExprStmt, Children: []*Node{$9}}}}
+		  $$ = &Node{Kind: KindFor, Children: []*Node{$3, $5, inc, $11}} }
+	| FOR '(' opt_expression ';' opt_expression ';' expression ',' expression ',' expression ')' statement
+		{ inc := &Node{Kind: KindCompound, Children: []*Node{
+		      &Node{Kind: KindExprStmt, Children: []*Node{$7}},
+		      &Node{Kind: KindExprStmt, Children: []*Node{$9}},
+		      &Node{Kind: KindExprStmt, Children: []*Node{$11}}}}
+		  $$ = &Node{Kind: KindFor, Children: []*Node{$3, $5, inc, $13}} }
+	/* ── For loop with comma expression in init: "for (a=x, b=y; ...)" ── */
+	| FOR '(' expression ',' expression ';' opt_expression ';' opt_expression ')' statement
+		{ init := &Node{Kind: KindExprStmt, Children: []*Node{$3}}
+		  init2 := &Node{Kind: KindExprStmt, Children: []*Node{$5}}
+		  $$ = &Node{Kind: KindFor, Children: []*Node{
+		      &Node{Kind: KindCompound, Children: []*Node{init, init2}}, $7, $9, $11}} }
+	| FOR '(' expression ',' expression ',' expression ';' opt_expression ';' opt_expression ')' statement
+		{ init := &Node{Kind: KindExprStmt, Children: []*Node{$3}}
+		  init2 := &Node{Kind: KindExprStmt, Children: []*Node{$5}}
+		  init3 := &Node{Kind: KindExprStmt, Children: []*Node{$7}}
+		  $$ = &Node{Kind: KindFor, Children: []*Node{
+		      &Node{Kind: KindCompound, Children: []*Node{init, init2, init3}}, $9, $11, $13}} }
+	/* ── For loop with comma init (2) AND comma increment (2) ── */
+	| FOR '(' expression ',' expression ';' opt_expression ';' expression ',' expression ')' statement
+		{ init := &Node{Kind: KindCompound, Children: []*Node{
+		      &Node{Kind: KindExprStmt, Children: []*Node{$3}},
+		      &Node{Kind: KindExprStmt, Children: []*Node{$5}}}}
+		  inc := &Node{Kind: KindCompound, Children: []*Node{
+		      &Node{Kind: KindExprStmt, Children: []*Node{$9}},
+		      &Node{Kind: KindExprStmt, Children: []*Node{$11}}}}
+		  $$ = &Node{Kind: KindFor, Children: []*Node{init, $7, inc, $13}} }
+	/* ── For loop with comma init (3) AND comma increment (2) ── */
+	| FOR '(' expression ',' expression ',' expression ';' opt_expression ';' expression ',' expression ')' statement
+		{ init := &Node{Kind: KindCompound, Children: []*Node{
+		      &Node{Kind: KindExprStmt, Children: []*Node{$3}},
+		      &Node{Kind: KindExprStmt, Children: []*Node{$5}},
+		      &Node{Kind: KindExprStmt, Children: []*Node{$7}}}}
+		  inc := &Node{Kind: KindCompound, Children: []*Node{
+		      &Node{Kind: KindExprStmt, Children: []*Node{$11}},
+		      &Node{Kind: KindExprStmt, Children: []*Node{$13}}}}
+		  $$ = &Node{Kind: KindFor, Children: []*Node{init, $9, inc, $15}} }
 	;
 
 do_while_stmt
 	: DO statement WHILE '(' expression ')' ';'
 		{ $$ = &Node{Kind: KindDoWhile, Children: []*Node{$2, $5}} }
+	;
+
+switch_stmt
+	: SWITCH '(' expression ')' '{' case_list '}'
+		{ $$ = &Node{Kind: KindSwitch, Children: append([]*Node{$3}, $6...)} }
+	;
+
+case_list
+	: case_list case_item
+		{ $$ = append($1, $2) }
+	| /* empty */
+		{ $$ = nil }
+	;
+
+case_item
+	: CASE expression ':' statement_list
+		{ $$ = &Node{Kind: KindCase, Children: append([]*Node{$2}, $4...)} }
+	| DEFAULT ':' statement_list
+		{ $$ = &Node{Kind: KindCase, Val: -1, Children: $3} }
 	;
 
 goto_stmt
@@ -672,6 +953,21 @@ expression
 		{ $$ = &Node{Kind: KindAssign, Children: []*Node{$2, $5}} }
 	| '*' factor '=' expression
 		{ lhs := &Node{Kind: KindDeref, Children: []*Node{$2}}; $$ = &Node{Kind: KindAssign, Children: []*Node{lhs, $4}} }
+	/* ── Compound assignment through pointer: "*eptr += expr" ── */
+	| '*' factor PLUSEQ expression
+		{ lhs := &Node{Kind: KindDeref, Children: []*Node{$2}}; $$ = &Node{Kind: KindCompoundAssign, Op: "+", Children: []*Node{lhs, $4}} }
+	| '*' factor MINUSEQ expression
+		{ lhs := &Node{Kind: KindDeref, Children: []*Node{$2}}; $$ = &Node{Kind: KindCompoundAssign, Op: "-", Children: []*Node{lhs, $4}} }
+	| '*' factor STAREQ expression
+		{ lhs := &Node{Kind: KindDeref, Children: []*Node{$2}}; $$ = &Node{Kind: KindCompoundAssign, Op: "*", Children: []*Node{lhs, $4}} }
+	| '*' factor SHREQ expression
+		{ lhs := &Node{Kind: KindDeref, Children: []*Node{$2}}; $$ = &Node{Kind: KindCompoundAssign, Op: ">>", Children: []*Node{lhs, $4}} }
+	| '*' factor SHLEQ expression
+		{ lhs := &Node{Kind: KindDeref, Children: []*Node{$2}}; $$ = &Node{Kind: KindCompoundAssign, Op: "<<", Children: []*Node{lhs, $4}} }
+	| '*' factor OREQ expression
+		{ lhs := &Node{Kind: KindDeref, Children: []*Node{$2}}; $$ = &Node{Kind: KindCompoundAssign, Op: "|", Children: []*Node{lhs, $4}} }
+	| '*' factor ANDEQ expression
+		{ lhs := &Node{Kind: KindDeref, Children: []*Node{$2}}; $$ = &Node{Kind: KindCompoundAssign, Op: "&", Children: []*Node{lhs, $4}} }
 	| postfix_expr PLUSEQ expression
 		{ $$ = &Node{Kind: KindCompoundAssign, Op: "+", Children: []*Node{$1, $3}} }
 	| postfix_expr MINUSEQ expression
@@ -914,8 +1210,8 @@ factor
 		  n.Children = []*Node{{Kind: KindInitList, Children: $6}}
 		  $$ = n }
 	/* ── Statement expressions (GCC extension) ── */
-	| '(' '{' local_declarations statement_list '}' ')'
-		{ $$ = &Node{Kind: KindStmtExpr, Children: append($3, $4...)} }
+	| '(' '{' block_item_list '}' ')'
+		{ $$ = &Node{Kind: KindStmtExpr, Children: $3} }
 	;
 
 call

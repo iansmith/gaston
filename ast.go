@@ -111,6 +111,8 @@ const (
 	KindIteration // while (cond) body
 	KindFor       // for (init; cond; post) body — Children: [init|nil, cond|nil, post|nil, body]
 	KindDoWhile   // do body while (cond); — Children: [body, cond]
+	KindSwitch    // switch (expr) { cases } — Children: [expr, case1, case2, ...]
+	KindCase      // case expr: stmts — Val=-1 for default; Children[0]=expr (if not default), rest=stmts
 	KindReturn    // return [expr];
 	KindBreak     // break;
 	KindContinue  // continue;
@@ -186,11 +188,23 @@ const (
 func makeMultiDecl(ct *CType, names []*Node) []*Node {
 	out := make([]*Node, len(names))
 	for i, n := range names {
-		decl := &Node{Kind: KindVarDecl, Type: ct.Kind, StructTag: ct.Tag, Name: n.Name}
-		if ct.Kind == TypePtr {
-			decl.Pointee = ct.Pointee
+		if n.Kind == KindVarDecl {
+			// Already a VarDecl (from id_list ',' ID '=' expression): just set the type.
+			n.Type = ct.Kind
+			n.StructTag = ct.Tag
+			n.Pointee = ct.Pointee
+			out[i] = n
+		} else if n.Type == TypeIntArray {
+			// Array element in id_list (e.g. "iq[20]" from "int jz, iq[20], i;")
+			out[i] = &Node{Kind: KindVarDecl, Type: TypeIntArray, Name: n.Name,
+				Val: n.Val, ElemType: ct.Kind}
+		} else {
+			decl := &Node{Kind: KindVarDecl, Type: ct.Kind, StructTag: ct.Tag, Name: n.Name}
+			if ct.Kind == TypePtr {
+				decl.Pointee = ct.Pointee
+			}
+			out[i] = decl
 		}
-		out[i] = decl
 	}
 	return out
 }
@@ -378,6 +392,25 @@ func (sd *StructDef) FindField(name string) *StructField {
 // (nameless) embedded struct/union members.  Returns the field with its
 // absolute byte offset within the outer struct (anonymous base offset +
 // inner field offset), or nil if not found.
+// applyTypeToDecls fills in the CType fields on a list of partial VarDecl nodes
+// produced by the multi_init_id_list grammar rule, and sets IsStatic/IsConst.
+// Nodes already marked TypeIntArray (array items in the list) get ElemType from ct.
+func applyTypeToDecls(ct *CType, decls []*Node, isStatic, isConst bool) []*Node {
+	for _, d := range decls {
+		if d.Type == TypeIntArray {
+			// Array item: element type comes from ct; Type stays TypeIntArray.
+			d.ElemType = ct.Kind
+		} else {
+			d.Type = ct.Kind
+			d.StructTag = ct.Tag
+			d.Pointee = ct.Pointee
+		}
+		d.IsStatic = isStatic
+		d.IsConst = isConst
+	}
+	return decls
+}
+
 func (sd *StructDef) FindFieldDeep(name string, structDefs map[string]*StructDef) *StructField {
 	for i := range sd.Fields {
 		f := &sd.Fields[i]

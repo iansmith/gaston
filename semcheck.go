@@ -33,6 +33,7 @@ type symEntry struct {
 	structTag     string   // for TypeStruct: the struct name
 	isParam       bool
 	isGlobal      bool
+	isExtern      bool     // true for extern forward declarations (may be overridden by a definition)
 	isConst       bool
 	constVal      int
 	arrSize       int      // for TypeIntArray locals/globals: number of elements (0 for params)
@@ -49,6 +50,18 @@ var charPtee = leafCType(TypeChar)
 // string-literal char* nodes are interchangeable with TypePtr+TypeChar pointee
 // variables in type-compatibility checks. TypeIntArray decays to (TypePtr, ptee)
 // where ptee describes the element. All other types pass through unchanged.
+// isConstantScalar reports whether n is a compile-time constant suitable as a
+// global variable initializer: a numeric/float literal, or unary minus thereof.
+func isConstantScalar(n *Node) bool {
+	switch n.Kind {
+	case KindNum, KindFNum:
+		return true
+	case KindUnary:
+		return n.Op == "-" && len(n.Children) == 1 && isConstantScalar(n.Children[0])
+	}
+	return false
+}
+
 func normalizePtrType(t TypeKind, ptee *CType) (TypeKind, *CType) {
 	if t == TypeCharPtr {
 		return TypePtr, charPtee
@@ -81,6 +94,9 @@ func newSymTable() *symTable {
 	// Compiler built-in: returns a pointer to the variadic register save area.
 	st.funcs["__va_start"] = &FuncSig{Name: "__va_start", ReturnType: TypePtr,
 		ReturnPointee: leafCType(TypeLong)}
+	// __builtin_expect(expr, hint) — returns expr; used for branch prediction hints.
+	st.funcs["__builtin_expect"] = &FuncSig{Name: "__builtin_expect", ReturnType: TypeLong,
+		Params: []TypeKind{TypeLong, TypeLong}, ParamPointees: []*CType{nil, nil}}
 	// GCC bit-manipulation intrinsics.
 	for _, name := range []string{
 		"__builtin_clz", "__builtin_clzl", "__builtin_clzll",
@@ -133,10 +149,14 @@ func (st *symTable) enterFunc() { st.locals = make(map[string]*symEntry) }
 func (st *symTable) leaveFunc() { st.locals = nil }
 
 func (st *symTable) declareGlobal(name string, typ TypeKind, structTag ...string) error {
-	if _, ok := st.globals[name]; ok {
-		return fmt.Errorf("redeclaration of global '%s'", name)
+	if existing, ok := st.globals[name]; ok {
+		if !existing.isExtern {
+			return fmt.Errorf("redeclaration of global '%s'", name)
+		}
+		// Extern forward declaration — allow a later definition to override.
+		return nil
 	}
-	e := &symEntry{name: name, typ: typ, isGlobal: true}
+	e := &symEntry{name: name, typ: typ, isGlobal: true, isExtern: true}
 	if len(structTag) > 0 {
 		e.structTag = structTag[0]
 	}
@@ -145,8 +165,11 @@ func (st *symTable) declareGlobal(name string, typ TypeKind, structTag ...string
 }
 
 func (st *symTable) declareGlobalFull(n *Node) error {
-	if _, ok := st.globals[n.Name]; ok {
-		return fmt.Errorf("redeclaration of global '%s'", n.Name)
+	if existing, ok := st.globals[n.Name]; ok {
+		if !existing.isExtern {
+			return fmt.Errorf("redeclaration of global '%s'", n.Name)
+		}
+		// Extern forward declaration — allow a definition to override it.
 	}
 	e := &symEntry{name: n.Name, typ: n.Type, isGlobal: true,
 		structTag: n.StructTag, pointee: n.Pointee, isConstTarget: n.IsConstTarget}
@@ -171,7 +194,7 @@ func (st *symTable) declareConst(name string, typ TypeKind, val int, isGlobal bo
 
 func (st *symTable) declareLocal(name string, typ TypeKind, isParam bool, structTag ...string) error {
 	if _, ok := st.locals[name]; ok {
-		return fmt.Errorf("redeclaration of '%s'", name)
+		// Allow re-declaration in inner blocks (C99 block scope); just update.
 	}
 	e := &symEntry{name: name, typ: typ, isParam: isParam}
 	if len(structTag) > 0 {
@@ -183,7 +206,7 @@ func (st *symTable) declareLocal(name string, typ TypeKind, isParam bool, struct
 
 func (st *symTable) declareLocalFull(n *Node, isParam bool) error {
 	if _, ok := st.locals[n.Name]; ok {
-		return fmt.Errorf("redeclaration of '%s'", n.Name)
+		// Allow re-declaration in inner blocks (C99 block scope); just update the entry.
 	}
 	e := &symEntry{name: n.Name, typ: n.Type, isParam: isParam,
 		structTag: n.StructTag, pointee: n.Pointee, isConstTarget: n.IsConstTarget,
@@ -242,6 +265,10 @@ func semCheck(prog *Node, requireMain bool) error {
 			if decl.IsExtern {
 				if err := st.declareGlobal(decl.Name, decl.Type, decl.StructTag); err != nil {
 					errs = append(errs, err.Error())
+				} else if decl.Type == TypeIntArray {
+					st.globals[decl.Name].elemType = decl.ElemType
+					st.globals[decl.Name].elemPointee = decl.ElemPointee
+					st.globals[decl.Name].arrSize = decl.Val
 				}
 			} else if decl.IsConst {
 				if err := st.declareConst(decl.Name, decl.Type, decl.Val, true); err != nil {
@@ -256,6 +283,10 @@ func semCheck(prog *Node, requireMain bool) error {
 				if err := st.declareGlobalFull(decl); err != nil {
 					errs = append(errs, err.Error())
 				} else if decl.Type == TypeIntArray {
+					// Infer array size from initializer list when Val==0.
+					if decl.Val == 0 && len(decl.Children) > 0 && decl.Children[0].Kind == KindInitList {
+						decl.Val = len(decl.Children[0].Children)
+					}
 					st.globals[decl.Name].arrSize = decl.Val
 					st.globals[decl.Name].elemType = decl.ElemType
 					st.globals[decl.Name].elemPointee = decl.ElemPointee
@@ -265,7 +296,7 @@ func semCheck(prog *Node, requireMain bool) error {
 					init := decl.Children[0]
 					if init.Kind == KindInitList {
 						checkInitList(init, decl, st, &errs)
-					} else if init.Kind != KindNum {
+					} else if !isConstantScalar(init) {
 						errs = append(errs, fmt.Sprintf("global '%s': initializer must be a constant", decl.Name))
 					} else if decl.Type == TypeIntArray {
 						errs = append(errs, fmt.Sprintf("global array '%s' cannot have a scalar initializer", decl.Name))
@@ -549,6 +580,22 @@ func checkStmt(n *Node, st *symTable, fn *Node, errs *[]string) {
 	case KindDoWhile:
 		checkStmt(n.Children[0], st, fn, errs)
 		checkExpr(n.Children[1], st, errs)
+	case KindSwitch:
+		// Children: [expr, case1, case2, ...]
+		checkExpr(n.Children[0], st, errs)
+		for _, c := range n.Children[1:] {
+			checkStmt(c, st, fn, errs)
+		}
+	case KindCase:
+		// Val == -1 for default; Children[0] = case expr, rest = stmts
+		start := 0
+		if n.Val != -1 {
+			checkExpr(n.Children[0], st, errs)
+			start = 1
+		}
+		for _, s := range n.Children[start:] {
+			checkStmt(s, st, fn, errs)
+		}
 	case KindBreak, KindContinue:
 		// valid anywhere inside a loop; runtime check in irgen
 	case KindGoto:
@@ -671,6 +718,8 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		n.Type = e.typ
 		n.Pointee = e.pointee
 		n.StructTag = e.structTag
+		n.ElemType = e.elemType
+		n.ElemPointee = e.elemPointee
 		// For TypePtr-to-struct: propagate the struct tag to StructTag for field-access lookup.
 		if e.typ == TypePtr && e.pointee != nil && e.pointee.Kind == TypeStruct {
 			n.StructTag = e.pointee.Tag
@@ -710,6 +759,7 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 				n.Pointee = e.elemPointee
 			} else if e.elemType != 0 && e.elemType != TypeInt {
 				n.Type = e.elemType // typed array: use the declared element type
+				n.StructTag = e.structTag // propagate element struct tag
 			} else {
 				n.Type = TypeInt
 			}
@@ -735,6 +785,17 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			}
 		case TypeCharPtr:
 			n.Type = TypeChar
+		case TypeIntArray:
+			// Array indexing via field access or array expression: element type is base.ElemType.
+			et := base.ElemType
+			if et == 0 {
+				et = TypeInt
+			}
+			n.Type = et
+			n.StructTag = base.StructTag
+			if et == TypePtr {
+				n.Pointee = base.ElemPointee
+			}
 		default:
 			n.Type = TypeInt
 		}
@@ -771,12 +832,16 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		}
 		// Pointer assignment compatibility check.
 		if isPtrType(lhsType) {
-			// TypeIntArray used as a value decays to pointer.
+			// TypeIntArray used as a value decays to pointer to its element type.
 			effectiveRhs := rhsType
 			effectiveRhsPtee := rhs.Pointee
 			if effectiveRhs == TypeIntArray {
 				effectiveRhs = TypePtr
-				effectiveRhsPtee = leafCType(TypeInt)
+				if rhs.ElemType != TypeInt && rhs.ElemType != 0 {
+					effectiveRhsPtee = leafCType(rhs.ElemType)
+				} else {
+					effectiveRhsPtee = leafCType(TypeInt)
+				}
 			}
 			if isPtrType(effectiveRhs) {
 				// Both pointers: must have compatible pointees, or one side is void*.
@@ -952,6 +1017,8 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		} else {
 			n.Type = f.Type
 			n.Pointee = f.Pointee
+			n.ElemType = f.ElemType
+			n.ElemPointee = f.ElemPointee
 			if f.Type == TypeStruct {
 				n.StructTag = f.StructTag
 			} else if f.Type == TypePtr && f.Pointee != nil && f.Pointee.Kind == TypeStruct {

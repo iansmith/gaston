@@ -646,6 +646,8 @@ func (g *irGen) genStmt(n *Node) {
 		g.genFor(n)
 	case KindDoWhile:
 		g.genDoWhile(n)
+	case KindSwitch:
+		g.genSwitch(n)
 	case KindBreak:
 		if len(g.loopStack) == 0 {
 			panic("break outside loop")
@@ -737,9 +739,13 @@ func (g *irGen) genFor(n *Node) {
 	postLabel := g.newLabel()
 	endLabel := g.newLabel()
 
-	// init
+	// init — may be a compound (comma-init) or a plain expression
 	if n.Children[0] != nil {
-		g.genExpr(n.Children[0])
+		if n.Children[0].Kind == KindCompound {
+			g.genStmt(n.Children[0])
+		} else {
+			g.genExpr(n.Children[0])
+		}
 	}
 
 	g.loopStack = append(g.loopStack, loopLabels{breakLabel: endLabel, continueLabel: postLabel})
@@ -754,10 +760,14 @@ func (g *irGen) genFor(n *Node) {
 	// body
 	g.genStmt(n.Children[3])
 
-	// post
+	// post — may be a compound (comma-post) or a plain expression
 	g.emitLabel(postLabel)
 	if n.Children[2] != nil {
-		g.genExpr(n.Children[2])
+		if n.Children[2].Kind == KindCompound {
+			g.genStmt(n.Children[2])
+		} else {
+			g.genExpr(n.Children[2])
+		}
 	}
 
 	g.emitJump(condLabel)
@@ -777,6 +787,55 @@ func (g *irGen) genDoWhile(n *Node) {
 	g.emitLabel(contLabel)
 	cond := g.genExpr(n.Children[1])
 	g.emit(Quad{Op: IRJumpT, Src1: cond, Extra: startLabel})
+	g.emitLabel(endLabel)
+	g.loopStack = g.loopStack[:len(g.loopStack)-1]
+}
+
+func (g *irGen) genSwitch(n *Node) {
+	// Children: [switchExpr, case1, case2, ...]
+	// KindCase: Val==-1 for default; Children[0]=expr (non-default), rest=stmts
+	endLabel := g.newLabel()
+	g.loopStack = append(g.loopStack, loopLabels{breakLabel: endLabel, continueLabel: endLabel})
+
+	val := g.genExpr(n.Children[0])
+
+	// Collect per-case labels and find the default case.
+	cases := n.Children[1:]
+	caseLabels := make([]string, len(cases))
+	defaultLabel := endLabel
+	for i, c := range cases {
+		caseLabels[i] = g.newLabel()
+		if c.Val == -1 {
+			defaultLabel = caseLabels[i]
+		}
+	}
+
+	// Emit comparison chain: for each non-default case, test val == caseExpr.
+	for i, c := range cases {
+		if c.Val == -1 {
+			continue // default — handled by fallthrough
+		}
+		caseVal := g.genExpr(c.Children[0])
+		cmp := g.newTemp()
+		g.emit(Quad{Op: IREq, Dst: cmp, Src1: val, Src2: caseVal})
+		g.emit(Quad{Op: IRJumpT, Src1: cmp, Extra: caseLabels[i]})
+	}
+	g.emitJump(defaultLabel)
+
+	// Emit case bodies.
+	for i, c := range cases {
+		g.emitLabel(caseLabels[i])
+		start := 0
+		if c.Val != -1 {
+			start = 1 // skip the case expression node
+		}
+		for _, s := range c.Children[start:] {
+			g.genStmt(s)
+		}
+		// No implicit fall-through jump — break is handled by break statement.
+		// If no break, execution falls through to the next case label naturally.
+	}
+
 	g.emitLabel(endLabel)
 	g.loopStack = g.loopStack[:len(g.loopStack)-1]
 }
@@ -1642,6 +1701,12 @@ func (g *irGen) genCall(n *Node) IRAddr {
 		"__builtin_ctz", "__builtin_ctzl", "__builtin_ctzll",
 		"__builtin_popcount", "__builtin_popcountl", "__builtin_popcountll":
 		return g.genBuiltinBitop(n)
+	case "__builtin_expect":
+		// __builtin_expect(expr, hint) — just return expr, ignore hint.
+		if len(n.Children) >= 1 {
+			return g.genExpr(n.Children[0])
+		}
+		return g.newTemp()
 	}
 	isVariadic := g.variadicFuncs[n.Name]
 	// Phase 1: materialize all args (inner calls complete here, draining pendingParams).

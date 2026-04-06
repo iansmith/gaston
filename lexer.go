@@ -134,9 +134,13 @@ var keywords = map[string]int{
 	"union":    UNION,
 	"typedef":  TYPEDEF,
 	"static":   STATIC,
+	"switch":   SWITCH,
+	"case":     CASE,
+	"default":  DEFAULT,
 	"_Bool":      INT,
 	"va_arg":     VA_ARG,
 	"typeof":      TYPEOF,
+	"__typeof":    TYPEOF,
 	"__typeof__":  TYPEOF,
 	"__int128":    INT128,
 	"__int128_t":  INT128,
@@ -210,7 +214,7 @@ scan:
 			}
 			end = l.pos
 		}
-		if l.pos < len(l.src) && (l.src[l.pos] == 'f' || l.src[l.pos] == 'F') {
+		if l.pos < len(l.src) && (l.src[l.pos] == 'f' || l.src[l.pos] == 'F' || l.src[l.pos] == 'l' || l.src[l.pos] == 'L') {
 			l.pos++ // consume suffix but exclude from parse
 		}
 		v, err := strconv.ParseFloat(l.src[start:end], 64)
@@ -310,7 +314,9 @@ scan:
 		}
 		if l.pos < len(l.src) && (l.src[l.pos] == 'f' || l.src[l.pos] == 'F') {
 			isFloat = true
-			l.pos++ // consume suffix but exclude from numeric parse
+			l.pos++ // consume f/F suffix
+		} else if isFloat && l.pos < len(l.src) && (l.src[l.pos] == 'l' || l.src[l.pos] == 'L') {
+			l.pos++ // consume l/L long-double suffix (already a float)
 		}
 		if isFloat {
 			s := l.src[start:end]

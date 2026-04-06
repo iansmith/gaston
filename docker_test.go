@@ -670,6 +670,154 @@ func buildLibgastonc(t *testing.T) (libPath string) {
 	return libPath
 }
 
+// libmIncludePaths returns the include search paths for picolibc libm sources.
+// Paths are relative to the cmd/gaston directory (where tests run).
+func libmIncludePaths() []string {
+	return []string{
+		"libm/common",  // fdlibm.h, math_config.h
+		"libm/include", // math.h, errno.h, picolibc.h, sys/*, machine/*
+	}
+}
+
+// TestLibmCompile compiles every picolibc libm/math/*.c source file and
+// archives them into libm.a.  This verifies gaston can parse and codegen all
+// 87 libm math sources without needing Docker or QEMU.
+func TestLibmCompile(t *testing.T) {
+	entries, err := os.ReadDir("libm/math")
+	if err != nil {
+		t.Fatalf("read libm/math: %v", err)
+	}
+	includePaths := libmIncludePaths()
+
+	var objPaths []string
+	var failed []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".c") {
+			continue
+		}
+		src := "libm/math/" + e.Name()
+		obj := fmt.Sprintf("/tmp/libm-%s.o", strings.TrimSuffix(e.Name(), ".c"))
+		t.Cleanup(func() { os.Remove(obj) })
+		if err := compileObjPath(src, obj, includePaths); err != nil {
+			t.Errorf("compile %s: %v", e.Name(), err)
+			failed = append(failed, e.Name())
+			continue
+		}
+		objPaths = append(objPaths, obj)
+	}
+	if len(failed) > 0 {
+		t.Fatalf("%d/%d files failed: %v", len(failed), len(failed)+len(objPaths), failed)
+	}
+	if len(objPaths) == 0 {
+		t.Fatal("libm/math contains no .c files")
+	}
+
+	libPath := "/tmp/libm.a"
+	t.Cleanup(func() { os.Remove(libPath) })
+	if err := archiveCreate(libPath, objPaths); err != nil {
+		t.Fatalf("archive libm.a: %v", err)
+	}
+	t.Logf("built libm.a from %d objects", len(objPaths))
+}
+
+// TestDiagPreprocess is a helper to preprocess a file and show lines around an error.
+// Not normally run — set the file names in the test to use.
+func TestDiagPreprocess(t *testing.T) {
+	t.Skip("diagnostic only — enable manually")
+	files := []struct {
+		src  string
+		line int
+	}{
+		{"libm/common/s_fma.c", 17015},
+		{"libm/common/sf_fma.c", 16970},
+		{"libm/common/s_llrint.c", 16860},
+		{"libm/common/s_llround.c", 16839},
+		{"libm/common/sf_llrint.c", 16838},
+		{"libm/common/sf_llround.c", 16809},
+	}
+	includePaths := libmIncludePaths()
+	for _, f := range files {
+		raw, err := os.ReadFile(f.src)
+		if err != nil {
+			t.Logf("read %s: %v", f.src, err)
+			continue
+		}
+		pp := newPreprocessor(includePaths, nil)
+		src, ppErr := pp.Preprocess(string(raw), f.src)
+		if ppErr != nil {
+			t.Logf("preprocess %s: %v", f.src, ppErr)
+		}
+		lines := strings.Split(src, "\n")
+		t.Logf("=== %s (%d preprocessed lines, error at %d)", f.src, len(lines), f.line)
+		lo := f.line - 5
+		if lo < 0 {
+			lo = 0
+		}
+		hi := f.line + 5
+		if hi > len(lines) {
+			hi = len(lines)
+		}
+		for i := lo; i < hi; i++ {
+			t.Logf("%5d: %s", i+1, lines[i])
+		}
+	}
+}
+
+// preprocessToFile preprocesses srcPath and writes to a temp file, returning the path.
+// Used for debugging parse errors by examining the preprocessed output.
+func preprocessToFile(srcPath string, includePaths []string) (string, error) {
+	raw, err := os.ReadFile(srcPath)
+	if err != nil {
+		return "", err
+	}
+	pp := newPreprocessor(includePaths, nil)
+	src, err := pp.Preprocess(string(raw), srcPath)
+	if err != nil {
+		return "", err
+	}
+	tmp, err := os.CreateTemp("", "gaston-pp-*.cm")
+	if err != nil {
+		return "", err
+	}
+	defer tmp.Close()
+	if _, err := tmp.WriteString(src); err != nil {
+		return "", err
+	}
+	return tmp.Name(), nil
+}
+
+// TestLibmCommonCompile compiles every picolibc libm/common/*.c source file.
+// It reports failures but does not archive — some files are data-only or
+// depend on features still being added.
+func TestLibmCommonCompile(t *testing.T) {
+	entries, err := os.ReadDir("libm/common")
+	if err != nil {
+		t.Fatalf("read libm/common: %v", err)
+	}
+	includePaths := libmIncludePaths()
+
+	passed := 0
+	var failed []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".c") {
+			continue
+		}
+		src := "libm/common/" + e.Name()
+		obj := fmt.Sprintf("/tmp/libm-common-%s.o", strings.TrimSuffix(e.Name(), ".c"))
+		t.Cleanup(func() { os.Remove(obj) })
+		if err := compileObjPath(src, obj, includePaths); err != nil {
+			t.Logf("FAIL %s: %v", e.Name(), err)
+			failed = append(failed, e.Name())
+			continue
+		}
+		passed++
+	}
+	t.Logf("%d passed, %d failed", passed, len(failed))
+	if len(failed) > 0 {
+		t.Errorf("failed files: %v", failed)
+	}
+}
+
 // TestLibc compiles programs against libgastonc.a (the gaston standard C library)
 // and runs them in an Alpine ARM64 container.
 func TestLibc(t *testing.T) {
