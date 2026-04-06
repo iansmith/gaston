@@ -1386,6 +1386,9 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 	case KindFuncPtrCall:
 		return g.genFuncPtrCall(n)
 
+	case KindIndirectCall:
+		return g.genIndirectCall(n)
+
 	case KindVAArg:
 		// va_arg(ap, T): load *ap (8 bytes), advance ap by 8, return the value.
 		// Children[0] must be a KindVar naming the va_list local (long*).
@@ -2038,6 +2041,41 @@ func (g *irGen) genFuncPtrCall(n *Node) IRAddr {
 	g.emitCallArgParams(slots)
 
 	nargs := IRAddr{Kind: AddrConst, IVal: len(n.Children)}
+	dst := g.newTemp()
+	g.emit(Quad{Op: IRFuncPtrCall, Dst: dst, Src1: fpVal, Src2: nargs})
+	return dst
+}
+
+// genIndirectCall generates IR for an indirect call through an arbitrary expression.
+// n.Children[0] is the callee expression; n.Children[1:] are the arguments.
+func (g *irGen) genIndirectCall(n *Node) IRAddr {
+	if len(n.Children) == 0 {
+		dst := g.newTemp()
+		return dst
+	}
+	// Evaluate callee expression to get the function pointer value.
+	callee := n.Children[0]
+	var fpVal IRAddr
+	if callee.Kind == KindFieldAccess {
+		// For struct->field or struct.field, load the pointer from the field.
+		basePtr := g.fieldBasePtr(callee)
+		fieldOff := g.fieldByteOffset(callee)
+		if fieldOff != 0 {
+			offAddr := IRAddr{Kind: AddrConst, IVal: fieldOff}
+			tmp := g.newTemp()
+			g.emit(Quad{Op: IRAdd, Dst: tmp, Src1: basePtr, Src2: offAddr})
+			basePtr = tmp
+		}
+		fpVal = g.newTemp()
+		g.emit(Quad{Op: IRCopy, Dst: fpVal, Src1: basePtr})
+	} else {
+		fpVal = g.genExpr(callee)
+	}
+
+	args := n.Children[1:]
+	slots := g.collectCallArgs(args, false)
+	g.emitCallArgParams(slots)
+	nargs := IRAddr{Kind: AddrConst, IVal: len(args)}
 	dst := g.newTemp()
 	g.emit(Quad{Op: IRFuncPtrCall, Dst: dst, Src1: fpVal, Src2: nargs})
 	return dst

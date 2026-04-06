@@ -50,6 +50,7 @@ var builtinHeaders = map[string]string{
 typedef long* va_list;
 #define va_start(ap, last)  ap = __va_start()
 #define va_end(ap)
+#define va_copy(dst, src)   ((dst) = (src))
 `,
 	"stddef.h": `
 /* gaston built-in <stddef.h> */
@@ -518,6 +519,7 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 #define __asm__(x)
 #define __asm(x)
 #define __volatile__(x)
+#define __noinline
 
 /* ── Complex / imaginary types not supported ─────────────────────────── */
 /* C11 §6.10.8.3: define these to signal no complex/imaginary support.   */
@@ -895,18 +897,22 @@ func (p *preprocessor) processInclude(rest, file string, line int, out *strings.
 // and line comments.  Multiple passes are performed until the output stabilises
 // or a depth limit is reached (guards against unterminated expansion chains).
 func (p *preprocessor) expandLine(line string) string {
-	const maxPasses = 32
-	for pass := 0; pass < maxPasses; pass++ {
-		next := p.expandLineOnce(line)
-		if next == line {
-			return line
-		}
-		line = next
-	}
-	return line
+	return p.expandLineDisabled(line, nil)
+}
+
+// expandLineDisabled expands macros in line in a single pass, skipping any
+// macro names in the disabled set (blue-paint rule — prevents self-expansion).
+// Each macro expansion recurses with the macro name added to disabled, so
+// chains like A→B→C are handled by nesting rather than outer iteration.
+func (p *preprocessor) expandLineDisabled(line string, disabled map[string]bool) string {
+	return p.expandLineOnceDisabled(line, disabled)
 }
 
 func (p *preprocessor) expandLineOnce(line string) string {
+	return p.expandLineOnceDisabled(line, nil)
+}
+
+func (p *preprocessor) expandLineOnceDisabled(line string, disabled map[string]bool) string {
 	var out strings.Builder
 	i := 0
 	for i < len(line) {
@@ -965,16 +971,22 @@ func (p *preprocessor) expandLineOnce(line string) string {
 			name := line[i:j]
 			def := p.defines[name]
 
-			if def == nil {
-				// Not a macro.
+			if def == nil || disabled[name] {
+				// Not a macro, or disabled (blue-painted).
 				out.WriteString(name)
 				i = j
 				continue
 			}
 
 			if def.params == nil {
-				// Object-like macro.
-				out.WriteString(def.body)
+				// Object-like macro: expand with this name disabled to prevent recursion.
+				newDisabled := make(map[string]bool, len(disabled)+1)
+				for k, v := range disabled {
+					newDisabled[k] = v
+				}
+				newDisabled[name] = true
+				expanded := p.expandLineDisabled(def.body, newDisabled)
+				out.WriteString(expanded)
 				i = j
 				continue
 			}
@@ -996,11 +1008,54 @@ func (p *preprocessor) expandLineOnce(line string) string {
 				i = j
 				continue
 			}
-			// Pre-expand each argument before substitution (C standard behaviour).
-			for ai, a := range args {
-				args[ai] = p.expandLine(a)
+			// Do NOT pre-expand arguments before substitution; substitute the
+			// raw argument text and then re-expand the whole result.  This keeps
+			// the hide-set of any macro names that appear inside an argument
+			// (e.g. "#define ap my_ap.ap" → va_copy(ap,…) → the expanded "ap"
+			// tokens should not be re-expanded again inside the body).
+			// Note: # stringification still receives the un-expanded argument, which
+			// is the correct C behaviour.
+			// Apply the function-like macro, then re-expand the result
+			// with this name disabled (blue-paint rule).
+			newDisabled := make(map[string]bool, len(disabled)+1)
+			for k2, v := range disabled {
+				newDisabled[k2] = v
 			}
-			out.WriteString(p.applyFuncMacro(def, name, args))
+			newDisabled[name] = true
+			// Pre-expand each argument that is NOT adjacent to ## in the body.
+			// This follows C99 6.10.3.1: args not adjacent to # or ## are
+			// fully macro-expanded before substitution.  Pre-expanding all args
+			// is safe for our purposes: it makes token-pasting with macro values
+			// (e.g. 1e##DTOA_DIG → 1e17) work correctly.
+			expandedArgs := make([]string, len(args))
+			for ai, arg := range args {
+				expandedArgs[ai] = p.expandLineDisabled(arg, disabled)
+				// Blue-paint rule (C99 6.10.3.4): tokens produced by expanding a
+				// macro argument must not be re-expanded when the body is rescanned.
+				// Since gaston tracks expansion via strings (not tokens), we
+				// approximate this by disabling any macros whose names appear as
+				// standalone identifiers in the *raw* argument and that caused a
+				// change upon expansion.  This prevents e.g.:
+				//   #define ap my_ap.ap
+				//   va_copy(ap, src)  →  ((my_ap.ap)=(src))
+				// from re-expanding the trailing "ap" in "my_ap.ap" during rescan.
+				// Blue-paint rule: if the raw arg is a single identifier that is a
+			// macro and was expanded (result differs), disable that macro during
+			// the rescan so it cannot re-expand inside the substituted body.
+			// We limit to single-identifier args to avoid collateral disabling of
+			// unrelated macros in complex expressions.
+			if expandedArgs[ai] != arg {
+					trimmed := strings.TrimSpace(arg)
+					if isIdentToken(trimmed) {
+						if _, isMacro := p.defines[trimmed]; isMacro {
+							newDisabled[trimmed] = true
+						}
+					}
+				}
+			}
+			raw := p.applyFuncMacro(def, name, expandedArgs)
+			expanded := p.expandLineDisabled(raw, newDisabled)
+			out.WriteString(expanded)
 			i = end
 			continue
 		}
@@ -1009,6 +1064,25 @@ func (p *preprocessor) expandLineOnce(line string) string {
 		i++
 	}
 	return out.String()
+}
+
+// isIdentToken reports whether s is exactly one C identifier (no spaces or non-ident chars).
+func isIdentToken(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	for i, c := range s {
+		if i == 0 {
+			if c != '_' && !(c >= 'a' && c <= 'z') && !(c >= 'A' && c <= 'Z') {
+				return false
+			}
+		} else {
+			if c != '_' && !(c >= 'a' && c <= 'z') && !(c >= 'A' && c <= 'Z') && !(c >= '0' && c <= '9') {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // applyFuncMacro substitutes actual arguments into a function-like macro body.
@@ -1063,10 +1137,11 @@ func (p *preprocessor) applyFuncMacro(def *macroDef, name string, args []string)
 				j++
 			}
 			if j < len(body) && body[j] == '#' {
-				// This is '# #' which is not a standard use; treat as paste.
-				// Fall through to emit '#' and let paste handler below pick it up.
+				// ## token-paste operator: emit both '#' chars so applyTokenPaste
+				// can collapse them after argument substitution.
 				out.WriteByte('#')
-				i++
+				out.WriteByte('#')
+				i = j + 1 // skip past the second '#'
 				continue
 			}
 			// Check if followed by an identifier (stringification).

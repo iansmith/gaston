@@ -16,4 +16,7 @@ typedef long* va_list;
 /* va_end is a no-op in gaston (no cleanup required). */
 #define va_end(ap)
 
+/* va_copy: on AArch64, va_list is long* so a plain assignment suffices. */
+#define va_copy(dst, src)   ((dst) = (src))
+
 #endif /* GASTON_STDARG_H */

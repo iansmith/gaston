@@ -50,6 +50,28 @@ func structCType(tag string) *CType { return &CType{Kind: TypeStruct, Tag: tag} 
 // ptrCType builds a CType representing a pointer to the given pointee.
 func ptrCType(pointee *CType) *CType { return &CType{Kind: TypePtr, Pointee: pointee} }
 
+// sizeofType returns the byte size of the type represented by ct,
+// for use in const_int_expr array dimension evaluation.
+func sizeofType(ct *CType) int {
+	if ct == nil {
+		return 8
+	}
+	switch ct.Kind {
+	case TypeChar, TypeUnsignedChar:
+		return 1
+	case TypeShort, TypeUnsignedShort:
+		return 2
+	case TypeInt, TypeUnsignedInt, TypeFloat:
+		return 4
+	case TypeLong, TypeUnsignedLong, TypeDouble, TypePtr, TypeFuncPtr:
+		return 8
+	case TypeInt128, TypeUint128:
+		return 16
+	default:
+		return 8 // structs and unknown: opaque 8-byte placeholder
+	}
+}
+
 // ctypeEq reports whether two CTypes are equivalent.
 // nil and nil are equal; nil and non-nil are not.
 func ctypeEq(a, b *CType) bool {
@@ -136,7 +158,8 @@ const (
 	KindFieldAccess // expr->field or expr.field; Children[0]=base; Name=field; Op="->" or "."
 	KindStructDef   // struct TAG { fields }; Name=tag; Children=field KindVarDecl nodes; IsUnion=true for unions
 	KindSizeof      // sizeof(type) or sizeof(expr); folded to KindNum during semcheck
-	KindFuncPtrCall // (*fp)(args) — call through a function pointer; Name=var, Children=args
+	KindFuncPtrCall  // (*fp)(args) — call through a function pointer; Name=var, Children=args
+	KindIndirectCall // expr(args) — call through arbitrary expression; Children[0]=callee expr, rest=args
 	// KindVAArg: va_arg(ap, type) — read next variadic argument and advance ap.
 	// Children[0] = ap expression (a va_list / long* local).
 	// Type / Pointee / StructTag describe the requested result type (same semantics

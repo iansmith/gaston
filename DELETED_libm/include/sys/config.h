@@ -280,4 +280,11 @@
 #define __HAVE_LONG_DOUBLE_MATH
 #endif
 
+/* Thread-local storage annotation: empty when no TLS support configured. */
+#ifdef PICOLIBC_TLS
+#define NEWLIB_THREAD_LOCAL __thread
+#else
+#define NEWLIB_THREAD_LOCAL
+#endif
+
 #endif /* __SYS_CONFIG_H__ */

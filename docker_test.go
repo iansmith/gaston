@@ -818,6 +818,68 @@ func TestLibmCommonCompile(t *testing.T) {
 	}
 }
 
+// tinystdioSkip is the set of tinystdio .c files excluded from TestTinystdioCompile.
+// - conv_flt.c, vfprintf.c, vfscanf.c, vfprintff.c, vfscanff.c: excluded by user decision.
+// - fdopen.c, fmemopen.c, fopen.c, freopen.c, posixiob.c: require -DPOSIX_IO and
+//   __posix_sflags / FDEV_SETUP_POSIX, which are not provided in the default build.
+var tinystdioSkip = map[string]bool{
+	"conv_flt.c":   true,
+	"vfprintf.c":   true,
+	"vfscanf.c":    true,
+	"vfprintff.c":  true,
+	"vfscanff.c":   true,
+	"fdopen.c":     true,
+	"fmemopen.c":   true,
+	"fopen.c":      true,
+	"freopen.c":    true,
+	"posixiob.c":   true,
+}
+
+// tinystdioIncludePaths returns the include search paths for picolibc tinystdio sources.
+func tinystdioIncludePaths() []string {
+	tsdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/tinystdio"
+	return []string{
+		tsdir,
+		"libm/include",
+		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+	}
+}
+
+// TestTinystdioCompile compiles every picolibc tinystdio/*.c source file (minus the
+// known-skipped files) and verifies gaston can parse and codegen each one.
+func TestTinystdioCompile(t *testing.T) {
+	tsdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/tinystdio"
+	entries, err := os.ReadDir(tsdir)
+	if err != nil {
+		t.Fatalf("read tinystdio dir: %v", err)
+	}
+	includePaths := tinystdioIncludePaths()
+
+	passed := 0
+	var failed []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".c") {
+			continue
+		}
+		if tinystdioSkip[e.Name()] {
+			continue
+		}
+		src := tsdir + "/" + e.Name()
+		obj := fmt.Sprintf("/tmp/tinystdio-%s.o", strings.TrimSuffix(e.Name(), ".c"))
+		t.Cleanup(func() { os.Remove(obj) })
+		if err := compileObjPath(src, obj, includePaths); err != nil {
+			t.Logf("FAIL %s: %v", e.Name(), err)
+			failed = append(failed, e.Name())
+			continue
+		}
+		passed++
+	}
+	t.Logf("%d passed, %d failed", passed, len(failed))
+	if len(failed) > 0 {
+		t.Errorf("failed files: %v", failed)
+	}
+}
+
 // TestLibc compiles programs against libgastonc.a (the gaston standard C library)
 // and runs them in an Alpine ARM64 container.
 func TestLibc(t *testing.T) {

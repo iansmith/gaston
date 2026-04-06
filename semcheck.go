@@ -56,6 +56,8 @@ func isConstantScalar(n *Node) bool {
 	switch n.Kind {
 	case KindNum, KindFNum:
 		return true
+	case KindStrLit:
+		return true
 	case KindUnary:
 		return n.Op == "-" && len(n.Children) == 1 && isConstantScalar(n.Children[0])
 	}
@@ -85,9 +87,9 @@ func newSymTable() *symTable {
 	st.funcs["print_string"] = &FuncSig{Name: "print_string", ReturnType: TypeVoid,
 		Params: []TypeKind{TypeCharPtr}, ParamPointees: []*CType{nil}}
 	st.funcs["malloc"] = &FuncSig{Name: "malloc", ReturnType: TypePtr,
-		ReturnPointee: voidPtee,
+		ReturnPointee: voidPtee, IsExtern: true,
 		Params: []TypeKind{TypeInt}, ParamPointees: []*CType{nil}}
-	st.funcs["free"] = &FuncSig{Name: "free", ReturnType: TypeVoid,
+	st.funcs["free"] = &FuncSig{Name: "free", ReturnType: TypeVoid, IsExtern: true,
 		Params: []TypeKind{TypePtr}, ParamPointees: []*CType{voidPtee}}
 	st.funcs["print_double"] = &FuncSig{Name: "print_double", ReturnType: TypeVoid,
 		Params: []TypeKind{TypeDouble}, ParamPointees: []*CType{nil}}
@@ -97,6 +99,17 @@ func newSymTable() *symTable {
 	// __builtin_expect(expr, hint) — returns expr; used for branch prediction hints.
 	st.funcs["__builtin_expect"] = &FuncSig{Name: "__builtin_expect", ReturnType: TypeLong,
 		Params: []TypeKind{TypeLong, TypeLong}, ParamPointees: []*CType{nil, nil}}
+	// __builtin_signbit family — takes a floating-point arg, returns int.
+	for _, name := range []string{
+		"__builtin_signbit", "__builtin_signbitf", "__builtin_signbitl",
+	} {
+		st.funcs[name] = &FuncSig{
+			Name:          name,
+			ReturnType:    TypeInt,
+			Params:        []TypeKind{TypeDouble},
+			ParamPointees: []*CType{nil},
+		}
+	}
 	// GCC bit-manipulation intrinsics.
 	for _, name := range []string{
 		"__builtin_clz", "__builtin_clzl", "__builtin_clzll",
@@ -171,7 +184,7 @@ func (st *symTable) declareGlobalFull(n *Node) error {
 		}
 		// Extern forward declaration — allow a definition to override it.
 	}
-	e := &symEntry{name: n.Name, typ: n.Type, isGlobal: true,
+	e := &symEntry{name: n.Name, typ: n.Type, isGlobal: true, isExtern: n.IsExtern,
 		structTag: n.StructTag, pointee: n.Pointee, isConstTarget: n.IsConstTarget}
 	st.globals[n.Name] = e
 	return nil
@@ -263,7 +276,7 @@ func semCheck(prog *Node, requireMain bool) error {
 				decl.TypeofExpr = nil
 			}
 			if decl.IsExtern {
-				if err := st.declareGlobal(decl.Name, decl.Type, decl.StructTag); err != nil {
+				if err := st.declareGlobalFull(decl); err != nil {
 					errs = append(errs, err.Error())
 				} else if decl.Type == TypeIntArray {
 					st.globals[decl.Name].elemType = decl.ElemType
@@ -298,7 +311,7 @@ func semCheck(prog *Node, requireMain bool) error {
 						checkInitList(init, decl, st, &errs)
 					} else if !isConstantScalar(init) {
 						errs = append(errs, fmt.Sprintf("global '%s': initializer must be a constant", decl.Name))
-					} else if decl.Type == TypeIntArray {
+					} else if decl.Type == TypeIntArray && init.Kind != KindStrLit {
 						errs = append(errs, fmt.Sprintf("global array '%s' cannot have a scalar initializer", decl.Name))
 					}
 				}
@@ -1213,7 +1226,13 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 				if argType == TypeIntArray {
 					effectiveArgType = TypePtr
 					// Determine element type for the decayed pointer.
-					if e := st.lookup(arg.Name); e != nil {
+					// Prefer ElemType/ElemPointee on the node itself (set by field-access
+					// and index-expression type-checking), fall back to symtable lookup.
+					if arg.ElemType == TypePtr && arg.ElemPointee != nil {
+						effectiveArgPtee = arg.ElemPointee
+					} else if arg.ElemType != 0 {
+						effectiveArgPtee = leafCType(arg.ElemType)
+					} else if e := st.lookup(arg.Name); e != nil {
 						if e.elemType == TypePtr {
 							effectiveArgPtee = e.elemPointee
 						} else if e.elemType != 0 {
@@ -1273,6 +1292,17 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 	case KindFuncPtrCall:
 		for _, arg := range n.Children {
 			checkExpr(arg, st, errs)
+		}
+		n.Type = TypeInt // opaque: assume int return
+		return TypeInt
+
+	case KindIndirectCall:
+		// Children[0] is the callee expression; rest are arguments.
+		if len(n.Children) > 0 {
+			checkExpr(n.Children[0], st, errs)
+			for _, arg := range n.Children[1:] {
+				checkExpr(arg, st, errs)
+			}
 		}
 		n.Type = TypeInt // opaque: assume int return
 		return TypeInt

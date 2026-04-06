@@ -8,6 +8,9 @@
 
 /* dummy lock routines for single-threaded aps */
 
+typedef int _LOCK_T;
+#define _LOCK_RECURSIVE_T _LOCK_T
+
 #define __LOCK_INIT(lock)
 #define __LOCK_INIT_RECURSIVE(lock)
 #define __lock_init(lock)              ((void)0)

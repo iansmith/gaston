@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -17,8 +18,11 @@ type lexer struct {
 	result      *Node            // set by the top-level grammar action
 	enumAutoVal int              // auto-increment counter for enum constants
 	anonCount   int              // counter for anonymous struct/union synthetic names
-	typedefs    map[string]*CType // typedef name → full CType (leaf or pointer)
-	typeofExpr  *Node            // scratch: holds typeof(expr) expression until declaration picks it up
+	typedefs        map[string]*CType   // typedef name → full CType (leaf or pointer)
+	shadowedTypedefs map[string]int      // typedef names shadowed by local vars: name → brace depth when shadowed
+	braceDepth       int                // current {} nesting depth (0 = global scope)
+	typeofExpr      *Node              // scratch: holds typeof(expr) expression until declaration picks it up
+	prevTok         int                // previous token returned (for struct/union tag disambiguation)
 }
 
 func newLexer(src, file string) *lexer {
@@ -27,7 +31,8 @@ func newLexer(src, file string) *lexer {
 		pos:      0,
 		line:     1,
 		file:     file,
-		typedefs: make(map[string]*CType),
+		typedefs:        make(map[string]*CType),
+		shadowedTypedefs: make(map[string]int),
 	}
 	// Pre-register "bool" as a typedef for _Bool (TypeInt).
 	l.typedefs["bool"] = leafCType(TypeInt)
@@ -83,6 +88,8 @@ func newLexer(src, file string) *lexer {
 	l.typedefs["__socklen_t"]   = leafCType(TypeUnsignedInt)
 	l.typedefs["__float64"]   = leafCType(TypeDouble)
 	l.typedefs["__float32"]   = leafCType(TypeFloat)
+	// tinystdio internal type: ultoa_unsigned_t is unsigned long long on LP64.
+	l.typedefs["ultoa_unsigned_t"] = leafCType(TypeUnsignedLong)
 	return l
 }
 
@@ -105,6 +112,13 @@ func (l *lexer) lookupTypedefCType(name string) *CType {
 		return ct
 	}
 	return leafCType(TypeInt)
+}
+
+// lookupConstInt looks up a named integer constant for use in const_int_expr
+// array dimension evaluation. Returns 1 for unknown names (safe non-zero default).
+func (l *lexer) lookupConstInt(name string) int {
+	_ = name
+	return 1 // opaque: preprocessor macros are expanded before parse; any remaining ID is unknown
 }
 
 // keywords maps reserved words to their goyacc token constants.
@@ -169,11 +183,34 @@ var skipWords = map[string]bool{
 	// _Alignas / _Alignof are silently dropped (we don't enforce alignment)
 	"_Alignas":   true,
 	"_Alignof":   true,
+	// Thread-local storage specifier (GCC __thread / C11 _Thread_local)
+	"__thread":       true,
+	"_Thread_local":  true,
 }
 
 // Lex scans and returns the next token, filling lval with the token's value.
 // Returns 0 on EOF.
 func (l *lexer) Lex(lval *yySymType) int {
+	tok := l.lex(lval)
+	l.prevTok = tok
+	// Track brace depth for typedef-shadow scoping.
+	if tok == int('{') {
+		l.braceDepth++
+	} else if tok == int('}') {
+		// Unshadow any typedef names that were shadowed at this depth.
+		for name, depth := range l.shadowedTypedefs {
+			if depth >= l.braceDepth {
+				delete(l.shadowedTypedefs, name)
+			}
+		}
+		if l.braceDepth > 0 {
+			l.braceDepth--
+		}
+	}
+	return tok
+}
+
+func (l *lexer) lex(lval *yySymType) int {
 	// Skip whitespace and block comments.
 	for l.pos < len(l.src) {
 		c := l.src[l.pos]
@@ -324,8 +361,17 @@ scan:
 			s = strings.TrimSuffix(s, "F")
 			v, err := strconv.ParseFloat(s, 64)
 			if err != nil {
-				l.Error(fmt.Sprintf("invalid float literal: %s", l.src[start:l.pos]))
-				return 0
+				// Overflow (e.g. 1e+512L) → treat as +Inf; sign-flip handled elsewhere.
+				if numErr, ok := err.(*strconv.NumError); ok && numErr.Err == strconv.ErrRange {
+					if strings.HasPrefix(s, "-") {
+						v = math.Inf(-1)
+					} else {
+						v = math.Inf(1)
+					}
+				} else {
+					l.Error(fmt.Sprintf("invalid float literal: %s", l.src[start:l.pos]))
+					return 0
+				}
 			}
 			lval.fval = v
 			return FNUM
@@ -337,10 +383,16 @@ scan:
 		}
 		v, err := strconv.ParseInt(l.src[start:numEnd], 0, 64)
 		if err != nil {
-			l.Error(fmt.Sprintf("invalid integer literal: %s", l.src[start:numEnd]))
-			return 0
+			// Try parsing as unsigned 64-bit (for values > math.MaxInt64 with 'u' suffix).
+			uv, uerr := strconv.ParseUint(l.src[start:numEnd], 0, 64)
+			if uerr != nil {
+				l.Error(fmt.Sprintf("invalid integer literal: %s", l.src[start:numEnd]))
+				return 0
+			}
+			lval.ival = int(int64(uv)) // reinterpret bit pattern as signed
+		} else {
+			lval.ival = int(v)
 		}
-		lval.ival = int(v)
 		return NUM
 	}
 
@@ -365,12 +417,40 @@ scan:
 				val = '\t'
 			case 'r':
 				val = '\r'
-			case '0':
-				val = 0
+			case 'a':
+				val = '\a'
+			case 'b':
+				val = '\b'
+			case 'f':
+				val = '\f'
+			case 'v':
+				val = '\v'
 			case '\\':
 				val = '\\'
 			case '\'':
 				val = '\''
+			case '"':
+				val = '"'
+			case 'x', 'X':
+				// Hex escape: \xNN
+				l.pos++
+				hex := 0
+				for l.pos < len(l.src) && isHexDigit(l.src[l.pos]) {
+					hex = hex*16 + hexVal(l.src[l.pos])
+					l.pos++
+				}
+				val = hex
+				l.pos-- // will be incremented after switch
+			case '0', '1', '2', '3', '4', '5', '6', '7':
+				// Octal escape: \0NN or \NNN (1-3 octal digits)
+				oct := int(l.src[l.pos] - '0')
+				l.pos++
+				for count := 0; count < 2 && l.pos < len(l.src) && l.src[l.pos] >= '0' && l.src[l.pos] <= '7'; count++ {
+					oct = oct*8 + int(l.src[l.pos]-'0')
+					l.pos++
+				}
+				val = oct
+				l.pos-- // will be incremented after switch
 			default:
 				l.Error(fmt.Sprintf("unknown escape '\\%c'", l.src[l.pos]))
 			}
@@ -412,12 +492,40 @@ scan:
 					buf = append(buf, '\t')
 				case 'r':
 					buf = append(buf, '\r')
-				case '0':
-					buf = append(buf, 0)
+				case 'a':
+					buf = append(buf, '\a')
+				case 'b':
+					buf = append(buf, '\b')
+				case 'f':
+					buf = append(buf, '\f')
+				case 'v':
+					buf = append(buf, '\v')
 				case '\\':
 					buf = append(buf, '\\')
+				case '\'':
+					buf = append(buf, '\'')
 				case '"':
 					buf = append(buf, '"')
+				case 'x', 'X':
+					// Hex escape: \xNN
+					l.pos++
+					hex := 0
+					for l.pos < len(l.src) && isHexDigit(l.src[l.pos]) {
+						hex = hex*16 + hexVal(l.src[l.pos])
+						l.pos++
+					}
+					buf = append(buf, byte(hex))
+					continue // l.pos already past the hex digits
+				case '0', '1', '2', '3', '4', '5', '6', '7':
+					// Octal escape: \NNN (1-3 octal digits)
+					oct := int(l.src[l.pos] - '0')
+					l.pos++
+					for count := 0; count < 2 && l.pos < len(l.src) && l.src[l.pos] >= '0' && l.src[l.pos] <= '7'; count++ {
+						oct = oct*8 + int(l.src[l.pos]-'0')
+						l.pos++
+					}
+					buf = append(buf, byte(oct))
+					continue // l.pos already past the octal digits
 				default:
 					l.Error(fmt.Sprintf("unknown escape '\\%c'", l.src[l.pos]))
 				}
@@ -503,7 +611,26 @@ scan:
 		}
 		lval.sval = word
 		// If this identifier was registered as a typedef name, return TYPENAME.
-		if _, ok := l.typedefs[word]; ok {
+		// Exception 1: after struct/union keyword the tag is always an ID, even if
+		// the same name was also declared as a typedef (e.g. typedef struct FILE FILE).
+		// Exception 2: after a TYPENAME token, we're in a declarator position (e.g.
+		// "uint64_t uint;" where "uint" is both a typedef and a variable name); treat
+		// the identifier as ID so the declaration grammar rule matches.
+		if _, ok := l.typedefs[word]; ok && l.prevTok != STRUCT && l.prevTok != UNION {
+			if l.prevTok == TYPENAME {
+				// "uint64_t uint;" — typedef name used as variable name after another type.
+				// Shadow it at the current brace depth so future uses inside this
+				// scope return ID; the shadow is cleared when its brace depth closes.
+				if l.braceDepth > 0 {
+					l.shadowedTypedefs[word] = l.braceDepth
+				}
+				return ID // redeclaring a typedef name as a variable — treat as ID
+			}
+			// If this typedef name has been shadowed by a local variable declaration
+			// in the current scope (or an enclosing local scope), treat it as ID.
+			if _, shadowed := l.shadowedTypedefs[word]; shadowed {
+				return ID
+			}
 			return TYPENAME
 		}
 		return ID
@@ -653,7 +780,21 @@ func (l *lexer) skipComment() bool {
 
 // Error satisfies yyLexer; it is called by the parser on syntax errors.
 func (l *lexer) Error(s string) {
-	fmt.Fprintf(os.Stderr, "%s:%d: %s\n", l.file, l.line, s)
+	ctx := ""
+	if l.pos < len(l.src) {
+		start := l.pos - 60
+		if start < 0 {
+			start = 0
+		}
+		end := l.pos + 40
+		if end > len(l.src) {
+			end = len(l.src)
+		}
+		before := strings.ReplaceAll(l.src[start:l.pos], "\n", " ")
+		after := strings.ReplaceAll(l.src[l.pos:end], "\n", " ")
+		ctx = fmt.Sprintf(" [before: %q after: %q]", before, after)
+	}
+	fmt.Fprintf(os.Stderr, "%s:%d: %s%s\n", l.file, l.line, s, ctx)
 	l.errors++
 }
 
@@ -667,4 +808,15 @@ func isDigit(c byte) bool {
 
 func isHexDigit(c byte) bool {
 	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+}
+
+func hexVal(c byte) int {
+	switch {
+	case c >= '0' && c <= '9':
+		return int(c - '0')
+	case c >= 'a' && c <= 'f':
+		return int(c-'a') + 10
+	default:
+		return int(c-'A') + 10
+	}
 }

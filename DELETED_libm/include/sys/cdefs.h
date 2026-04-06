@@ -679,4 +679,9 @@
 #define __elidable_inline static __inline
 #endif
 
+/* Fall-through annotation for switch cases. */
+#ifndef FALLTHROUGH
+#define FALLTHROUGH do { } while(0)
+#endif
+
 #endif /* !_SYS_CDEFS_H_ */
