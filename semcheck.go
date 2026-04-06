@@ -300,10 +300,20 @@ func buildStructDef(n *Node, errs *[]string, structDefs map[string]*StructDef) *
 	const bfWordSize = 8
 
 	for _, child := range n.Children {
-		// Anonymous struct/union member: child.Name == "" and child.Children holds
-		// the inline field list.  Register it as a synthetic StructDef, then
-		// treat the anonymous member like a regular TypeStruct field.
-		if child.Name == "" && child.Type == TypeStruct && len(child.Children) > 0 {
+		// Inline struct/union definition node emitted as a sibling field (e.g. from
+		// "struct { ... } tab[N];" in field grammar) — register it and skip.
+		if child.Kind == KindStructDef {
+			inner := buildStructDef(child, errs, structDefs)
+			if inner != nil {
+				structDefs[child.Name] = inner
+			}
+			continue
+		}
+
+		// Anonymous or named-inline struct/union member: child.Children holds the
+		// inline field list.  Register the type, then add the field.
+		// Name=="" → anonymous (fields promoted); Name!="" → named inline-type field.
+		if child.Type == TypeStruct && len(child.Children) > 0 {
 			anonDef := &Node{Kind: KindStructDef, Name: child.StructTag,
 				Children: child.Children, IsUnion: child.IsUnion}
 			inner := buildStructDef(anonDef, errs, structDefs)
@@ -315,7 +325,7 @@ func buildStructDef(n *Node, errs *[]string, structDefs map[string]*StructDef) *
 				offset = (offset + align - 1) &^ (align - 1)
 			}
 			sd.Fields = append(sd.Fields, StructField{
-				Name:       "",
+				Name:       child.Name,
 				Type:       TypeStruct,
 				StructTag:  child.StructTag,
 				ByteOffset: offset,
@@ -437,6 +447,12 @@ func checkFunDecl(n *Node, st *symTable, errs *[]string) {
 func checkCompound(n *Node, st *symTable, fn *Node, errs *[]string) {
 	for _, child := range n.Children {
 		switch child.Kind {
+		case KindStructDef:
+			// Inline struct/union defined inside a function body (e.g. "union { float f; uint32_t i; } u;")
+			sd := buildStructDef(child, errs, st.structDefs)
+			if sd != nil {
+				st.structDefs[sd.Name] = sd
+			}
 		case KindVarDecl:
 			// Resolve typeof(expr) before processing the declaration.
 			if child.Type == TypeTypeof && child.TypeofExpr != nil {

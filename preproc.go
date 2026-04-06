@@ -505,6 +505,22 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 #define __asm__(x)
 #define __asm(x)
 #define __volatile__(x)
+
+/* ── GCC branch-prediction hint ─────────────────────────────────────── */
+/* Expand to the condition itself; the hint is discarded.                 */
+#define __builtin_expect(x, hint) (x)
+
+/* ── GCC NaN / Inf constructors ─────────────────────────────────────── */
+/* 0.0/0.0 produces a quiet NaN at runtime on IEEE 754 hardware.         */
+/* 1.0/0.0 produces +Inf.                                                */
+#define __builtin_nanf(s)   (0.0/0.0)
+#define __builtin_nan(s)    (0.0/0.0)
+#define __builtin_nanl(s)   (0.0/0.0)
+#define __builtin_nansf(s)  (0.0/0.0)
+#define __builtin_inff()    (1.0/0.0)
+#define __builtin_inf()     (1.0/0.0)
+#define __builtin_huge_valf() (1.0/0.0)
+#define __builtin_huge_val()  (1.0/0.0)
 `
 	var dummy strings.Builder
 	pp.processFile(builtinSrc, "<builtin>", &dummy)
@@ -832,7 +848,7 @@ func (p *preprocessor) processInclude(rest, file string, line int, out *strings.
 		// Found on disk — use the real file.
 	} else if content, ok := builtinHeaders[filename]; ok {
 		// Fall back to virtual built-in header (e.g. when libc/ is not on the path).
-		p.processFile(content, "<"+filename+">", out)
+		p.processFile(stripBlockComments(content), "<"+filename+">", out)
 		return
 	} else {
 		p.errorf(file, line, "#include %q: file not found", filename)
@@ -844,7 +860,7 @@ func (p *preprocessor) processInclude(rest, file string, line int, out *strings.
 		p.errorf(file, line, "#include: %v", err)
 		return
 	}
-	p.processFile(string(data), fullPath, out)
+	p.processFile(stripBlockComments(string(data)), fullPath, out)
 }
 
 // expandLine expands macros in one logical line, skipping string/char literals

@@ -30,13 +30,59 @@ func newLexer(src, file string) *lexer {
 		typedefs: make(map[string]*CType),
 	}
 	// Pre-register "bool" as a typedef for _Bool (TypeInt).
-	// This lets "typedef _Bool bool;" work without "bool" being re-lexed as INT.
 	l.typedefs["bool"] = leafCType(TypeInt)
-	// Pre-register wchar_t as unsigned int (AArch64 LP64 ABI).
-	l.typedefs["wchar_t"] = leafCType(TypeUnsignedInt)
-	// Pre-register 128-bit integer typedefs so headers don't need to re-define them.
+	// Pre-register wchar_t / wint_t as unsigned int (AArch64 LP64 ABI).
+	l.typedefs["wchar_t"]  = leafCType(TypeUnsignedInt)
+	l.typedefs["wint_t"]   = leafCType(TypeUnsignedInt)
+	// Pre-register 128-bit integer typedefs.
 	l.typedefs["__uint128_t"] = leafCType(TypeUint128)
-	l.typedefs["__int128_t"] = leafCType(TypeInt128)
+	l.typedefs["__int128_t"]  = leafCType(TypeInt128)
+	// Pre-register common C99/POSIX fixed-width and size types (LP64 AArch64).
+	l.typedefs["size_t"]    = leafCType(TypeUnsignedLong)
+	l.typedefs["ssize_t"]   = leafCType(TypeLong)
+	l.typedefs["ptrdiff_t"] = leafCType(TypeLong)
+	l.typedefs["intptr_t"]  = leafCType(TypeLong)
+	l.typedefs["uintptr_t"] = leafCType(TypeUnsignedLong)
+	l.typedefs["off_t"]     = leafCType(TypeLong)
+	l.typedefs["off64_t"]   = leafCType(TypeLong)
+	l.typedefs["uint8_t"]   = leafCType(TypeUnsignedChar)
+	l.typedefs["uint16_t"]  = leafCType(TypeUnsignedShort)
+	l.typedefs["uint32_t"]  = leafCType(TypeUnsignedInt)
+	l.typedefs["uint64_t"]  = leafCType(TypeUnsignedLong)
+	l.typedefs["int8_t"]    = leafCType(TypeChar)
+	l.typedefs["int16_t"]   = leafCType(TypeShort)
+	l.typedefs["int32_t"]   = leafCType(TypeInt)
+	l.typedefs["int64_t"]   = leafCType(TypeLong)
+	// picolibc internal fixed-width types.
+	l.typedefs["__uint8_t"]  = leafCType(TypeUnsignedChar)
+	l.typedefs["__uint16_t"] = leafCType(TypeUnsignedShort)
+	l.typedefs["__uint32_t"] = leafCType(TypeUnsignedInt)
+	l.typedefs["__uint64_t"] = leafCType(TypeUnsignedLong)
+	l.typedefs["__int8_t"]   = leafCType(TypeChar)
+	l.typedefs["__int16_t"]  = leafCType(TypeShort)
+	l.typedefs["__int32_t"]  = leafCType(TypeInt)
+	l.typedefs["__int64_t"]  = leafCType(TypeLong)
+	// POSIX / picolibc supplemental types.
+	l.typedefs["__ssize_t"]   = leafCType(TypeLong)
+	l.typedefs["__blkcnt_t"]  = leafCType(TypeLong)
+	l.typedefs["__clockid_t"] = leafCType(TypeUnsignedLong)
+	l.typedefs["__timer_t"]   = leafCType(TypeUnsignedLong)
+	l.typedefs["__pid_t"]     = leafCType(TypeInt)
+	l.typedefs["__uid_t"]     = leafCType(TypeUnsignedInt)
+	l.typedefs["__gid_t"]     = leafCType(TypeUnsignedInt)
+	l.typedefs["__dev_t"]     = leafCType(TypeUnsignedLong)
+	l.typedefs["__ino_t"]     = leafCType(TypeUnsignedLong)
+	l.typedefs["__mode_t"]    = leafCType(TypeUnsignedInt)
+	l.typedefs["__nlink_t"]   = leafCType(TypeUnsignedInt)
+	l.typedefs["__off_t"]     = leafCType(TypeLong)
+	l.typedefs["__off64_t"]   = leafCType(TypeLong)
+	l.typedefs["__blksize_t"] = leafCType(TypeLong)
+	l.typedefs["__time_t"]    = leafCType(TypeLong)
+	l.typedefs["__suseconds_t"] = leafCType(TypeLong)
+	l.typedefs["__useconds_t"]  = leafCType(TypeUnsignedInt)
+	l.typedefs["__socklen_t"]   = leafCType(TypeUnsignedInt)
+	l.typedefs["__float64"]   = leafCType(TypeDouble)
+	l.typedefs["__float32"]   = leafCType(TypeFloat)
 	return l
 }
 
@@ -94,6 +140,7 @@ var keywords = map[string]int{
 	"__typeof__":  TYPEOF,
 	"__int128":    INT128,
 	"__int128_t":  INT128,
+	"signed":      SIGNED,
 }
 
 // skipWords lists storage-class and qualifier keywords that the lexer silently drops.

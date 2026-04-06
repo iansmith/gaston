@@ -201,8 +201,20 @@ func buildStructDefIR(n *Node, structDefs map[string]*StructDef) *StructDef {
 	const bfWordSize = 8
 
 	for _, child := range n.Children {
-		// Anonymous struct/union member (same logic as buildStructDef in semcheck.go).
-		if child.Name == "" && child.Type == TypeStruct && len(child.Children) > 0 {
+		// Inline struct/union definition node emitted as a sibling field (e.g. from
+		// "struct { ... } tab[N];" in field grammar) — register it and skip.
+		if child.Kind == KindStructDef {
+			inner := buildStructDefIR(child, structDefs)
+			if inner != nil {
+				structDefs[child.Name] = inner
+			}
+			continue
+		}
+
+		// Anonymous or named-inline struct/union member.
+		// Name=="" → anonymous member (fields promoted to outer scope).
+		// Name!="" → named field whose type is defined inline (e.g. union { int a; } __value).
+		if child.Type == TypeStruct && len(child.Children) > 0 {
 			anonDef := &Node{Kind: KindStructDef, Name: child.StructTag,
 				Children: child.Children, IsUnion: child.IsUnion}
 			inner := buildStructDefIR(anonDef, structDefs)
@@ -214,7 +226,7 @@ func buildStructDefIR(n *Node, structDefs map[string]*StructDef) *StructDef {
 				offset = (offset + align - 1) &^ (align - 1)
 			}
 			sd.Fields = append(sd.Fields, StructField{
-				Name:      "",
+				Name:      child.Name,
 				Type:      TypeStruct,
 				StructTag: child.StructTag,
 				ByteOffset: offset,
@@ -337,6 +349,12 @@ func (g *irGen) genFunc(n *Node) {
 
 func (g *irGen) genCompound(n *Node) {
 	for _, child := range n.Children {
+		if child.Kind == KindStructDef {
+			// Inline struct/union type defined inside a function body.
+			sd := buildStructDefIR(child, g.prog.StructDefs)
+			g.prog.StructDefs[sd.Name] = sd
+			continue
+		}
 		if child.Kind == KindVarDecl && child.IsConst {
 			continue // const locals are folded away by semcheck; no storage needed
 		}

@@ -24,7 +24,7 @@ package main
 
 // Keywords
 %token INT VOID IF ELSE WHILE RETURN FOR DO BREAK CONTINUE CONST CHAR EXTERN GOTO
-%token LONG UNSIGNED SHORT FLOAT DOUBLE STRUCT SIZEOF ENUM UNION TYPEDEF STATIC VA_ARG TYPEOF INT128
+%token LONG UNSIGNED SHORT FLOAT DOUBLE STRUCT SIZEOF ENUM UNION TYPEDEF STATIC VA_ARG TYPEOF INT128 SIGNED
 %token <sval> TYPENAME
 
 // Multi-character operators
@@ -40,7 +40,9 @@ package main
 %type <nodes> declaration var_declaration const_declaration extern_declaration declaration_list params param_list id_list
 %type <nodes> struct_declaration field_list union_declaration enum_declaration enum_list typedef_declaration
 %type <nodes> fp_param_types fp_param_type_list
-%type <node>  field param compound_stmt postfix_expr enum_member fp_param_type
+%type <nodes> field
+%type <ival>  const_int_expr const_int_add const_int_mul const_int_primary
+%type <node>  param compound_stmt postfix_expr enum_member fp_param_type
 %type <nodes> local_declarations statement_list
 %type <nodes> init_list
 %type <node>  init_entry assign_expr
@@ -85,7 +87,12 @@ declaration
 	;
 
 extern_declaration
-	: EXTERN type_specifier ID ';'
+	/* Forward struct/union declaration: struct Foo; */
+	: STRUCT ID ';'
+		{ $$ = nil }
+	| UNION ID ';'
+		{ $$ = nil }
+	| EXTERN type_specifier ID ';'
 		{ n := ctNode(KindVarDecl, $2, $3); n.IsExtern = true; $$ = []*Node{n} }
 	| EXTERN type_specifier ID '[' ']' ';'
 		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, IsExtern: true, ElemType: $2.Kind}} }
@@ -120,6 +127,51 @@ extern_declaration
 			n := ctNode(KindFunDecl, $2, $3); n.IsExtern = true
 			n.Children = append($5, &Node{Kind: KindParam, Type: TypeVoid, Name: "..."})
 			$$ = []*Node{n}
+		}
+	/* Bare function prototypes (no extern keyword) — common in system headers.
+	   Note: $indices differ from the EXTERN versions (no leading EXTERN token). */
+	| type_specifier ID '(' params ')' ';'
+		{
+			n := ctNode(KindFunDecl, $1, $2); n.IsExtern = true
+			n.Children = $4
+			$$ = []*Node{n}
+		}
+	| type_specifier ID '(' param_list ',' ELLIPSIS ')' ';'
+		{
+			n := ctNode(KindFunDecl, $1, $2); n.IsExtern = true
+			n.Children = append($4, &Node{Kind: KindParam, Type: TypeVoid, Name: "..."})
+			$$ = []*Node{n}
+		}
+	| type_specifier '*' ID '(' params ')' ';'
+		{
+			n := &Node{Kind: KindFunDecl, Type: TypePtr, Name: $3}
+			n.Pointee = $1; n.IsExtern = true; n.Children = $5
+			$$ = []*Node{n}
+		}
+	| STRUCT ID ID '(' params ')' ';'
+		{
+			n := &Node{Kind: KindFunDecl, Type: TypeStruct, StructTag: $2, Name: $3}
+			n.IsExtern = true; n.Children = $5
+			$$ = []*Node{n}
+		}
+	/* Combined struct definition + extern variable: "extern [const] struct Name { fields } var;" */
+	| EXTERN STRUCT ID '{' field_list '}' ID ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $3, Children: $5}
+			vd := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $7, StructTag: $3, IsExtern: true}
+			$$ = []*Node{sd, vd}
+		}
+	| EXTERN CONST STRUCT ID '{' field_list '}' ID ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $4, Children: $6}
+			vd := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $8, StructTag: $4, IsExtern: true}
+			$$ = []*Node{sd, vd}
+		}
+	| CONST STRUCT ID '{' field_list '}' ID ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $3, Children: $5}
+			vd := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $7, StructTag: $3}
+			$$ = []*Node{sd, vd}
 		}
 	;
 
@@ -215,6 +267,41 @@ var_declaration
 		{ n := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $3, StructTag: $2,
 		             Children: []*Node{{Kind: KindInitList, Children: $6}}}
 		  $$ = []*Node{n} }
+	/* ── Inline anonymous struct/union local variable ── */
+	| UNION '{' field_list '}' ID ';'
+		{ tag := yylex.(*lexer).nextAnon()
+		  sd := &Node{Kind: KindStructDef, Name: tag, Children: $3, IsUnion: true}
+		  vd := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $5, StructTag: tag}
+		  $$ = []*Node{sd, vd} }
+	| UNION '{' field_list '}' ID '=' '{' init_list '}' ';'
+		{ tag := yylex.(*lexer).nextAnon()
+		  sd := &Node{Kind: KindStructDef, Name: tag, Children: $3, IsUnion: true}
+		  vd := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $5, StructTag: tag,
+		              Children: []*Node{{Kind: KindInitList, Children: $8}}}
+		  $$ = []*Node{sd, vd} }
+	| UNION '{' field_list '}' ID '=' '{' init_list ',' '}' ';'
+		{ tag := yylex.(*lexer).nextAnon()
+		  sd := &Node{Kind: KindStructDef, Name: tag, Children: $3, IsUnion: true}
+		  vd := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $5, StructTag: tag,
+		              Children: []*Node{{Kind: KindInitList, Children: $8}}}
+		  $$ = []*Node{sd, vd} }
+	| STRUCT '{' field_list '}' ID ';'
+		{ tag := yylex.(*lexer).nextAnon()
+		  sd := &Node{Kind: KindStructDef, Name: tag, Children: $3}
+		  vd := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $5, StructTag: tag}
+		  $$ = []*Node{sd, vd} }
+	| STRUCT '{' field_list '}' ID '=' '{' init_list '}' ';'
+		{ tag := yylex.(*lexer).nextAnon()
+		  sd := &Node{Kind: KindStructDef, Name: tag, Children: $3}
+		  vd := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $5, StructTag: tag,
+		              Children: []*Node{{Kind: KindInitList, Children: $8}}}
+		  $$ = []*Node{sd, vd} }
+	| STRUCT '{' field_list '}' ID '=' '{' init_list ',' '}' ';'
+		{ tag := yylex.(*lexer).nextAnon()
+		  sd := &Node{Kind: KindStructDef, Name: tag, Children: $3}
+		  vd := &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $5, StructTag: tag,
+		              Children: []*Node{{Kind: KindInitList, Children: $8}}}
+		  $$ = []*Node{sd, vd} }
 	;
 
 init_list
@@ -264,21 +351,43 @@ type_specifier
 	| CHAR               { $$ = leafCType(TypeChar) }
 	| LONG               { $$ = leafCType(TypeLong) }
 	| LONG LONG          { $$ = leafCType(TypeLong) }
+	| LONG INT           { $$ = leafCType(TypeLong) }
+	| LONG LONG INT      { $$ = leafCType(TypeLong) }
 	| SHORT              { $$ = leafCType(TypeShort) }
 	| SHORT INT          { $$ = leafCType(TypeShort) }
 	| UNSIGNED           { $$ = leafCType(TypeUnsignedInt) }
 	| UNSIGNED INT       { $$ = leafCType(TypeUnsignedInt) }
 	| UNSIGNED LONG      { $$ = leafCType(TypeUnsignedLong) }
 	| UNSIGNED LONG LONG { $$ = leafCType(TypeUnsignedLong) }
+	| UNSIGNED LONG INT  { $$ = leafCType(TypeUnsignedLong) }
+	| UNSIGNED LONG LONG INT { $$ = leafCType(TypeUnsignedLong) }
+	| LONG UNSIGNED      { $$ = leafCType(TypeUnsignedLong) }
+	| LONG UNSIGNED INT  { $$ = leafCType(TypeUnsignedLong) }
+	| LONG LONG UNSIGNED { $$ = leafCType(TypeUnsignedLong) }
+	| LONG LONG UNSIGNED INT { $$ = leafCType(TypeUnsignedLong) }
+	| LONG SIGNED        { $$ = leafCType(TypeLong) }
+	| LONG SIGNED INT    { $$ = leafCType(TypeLong) }
+	| LONG LONG SIGNED   { $$ = leafCType(TypeLong) }
+	| LONG LONG SIGNED INT { $$ = leafCType(TypeLong) }
 	| UNSIGNED CHAR      { $$ = leafCType(TypeUnsignedChar) }
 	| UNSIGNED SHORT     { $$ = leafCType(TypeUnsignedShort) }
 	| UNSIGNED SHORT INT { $$ = leafCType(TypeUnsignedShort) }
 	| FLOAT              { $$ = leafCType(TypeFloat) }
 	| DOUBLE             { $$ = leafCType(TypeDouble) }
 	| LONG DOUBLE        { $$ = leafCType(TypeDouble) }
+	| SIGNED             { $$ = leafCType(TypeInt) }
+	| SIGNED INT         { $$ = leafCType(TypeInt) }
+	| SIGNED CHAR        { $$ = leafCType(TypeChar) }
+	| SIGNED SHORT       { $$ = leafCType(TypeShort) }
+	| SIGNED SHORT INT   { $$ = leafCType(TypeShort) }
+	| SIGNED LONG        { $$ = leafCType(TypeLong) }
+	| SIGNED LONG INT    { $$ = leafCType(TypeLong) }
+	| SIGNED LONG LONG   { $$ = leafCType(TypeLong) }
+	| SIGNED LONG LONG INT { $$ = leafCType(TypeLong) }
 	| INT128             { $$ = leafCType(TypeInt128) }
 	| UNSIGNED INT128    { $$ = leafCType(TypeUint128) }
 	| INT128 UNSIGNED    { $$ = leafCType(TypeUint128) }
+	| SIGNED INT128      { $$ = leafCType(TypeInt128) }
 	| TYPENAME           { $$ = yylex.(*lexer).lookupTypedefCType($1) }
 	| TYPEOF '(' expression ')'
 		{ yylex.(*lexer).typeofExpr = $3
@@ -407,6 +516,39 @@ param
 		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: $5}; n.Pointee = ptrCType(structCType($2)); $$ = n }
 	| CONST type_specifier '*' ID
 		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: $4, IsConstTarget: true}; n.Pointee = $2; $$ = n }
+	/* Nameless pointer parameters (in extern / forward declarations) — only pointer forms
+	   to avoid a R/R conflict with the "params: VOID" production for func(void). */
+	| type_specifier '*'
+		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: ""}; n.Pointee = $1; $$ = n }
+	| type_specifier '*' '*'
+		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: ""}; n.Pointee = ptrCType($1); $$ = n }
+	| CONST type_specifier '*'
+		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: "", IsConstTarget: true}; n.Pointee = $2; $$ = n }
+	| STRUCT ID '*'
+		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: ""}; n.Pointee = structCType($2); $$ = n }
+	/* Nameless scalar parameters — use specific tokens to avoid VOID conflict */
+	| INT         { $$ = &Node{Kind: KindParam, Type: TypeInt,         Name: ""} }
+	| CHAR        { $$ = &Node{Kind: KindParam, Type: TypeChar,        Name: ""} }
+	| LONG        { $$ = &Node{Kind: KindParam, Type: TypeLong,        Name: ""} }
+	| LONG LONG   { $$ = &Node{Kind: KindParam, Type: TypeLong,        Name: ""} }
+	| LONG INT    { $$ = &Node{Kind: KindParam, Type: TypeLong,        Name: ""} }
+	| LONG DOUBLE { $$ = &Node{Kind: KindParam, Type: TypeDouble,      Name: ""} }
+	| SHORT       { $$ = &Node{Kind: KindParam, Type: TypeShort,       Name: ""} }
+	| SHORT INT   { $$ = &Node{Kind: KindParam, Type: TypeShort,       Name: ""} }
+	| FLOAT       { $$ = &Node{Kind: KindParam, Type: TypeFloat,       Name: ""} }
+	| DOUBLE      { $$ = &Node{Kind: KindParam, Type: TypeDouble,      Name: ""} }
+	| UNSIGNED    { $$ = &Node{Kind: KindParam, Type: TypeUnsignedInt, Name: ""} }
+	| UNSIGNED INT   { $$ = &Node{Kind: KindParam, Type: TypeUnsignedInt,  Name: ""} }
+	| UNSIGNED LONG  { $$ = &Node{Kind: KindParam, Type: TypeUnsignedLong, Name: ""} }
+	| UNSIGNED CHAR  { $$ = &Node{Kind: KindParam, Type: TypeUnsignedChar, Name: ""} }
+	| UNSIGNED SHORT { $$ = &Node{Kind: KindParam, Type: TypeUnsignedShort, Name: ""} }
+	| SIGNED         { $$ = &Node{Kind: KindParam, Type: TypeInt,      Name: ""} }
+	| SIGNED INT     { $$ = &Node{Kind: KindParam, Type: TypeInt,      Name: ""} }
+	| SIGNED CHAR    { $$ = &Node{Kind: KindParam, Type: TypeChar,     Name: ""} }
+	| SIGNED LONG    { $$ = &Node{Kind: KindParam, Type: TypeLong,     Name: ""} }
+	| INT128         { $$ = &Node{Kind: KindParam, Type: TypeInt128,   Name: ""} }
+	| UNSIGNED INT128 { $$ = &Node{Kind: KindParam, Type: TypeUint128, Name: ""} }
+	| TYPENAME { ct := yylex.(*lexer).lookupTypedefCType($1); $$ = &Node{Kind: KindParam, Type: ct.Kind, Name: "", StructTag: ct.Tag} }
 	;
 
 compound_stmt
@@ -526,6 +668,8 @@ postfix_expr
 expression
 	: postfix_expr '=' expression
 		{ $$ = &Node{Kind: KindAssign, Children: []*Node{$1, $3}} }
+	| '(' expression ')' '=' expression
+		{ $$ = &Node{Kind: KindAssign, Children: []*Node{$2, $5}} }
 	| '*' factor '=' expression
 		{ lhs := &Node{Kind: KindDeref, Children: []*Node{$2}}; $$ = &Node{Kind: KindAssign, Children: []*Node{lhs, $4}} }
 	| postfix_expr PLUSEQ expression
@@ -864,6 +1008,44 @@ typedef_declaration
 			yylex.(*lexer).registerTypedef($5, leafCType(TypeFuncPtr))
 			$$ = nil
 		}
+	/* typedef of anonymous struct/union: typedef struct { ... } Name; */
+	| TYPEDEF STRUCT '{' field_list '}' ID ';'
+		{
+			tag := yylex.(*lexer).nextAnon()
+			sd := &Node{Kind: KindStructDef, Name: tag, Children: $4}
+			yylex.(*lexer).registerTypedef($6, structCType(tag))
+			$$ = []*Node{sd}
+		}
+	| TYPEDEF UNION '{' field_list '}' ID ';'
+		{
+			tag := yylex.(*lexer).nextAnon()
+			sd := &Node{Kind: KindStructDef, Name: tag, Children: $4, IsUnion: true}
+			yylex.(*lexer).registerTypedef($6, structCType(tag))
+			$$ = []*Node{sd}
+		}
+	/* typedef of named struct/union defining the struct inline: typedef struct Tag { ... } Name; */
+	| TYPEDEF STRUCT ID '{' field_list '}' ID ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $3, Children: $5}
+			yylex.(*lexer).registerTypedef($7, structCType($3))
+			$$ = []*Node{sd}
+		}
+	| TYPEDEF UNION ID '{' field_list '}' ID ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $3, Children: $5, IsUnion: true}
+			yylex.(*lexer).registerTypedef($7, structCType($3))
+			$$ = []*Node{sd}
+		}
+	| TYPEDEF STRUCT ID '{' field_list '}' ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $3, Children: $5}
+			$$ = []*Node{sd}
+		}
+	| TYPEDEF UNION ID '{' field_list '}' ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $3, Children: $5, IsUnion: true}
+			$$ = []*Node{sd}
+		}
 	;
 
 fp_param_types
@@ -887,50 +1069,105 @@ fp_param_type
 
 field_list
 	: field_list field
-		{ $$ = append($1, $2) }
+		{ $$ = append($1, $2...) }
 	| field
-		{ $$ = []*Node{$1} }
+		{ $$ = $1 }
 	;
 
 field
 	: type_specifier ID ';'
-		{ $$ = ctNode(KindVarDecl, $1, $2) }
+		{ $$ = []*Node{ctNode(KindVarDecl, $1, $2)} }
+	| type_specifier id_list ';'
+		{ $$ = makeMultiDecl($1, $2) }
 	| type_specifier ID ':' NUM ';'
-		{ n := ctNode(KindVarDecl, $1, $2); n.BitWidth = $4; $$ = n }
+		{ n := ctNode(KindVarDecl, $1, $2); n.BitWidth = $4; $$ = []*Node{n} }
+	| type_specifier ID '[' const_int_expr ']' ';'
+		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: $4, ElemType: $1.Kind}} }
 	| type_specifier ID '[' ']' ';'
-		{ $$ = &Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: -1, ElemType: $1.Kind} }
+		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: -1, ElemType: $1.Kind}} }
 	| type_specifier '*' ID ';'
-		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $3}; n.Pointee = $1; $$ = n }
-	| type_specifier '*' ID '[' NUM ']' ';'
-		{ $$ = &Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: $5, ElemType: TypePtr, ElemPointee: $1} }
+		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $3}; n.Pointee = $1; $$ = []*Node{n} }
+	| type_specifier '*' ID '[' const_int_expr ']' ';'
+		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: $5, ElemType: TypePtr, ElemPointee: $1}} }
 	| STRUCT ID '*' ID ';'
-		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4}; n.Pointee = structCType($2); $$ = n }
+		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4}; n.Pointee = structCType($2); $$ = []*Node{n} }
 	| STRUCT ID ID ';'
-		{ $$ = &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $3, StructTag: $2} }
+		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: $3, StructTag: $2}} }
+	| STRUCT ID ID '[' const_int_expr ']' ';'
+		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: $5, ElemType: TypeStruct, ElemPointee: structCType($2)}} }
 	| UNION ID ID ';'
-		{ $$ = &Node{Kind: KindVarDecl, Type: TypeStruct, Name: $3, StructTag: $2} }
+		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: $3, StructTag: $2}} }
 	| UNION ID '*' ID ';'
-		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4}; n.Pointee = structCType($2); $$ = n }
+		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4}; n.Pointee = structCType($2); $$ = []*Node{n} }
 	| STRUCT '{' field_list '}' ';'
 		{
 			tag := yylex.(*lexer).nextAnon()
-			$$ = &Node{Kind: KindVarDecl, Type: TypeStruct, Name: "", StructTag: tag, Children: $3}
+			$$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: "", StructTag: tag, Children: $3}}
 		}
 	| UNION '{' field_list '}' ';'
 		{
 			tag := yylex.(*lexer).nextAnon()
-			$$ = &Node{Kind: KindVarDecl, Type: TypeStruct, Name: "", StructTag: tag, Children: $3, IsUnion: true}
+			$$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: "", StructTag: tag, Children: $3, IsUnion: true}}
+		}
+	| UNION '{' field_list '}' ID ';'
+		{
+			tag := yylex.(*lexer).nextAnon()
+			$$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: $5, StructTag: tag, Children: $3, IsUnion: true}}
+		}
+	| STRUCT '{' field_list '}' ID ';'
+		{
+			tag := yylex.(*lexer).nextAnon()
+			$$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: $5, StructTag: tag, Children: $3}}
 		}
 	| STRUCT ID '{' field_list '}' ';'
 		{
 			tag := yylex.(*lexer).nextAnon()
-			$$ = &Node{Kind: KindVarDecl, Type: TypeStruct, Name: "", StructTag: tag, Children: $4}
+			$$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: "", StructTag: tag, Children: $4}}
 		}
 	| UNION ID '{' field_list '}' ';'
 		{
 			tag := yylex.(*lexer).nextAnon()
-			$$ = &Node{Kind: KindVarDecl, Type: TypeStruct, Name: "", StructTag: tag, Children: $4, IsUnion: true}
+			$$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: "", StructTag: tag, Children: $4, IsUnion: true}}
 		}
+	/* Inline struct/union as array element type: "struct { ... } tab[N];" */
+	| STRUCT '{' field_list '}' ID '[' const_int_expr ']' ';'
+		{
+			tag := yylex.(*lexer).nextAnon()
+			sd := &Node{Kind: KindStructDef, Name: tag, Children: $3}
+			f  := &Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $5, Val: $7,
+			            ElemType: TypeStruct, ElemPointee: structCType(tag), StructTag: tag}
+			$$ = []*Node{sd, f}
+		}
+	| UNION '{' field_list '}' ID '[' const_int_expr ']' ';'
+		{
+			tag := yylex.(*lexer).nextAnon()
+			sd := &Node{Kind: KindStructDef, Name: tag, Children: $3, IsUnion: true}
+			f  := &Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $5, Val: $7,
+			            ElemType: TypeStruct, ElemPointee: structCType(tag), StructTag: tag}
+			$$ = []*Node{sd, f}
+		}
+	;
+
+const_int_expr
+	: const_int_add                           { $$ = $1 }
+	| const_int_expr LSHIFT const_int_add     { $$ = $1 << $3 }
+	| const_int_expr RSHIFT const_int_add     { $$ = $1 >> $3 }
+	;
+
+const_int_add
+	: const_int_mul                           { $$ = $1 }
+	| const_int_add '+' const_int_mul         { $$ = $1 + $3 }
+	| const_int_add '-' const_int_mul         { $$ = $1 - $3 }
+	;
+
+const_int_mul
+	: const_int_primary                       { $$ = $1 }
+	| const_int_mul '*' const_int_primary     { $$ = $1 * $3 }
+	;
+
+const_int_primary
+	: NUM                                     { $$ = $1 }
+	| '(' const_int_expr ')'                  { $$ = $2 }
 	;
 
 %%
