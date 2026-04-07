@@ -93,8 +93,9 @@ func newLexer(src, file string) *lexer {
 	// Compiler-provided opaque FILE type (picolibc wchar.h uses __FILE directly).
 	l.typedefs["__FILE"] = structCType("__FILE")
 	// GCC built-in va_list types — treat as opaque pointer.
-	l.typedefs["va_list"]        = structCType("__va_list")
-	l.typedefs["__gnuc_va_list"] = structCType("__va_list")
+	l.typedefs["va_list"]            = structCType("__va_list")
+	l.typedefs["__gnuc_va_list"]     = structCType("__va_list")
+	l.typedefs["__builtin_va_list"]  = structCType("__va_list")
 	// locale_t is a pointer to struct __locale_t (POSIX; picolibc internals).
 	// Pre-register here so function declarations that use locale_t before
 	// the typedef is seen get the correct pointer type.

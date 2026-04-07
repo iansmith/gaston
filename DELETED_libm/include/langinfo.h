@@ -170,7 +170,16 @@ enum {
     CRNCYSTR, /* currency symbol */
 #define CRNCYSTR CRNCYSTR
 
+    D_MD_ORDER, /* month/day order (BSD extension) */
+#define D_MD_ORDER D_MD_ORDER
+
+    _NL_TIME_DATE_FMT = 84, /* date fmt used by date(1) (GNU extension) */
+#define _DATE_FMT _NL_TIME_DATE_FMT
+
 };
+
+#define _NL_LOCALE_NAME_BASE ((nl_item) 100000)
+#define NL_LOCALE_NAME(category) (_NL_LOCALE_NAME_BASE + (category))
 
 _BEGIN_STD_C
 char *nl_langinfo(nl_item);
