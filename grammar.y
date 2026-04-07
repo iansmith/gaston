@@ -43,7 +43,7 @@ package main
 
 // Types for non-terminals
 %type <node>  program
-%type <nodes> declaration var_declaration declaration_list params param_list id_list multi_init_id_list
+%type <nodes> declaration var_declaration declaration_list params param_list id_list multi_init_id_list ptr_id_list
 %type <nodes> struct_declaration field_list union_declaration enum_declaration enum_list typedef_declaration
 %type <nodes> fp_param_types fp_param_type_list
 %type <nodes> field
@@ -405,6 +405,15 @@ id_list
 		{ $$ = append($1, &Node{Kind: KindVarDecl, Name: $3, Children: []*Node{$5}}) }
 	| ID ',' ID
 		{ $$ = []*Node{{Kind: KindVar, Name: $1}, {Kind: KindVar, Name: $3}} }
+	;
+
+/* ptr_id_list: comma-separated pointer declarators for struct fields.
+   Used for patterns like: int *a, *b, *c; */
+ptr_id_list
+	: '*' ID
+		{ $$ = []*Node{{Kind: KindVar, Name: $2}} }
+	| ptr_id_list ',' '*' ID
+		{ $$ = append($1, &Node{Kind: KindVar, Name: $4}) }
 	;
 
 /* multi_init_id_list: two or more declarators separated by commas.
@@ -1067,6 +1076,16 @@ typedef_declaration
 			yylex.(*lexer).registerTypedef($4, ptrCType($2))
 			$$ = nil
 		}
+	| TYPEDEF type_specifier '*' '*' ID ';'
+		{
+			yylex.(*lexer).registerTypedef($5, ptrCType(ptrCType($2)))
+			$$ = nil
+		}
+	| TYPEDEF type_specifier '*' '*' TYPENAME ';'
+		{
+			yylex.(*lexer).registerTypedef($5, ptrCType(ptrCType($2)))
+			$$ = nil
+		}
 	| TYPEDEF STRUCT ID ID ';'
 		{
 			yylex.(*lexer).registerTypedef($4, structCType($3))
@@ -1292,6 +1311,8 @@ field
 		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: -1, ElemType: $1.Kind, StructTag: $1.Tag}} }
 	| type_specifier '*' ID ';'
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $3}; n.Pointee = $1; $$ = []*Node{n} }
+	| type_specifier '*' ID ',' ptr_id_list ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $3}; n.Pointee = $1; $$ = append([]*Node{n}, makePtrFields($1, $5)...) }
 	| type_specifier '*' '*' ID ';'
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4}; n.Pointee = ptrCType($1); $$ = []*Node{n} }
 	| type_specifier '*' ID '[' const_int_expr ']' ';'
@@ -1312,6 +1333,8 @@ field
 		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeFuncPtr, Name: $4}} }
 	| STRUCT ID '*' ID ';'
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4}; n.Pointee = structCType($2); $$ = []*Node{n} }
+	| STRUCT ID '*' ID ',' ptr_id_list ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4}; n.Pointee = structCType($2); $$ = append([]*Node{n}, makePtrFields(structCType($2), $6)...) }
 	| STRUCT ID ID ';'
 		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: $3, StructTag: $2}} }
 	| STRUCT ID ID '[' const_int_expr ']' ';'

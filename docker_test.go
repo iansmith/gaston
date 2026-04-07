@@ -1146,6 +1146,197 @@ func TestStringCompile(t *testing.T) {
 	}
 }
 
+// ctypeSkip lists ctype/ source files that are not yet supported.
+var ctypeSkip = map[string]bool{
+	"ctype_.c":       true, // defines _ctype_ data table; macro collision with our header
+	"categories.c":   true, // semcheck: struct pointer compatibility with packed bitfields
+	"towctrans_l.c":  true, // semcheck: struct pointer compatibility with packed bitfields
+}
+
+// ctypeIncludePaths returns the include search paths for picolibc ctype/ sources.
+func ctypeIncludePaths() []string {
+	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/ctype"
+	return []string{
+		tdir,
+		"libm/include",
+		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/locale",
+	}
+}
+
+// TestCtypeCompile compiles every picolibc ctype/*.c source file and verifies
+// gaston can parse and codegen each one.
+func TestCtypeCompile(t *testing.T) {
+	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/ctype"
+	entries, err := os.ReadDir(tdir)
+	if err != nil {
+		t.Fatalf("read ctype dir: %v", err)
+	}
+	includePaths := ctypeIncludePaths()
+	defines := []string{"__PICOLIBC__=1", "_LIBC=1"}
+
+	passed := 0
+	var failed []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".c") {
+			continue
+		}
+		if ctypeSkip[e.Name()] {
+			continue
+		}
+		src := tdir + "/" + e.Name()
+		obj := fmt.Sprintf("/tmp/ctype-%s.o", strings.TrimSuffix(e.Name(), ".c"))
+		t.Cleanup(func() { os.Remove(obj) })
+		if err := compileObjPath(src, obj, includePaths, defines...); err != nil {
+			t.Logf("FAIL %s: %v", e.Name(), err)
+			failed = append(failed, e.Name())
+			continue
+		}
+		passed++
+	}
+	t.Logf("%d passed, %d failed", passed, len(failed))
+	if len(failed) > 0 {
+		t.Errorf("failed files: %v", failed)
+	}
+}
+
+// searchSkip lists search/ source files that are not yet supported.
+var searchSkip = map[string]bool{
+	"hcreate_r.c": true, // sizeof *ptr (no parens)
+	"ndbm.c":      true, // function pointer inside struct typedef
+	"tdelete.c":   true, // double-pointer locals + dereference
+	"tdestroy.c":  true, // double-pointer locals + dereference
+	"tfind.c":     true, // double-pointer locals + dereference
+	"tsearch.c":   true, // double-pointer locals + dereference
+	"twalk.c":     true, // double-pointer locals + dereference
+}
+
+// searchIncludePaths returns the include search paths for picolibc search/ sources.
+func searchIncludePaths() []string {
+	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/search"
+	return []string{
+		tdir,
+		"libm/include",
+		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+	}
+}
+
+// TestSearchCompile compiles every picolibc search/*.c source file and verifies
+// gaston can parse and codegen each one.
+func TestSearchCompile(t *testing.T) {
+	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/search"
+	entries, err := os.ReadDir(tdir)
+	if err != nil {
+		t.Fatalf("read search dir: %v", err)
+	}
+	includePaths := searchIncludePaths()
+	defines := []string{"__PICOLIBC__=1", "_LIBC=1", "_SEARCH_PRIVATE=1"}
+
+	passed := 0
+	var failed []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".c") {
+			continue
+		}
+		if searchSkip[e.Name()] {
+			continue
+		}
+		src := tdir + "/" + e.Name()
+		obj := fmt.Sprintf("/tmp/search-%s.o", strings.TrimSuffix(e.Name(), ".c"))
+		t.Cleanup(func() { os.Remove(obj) })
+		if err := compileObjPath(src, obj, includePaths, defines...); err != nil {
+			t.Logf("FAIL %s: %v", e.Name(), err)
+			failed = append(failed, e.Name())
+			continue
+		}
+		passed++
+	}
+	t.Logf("%d passed, %d failed", passed, len(failed))
+	if len(failed) > 0 {
+		t.Errorf("failed files: %v", failed)
+	}
+}
+
+// miscIncludePaths returns the include search paths for picolibc misc/ sources.
+func miscIncludePaths() []string {
+	return []string{
+		"libm/include",
+		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+	}
+}
+
+// TestMiscCompile compiles every picolibc misc/*.c source file.
+func TestMiscCompile(t *testing.T) {
+	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/misc"
+	entries, err := os.ReadDir(tdir)
+	if err != nil {
+		t.Fatalf("read misc dir: %v", err)
+	}
+	includePaths := miscIncludePaths()
+	defines := []string{"__PICOLIBC__=1", "_LIBC=1"}
+
+	passed := 0
+	var failed []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".c") {
+			continue
+		}
+		src := tdir + "/" + e.Name()
+		obj := fmt.Sprintf("/tmp/misc-%s.o", strings.TrimSuffix(e.Name(), ".c"))
+		t.Cleanup(func() { os.Remove(obj) })
+		if err := compileObjPath(src, obj, includePaths, defines...); err != nil {
+			t.Logf("FAIL %s: %v", e.Name(), err)
+			failed = append(failed, e.Name())
+			continue
+		}
+		passed++
+	}
+	t.Logf("%d passed, %d failed", passed, len(failed))
+	if len(failed) > 0 {
+		t.Errorf("failed files: %v", failed)
+	}
+}
+
+// argzSkip lists argz/ source files that are not yet supported.
+var argzSkip = map[string]bool{
+	"argz_create.c": true, // cannot dereference non-pointer (double-pointer pattern)
+}
+
+// TestArgzCompile compiles every picolibc argz/*.c source file.
+func TestArgzCompile(t *testing.T) {
+	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/argz"
+	entries, err := os.ReadDir(tdir)
+	if err != nil {
+		t.Fatalf("read argz dir: %v", err)
+	}
+	includePaths := miscIncludePaths()
+	defines := []string{"__PICOLIBC__=1", "_LIBC=1"}
+
+	passed := 0
+	var failed []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".c") {
+			continue
+		}
+		if argzSkip[e.Name()] {
+			continue
+		}
+		src := tdir + "/" + e.Name()
+		obj := fmt.Sprintf("/tmp/argz-%s.o", strings.TrimSuffix(e.Name(), ".c"))
+		t.Cleanup(func() { os.Remove(obj) })
+		if err := compileObjPath(src, obj, includePaths, defines...); err != nil {
+			t.Logf("FAIL %s: %v", e.Name(), err)
+			failed = append(failed, e.Name())
+			continue
+		}
+		passed++
+	}
+	t.Logf("%d passed, %d failed", passed, len(failed))
+	if len(failed) > 0 {
+		t.Errorf("failed files: %v", failed)
+	}
+}
+
 // stdlibSkip lists stdlib/ source files that are not yet supported.
 var stdlibSkip = map[string]bool{}
 

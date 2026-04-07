@@ -259,6 +259,17 @@ func makeMultiDecl(ct *CType, names []*Node) []*Node {
 	return out
 }
 
+// makePtrFields creates pointer VarDecl nodes from a ptr_id_list.
+// Each name in the list becomes a pointer field with the given pointee type.
+func makePtrFields(pointee *CType, names []*Node) []*Node {
+	out := make([]*Node, len(names))
+	for i, n := range names {
+		out[i] = &Node{Kind: KindVarDecl, Type: TypePtr, Name: n.Name}
+		out[i].Pointee = pointee
+	}
+	return out
+}
+
 // castNode builds a KindCast node that converts child to the type described by ct.
 func castNode(ct *CType, child *Node) *Node {
 	n := &Node{Kind: KindCast, Type: ct.Kind, Children: []*Node{child}}

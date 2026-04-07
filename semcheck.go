@@ -1354,7 +1354,9 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 
 	case KindCall:
 		// Check if the callee name is a TypeFuncPtr variable (not a direct function).
-		if e := st.lookup(n.Name); e != nil && e.typ == TypeFuncPtr {
+		// Also handle pointer-to-function-type (e.g. cmp_t *cmp where cmp_t is a function typedef).
+		if e := st.lookup(n.Name); e != nil && (e.typ == TypeFuncPtr ||
+			(e.typ == TypePtr && e.pointee != nil && e.pointee.Kind == TypeFuncPtr)) {
 			// Rewrite as function-pointer call.
 			n.Kind = KindFuncPtrCall
 			for _, arg := range n.Children {

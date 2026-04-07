@@ -314,8 +314,7 @@ extern const short _ctype_wide[];
 #define __CTYPE_BLANK 0x080 /* blank (but not tab) */
 #define __CTYPE_TAB   0x100 /* tab (only in wide table) */
 
-#ifdef __cplusplus
-/* We need these legacy symbols to build libstdc++ */
+/* Legacy ctype classification constants — used by picolibc source files */
 #define _U __CTYPE_UPPER
 #define _L __CTYPE_LOWER
 #define _N __CTYPE_DIGIT
@@ -324,7 +323,6 @@ extern const short _ctype_wide[];
 #define _C __CTYPE_CNTRL
 #define _X __CTYPE_HEX
 #define _B __CTYPE_BLANK
-#endif
 
 #ifdef __MB_EXTENDED_CHARSETS_NON_UNICODE
 const char *__locale_ctype_ptr(void);
@@ -362,12 +360,11 @@ isblank(int c)
 
 #if __POSIX_VISIBLE >= 200809
 
-#ifdef __MB_EXTENDED_CHARSETS_NON_UNICODE
-const char *__locale_ctype_ptr_l(locale_t);
-#define __CTYPE_PTR_L(__l) __locale_ctype_ptr_l(__l)
-#else
-#define __CTYPE_PTR_L(__l) ((void)(__l), _ctype_)
-#endif
+/* Provide __locale_ctype_ptr_l as a macro for picolibc source files
+   that call it directly (e.g. isalnum_l.c) */
+/* Simplified: ignore locale, return default ctype table */
+#define __locale_ctype_ptr_l(__l) (_ctype_)
+#define __CTYPE_PTR_L(__l) (_ctype_)
 
 #define __ctype_lookup_l(__c, __l) ((__CTYPE_PTR_L(__l) + 1)[(int)(__c)])
 
