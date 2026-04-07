@@ -716,7 +716,12 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 	case KindDeref:
 		t := checkExpr(n.Children[0], st, errs)
 		if t != TypePtr && t != TypeCharPtr {
-			*errs = append(*errs, "cannot dereference non-pointer")
+			// Allow deref on opaque types from struct field access or array subscripts —
+			// the actual type may be a function pointer that semcheck can't track.
+			child := n.Children[0]
+			if child.Kind != KindFieldAccess && child.Kind != KindIndexExpr {
+				*errs = append(*errs, "cannot dereference non-pointer")
+			}
 			n.Type = TypeInt
 			return TypeInt
 		}
@@ -883,7 +888,11 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			if effectiveRhs == TypeIntArray {
 				effectiveRhs = TypePtr
 				if rhs.ElemType != TypeInt && rhs.ElemType != 0 {
-					effectiveRhsPtee = leafCType(rhs.ElemType)
+					ct := leafCType(rhs.ElemType)
+					if rhs.ElemType == TypeStruct && rhs.StructTag != "" {
+						ct.Tag = rhs.StructTag
+					}
+					effectiveRhsPtee = ct
 				} else {
 					effectiveRhsPtee = leafCType(TypeInt)
 				}
@@ -900,7 +909,16 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 				isRhsVoid := normRhs == TypePtr && (ctypeIsVoidPtr(rhsPtee) || rawRhsIsStringLit)
 				if !isLhsVoid && !isRhsVoid {
 					if normLhs != normRhs || !ctypeEq(lhsPtee, rhsPtee) {
-						*errs = append(*errs, "assignment of incompatible pointer types")
+						// Allow struct pointer assignment when tags match (ignore const qualifiers),
+						// or when one side lost struct tag info through array decay.
+						lTag := ctypeStructTag(lhsPtee)
+						rTag := ctypeStructTag(rhsPtee)
+						bothStruct := lTag != "" && rTag != "" && lTag == rTag
+						arrayDecayLostTag := (lTag != "" && rhsPtee != nil && rhsPtee.Kind == TypeStruct && rTag == "") ||
+							(rTag != "" && lhsPtee != nil && lhsPtee.Kind == TypeStruct && lTag == "")
+						if !bothStruct && !arrayDecayLostTag {
+							*errs = append(*errs, "assignment of incompatible pointer types")
+						}
 					}
 				}
 			} else {

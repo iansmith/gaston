@@ -50,6 +50,17 @@ func structCType(tag string) *CType { return &CType{Kind: TypeStruct, Tag: tag} 
 // ptrCType builds a CType representing a pointer to the given pointee.
 func ptrCType(pointee *CType) *CType { return &CType{Kind: TypePtr, Pointee: pointee} }
 
+// ctypeStructTag returns the struct/union tag from a CType, or "" if not a struct.
+func ctypeStructTag(ct *CType) string {
+	if ct == nil {
+		return ""
+	}
+	if ct.Kind == TypeStruct {
+		return ct.Tag
+	}
+	return ""
+}
+
 // sizeofType returns the byte size of the type represented by ct,
 // for use in const_int_expr array dimension evaluation.
 func sizeofType(ct *CType) int {

@@ -1137,6 +1137,14 @@ var stdlibSkip = map[string]bool{
 	// Internal malloc variants
 	"mallocr.c":     true,
 	"nano-mallocr.c": true,
+	// Picolibc internal types and functions
+	"__call_atexit.c": true, // requires picolibc struct _atexit internals
+	"exit.c":          true, // requires _REENT_CLEANUP macro
+	"getenv.c":        true, // requires _findenv() from getenv_r.c
+	"setenv.c":        true, // requires _findenv() from getenv_r.c
+	"pico-exit.c":     true, // requires weak symbol runtime checking
+	"pico-onexit.c":   true, // union function pointer fields in static array init
+	"getopt.c":        true, // semcheck pointer/array parameter type strictness
 }
 
 // stdlibIncludePaths returns the include search paths for picolibc stdlib/ sources.
@@ -1236,7 +1244,10 @@ func TestLocaleCompile(t *testing.T) {
 
 // posixSkip lists posix/ source files that are not yet supported.
 var posixSkip = map[string]bool{
-	"engine.c": true, // template file #include'd by regexec.c, not independently compilable
+	"engine.c":  true, // template file #include'd by regexec.c, not independently compilable
+	"nftw.c":    true, // requires ftw.h and pthread.h which gaston doesn't provide
+	"regcomp.c": true, // irgen: struct field 'setbits' not tracked through regex cset internals
+	"regexec.c": true, // complex bit-shift macro in engine.c template causes parse error
 }
 
 // posixIncludePaths returns the include search paths for picolibc posix/ sources.

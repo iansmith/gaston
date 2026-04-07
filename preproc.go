@@ -563,6 +563,10 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 /* Provide LONG_MAX/ULONG_MAX directly so code using them without limits.h works */
 #define LONG_MAX   9223372036854775807L
 #define ULONG_MAX  18446744073709551615UL
+
+/* GCC predefined identifiers — approximate as string literals */
+#define __FUNCTION__ ""
+#define __PRETTY_FUNCTION__ ""
 `
 	var dummy strings.Builder
 	pp.processFile(builtinSrc, "<builtin>", &dummy)

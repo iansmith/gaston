@@ -800,6 +800,10 @@ factor
 	| '&' '(' expression ')' '[' expression ']'
 		{ idx := &Node{Kind: KindIndexExpr, Children: []*Node{$3, $6}}
 		  $$ = &Node{Kind: KindAddrOf, Children: []*Node{idx}} }
+	/* Address of array subscript on struct member: &g->member[expr] */
+	| '&' postfix_expr '[' expression ']'
+		{ idx := &Node{Kind: KindIndexExpr, Children: []*Node{$2, $4}}
+		  $$ = &Node{Kind: KindAddrOf, Children: []*Node{idx}} }
 	/* Address of struct field: &s.field or &p->field or &(p->field) */
 	| '&' postfix_expr ARROW ID  { fa := &Node{Kind: KindFieldAccess, Op: "->", Name: $4, Children: []*Node{$2}}; $$ = &Node{Kind: KindAddrOf, Children: []*Node{fa}} }
 	| '&' postfix_expr '.' ID    { fa := &Node{Kind: KindFieldAccess, Op: ".", Name: $4, Children: []*Node{$2}}; $$ = &Node{Kind: KindAddrOf, Children: []*Node{fa}} }
@@ -869,11 +873,8 @@ factor
 		{ n := &Node{Kind: KindCast, Type: TypePtr}; n.Pointee = $2; n.Children = []*Node{$10}; $$ = n }
 	| '(' type_specifier '*' '(' '*' ')' '(' fp_param_types ')' ')' factor
 		{ n := &Node{Kind: KindCast, Type: TypePtr}; n.Pointee = ptrCType($2); n.Children = []*Node{$11}; $$ = n }
-	/* Indirect calls through parenthesized or dereferenced function pointer expressions */
-	| '(' '*' postfix_expr ARROW ID ')' '(' args ')'
-		{ callee := &Node{Kind: KindFieldAccess, Op: "->", Name: $5, Children: []*Node{$3}}
-		  $$ = &Node{Kind: KindIndirectCall, Children: append([]*Node{callee}, $8...)} }
-	/* removed: '(' postfix_expr ARROW ID ')' '(' args ')' — handled via postfix_expr: '(' expression ')' '(' args ')' */
+	/* removed: '(' '*' postfix_expr ARROW ID ')' '(' args ')' — caused S/R conflict
+	   preventing (*p->field) from parsing. Handled via '(' expression ')' '(' args ')' */
 	/* ── Address-of compound literal: &(struct T){...} — produces TypePtr ── */
 	| '&' '(' STRUCT ID ')' '{' init_list '}'
 		{ n := &Node{Kind: KindCompoundLit, Type: TypePtr}
