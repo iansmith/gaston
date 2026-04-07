@@ -786,6 +786,22 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 
 	case KindDeref:
 		t := checkExpr(n.Children[0], st, errs)
+		if t == TypeIntArray {
+			// Array-to-pointer decay: *arr is equivalent to arr[0].
+			child := n.Children[0]
+			if child.ElemType == TypeStruct && child.StructTag != "" {
+				n.Type = TypeStruct
+				n.StructTag = child.StructTag
+				return TypeStruct
+			}
+			elemType := child.ElemType
+			if elemType == 0 {
+				elemType = TypeInt
+			}
+			n.Type = elemType
+			n.Pointee = child.ElemPointee
+			return elemType
+		}
 		if t != TypePtr && t != TypeCharPtr {
 			// Allow deref on opaque types from struct field access or array subscripts —
 			// the actual type may be a function pointer that semcheck can't track.
@@ -1407,6 +1423,8 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 						} else {
 							effectiveArgPtee = leafCType(TypePtr)
 						}
+					} else if arg.ElemType == TypeStruct && arg.StructTag != "" {
+						effectiveArgPtee = structCType(arg.StructTag)
 					} else if arg.ElemType != 0 {
 						effectiveArgPtee = leafCType(arg.ElemType)
 					} else if e := st.lookup(arg.Name); e != nil {
@@ -1416,6 +1434,8 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 							} else {
 								effectiveArgPtee = leafCType(TypePtr)
 							}
+						} else if e.elemType == TypeStruct && e.structTag != "" {
+							effectiveArgPtee = structCType(e.structTag)
 						} else if e.elemType != 0 {
 							effectiveArgPtee = leafCType(e.elemType)
 						} else {

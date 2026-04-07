@@ -280,6 +280,14 @@
 #define __HAVE_LONG_DOUBLE_MATH
 #endif
 
+/* __EXPORT and __IMPORT: empty on non-Windows targets. */
+#ifndef __EXPORT
+#define __EXPORT
+#endif
+#ifndef __IMPORT
+#define __IMPORT
+#endif
+
 /* _READ_WRITE_RETURN_TYPE used in picolibc internal stdio declarations. */
 #ifndef _READ_WRITE_RETURN_TYPE
 #define _READ_WRITE_RETURN_TYPE int

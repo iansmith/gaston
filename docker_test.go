@@ -1147,11 +1147,7 @@ func TestStringCompile(t *testing.T) {
 }
 
 // ctypeSkip lists ctype/ source files that are not yet supported.
-var ctypeSkip = map[string]bool{
-	"ctype_.c":       true, // defines _ctype_ data table; macro collision with our header
-	"categories.c":   true, // semcheck: struct pointer compatibility with packed bitfields
-	"towctrans_l.c":  true, // semcheck: struct pointer compatibility with packed bitfields
-}
+var ctypeSkip = map[string]bool{}
 
 // ctypeIncludePaths returns the include search paths for picolibc ctype/ sources.
 func ctypeIncludePaths() []string {
@@ -1437,7 +1433,8 @@ func TestLocaleCompile(t *testing.T) {
 
 // posixSkip lists posix/ source files that are not yet supported.
 var posixSkip = map[string]bool{
-	"engine.c": true, // template file #include'd by regexec.c, not independently compilable
+	"engine.c":  true, // template file #include'd by regexec.c, not independently compilable
+	"regexec.c": true, // regmatch_t array param type mismatch in smatcher call
 }
 
 // posixIncludePaths returns the include search paths for picolibc posix/ sources.
