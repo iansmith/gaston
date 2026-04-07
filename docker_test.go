@@ -668,7 +668,7 @@ func buildLibgastonc(t *testing.T) (libPath string) {
 	}
 
 	// ── picolibc tinystdio sources ──────────────────────────────────────
-	tsdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/tinystdio"
+	tsdir := "picolibc/libc/tinystdio"
 	tsInc := tinystdioIncludePaths()
 	tsDefines := []string{"__PICOLIBC__=1", "TINY_STDIO=1", "FORMAT_DEFAULT_DOUBLE=1"}
 	for _, f := range []string{"vfprintf.c", "filestrput.c", "dtoa_engine.c", "dtoa_data.c"} {
@@ -682,7 +682,7 @@ func buildLibgastonc(t *testing.T) (libPath string) {
 	}
 
 	// ── picolibc string functions ───────────────────────────────────────
-	stringDir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/string"
+	stringDir := "picolibc/libc/string"
 	strInc := stringIncludePaths()
 	strDefines := []string{"__SVID_VISIBLE=1", "__POSIX_VISIBLE=1", "__XSI_VISIBLE=1"}
 	for _, f := range []string{"strcmp.c", "strlen.c", "strnlen.c", "memset.c", "memcpy.c"} {
@@ -868,11 +868,11 @@ var tinystdioPosixIO = map[string]bool{
 
 // tinystdioIncludePaths returns the include search paths for picolibc tinystdio sources.
 func tinystdioIncludePaths() []string {
-	tsdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/tinystdio"
+	tsdir := "picolibc/libc/tinystdio"
 	return []string{
 		tsdir,
 		"libm/include",
-		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+		"picolibc/libc/include",
 	}
 }
 
@@ -880,7 +880,7 @@ func tinystdioIncludePaths() []string {
 // known-skipped files) and verifies gaston can parse and codegen each one.
 // Files requiring POSIX_IO are compiled with -DPOSIX_IO.
 func TestTinystdioCompile(t *testing.T) {
-	tsdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/tinystdio"
+	tsdir := "picolibc/libc/tinystdio"
 	entries, err := os.ReadDir(tsdir)
 	if err != nil {
 		t.Fatalf("read tinystdio dir: %v", err)
@@ -1045,11 +1045,11 @@ func TestSemErrors(t *testing.T) {
 
 // timeIncludePaths returns the include search paths for picolibc time/ sources.
 func timeIncludePaths() []string {
-	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/time"
+	tdir := "picolibc/libc/time"
 	return []string{
 		tdir,
 		"libm/include",
-		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+		"picolibc/libc/include",
 	}
 }
 
@@ -1059,7 +1059,7 @@ var timeSkip = map[string]bool{}
 // TestTimeCompile compiles every picolibc time/*.c source file and verifies
 // gaston can parse and codegen each one.
 func TestTimeCompile(t *testing.T) {
-	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/time"
+	tdir := "picolibc/libc/time"
 	entries, err := os.ReadDir(tdir)
 	if err != nil {
 		t.Fatalf("read time dir: %v", err)
@@ -1102,18 +1102,18 @@ var stringSkip = map[string]bool{
 
 // stringIncludePaths returns the include search paths for picolibc string/ sources.
 func stringIncludePaths() []string {
-	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/string"
+	tdir := "picolibc/libc/string"
 	return []string{
 		tdir,
 		"libm/include",
-		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+		"picolibc/libc/include",
 	}
 }
 
 // TestStringCompile compiles every picolibc string/*.c source file and verifies
 // gaston can parse and codegen each one.
 func TestStringCompile(t *testing.T) {
-	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/string"
+	tdir := "picolibc/libc/string"
 	entries, err := os.ReadDir(tdir)
 	if err != nil {
 		t.Fatalf("read string dir: %v", err)
@@ -1151,19 +1151,19 @@ var ctypeSkip = map[string]bool{}
 
 // ctypeIncludePaths returns the include search paths for picolibc ctype/ sources.
 func ctypeIncludePaths() []string {
-	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/ctype"
+	tdir := "picolibc/libc/ctype"
 	return []string{
 		tdir,
 		"libm/include",
-		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
-		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/locale",
+		"picolibc/libc/include",
+		"picolibc/libc/locale",
 	}
 }
 
 // TestCtypeCompile compiles every picolibc ctype/*.c source file and verifies
 // gaston can parse and codegen each one.
 func TestCtypeCompile(t *testing.T) {
-	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/ctype"
+	tdir := "picolibc/libc/ctype"
 	entries, err := os.ReadDir(tdir)
 	if err != nil {
 		t.Fatalf("read ctype dir: %v", err)
@@ -1203,18 +1203,18 @@ var searchSkip = map[string]bool{
 
 // searchIncludePaths returns the include search paths for picolibc search/ sources.
 func searchIncludePaths() []string {
-	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/search"
+	tdir := "picolibc/libc/search"
 	return []string{
 		tdir,
 		"libm/include",
-		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+		"picolibc/libc/include",
 	}
 }
 
 // TestSearchCompile compiles every picolibc search/*.c source file and verifies
 // gaston can parse and codegen each one.
 func TestSearchCompile(t *testing.T) {
-	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/search"
+	tdir := "picolibc/libc/search"
 	entries, err := os.ReadDir(tdir)
 	if err != nil {
 		t.Fatalf("read search dir: %v", err)
@@ -1251,13 +1251,13 @@ func TestSearchCompile(t *testing.T) {
 func miscIncludePaths() []string {
 	return []string{
 		"libm/include",
-		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+		"picolibc/libc/include",
 	}
 }
 
 // TestMiscCompile compiles every picolibc misc/*.c source file.
 func TestMiscCompile(t *testing.T) {
-	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/misc"
+	tdir := "picolibc/libc/misc"
 	entries, err := os.ReadDir(tdir)
 	if err != nil {
 		t.Fatalf("read misc dir: %v", err)
@@ -1292,7 +1292,7 @@ var argzSkip = map[string]bool{}
 
 // TestArgzCompile compiles every picolibc argz/*.c source file.
 func TestArgzCompile(t *testing.T) {
-	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/argz"
+	tdir := "picolibc/libc/argz"
 	entries, err := os.ReadDir(tdir)
 	if err != nil {
 		t.Fatalf("read argz dir: %v", err)
@@ -1330,18 +1330,18 @@ var stdlibSkip = map[string]bool{}
 
 // stdlibIncludePaths returns the include search paths for picolibc stdlib/ sources.
 func stdlibIncludePaths() []string {
-	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/stdlib"
+	tdir := "picolibc/libc/stdlib"
 	return []string{
 		tdir,
 		"libm/include",
-		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+		"picolibc/libc/include",
 	}
 }
 
 // TestStdlibCompile compiles every picolibc stdlib/*.c source file and verifies
 // gaston can parse and codegen each one.
 func TestStdlibCompile(t *testing.T) {
-	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/stdlib"
+	tdir := "picolibc/libc/stdlib"
 	entries, err := os.ReadDir(tdir)
 	if err != nil {
 		t.Fatalf("read stdlib dir: %v", err)
@@ -1379,18 +1379,18 @@ var localeSkip = map[string]bool{}
 
 // localeIncludePaths returns the include search paths for picolibc locale/ sources.
 func localeIncludePaths() []string {
-	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/locale"
+	tdir := "picolibc/libc/locale"
 	return []string{
 		tdir,
 		"libm/include",
-		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+		"picolibc/libc/include",
 	}
 }
 
 // TestLocaleCompile compiles every picolibc locale/*.c source file and verifies
 // gaston can parse and codegen each one.
 func TestLocaleCompile(t *testing.T) {
-	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/locale"
+	tdir := "picolibc/libc/locale"
 	entries, err := os.ReadDir(tdir)
 	if err != nil {
 		t.Fatalf("read locale dir: %v", err)
@@ -1431,18 +1431,18 @@ var posixSkip = map[string]bool{
 
 // posixIncludePaths returns the include search paths for picolibc posix/ sources.
 func posixIncludePaths() []string {
-	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/posix"
+	tdir := "picolibc/libc/posix"
 	return []string{
 		tdir,
 		"libm/include",
-		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+		"picolibc/libc/include",
 	}
 }
 
 // TestPosixCompile compiles every picolibc posix/*.c source file and verifies
 // gaston can parse and codegen each one.
 func TestPosixCompile(t *testing.T) {
-	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/posix"
+	tdir := "picolibc/libc/posix"
 	entries, err := os.ReadDir(tdir)
 	if err != nil {
 		t.Fatalf("read posix dir: %v", err)
@@ -1480,18 +1480,18 @@ var signalSkip = map[string]bool{}
 
 // signalIncludePaths returns the include search paths for picolibc signal/ sources.
 func signalIncludePaths() []string {
-	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/signal"
+	tdir := "picolibc/libc/signal"
 	return []string{
 		tdir,
 		"libm/include",
-		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+		"picolibc/libc/include",
 	}
 }
 
 // TestSignalCompile compiles every picolibc signal/*.c source file and verifies
 // gaston can parse and codegen each one.
 func TestSignalCompile(t *testing.T) {
-	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/signal"
+	tdir := "picolibc/libc/signal"
 	entries, err := os.ReadDir(tdir)
 	if err != nil {
 		t.Fatalf("read signal dir: %v", err)
@@ -1574,7 +1574,7 @@ func TestTinystdioRun(t *testing.T) {
 		t.Skip("docker not found in PATH; skipping container tests")
 	}
 
-	tsdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/tinystdio"
+	tsdir := "picolibc/libc/tinystdio"
 	includePaths := tinystdioIncludePaths()
 
 	// Minimal set of tinystdio .c files needed for snprintf.
@@ -1598,7 +1598,7 @@ func TestTinystdioRun(t *testing.T) {
 	}
 
 	// Picolibc string functions (strcmp, strlen).
-	stringDir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/string"
+	stringDir := "picolibc/libc/string"
 	for _, f := range []string{"strcmp.c", "strlen.c"} {
 		src := stringDir + "/" + f
 		obj := fmt.Sprintf("/tmp/gaston-ts-str-%s.o", strings.TrimSuffix(f, ".c"))
@@ -1665,7 +1665,7 @@ func TestPicolibcRun(t *testing.T) {
 	libPath := buildLibgastonc(t)
 
 	// Picolibc string functions needed by the test programs.
-	stringDir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/string"
+	stringDir := "picolibc/libc/string"
 	stringFuncs := []string{"strcmp.c", "strlen.c", "strcpy.c"}
 	var stringObjs []string
 	for _, f := range stringFuncs {
@@ -1679,11 +1679,11 @@ func TestPicolibcRun(t *testing.T) {
 		stringObjs = append(stringObjs, obj)
 	}
 
-	testDir := "/Users/iansmith/wazero/tinygo/lib/picolibc/test/libc-testsuite"
+	testDir := "picolibc/test/libc-testsuite"
 	testIncludePaths := []string{
-		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/tinystdio",
+		"picolibc/libc/tinystdio",
 		"libm/include",
-		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+		"picolibc/libc/include",
 		testDir,
 	}
 	testDefines := []string{"__PICOLIBC__=1", "TINY_STDIO=1"}
