@@ -103,6 +103,8 @@ func newSymTable() *symTable {
 		Params: []TypeKind{TypePtr}, ParamPointees: []*CType{voidPtee}}
 	st.funcs["print_double"] = &FuncSig{Name: "print_double", ReturnType: TypeVoid,
 		Params: []TypeKind{TypeDouble}, ParamPointees: []*CType{nil}}
+	st.funcs["fflush"] = &FuncSig{Name: "fflush", ReturnType: TypeInt, IsExtern: true,
+		Params: []TypeKind{TypePtr}, ParamPointees: []*CType{voidPtee}}
 	// Compiler built-in: returns a pointer to the variadic register save area.
 	st.funcs["__va_start"] = &FuncSig{Name: "__va_start", ReturnType: TypePtr,
 		ReturnPointee: leafCType(TypeLong)}

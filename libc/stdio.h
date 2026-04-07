@@ -19,6 +19,11 @@ extern int sprintf(char* buf, char* fmt, ...);
    Returns number of characters written, not counting the null byte. */
 extern int snprintf(char* buf, long n, char* fmt, ...);
 
+/* fflush: flush buffered output for the given stream.
+   Calls fdatasync on the underlying fd to flush the shepherd's line buffer.
+   Returns 0 on success, -1 on error. */
+extern int fflush(void* stream);
+
 /* sscanf: scan formatted input from string str according to fmt.
    Supported conversions: %d (long decimal into long*), %s (word into char*),
    %c (single char into long*).  Returns number of items successfully read. */

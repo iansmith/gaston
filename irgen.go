@@ -1266,9 +1266,19 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 			base := g.addrOf(lhs.Name)
 			idx := g.genExpr(lhs.Children[0])
 			elem := g.newTemp()
-			g.emit(Quad{Op: IRLoad, Dst: elem, Src1: base, Src2: idx})
-			g.emit(Quad{Op: irOp, Dst: tmp, Src1: elem, Src2: rhsAddr})
-			g.emit(Quad{Op: IRStore, Dst: base, Src1: idx, Src2: tmp})
+			if lhsType == TypeChar || lhsType == TypeUnsignedChar {
+				g.emit(Quad{Op: IRCharLoad, Dst: elem, Src1: base, Src2: idx})
+				g.emit(Quad{Op: irOp, Dst: tmp, Src1: elem, Src2: rhsAddr})
+				g.emit(Quad{Op: IRCharStore, Dst: base, Src1: idx, Src2: tmp})
+			} else if isFPType(lhsType) {
+				g.emit(Quad{Op: IRLoad, Dst: elem, Src1: base, Src2: idx, TypeHint: lhsType})
+				g.emit(Quad{Op: irOp, Dst: tmp, Src1: elem, Src2: rhsAddr})
+				g.emit(Quad{Op: IRStore, Dst: base, Src1: idx, Src2: tmp, TypeHint: lhsType})
+			} else {
+				g.emit(Quad{Op: IRLoad, Dst: elem, Src1: base, Src2: idx})
+				g.emit(Quad{Op: irOp, Dst: tmp, Src1: elem, Src2: rhsAddr})
+				g.emit(Quad{Op: IRStore, Dst: base, Src1: idx, Src2: tmp})
+			}
 			return tmp
 		case KindIndexExpr:
 			ptr := g.genExpr(lhs.Children[0])
@@ -1725,10 +1735,17 @@ func (g *irGen) genIncDec(lval *Node, isIncrement bool, post bool) IRAddr {
 		base := g.addrOf(lval.Name)
 		idx := g.genExpr(lval.Children[0])
 		old = g.newTemp()
-		g.emit(Quad{Op: IRLoad, Dst: old, Src1: base, Src2: idx})
-		new_ = g.newTemp()
-		g.emit(Quad{Op: irOp, Dst: new_, Src1: old, Src2: step})
-		g.emit(Quad{Op: IRStore, Dst: base, Src1: idx, Src2: new_})
+		if lvalType == TypeChar || lvalType == TypeUnsignedChar {
+			g.emit(Quad{Op: IRCharLoad, Dst: old, Src1: base, Src2: idx})
+			new_ = g.newTemp()
+			g.emit(Quad{Op: irOp, Dst: new_, Src1: old, Src2: step})
+			g.emit(Quad{Op: IRCharStore, Dst: base, Src1: idx, Src2: new_})
+		} else {
+			g.emit(Quad{Op: IRLoad, Dst: old, Src1: base, Src2: idx})
+			new_ = g.newTemp()
+			g.emit(Quad{Op: irOp, Dst: new_, Src1: old, Src2: step})
+			g.emit(Quad{Op: IRStore, Dst: base, Src1: idx, Src2: new_})
+		}
 
 	case KindIndexExpr:
 		ptr := g.genExpr(lval.Children[0])

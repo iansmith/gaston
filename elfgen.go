@@ -1494,6 +1494,8 @@ func (g *elfGen) emitCall(q Quad) {
 			g.cb.emitBLextern("gaston_print_string")
 		case "print_double":
 			g.cb.emitBLextern("gaston_print_double")
+		case "fflush":
+			g.cb.emitBLextern("gaston_fflush")
 		case "malloc":
 			g.cb.emitBLextern("gaston_malloc")
 		case "free":
@@ -1518,6 +1520,8 @@ func (g *elfGen) emitCall(q Quad) {
 			g.cb.emitBL("gaston_print_string")
 		case "print_double":
 			g.cb.emitBL("gaston_print_double")
+		case "fflush":
+			g.cb.emitBL("gaston_fflush")
 		case "malloc":
 			g.cb.emitBL("gaston_malloc")
 		case "free":
@@ -1767,6 +1771,29 @@ func (g *elfGen) emitInputFn() {
 	cb.emit(encLDRuoff(regX21, regSP, 32))
 	cb.emit(encLDP(regFP, regLR, regSP, 0))
 	cb.emit(encADDimm(regSP, regSP, 64))
+	cb.emit(encRET())
+}
+
+// emitFflushFn emits gaston_fflush(X0 = FILE*, ignored).
+//
+// Calls fdatasync(1) to flush the Linux shepherd's line buffer for stdout.
+// Returns 0 on success, -1 on error (from fdatasync return value).
+// Frame layout (32 bytes): SP+0: FP, SP+8: LR, SP+16..31: pad.
+func (g *elfGen) emitFflushFn() {
+	cb := g.cb
+	cb.defineLabel("gaston_fflush")
+
+	cb.emit(encSUBimm(regSP, regSP, 32))
+	cb.emit(encSTP(regFP, regLR, regSP, 0))
+	cb.emit(encADDimm(regFP, regSP, 0))
+
+	// fdatasync(1)
+	cb.emitMOVimm(regX0, 1)  // fd = stdout
+	cb.emitMOVimm(regX8, 83) // sys_fdatasync (ARM64)
+	cb.emit(encSVC(0))
+
+	cb.emit(encLDP(regFP, regLR, regSP, 0))
+	cb.emit(encADDimm(regSP, regSP, 32))
 	cb.emit(encRET())
 }
 
@@ -2376,6 +2403,7 @@ func genELF(irp *IRProgram, outpath string) error {
 	gen.emitStart(definedGlobals)
 	gen.emitOutputFn()
 	gen.emitInputFn()
+	gen.emitFflushFn()
 	gen.emitPrintCharFn()
 	gen.emitPrintStringFn()
 	gen.emitPrintDoubleFn()
