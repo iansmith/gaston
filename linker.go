@@ -33,7 +33,8 @@ type objFile struct {
 	dataData   []byte  // raw .data bytes
 	bssSize    uint64  // .bss size in bytes (SHT_NOBITS has no data)
 	syms       []lnkSym
-	relas      []lnkRela
+	relas      []lnkRela     // .rela.text entries
+	dataRelas  []lnkRela     // .rela.data entries
 
 	// Set during layout:
 	textBaseWord int    // word offset of this file's .text in the merged codeBuilder
@@ -189,6 +190,30 @@ func parseObjELF(path string, f *elf.File) (*objFile, error) {
 			symIdx := uint32(info >> 32)
 			rtype := uint32(info)
 			obj.relas = append(obj.relas, lnkRela{
+				offset: off,
+				symIdx: symIdx,
+				rtype:  rtype,
+				addend: addend,
+			})
+		}
+	}
+
+	// Parse .rela.data.
+	relaDataSec := f.Section(".rela.data")
+	if relaDataSec != nil {
+		relaData, err2 := relaDataSec.Data()
+		if err2 != nil {
+			return nil, fmt.Errorf("linker: %s .rela.data: %w", path, err2)
+		}
+		numRelas := len(relaData) / 24
+		for i := 0; i < numRelas; i++ {
+			raw := relaData[i*24 : i*24+24]
+			off := binary.LittleEndian.Uint64(raw[0:8])
+			info := binary.LittleEndian.Uint64(raw[8:16])
+			addend := int64(binary.LittleEndian.Uint64(raw[16:24]))
+			symIdx := uint32(info >> 32)
+			rtype := uint32(info)
+			obj.dataRelas = append(obj.dataRelas, lnkRela{
 				offset: off,
 				symIdx: symIdx,
 				rtype:  rtype,
@@ -462,6 +487,45 @@ func link(outpath string, inputpaths []string) error {
 	dataBytes := make([]byte, totalData)
 	for _, obj := range objs {
 		copy(dataBytes[obj.dataOff:], obj.dataData)
+	}
+
+	// ── apply .rela.data relocations ─────────────────────────────────────
+	for _, obj := range objs {
+		// Build per-file symIdx → VA map (reuse same logic as .rela.text).
+		fileSymVA := make(map[uint32]uint64)
+		for i, sym := range obj.syms {
+			va := uint64(0)
+			switch sym.secName {
+			case ".text":
+				va = lnkCodeBase + uint64(obj.textBaseWord)*4 + sym.value
+			case ".rodata":
+				va = rodataBase + obj.rodataOff + sym.value
+			case ".data":
+				va = dataBase + obj.dataOff + sym.value
+			case ".bss":
+				va = bssBase + obj.bssOff + sym.value
+			case "":
+				if sym.binding == elf.STB_GLOBAL && sym.name != "" {
+					va = symVA[sym.name]
+				}
+			}
+			fileSymVA[uint32(i)] = va
+		}
+
+		for _, rela := range obj.dataRelas {
+			symVAval := fileSymVA[rela.symIdx]
+			if symVAval == 0 && rela.symIdx < uint32(len(obj.syms)) {
+				symVAval = symVA[obj.syms[rela.symIdx].name]
+			}
+
+			if rela.rtype == rAArch64Abs64 {
+				addr := symVAval + uint64(rela.addend)
+				byteOff := obj.dataOff + rela.offset
+				if byteOff+8 <= uint64(len(dataBytes)) {
+					binary.LittleEndian.PutUint64(dataBytes[byteOff:], addr)
+				}
+			}
+		}
 	}
 
 	// ── write ET_EXEC ELF ─────────────────────────────────────────────────

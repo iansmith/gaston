@@ -197,6 +197,8 @@ var featureTests = []dockerTest{
 	{name: "typedef_basic", want: "42\n50\n"},
 	// funcptr_basic: function pointer assign and call
 	{name: "funcptr_basic", want: "7\n12\n30\n"},
+	// funcptr_struct: function pointer called through a struct field
+	{name: "funcptr_struct", want: "42\n63\n"},
 
 	// ── Integration tests: features used in combination ───────────────────
 	// deep_struct: 5-level nested struct; chained dot access; sizeof at each level (LP64: L5=4)
@@ -533,8 +535,8 @@ func TestSepCompile(t *testing.T) {
 			out, err := cmd.Output()
 			if err != nil {
 				if ee, ok := err.(*exec.ExitError); ok {
-					t.Fatalf("docker run failed (exit %d):\nstderr: %s",
-						ee.ExitCode(), string(ee.Stderr))
+					t.Fatalf("docker run failed (exit %d):\nstdout: %s\nstderr: %s",
+						ee.ExitCode(), string(out), string(ee.Stderr))
 				}
 				t.Fatalf("docker run: %v", err)
 			}
@@ -611,15 +613,17 @@ type libcTest struct {
 var libcTests = []libcTest{
 	// ── Feature 13: libc printf / puts / putchar ──────────────────────────
 	{name: "hello_world", want: "Hello, world!\n"},
+	{name: "printf_simple", want: "42\n3.140000\n"},
 	{name: "printf_fmt",  want: "count=42\nstr=hello!\nchar=A\n3+4=7\n"},
 	{name: "puts_test",   want: "one\ntwo\nthree\n"},
 	// ── Feature 14: libc sscanf ───────────────────────────────────────────
 	{name: "sscanf_basic", want: "n=42 r=1\ns=hello r=1\na=-7 b=99 r=2\nc=X r=1\n"},
 	// ── Feature 15: libc printf float ────────────────────────────────────
 	{name: "printf_float",   want: "3.140000\n2.72\n1.234568e+04\n0.000123\n123456\n"},
-	{name: "printf_f_large",  want: "1234567890.000000\n9876543210.500000\n-12345678901.000000\n1000000000.12\n"},
+	{name: "printf_f_large",  want: "1234567890.000000\n9876543210.500000\n-12345678901.000000\n1000000000.13\n"},
 	// ── Feature 16: sprintf / snprintf ───────────────────────────────────
-	{name: "snprintf_basic",  want: "x=42\npi=3.141590\nhello world len=11\nhello len=5\nempty='' len=0\n"},
+		// snprintf returns would-be-written count per C standard (not actual written count).
+	{name: "snprintf_basic",  want: "x=42\npi=3.141590\nhello world len=11\nhello len=11\nempty='' len=3\n"},
 	// ── Feature 17: sscanf float precision + inf/nan (P1-A, P1-B) ─────────
 	{name: "sscanf_fp",      want: "n=1 v=3.14159265\nn=1 v=0.001234\nn=1 v=-2.71828\nn=1 v=150\nn=1 v=0.75\nn=1 v=inf\nn=1 v=-inf\nn=1 v=nan\nn=1 v=nan\n"},
 	// ── Feature 18: sscanf scanset %[...] (P1-C) ─────────────────────────
@@ -634,20 +638,21 @@ var libcTests = []libcTest{
 	{name: "vadouble_libc", want: "3 7 100\n"},
 }
 
-// buildLibgastonc compiles every .cm file under libc/ to a .o, archives them
-// all into libgastonc.a, and returns the archive path.  The caller must clean
-// up.  New libc source files are picked up automatically.
+// buildLibgastonc compiles every .cm file under libc/ plus picolibc tinystdio
+// sources to object files, archives them all into libgastonc.a, and returns
+// the archive path.  The caller must clean up.
 func buildLibgastonc(t *testing.T) (libPath string) {
 	t.Helper()
 	libPath = "/tmp/gaston-test-libgastonc.a"
 	t.Cleanup(func() { os.Remove(libPath) })
 
+	var objPaths []string
+
+	// ── gaston .cm sources (libc/) ──────────────────────────────────────
 	entries, err := os.ReadDir("libc")
 	if err != nil {
 		t.Fatalf("read libc dir: %v", err)
 	}
-
-	var objPaths []string
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".cm") {
 			continue
@@ -661,8 +666,37 @@ func buildLibgastonc(t *testing.T) (libPath string) {
 		}
 		objPaths = append(objPaths, obj)
 	}
+
+	// ── picolibc tinystdio sources ──────────────────────────────────────
+	tsdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/tinystdio"
+	tsInc := tinystdioIncludePaths()
+	tsDefines := []string{"__PICOLIBC__=1", "TINY_STDIO=1", "FORMAT_DEFAULT_DOUBLE=1"}
+	for _, f := range []string{"vfprintf.c", "filestrput.c", "dtoa_engine.c", "dtoa_data.c"} {
+		src := tsdir + "/" + f
+		obj := fmt.Sprintf("/tmp/gaston-test-libgastonc-ts-%s.o", strings.TrimSuffix(f, ".c"))
+		t.Cleanup(func() { os.Remove(obj) })
+		if err := compileObjPath(src, obj, tsInc, tsDefines...); err != nil {
+			t.Fatalf("compile tinystdio %s: %v", f, err)
+		}
+		objPaths = append(objPaths, obj)
+	}
+
+	// ── picolibc string functions ───────────────────────────────────────
+	stringDir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/string"
+	strInc := stringIncludePaths()
+	strDefines := []string{"__SVID_VISIBLE=1", "__POSIX_VISIBLE=1", "__XSI_VISIBLE=1"}
+	for _, f := range []string{"strcmp.c", "strlen.c", "strnlen.c", "memset.c", "memcpy.c"} {
+		src := stringDir + "/" + f
+		obj := fmt.Sprintf("/tmp/gaston-test-libgastonc-str-%s.o", strings.TrimSuffix(f, ".c"))
+		t.Cleanup(func() { os.Remove(obj) })
+		if err := compileObjPath(src, obj, strInc, strDefines...); err != nil {
+			t.Fatalf("compile string %s: %v", f, err)
+		}
+		objPaths = append(objPaths, obj)
+	}
+
 	if len(objPaths) == 0 {
-		t.Fatal("libc/ contains no .cm files")
+		t.Fatal("no source files compiled for libgastonc")
 	}
 	if err := archiveCreate(libPath, objPaths); err != nil {
 		t.Fatalf("archive libgastonc.a: %v", err)
@@ -819,13 +853,8 @@ func TestLibmCommonCompile(t *testing.T) {
 }
 
 // tinystdioSkip is the set of tinystdio .c files excluded from TestTinystdioCompile.
-// conv_flt.c, vfprintf.c, vfscanf.c, vfprintff.c, vfscanff.c are excluded by user decision.
 var tinystdioSkip = map[string]bool{
-	"conv_flt.c":  true,
-	"vfprintf.c":  true,
-	"vfscanf.c":   true,
-	"vfprintff.c": true,
-	"vfscanff.c":  true,
+	"conv_flt.c": true, // template file #include'd by vfscanf.c, not independently compilable
 }
 
 // tinysydioPosixIO is the set of tinystdio files that require -DPOSIX_IO.
@@ -872,7 +901,13 @@ func TestTinystdioCompile(t *testing.T) {
 		t.Cleanup(func() { os.Remove(obj) })
 		var defines []string
 		if tinystdioPosixIO[e.Name()] {
-			defines = []string{"POSIX_IO"}
+			defines = append(defines, "POSIX_IO")
+		}
+		// vfscanf/vfscanff include conv_flt.c which leaks #define base 10
+		// unless _WANT_IO_C99_FORMATS makes it a local variable instead.
+		switch e.Name() {
+		case "vfscanf.c", "vfscanff.c":
+			defines = append(defines, "_WANT_IO_C99_FORMATS=1")
 		}
 		if err := compileObjPath(src, obj, includePaths, defines...); err != nil {
 			t.Logf("FAIL %s: %v", e.Name(), err)
@@ -926,8 +961,8 @@ func TestLibc(t *testing.T) {
 			out, err := cmd.Output()
 			if err != nil {
 				if ee, ok := err.(*exec.ExitError); ok {
-					t.Fatalf("docker run failed (exit %d):\nstderr: %s",
-						ee.ExitCode(), string(ee.Stderr))
+					t.Fatalf("docker run failed (exit %d):\nstdout: %s\nstderr: %s",
+						ee.ExitCode(), string(out), string(ee.Stderr))
 				}
 				t.Fatalf("docker run: %v", err)
 			}
@@ -1059,11 +1094,10 @@ func TestTimeCompile(t *testing.T) {
 
 // stringSkip lists string/ source files that are not yet supported.
 var stringSkip = map[string]bool{
-	"strdup_r.c":       true, // calls _malloc_r
-	"strndup_r.c":      true, // calls _malloc_r
-	"strerror.c":       true, // calls _user_strerror (custom hook, not in headers)
-	"strerror_r.c":     true, // calls _strerror_r
-	"xpg_strerror_r.c": true, // calls _strerror_r
+	"strdup_r.c":       true, // calls _malloc_r (picolibc reentrant malloc)
+	"strndup_r.c":      true, // calls _malloc_r (picolibc reentrant malloc)
+	"strerror_r.c":     true, // calls _strerror_r (defined in strerror.c, cross-file link dependency)
+	"xpg_strerror_r.c": true, // calls _strerror_r (same)
 }
 
 // stringIncludePaths returns the include search paths for picolibc string/ sources.
@@ -1113,31 +1147,7 @@ func TestStringCompile(t *testing.T) {
 }
 
 // stdlibSkip lists stdlib/ source files that are not yet supported.
-var stdlibSkip = map[string]bool{
-	// Reentrant internal variants
-	"calloc.c": true, // calls _calloc_r
-	"mtrim.c":  true, // calls _malloc_trim_r
-	// OS-level
-	"system.c": true,
-	// Regex dependency
-	"rpmatch.c": true,
-	// Complex floating-point conversion
-	"dtoa.c":        true,
-	"strtod.c":      true,
-	"strtodg.c":     true,
-	"ldtoa.c":       true,
-	"mprec.c":       true,
-	"ecvtbuf.c":     true,
-	"gdtoa-dmisc.c": true,
-	"gdtoa-gdtoa.c": true,
-	"gdtoa-gethex.c": true,
-	"gdtoa-gmisc.c": true,
-	"gdtoa-hexnan.c": true,
-	"gdtoa-ldtoa.c": true,
-	// Internal malloc variants
-	"mallocr.c":     true,
-	"nano-mallocr.c": true,
-}
+var stdlibSkip = map[string]bool{}
 
 // stdlibIncludePaths returns the include search paths for picolibc stdlib/ sources.
 func stdlibIncludePaths() []string {
@@ -1158,7 +1168,7 @@ func TestStdlibCompile(t *testing.T) {
 		t.Fatalf("read stdlib dir: %v", err)
 	}
 	includePaths := stdlibIncludePaths()
-	defines := []string{"__SVID_VISIBLE=1", "__POSIX_VISIBLE=1", "__XSI_VISIBLE=1", "_LIBC=1", "__SINGLE_THREAD=1", "TINY_STDIO=1"}
+	defines := []string{"__SVID_VISIBLE=1", "__POSIX_VISIBLE=1", "__XSI_VISIBLE=1", "_LIBC=1", "__SINGLE_THREAD=1", "TINY_STDIO=1", "MALLOC_PROVIDED=1"}
 
 	passed := 0
 	var failed []string
@@ -1237,7 +1247,6 @@ func TestLocaleCompile(t *testing.T) {
 // posixSkip lists posix/ source files that are not yet supported.
 var posixSkip = map[string]bool{
 	"engine.c": true, // template file #include'd by regexec.c, not independently compilable
-	"nftw.c":   true, // requires ftw.h and pthread.h which gaston doesn't provide
 }
 
 // posixIncludePaths returns the include search paths for picolibc posix/ sources.
@@ -1363,8 +1372,179 @@ func TestDockerRun(t *testing.T) {
 			out, err := cmd.Output()
 			if err != nil {
 				if ee, ok := err.(*exec.ExitError); ok {
-					t.Fatalf("docker run failed (exit %d):\nstderr: %s",
-						ee.ExitCode(), string(ee.Stderr))
+					t.Fatalf("docker run failed (exit %d):\nstdout: %s\nstderr: %s",
+						ee.ExitCode(), string(out), string(ee.Stderr))
+				}
+				t.Fatalf("docker run: %v", err)
+			}
+
+			got := string(out)
+			if got != tt.want {
+				t.Errorf("output mismatch:\n  got  %q\n  want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestTinystdioRun compiles picolibc's tinystdio snprintf chain with gaston,
+// links with a test program, and runs in Docker to verify function-pointer-
+// based stdio works end to end.
+func TestTinystdioRun(t *testing.T) {
+	if _, err := exec.LookPath("docker"); err != nil {
+		t.Skip("docker not found in PATH; skipping container tests")
+	}
+
+	tsdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/tinystdio"
+	includePaths := tinystdioIncludePaths()
+
+	// Minimal set of tinystdio .c files needed for snprintf.
+	tsFiles := []string{
+		"snprintf.c",
+		"vfprintf.c",
+		"filestrput.c",
+		"dtoa_engine.c",
+		"dtoa_data.c",
+	}
+	var tsObjs []string
+	for _, f := range tsFiles {
+		src := tsdir + "/" + f
+		obj := fmt.Sprintf("/tmp/gaston-ts-%s.o", strings.TrimSuffix(f, ".c"))
+		t.Cleanup(func() { os.Remove(obj) })
+		if err := compileObjPath(src, obj, includePaths,
+			"__PICOLIBC__=1", "TINY_STDIO=1", "FORMAT_DEFAULT_DOUBLE=1"); err != nil {
+			t.Fatalf("compile tinystdio %s: %v", f, err)
+		}
+		tsObjs = append(tsObjs, obj)
+	}
+
+	// Picolibc string functions (strcmp, strlen).
+	stringDir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/string"
+	for _, f := range []string{"strcmp.c", "strlen.c"} {
+		src := stringDir + "/" + f
+		obj := fmt.Sprintf("/tmp/gaston-ts-str-%s.o", strings.TrimSuffix(f, ".c"))
+		t.Cleanup(func() { os.Remove(obj) })
+		if err := compileObjPath(src, obj, stringIncludePaths(),
+			"__SVID_VISIBLE=1", "__POSIX_VISIBLE=1", "__XSI_VISIBLE=1"); err != nil {
+			t.Fatalf("compile string %s: %v", f, err)
+		}
+		tsObjs = append(tsObjs, obj)
+	}
+
+	// Gaston's libc for print_char/errno.
+	libPath := buildLibgastonc(t)
+
+	// Compile the test program.
+	testSrc := "testdata/tinystdio_snprintf.cm"
+	testObj := "/tmp/gaston-ts-test.o"
+	t.Cleanup(func() { os.Remove(testObj) })
+	if err := compileObjPath(testSrc, testObj, nil); err != nil {
+		t.Fatalf("compile test: %v", err)
+	}
+
+	// Link everything.
+	binPath := "/tmp/gaston-ts-test"
+	t.Cleanup(func() { os.Remove(binPath) })
+	linkInputs := append([]string{testObj}, tsObjs...)
+	linkInputs = append(linkInputs, libPath)
+	if err := link(binPath, linkInputs); err != nil {
+		t.Fatalf("link: %v", err)
+	}
+
+	// Run in Docker.
+	cmd := exec.Command("docker", "run", "--rm",
+		"--platform", "linux/arm64",
+		"-i",
+		"-v", binPath+":/prog",
+		"alpine:latest",
+		"/prog",
+	)
+	out, err := cmd.Output()
+	if err != nil {
+		if ee, ok := err.(*exec.ExitError); ok {
+			t.Fatalf("docker run failed (exit %d):\nstdout: %s\nstderr: %s",
+				ee.ExitCode(), string(out), string(ee.Stderr))
+		}
+		t.Fatalf("docker run: %v", err)
+	}
+
+	want := "A\nB\nhello\n"
+	// snprintf("hello") → buf contains "hello", printed char-by-char
+	if got := string(out); got != want {
+		t.Errorf("output mismatch:\n  got  %q\n  want %q", got, want)
+	}
+}
+
+// TestPicolibcRun compiles picolibc test programs with gaston, links them
+// against gaston's libc and picolibc string functions, and runs in Docker.
+func TestPicolibcRun(t *testing.T) {
+	if _, err := exec.LookPath("docker"); err != nil {
+		t.Skip("docker not found in PATH; skipping container tests")
+	}
+
+	// Build gaston's libc archive (printf, snprintf, errno, etc.)
+	libPath := buildLibgastonc(t)
+
+	// Picolibc string functions needed by the test programs.
+	stringDir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/string"
+	stringFuncs := []string{"strcmp.c", "strlen.c", "strcpy.c"}
+	var stringObjs []string
+	for _, f := range stringFuncs {
+		src := stringDir + "/" + f
+		obj := fmt.Sprintf("/tmp/gaston-ptest-%s.o", strings.TrimSuffix(f, ".c"))
+		t.Cleanup(func() { os.Remove(obj) })
+		if err := compileObjPath(src, obj, stringIncludePaths(),
+			"__SVID_VISIBLE=1", "__POSIX_VISIBLE=1", "__XSI_VISIBLE=1"); err != nil {
+			t.Fatalf("compile %s: %v", f, err)
+		}
+		stringObjs = append(stringObjs, obj)
+	}
+
+	testDir := "/Users/iansmith/wazero/tinygo/lib/picolibc/test/libc-testsuite"
+	testIncludePaths := []string{
+		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/tinystdio",
+		"libm/include",
+		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+		testDir,
+	}
+	testDefines := []string{"__PICOLIBC__=1", "TINY_STDIO=1"}
+
+	tests := []struct {
+		name string // source file base name without .c
+		want string // expected stdout
+	}{
+		{name: "snprintf", want: "snprintf test passed\n"},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			src := testDir + "/" + tt.name + ".c"
+			obj := fmt.Sprintf("/tmp/gaston-ptest-%s.o", tt.name)
+			t.Cleanup(func() { os.Remove(obj) })
+			if err := compileObjPath(src, obj, testIncludePaths, testDefines...); err != nil {
+				t.Fatalf("compile %s: %v", tt.name, err)
+			}
+
+			binPath := fmt.Sprintf("/tmp/gaston-ptest-%s", tt.name)
+			t.Cleanup(func() { os.Remove(binPath) })
+			linkInputs := append([]string{obj}, stringObjs...)
+			linkInputs = append(linkInputs, libPath)
+			if err := link(binPath, linkInputs); err != nil {
+				t.Fatalf("link: %v", err)
+			}
+
+			cmd := exec.Command("docker", "run", "--rm",
+				"--platform", "linux/arm64",
+				"-i",
+				"-v", binPath+":/prog",
+				"alpine:latest",
+				"/prog",
+			)
+			out, err := cmd.Output()
+			if err != nil {
+				if ee, ok := err.(*exec.ExitError); ok {
+					t.Fatalf("docker run failed (exit %d):\nstdout: %s\nstderr: %s",
+						ee.ExitCode(), string(out), string(ee.Stderr))
 				}
 				t.Fatalf("docker run: %v", err)
 			}

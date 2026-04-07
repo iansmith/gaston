@@ -110,11 +110,13 @@ func newSymTable() *symTable {
 	st.funcs["__builtin_expect"] = &FuncSig{Name: "__builtin_expect", ReturnType: TypeLong,
 		Params: []TypeKind{TypeLong, TypeLong}, ParamPointees: []*CType{nil, nil}}
 	// __builtin_signbit family — takes a floating-point arg, returns int.
+	// Marked IsExtern so libc can provide actual implementations.
 	for _, name := range []string{
 		"__builtin_signbit", "__builtin_signbitf", "__builtin_signbitl",
 	} {
 		st.funcs[name] = &FuncSig{
 			Name:          name,
+			IsExtern:      true,
 			ReturnType:    TypeInt,
 			Params:        []TypeKind{TypeDouble},
 			ParamPointees: []*CType{nil},
@@ -245,9 +247,11 @@ func (st *symTable) declareFunc(sig *FuncSig) error {
 			st.funcs[sig.Name] = sig
 			return nil
 		}
-		if !existing.IsExtern {
-			return fmt.Errorf("redeclaration of function '%s'", sig.Name)
+		// Allow extern re-declaration of an already-defined function.
+		if sig.IsExtern {
+			return nil
 		}
+		return fmt.Errorf("redeclaration of function '%s'", sig.Name)
 	}
 	st.funcs[sig.Name] = sig
 	return nil
@@ -423,13 +427,18 @@ func buildStructDef(n *Node, errs *[]string, structDefs map[string]*StructDef) *
 				bfWordOffset = -1
 				bfBitsUsed = 0
 			}
-			sz, align := fieldSizeAlign(child.Type, child.StructTag, structDefs)
+			var sz, align int
+			if child.Type == TypeIntArray && child.Val > 0 {
+				sz, align = arrayFieldSizeAlign(child.ElemType, child.StructTag, child.Val, structDefs)
+			} else {
+				sz, align = fieldSizeAlign(child.Type, child.StructTag, structDefs)
+			}
 			if !sd.IsUnion {
 				// Struct: advance offset with natural alignment.
 				offset = (offset + align - 1) &^ (align - 1)
 			}
 			// Union: all fields start at offset 0 (offset stays 0 throughout).
-			sd.Fields = append(sd.Fields, StructField{
+			f := StructField{
 				Name:        child.Name,
 				Type:        child.Type,
 				Pointee:     child.Pointee,
@@ -438,7 +447,11 @@ func buildStructDef(n *Node, errs *[]string, structDefs map[string]*StructDef) *
 				StructTag:   child.StructTag,
 				ByteOffset:  offset,
 				IsFlexArray: isFlexArr,
-			})
+			}
+			if child.Type == TypeIntArray && child.Val > 0 {
+				f.ByteSize = sz
+			}
+			sd.Fields = append(sd.Fields, f)
 			if !sd.IsUnion && !isFlexArr {
 				offset += sz
 			}
@@ -668,6 +681,52 @@ func checkStmt(n *Node, st *symTable, fn *Node, errs *[]string) {
 		}
 		if len(n.Children) > 0 {
 			checkExpr(n.Children[0], st, errs)
+		}
+	case KindVarDecl:
+		// C99 declaration inside a switch case (or other statement position).
+		if n.Type == TypeTypeof && n.TypeofExpr != nil {
+			resolvedType := checkExpr(n.TypeofExpr, st, errs)
+			n.Type = resolvedType
+			n.Pointee = n.TypeofExpr.Pointee
+			n.StructTag = n.TypeofExpr.StructTag
+			n.TypeofExpr = nil
+		}
+		if n.IsStatic {
+			e := &symEntry{name: n.Name, typ: n.Type, isGlobal: true,
+				structTag: n.StructTag, pointee: n.Pointee, isConstTarget: n.IsConstTarget}
+			if n.Type == TypeIntArray {
+				e.arrSize = n.Val
+				e.elemType = n.ElemType
+				e.elemPointee = n.ElemPointee
+				e.innerDim = n.Dim2
+			}
+			if st.locals != nil {
+				st.locals[n.Name] = e
+			}
+		} else {
+			if err := st.declareLocalFull(n, false); err != nil {
+				*errs = append(*errs, err.Error())
+			} else if n.Type == TypeIntArray {
+				st.locals[n.Name].arrSize = n.Val
+				st.locals[n.Name].elemType = n.ElemType
+				st.locals[n.Name].elemPointee = n.ElemPointee
+				st.locals[n.Name].innerDim = n.Dim2
+			}
+		}
+		if len(n.Children) > 0 {
+			init := n.Children[0]
+			if init.Kind == KindInitList {
+				checkInitList(init, n, st, errs)
+			} else {
+				checkExpr(init, st, errs)
+			}
+		}
+	case KindFunDecl:
+		checkFunDecl(n, st, errs)
+	case KindStructDef:
+		sd := buildStructDef(n, errs, st.structDefs)
+		if sd != nil {
+			st.structDefs[sd.Name] = sd
 		}
 	}
 }
@@ -969,6 +1028,9 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			checkExpr(n.Children[1], st, errs)
 		}
 		n.Type = lt // result type matches lhs (e.g. unsigned int x += y stays unsigned)
+		if isPtrType(lt) {
+			n.Pointee = n.Children[0].Pointee
+		}
 		return lt
 
 	case KindPostInc, KindPostDec, KindPreInc, KindPreDec:
@@ -1552,9 +1614,17 @@ func checkArrayInitList(list *Node, decl *Node, st *symTable, errs *[]string) {
 			*errs = append(*errs, fmt.Sprintf("array index %d out of bounds (size %d)", nextIdx, arraySize))
 		}
 		entry.Val = nextIdx
+		entry.StructTag = decl.StructTag
 		nextIdx++
 		if len(entry.Children) > 0 {
-			checkExpr(entry.Children[0], st, errs)
+			child := entry.Children[0]
+			if child.Kind == KindInitList && decl.StructTag != "" {
+				// Array of structs: recurse into struct init.
+				synthDecl := &Node{Kind: KindVarDecl, Type: TypeStruct, StructTag: decl.StructTag}
+				checkInitList(child, synthDecl, st, errs)
+			} else {
+				checkExpr(child, st, errs)
+			}
 		}
 	}
 }

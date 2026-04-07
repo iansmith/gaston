@@ -336,6 +336,7 @@ type StructField struct {
 	ElemPointee *CType   // for array fields with ElemType==TypePtr: the pointer's pointee CType
 	StructTag   string   // non-empty when Type == TypeStruct (nested struct field name)
 	ByteOffset  int      // byte offset within the struct (natural alignment per fieldSizeAlign)
+	ByteSize    int      // byte size of this field (set for array fields; 0 means use fieldSizeAlign)
 	IsBitField  bool     // true for struct bit-field members
 	BitOffset   int      // bit offset within the 8-byte storage word
 	BitWidth    int      // bit width (0 for normal fields)
@@ -377,9 +378,17 @@ func fieldSizeAlign(t TypeKind, structTag string, structDefs map[string]*StructD
 		panic("TypeTypeof not resolved before fieldSizeAlign")
 	case TypeInt128, TypeUint128:
 		return 16, 16 // 16-byte size, 16-byte alignment
-	default: // double, TypePtr, TypeFuncPtr, TypeCharPtr → 8 bytes
+	default: // double, TypePtr, TypeFuncPtr, TypeCharPtr, TypeIntArray → 8 bytes
 		return 8, 8
 	}
+}
+
+// arrayFieldSizeAlign computes the (size, align) for an array field inside a struct.
+// elemType is the element type, elemStructTag is used for struct element arrays,
+// and count is the number of elements.
+func arrayFieldSizeAlign(elemType TypeKind, elemStructTag string, count int, structDefs map[string]*StructDef) (size, align int) {
+	elemSz, elemAlign := fieldSizeAlign(elemType, elemStructTag, structDefs)
+	return elemSz * count, elemAlign
 }
 
 // maybeSetTypeofExpr sets n.TypeofExpr from the lexer scratch if the CType is TypeTypeof.
@@ -415,7 +424,13 @@ func (sd *StructDef) SizeBytes(structDefs map[string]*StructDef) int {
 				maxAlign = 8
 			}
 		} else {
-			sz, a := fieldSizeAlign(f.Type, f.StructTag, structDefs)
+			var sz, a int
+			if f.ByteSize > 0 {
+				sz = f.ByteSize
+				_, a = fieldSizeAlign(f.Type, f.StructTag, structDefs)
+			} else {
+				sz, a = fieldSizeAlign(f.Type, f.StructTag, structDefs)
+			}
 			if a > maxAlign {
 				maxAlign = a
 			}

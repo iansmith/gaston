@@ -55,7 +55,7 @@ package main
 %type <node>  statement expression_stmt selection_stmt iteration_stmt for_stmt do_while_stmt switch_stmt case_item return_stmt break_stmt continue_stmt goto_stmt
 %type <nodes> case_list
 %type <node>  opt_expression
-%type <node>  expression var simple_expression ternary_expression logical_expression comparison_expression bitwise_expression additive_expression term factor call
+%type <node>  expression var simple_expression ternary_expression logical_expression comparison_expression bitwise_expression additive_expression term factor call comma_expr_list
 %type <nodes> args arg_list
 %type <typ>   type_specifier
 %type <sval>  relop addop mulop bitwiseop
@@ -193,6 +193,8 @@ type_specifier
 	| UNSIGNED CHAR      { $$ = leafCType(TypeUnsignedChar) }
 	| UNSIGNED SHORT     { $$ = leafCType(TypeUnsignedShort) }
 	| UNSIGNED SHORT INT { $$ = leafCType(TypeUnsignedShort) }
+	| SHORT UNSIGNED     { $$ = leafCType(TypeUnsignedShort) }
+	| SHORT UNSIGNED INT { $$ = leafCType(TypeUnsignedShort) }
 	| FLOAT              { $$ = leafCType(TypeFloat) }
 	| DOUBLE             { $$ = leafCType(TypeDouble) }
 	| LONG DOUBLE        { $$ = leafCType(TypeDouble) }
@@ -264,6 +266,10 @@ param
 		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: $5}; n.Pointee = structCType($3); $$ = n }
 	| CONST STRUCT ID '*'
 		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: ""}; n.Pointee = structCType($3); $$ = n }
+	| CONST STRUCT ID '*' '*'
+		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: ""}; n.Pointee = ptrCType(structCType($3)); $$ = n }
+	| CONST STRUCT ID '*' '*' ID
+		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: $6}; n.Pointee = ptrCType(structCType($3)); $$ = n }
 	| STRUCT ID '*' ID
 		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: $4}; n.Pointee = structCType($2); $$ = n }
 	| STRUCT ID '*' '*' ID
@@ -313,6 +319,8 @@ param
 		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: ""}; n.Pointee = structCType($2); $$ = n }
 	| STRUCT ID '*' '*'
 		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: ""}; n.Pointee = ptrCType(structCType($2)); $$ = n }
+	| STRUCT ID '*' '*' '*'
+		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: ""}; n.Pointee = ptrCType(ptrCType(structCType($2))); $$ = n }
 	/* Nameless scalar parameters — use specific tokens to avoid VOID conflict */
 	| INT         { $$ = &Node{Kind: KindParam, Type: TypeInt,         Name: ""} }
 	| CHAR        { $$ = &Node{Kind: KindParam, Type: TypeChar,        Name: ""} }
@@ -566,9 +574,9 @@ case_list
 	;
 
 case_item
-	: CASE expression ':' statement_list
+	: CASE expression ':' block_item_list
 		{ $$ = &Node{Kind: KindCase, Children: append([]*Node{$2}, $4...)} }
-	| DEFAULT ':' statement_list
+	| DEFAULT ':' block_item_list
 		{ $$ = &Node{Kind: KindCase, Val: -1, Children: $3} }
 	;
 
@@ -662,6 +670,10 @@ expression
 		{ $$ = &Node{Kind: KindCompoundAssign, Op: "<<", Children: []*Node{$2, $5}} }
 	| '(' expression ')' SHREQ expression
 		{ $$ = &Node{Kind: KindCompoundAssign, Op: ">>", Children: []*Node{$2, $5}} }
+	| '(' expression ')' DIVEQ expression
+		{ $$ = &Node{Kind: KindCompoundAssign, Op: "/", Children: []*Node{$2, $5}} }
+	| '(' expression ')' MODEQ expression
+		{ $$ = &Node{Kind: KindCompoundAssign, Op: "%", Children: []*Node{$2, $5}} }
 	| '*' factor '=' expression
 		{ lhs := &Node{Kind: KindDeref, Children: []*Node{$2}}; $$ = &Node{Kind: KindAssign, Children: []*Node{lhs, $4}} }
 	/* ── Compound assignment through pointer: "*eptr += expr" ── */
@@ -791,9 +803,9 @@ mulop
 
 factor
 	: '(' expression ')' { $$ = $2 }
-	/* ── C comma operator inside parens: (expr1, expr2) ── */
-	| '(' expression ',' expression ')'
-		{ $$ = &Node{Kind: KindCommaExpr, Children: []*Node{$2, $4}} }
+	/* ── C comma operator inside parens: (expr1, expr2, ...) ── */
+	| '(' comma_expr_list ')'
+		{ $$ = $2 }
 	| postfix_expr        { $$ = $1 }
 	| NUM                 { $$ = &Node{Kind: KindNum, Val: $1} }
 	| FNUM                { $$ = &Node{Kind: KindFNum, FVal: $1, Type: TypeDouble} }
@@ -874,6 +886,8 @@ factor
 		{ n := &Node{Kind: KindCast, Type: TypePtr}; n.Pointee = $3; n.Children = []*Node{$6}; $$ = n }
 	| '(' type_specifier '*' '*' ')' factor
 		{ n := &Node{Kind: KindCast, Type: TypePtr}; n.Pointee = ptrCType($2); n.Children = []*Node{$6}; $$ = n }
+	| '(' CONST type_specifier '*' '*' ')' factor
+		{ n := &Node{Kind: KindCast, Type: TypePtr}; n.Pointee = ptrCType($3); n.Children = []*Node{$7}; $$ = n }
 	| '(' STRUCT ID '*' ')' factor
 		{ n := &Node{Kind: KindCast, Type: TypePtr}; n.Pointee = structCType($3); n.Children = []*Node{$6}; $$ = n }
 	| '(' STRUCT ID ')' factor
@@ -964,6 +978,14 @@ factor
 	/* ── Statement expressions (GCC extension) ── */
 	| '(' '{' block_item_list '}' ')'
 		{ $$ = &Node{Kind: KindStmtExpr, Children: $3} }
+	;
+
+comma_expr_list
+	: expression ',' expression ',' expression
+		{ $$ = &Node{Kind: KindCommaExpr, Children: []*Node{
+		    &Node{Kind: KindCommaExpr, Children: []*Node{$1, $3}}, $5}} }
+	| expression ',' expression
+		{ $$ = &Node{Kind: KindCommaExpr, Children: []*Node{$1, $3}} }
 	;
 
 call
@@ -1187,6 +1209,8 @@ local_param
 	| CONST type_specifier '*' CONST ID
 	| CONST STRUCT ID '*'
 	| CONST STRUCT ID '*' ID
+	| CONST STRUCT ID '*' '*'
+	| CONST STRUCT ID '*' '*' ID
 	| CONST STRUCT ID ID
 	| type_specifier '(' '*' ID ')' '(' fp_param_types ')'
 	| type_specifier '(' '*' ')' '(' fp_param_types ')'
@@ -1213,6 +1237,8 @@ fp_param_type
 	| STRUCT ID '*' ID         { n := &Node{Kind: KindParam, Type: TypePtr, Name: $4}; n.Pointee = structCType($2); $$ = n }
 	| STRUCT ID '*' '*'        { n := &Node{Kind: KindParam, Type: TypePtr}; n.Pointee = ptrCType(structCType($2)); $$ = n }
 	| STRUCT ID '*' '*' ID     { n := &Node{Kind: KindParam, Type: TypePtr, Name: $5}; n.Pointee = ptrCType(structCType($2)); $$ = n }
+	| STRUCT ID '*' '*' '*'    { n := &Node{Kind: KindParam, Type: TypePtr}; n.Pointee = ptrCType(ptrCType(structCType($2))); $$ = n }
+	| STRUCT ID '*' '*' '*' ID { n := &Node{Kind: KindParam, Type: TypePtr, Name: $6}; n.Pointee = ptrCType(ptrCType(structCType($2))); $$ = n }
 	| CONST type_specifier '*' { n := &Node{Kind: KindParam, Type: TypePtr}; n.Pointee = $2; $$ = n }
 	| CONST type_specifier '*' ID { n := &Node{Kind: KindParam, Type: TypePtr, Name: $4}; n.Pointee = $2; $$ = n }
 	| type_specifier CONST '*'    { n := &Node{Kind: KindParam, Type: TypePtr}; n.Pointee = $1; $$ = n }
@@ -1221,6 +1247,10 @@ fp_param_type
 	| type_specifier '[' ']'   { $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: $1.Kind, StructTag: $1.Tag} }
 	| CONST type_specifier ID  { $$ = ctNode(KindParam, $2, $3) }
 	| CONST type_specifier     { $$ = ctNode(KindParam, $2, "") }
+	| CONST STRUCT ID '*'        { n := &Node{Kind: KindParam, Type: TypePtr}; n.Pointee = structCType($3); $$ = n }
+	| CONST STRUCT ID '*' ID     { n := &Node{Kind: KindParam, Type: TypePtr, Name: $5}; n.Pointee = structCType($3); $$ = n }
+	| CONST STRUCT ID '*' '*'    { n := &Node{Kind: KindParam, Type: TypePtr}; n.Pointee = ptrCType(structCType($3)); $$ = n }
+	| CONST STRUCT ID '*' '*' ID { n := &Node{Kind: KindParam, Type: TypePtr, Name: $6}; n.Pointee = ptrCType(structCType($3)); $$ = n }
 	| CONST STRUCT ID '[' const_int_expr ']' { $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: TypeStruct, ElemPointee: structCType($3), Val: $5} }
 	| CONST STRUCT ID '[' ']'    { $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: TypeStruct, ElemPointee: structCType($3)} }
 	/* double-pointer params: T **, T **name, const T **, T const **, const T * const * */
@@ -1445,6 +1475,14 @@ declaration_specifiers
 	| STATIC STRUCT '{' field_list '}'
 		{ tag := yylex.(*lexer).nextAnon()
 		  $$ = &DeclSpec{BaseType: structCType(tag), IsStatic: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $4}} }
+	| STATIC CONST STRUCT '{' field_list '}'
+		{ tag := yylex.(*lexer).nextAnon()
+		  $$ = &DeclSpec{BaseType: structCType(tag), IsStatic: true, IsConst: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $5}} }
+	| CONST STRUCT '{' field_list '}'
+		{ tag := yylex.(*lexer).nextAnon()
+		  $$ = &DeclSpec{BaseType: structCType(tag), IsConst: true,
 		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $4}} }
 	| UNION '{' field_list '}'
 		{ tag := yylex.(*lexer).nextAnon()

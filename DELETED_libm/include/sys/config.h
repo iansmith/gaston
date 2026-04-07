@@ -280,6 +280,15 @@
 #define __HAVE_LONG_DOUBLE_MATH
 #endif
 
+/* _READ_WRITE_RETURN_TYPE used in picolibc internal stdio declarations. */
+#ifndef _READ_WRITE_RETURN_TYPE
+#define _READ_WRITE_RETURN_TYPE int
+#endif
+
+#ifndef _READ_WRITE_BUFSIZE_TYPE
+#define _READ_WRITE_BUFSIZE_TYPE int
+#endif
+
 /* Thread-local storage annotation: empty when no TLS support configured. */
 #ifdef PICOLIBC_TLS
 #define NEWLIB_THREAD_LOCAL __thread

@@ -223,6 +223,14 @@ type IRGlobal struct {
 	HasInitVal bool
 	InitVal    int    // constant initializer value (only when HasInitVal && !IsArr && InitData==nil)
 	InitData   []byte // byte-buffer constant initializer (struct/array init list; nil = zero-filled)
+	InitRelocs []InitReloc // pointer relocations within InitData (string literals, etc.)
+}
+
+// InitReloc records that the address of Label should be stored at ByteOff
+// within a global's InitData during _start initialization.
+type InitReloc struct {
+	ByteOff int    // byte offset within the global's storage
+	Label   string // label whose address should be stored (e.g. "str0")
 }
 
 // IRLocal describes one local variable in a function (not a parameter).
@@ -235,7 +243,8 @@ type IRLocal struct {
 	Is128     bool    // true for TypeInt128/TypeUint128 locals (2-slot, 16-byte)
 	Pointee   *CType  // non-nil when IsPtr: full pointee type
 	StructTag string  // struct type name (when IsStruct)
-	ArrSize   int     // 1 for scalar, N for int x[N]; for struct: number of fields; 0 for VLA
+	ArrSize   int      // 1 for scalar, N for int x[N]; for struct: number of fields; 0 for VLA
+	ElemType  TypeKind // element type for arrays (TypeChar → 1 byte, TypeInt → 4 bytes, etc.; 0 → 8 bytes)
 }
 
 // IRFunc is the IR for one function.

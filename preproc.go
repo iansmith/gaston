@@ -677,10 +677,22 @@ func (p *preprocessor) processFile(src, file string, out *strings.Builder) {
 	p.inInclude[file] = true
 	defer func() { delete(p.inInclude, file) }()
 
+	// Save and restore __FILE__ for nested includes.
+	prevFile := p.defines["__FILE__"]
+	p.defines["__FILE__"] = &macroDef{body: `"` + file + `"`}
+	defer func() {
+		if prevFile != nil {
+			p.defines["__FILE__"] = prevFile
+		} else {
+			delete(p.defines, "__FILE__")
+		}
+	}()
+
 	conds := []condFrame{{active: true}}
 	lineNum := 1
 
 	for _, ll := range joinOpenLines(splitLogical(src)) {
+		p.defines["__LINE__"] = &macroDef{body: fmt.Sprintf("%d", lineNum)}
 		active := conds[len(conds)-1].active
 		trimmed := strings.TrimSpace(ll.text)
 

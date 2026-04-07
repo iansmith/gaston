@@ -40,6 +40,7 @@ SUCH DAMAGE.
 #define _STDLIB_H_
 
 #include <sys/cdefs.h>
+#include <sys/types.h>
 #include <machine/ieeefp.h>
 #define __need_size_t
 #define __need_wchar_t

@@ -492,9 +492,33 @@ func (g *elfGen) arrayBase(addr IRAddr, rd int) {
 
 // ── prologue / epilogue ───────────────────────────────────────────────────────
 
+// emitSubSP subtracts imm from SP, handling values > 4095 that don't fit
+// in a single SUB immediate instruction.
+func (g *elfGen) emitSubSP(imm int) {
+	for imm > 4095 {
+		g.cb.emit(encSUBimm(regSP, regSP, 4095))
+		imm -= 4095
+	}
+	if imm > 0 {
+		g.cb.emit(encSUBimm(regSP, regSP, imm))
+	}
+}
+
+// emitAddSP adds imm to SP, handling values > 4095 that don't fit
+// in a single ADD immediate instruction.
+func (g *elfGen) emitAddSP(imm int) {
+	for imm > 4095 {
+		g.cb.emit(encADDimm(regSP, regSP, 4095))
+		imm -= 4095
+	}
+	if imm > 0 {
+		g.cb.emit(encADDimm(regSP, regSP, imm))
+	}
+}
+
 func (g *elfGen) emitPrologue(fn *IRFunc) {
 	f := g.fr
-	g.cb.emit(encSUBimm(regSP, regSP, f.frameSize))
+	g.emitSubSP(f.frameSize)
 	g.cb.emit(encSTP(regFP, regLR, regSP, 0))
 	g.cb.emit(encADDimm(regFP, regSP, 0)) // FP = SP
 	// AAPCS64: integer params arrive in X0–X7, FP params in D0–D7 (separate banks).
@@ -567,7 +591,7 @@ func (g *elfGen) emitEpilogue() {
 		g.cb.emit(encADDimm(regSP, regFP, 0))
 	}
 	g.cb.emit(encLDP(regFP, regLR, regSP, 0))
-	g.cb.emit(encADDimm(regSP, regSP, g.fr.frameSize))
+	g.emitAddSP(g.fr.frameSize)
 	g.cb.emit(encRET())
 }
 
@@ -966,16 +990,24 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 			g.store(regX0, q.Dst)
 
 		case IRDerefLoad:
-			// Dst = *Src1 (load 8 bytes via pointer in Src1)
+			// Dst = *Src1 (load via pointer in Src1; 1 byte for char, 8 bytes otherwise)
 			g.load(q.Src1, regX0)
-			g.cb.emit(encLDRuoff(regX0, regX0, 0))
+			if q.TypeHint == TypeChar || q.TypeHint == TypeUnsignedChar {
+				g.cb.emit(encLDRBuoff(regX0, regX0, 0))
+			} else {
+				g.cb.emit(encLDRuoff(regX0, regX0, 0))
+			}
 			g.store(regX0, q.Dst)
 
 		case IRDerefStore:
-			// *Dst = Src1 (store 8 bytes via pointer in Dst)
+			// *Dst = Src1 (store via pointer in Dst; 1 byte for char, 8 bytes otherwise)
 			g.load(q.Dst, regX0)
 			g.load(q.Src1, regX1)
-			g.cb.emit(encSTRuoff(regX1, regX0, 0))
+			if q.TypeHint == TypeChar || q.TypeHint == TypeUnsignedChar {
+				g.cb.emit(encSTRBuoff(regX1, regX0, 0))
+			} else {
+				g.cb.emit(encSTRuoff(regX1, regX0, 0))
+			}
 
 		case IRFDerefLoad:
 			// Dst = *Src1 (load 8-byte double via pointer; result stored as FP)
@@ -1543,6 +1575,14 @@ func (g *elfGen) emitStart(globals []IRGlobal) {
 					g.cb.emit(encSTRBuoff(regX0, regX9, off))
 				}
 			}
+		}
+		// Pointer relocations: store string literal addresses at specified offsets.
+		for _, rel := range gbl.InitRelocs {
+			g.cb.emitLDRglobal(gbl.Name) // X9 = &global
+			g.cb.emitLDRglobal(rel.Label) // X9 = &string (clobbers X9)
+			g.cb.emit(encMOVreg(regX0, regX9)) // X0 = string addr
+			g.cb.emitLDRglobal(gbl.Name) // X9 = &global again
+			g.cb.emit(encSTRuoff(regX0, regX9, rel.ByteOff)) // global[off] = string addr
 		}
 	}
 	g.cb.emitBL(funcLabel("main"))

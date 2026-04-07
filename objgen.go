@@ -37,7 +37,7 @@ const (
 )
 
 // shstrtab is the fixed section-name string table content and offsets.
-var objShstrtab = []byte("\x00.shstrtab\x00.text\x00.rodata\x00.data\x00.bss\x00.symtab\x00.strtab\x00.rela.text\x00")
+var objShstrtab = []byte("\x00.shstrtab\x00.text\x00.rodata\x00.data\x00.bss\x00.symtab\x00.strtab\x00.rela.text\x00.rela.data\x00")
 
 const (
 	shstrShstrtab = 1
@@ -48,6 +48,7 @@ const (
 	shstrSymtab   = 36
 	shstrStrtab   = 44
 	shstrRelaText = 52
+	shstrRelaData = 63
 )
 
 // Section indices in the generated .o file.
@@ -60,8 +61,9 @@ const (
 	objSecSymtab   = 5
 	objSecStrtab   = 6
 	objSecRelaText = 7
-	objSecShstrtab = 8
-	objNumSections = 9
+	objSecRelaData = 8
+	objSecShstrtab = 9
+	objNumSections = 10
 )
 
 // strtabBuilder accumulates a .strtab / .shstrtab byte slice.
@@ -110,6 +112,16 @@ func genObjectFile(irp *IRProgram, outpath string) error {
 			sl.inData = true
 			sl.dataOff = dataTotal
 			dataTotal += 8
+		} else if len(gbl.InitData) > 0 {
+			// Struct/array with init data → .data section.
+			sz := uint64(len(gbl.InitData))
+			// Align to 8 bytes.
+			if sz%8 != 0 {
+				sz = (sz + 7) &^ 7
+			}
+			sl.inData = true
+			sl.dataOff = dataTotal
+			dataTotal += sz
 		} else {
 			sl.bssOff = bssTotal
 			bssTotal += uint64(gbl.Size) * 8
@@ -119,9 +131,25 @@ func genObjectFile(irp *IRProgram, outpath string) error {
 
 	// ── .data section bytes ────────────────────────────────────────────────
 	dataBytes := make([]byte, dataTotal)
+	// Track .data relocations for pointer fields (string literals, etc.)
+	type dataReloc struct {
+		offset uint64 // byte offset within .data
+		symbol string // symbol name to relocate against
+	}
+	var dataRelocs []dataReloc
 	for _, sl := range slots {
 		if sl.inData {
-			binary.LittleEndian.PutUint64(dataBytes[sl.dataOff:], uint64(sl.gbl.InitVal))
+			if sl.gbl.HasInitVal && len(sl.gbl.InitData) == 0 {
+				binary.LittleEndian.PutUint64(dataBytes[sl.dataOff:], uint64(sl.gbl.InitVal))
+			} else if len(sl.gbl.InitData) > 0 {
+				copy(dataBytes[sl.dataOff:], sl.gbl.InitData)
+				for _, rel := range sl.gbl.InitRelocs {
+					dataRelocs = append(dataRelocs, dataReloc{
+						offset: sl.dataOff + uint64(rel.ByteOff),
+						symbol: rel.Label,
+					})
+				}
+			}
 		}
 	}
 
@@ -349,6 +377,36 @@ func genObjectFile(irp *IRProgram, outpath string) error {
 		relas = append(relas, mkRela(byteOff, symIdx, rAArch64Abs64, 0))
 	}
 
+	// ABS64 relocations for function address references (IRFuncAddr).
+	// Pool order: globals, string lits, FP constants, func refs.
+	// FP constants don't need relocs; func refs do.
+	for _, fnName := range irp.FuncRefs {
+		label := funcLabel(fnName)
+		k, ok := cb.poolIdx[label]
+		if !ok {
+			return fmt.Errorf("genObjectFile: no pool entry for func ref %q", label)
+		}
+		byteOff := uint64(k * 8)
+		var symIdx int
+		if i, ok2 := funcSymIdx[fnName]; ok2 {
+			symIdx = i
+		} else if i, ok2 := externSymNames[label]; ok2 {
+			symIdx = i
+		} else {
+			// Function not in this unit — add as extern UNDEF.
+			idx := len(syms)
+			externSymNames[label] = idx
+			nameIdx := strtab.add(label)
+			syms = append(syms, symRec{
+				nameIdx: nameIdx,
+				info:    (1 << 4) | 2, // STB_GLOBAL | STT_FUNC
+				shndx:   uint16(elf.SHN_UNDEF),
+			})
+			symIdx = idx
+		}
+		relas = append(relas, mkRela(byteOff, symIdx, rAArch64Abs64, 0))
+	}
+
 	// CALL26 relocations for extern BL calls.
 	for _, xbl := range cb.externBLs {
 		byteOff := uint64(xbl.at) * 4
@@ -379,6 +437,24 @@ func genObjectFile(irp *IRProgram, outpath string) error {
 		binary.LittleEndian.PutUint64(relaBytes[off+16:], uint64(r.addend))
 	}
 
+	// ── serialise .rela.data ──────────────────────────────────────────────
+	var relaDataRecs []relaRec
+	for _, dr := range dataRelocs {
+		// Find the symbol index for this string literal label.
+		symIdx, ok := strSymIdx[dr.symbol]
+		if !ok {
+			return fmt.Errorf("genObjectFile: no symbol for data reloc %q", dr.symbol)
+		}
+		relaDataRecs = append(relaDataRecs, mkRela(dr.offset, symIdx, rAArch64Abs64, 0))
+	}
+	relaDataBytes := make([]byte, len(relaDataRecs)*24)
+	for i, r := range relaDataRecs {
+		off := i * 24
+		binary.LittleEndian.PutUint64(relaDataBytes[off:], r.off)
+		binary.LittleEndian.PutUint64(relaDataBytes[off+8:], r.info)
+		binary.LittleEndian.PutUint64(relaDataBytes[off+16:], uint64(r.addend))
+	}
+
 	// ── compute file layout ───────────────────────────────────────────────
 	// File layout (in order):
 	//   ELF header (64 bytes)
@@ -388,8 +464,9 @@ func genObjectFile(irp *IRProgram, outpath string) error {
 	//   .symtab data
 	//   .strtab data
 	//   .rela.text data
+	//   .rela.data data
 	//   .shstrtab data
-	//   Section header table (9 × 64 bytes)
+	//   Section header table (10 × 64 bytes)
 
 	const elfHdr = 64
 	const shdrSize = 64
@@ -413,6 +490,9 @@ func genObjectFile(irp *IRProgram, outpath string) error {
 
 	relaOff := off
 	off += uint64(len(relaBytes))
+
+	relaDataOff := off
+	off += uint64(len(relaDataBytes))
 
 	shstrtabOff := off
 	off += uint64(len(objShstrtab))
@@ -476,12 +556,13 @@ func genObjectFile(irp *IRProgram, outpath string) error {
 	writeBytes(symtabBytes)
 	writeBytes(strtab.data)
 	writeBytes(relaBytes)
+	writeBytes(relaDataBytes)
 	writeBytes(objShstrtab)
 
 	// Padding before section header table.
 	curOff := uint64(elfHdr) + uint64(len(textBytes)) + rodataTotal + dataTotal +
 		uint64(len(symtabBytes)) + uint64(len(strtab.data)) + uint64(len(relaBytes)) +
-		uint64(len(objShstrtab))
+		uint64(len(relaDataBytes)) + uint64(len(objShstrtab))
 	for curOff < shdrOff {
 		writeBytes([]byte{0})
 		curOff++
@@ -533,7 +614,11 @@ func genObjectFile(irp *IRProgram, outpath string) error {
 		mkShdr(shstrRelaText, uint32(elf.SHT_RELA),
 			0, 0, relaOff, uint64(len(relaBytes)),
 			uint32(objSecSymtab), uint32(objSecText), 8, 24),
-		// [8] .shstrtab
+		// [8] .rela.data (link=.symtab, info=.data)
+		mkShdr(shstrRelaData, uint32(elf.SHT_RELA),
+			0, 0, relaDataOff, uint64(len(relaDataBytes)),
+			uint32(objSecSymtab), uint32(objSecData), 8, 24),
+		// [9] .shstrtab
 		mkShdr(shstrShstrtab, uint32(elf.SHT_STRTAB),
 			0, 0, shstrtabOff, uint64(len(objShstrtab)), 0, 0, 1, 0),
 	}

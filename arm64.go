@@ -168,7 +168,16 @@ func buildFrame(fn *IRFunc, structDefs map[string]*StructDef) *frame {
 			offset += 8
 		} else if loc.IsArray {
 			f.isArrBase[loc.Name] = true
-			offset += loc.ArrSize * 8
+			// Char arrays use 1-byte elements; all other arrays use 8-byte slots
+			// because gaston's IRStore/IRLoad address by 8-byte index.
+			switch loc.ElemType {
+			case TypeChar, TypeUnsignedChar:
+				arrBytes := loc.ArrSize
+				arrBytes = (arrBytes + 7) &^ 7 // 8-byte align
+				offset += arrBytes
+			default:
+				offset += loc.ArrSize * 8
+			}
 		} else if loc.IsStruct {
 			// Struct locals: inline storage, treated like an array base.
 			// Round up to 8-byte boundary so subsequent frame slots are 8-byte
@@ -403,16 +412,28 @@ func (g *arm64Gen) genFunc(fn *IRFunc, structDefs map[string]*StructDef) {
 			g.emit_store(f, "R0", q.Dst)
 
 		case IRDerefLoad:
-			// R0 = *Src1 (load via pointer)
+			// R0 = *Src1 (load via pointer; width from TypeHint)
 			g.emit_load(f, q.Src1, "R0")
-			g.insn("MOVD (R0), R0")
+			switch q.TypeHint {
+			case TypeChar:
+				g.insn("MOVB (R0), R0")
+			case TypeUnsignedChar:
+				g.insn("MOVBU (R0), R0")
+			default:
+				g.insn("MOVD (R0), R0")
+			}
 			g.emit_store(f, "R0", q.Dst)
 
 		case IRDerefStore:
-			// *Dst = Src1
+			// *Dst = Src1 (width from TypeHint)
 			g.emit_load(f, q.Dst, "R0")  // R0 = pointer
 			g.emit_load(f, q.Src1, "R1") // R1 = value
-			g.insn("MOVD R1, (R0)")
+			switch q.TypeHint {
+			case TypeChar, TypeUnsignedChar:
+				g.insn("MOVB R1, (R0)")
+			default:
+				g.insn("MOVD R1, (R0)")
+			}
 
 		case IRFDerefLoad:
 			// Dst = *Src1 (load 8-byte double via pointer; result is FP)
