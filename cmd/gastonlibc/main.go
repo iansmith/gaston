@@ -24,6 +24,8 @@ type sourceGroup struct {
 	includes []string
 	defines  []string
 	skip     map[string]bool
+	// skipPrefix skips any .c file whose name starts with this prefix.
+	skipPrefix string
 	// perFile maps filename to extra defines.
 	perFile map[string][]string
 }
@@ -75,6 +77,9 @@ func main() {
 				continue
 			}
 			if g.skip[e.Name()] {
+				continue
+			}
+			if g.skipPrefix != "" && strings.HasPrefix(e.Name(), g.skipPrefix) {
 				continue
 			}
 			src := filepath.Join(dir, e.Name())
@@ -172,6 +177,7 @@ func buildGroups() []sourceGroup {
 				"libm/include",
 				"picolibc/libc/include",
 			},
+			defines: []string{"FORMAT_DEFAULT_DOUBLE=1"},
 			skip: map[string]bool{
 				"conv_flt.c": true, // template file #include'd by vfscanf.c
 			},
@@ -253,8 +259,13 @@ func buildGroups() []sourceGroup {
 			},
 			defines: []string{
 				"__SVID_VISIBLE=1", "__POSIX_VISIBLE=1", "__XSI_VISIBLE=1",
-				"_LIBC=1", "__SINGLE_THREAD=1", "TINY_STDIO=1", "MALLOC_PROVIDED=1",
+				"_LIBC=1", "__SINGLE_THREAD=1", "TINY_STDIO=1",
 			},
+			skip: map[string]bool{
+				"calloc.c": true, // newlib reentrant wrapper; malloc-calloc.c provides calloc via mallocr.c
+				"mtrim.c":  true, // newlib reentrant wrapper; malloc_trim provided by mallocr.c
+			},
+			skipPrefix: "nano-malloc", // exclude nano-malloc; we use dlmalloc (malloc-*.c / mallocr.c)
 		},
 		{
 			name: "locale",

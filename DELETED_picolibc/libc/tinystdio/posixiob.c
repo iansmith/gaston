@@ -52,9 +52,14 @@ __strong_reference(__posix_stdout, __posix_stderr);
 FILE *const __posix_stderr = &__stdout.xfile.cfile.file;
 #endif
 
-__weak_reference(__posix_stdin,stdin);
-__weak_reference(__posix_stdout,stdout);
-__weak_reference(__posix_stderr,stderr);
+/*
+ * __weak_reference uses inline asm (.weak/.equ directives) which not all
+ * compilers support.  Define the public names directly as aliases to the
+ * __posix_* pointers.  This is safe because we control the picolibc build.
+ */
+FILE *const stdin  = &__stdin.xfile.cfile.file;
+FILE *const stdout = &__stdout.xfile.cfile.file;
+FILE *const stderr = &__stdout.xfile.cfile.file;
 
 /*
  * Add a destructor function to get stdout flushed on

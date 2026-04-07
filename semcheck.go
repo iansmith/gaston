@@ -24,6 +24,7 @@ type symTable struct {
 	funcs       map[string]*FuncSig
 	structDefs  map[string]*StructDef // registered struct types
 	currentFunc *Node                 // set during checkFunDecl; used by KindStmtExpr to check return stmts
+	libraryMode bool                  // when true, unknown function calls are implicit extern (C89 style)
 }
 
 type symEntry struct {
@@ -88,20 +89,26 @@ func newSymTable() *symTable {
 		funcs:      make(map[string]*FuncSig),
 		structDefs: make(map[string]*StructDef),
 	}
-	// Built-in functions.
-	st.funcs["input"] = &FuncSig{Name: "input", ReturnType: TypeInt}
-	st.funcs["output"] = &FuncSig{Name: "output", ReturnType: TypeVoid,
+	// Standard C library functions — provided by libgastonc.a at link time.
+	st.funcs["input"] = &FuncSig{Name: "input", ReturnType: TypeInt, IsExtern: true}
+	st.funcs["output"] = &FuncSig{Name: "output", ReturnType: TypeVoid, IsExtern: true,
 		Params: []TypeKind{TypeInt}, ParamPointees: []*CType{nil}}
-	st.funcs["print_char"] = &FuncSig{Name: "print_char", ReturnType: TypeVoid,
+	st.funcs["print_char"] = &FuncSig{Name: "print_char", ReturnType: TypeVoid, IsExtern: true,
 		Params: []TypeKind{TypeInt}, ParamPointees: []*CType{nil}}
-	st.funcs["print_string"] = &FuncSig{Name: "print_string", ReturnType: TypeVoid,
+	st.funcs["print_string"] = &FuncSig{Name: "print_string", ReturnType: TypeVoid, IsExtern: true,
 		Params: []TypeKind{TypeCharPtr}, ParamPointees: []*CType{nil}}
 	st.funcs["malloc"] = &FuncSig{Name: "malloc", ReturnType: TypePtr,
 		ReturnPointee: voidPtee, IsExtern: true,
 		Params: []TypeKind{TypeInt}, ParamPointees: []*CType{nil}}
 	st.funcs["free"] = &FuncSig{Name: "free", ReturnType: TypeVoid, IsExtern: true,
 		Params: []TypeKind{TypePtr}, ParamPointees: []*CType{voidPtee}}
-	st.funcs["print_double"] = &FuncSig{Name: "print_double", ReturnType: TypeVoid,
+	st.funcs["realloc"] = &FuncSig{Name: "realloc", ReturnType: TypePtr,
+		ReturnPointee: voidPtee, IsExtern: true,
+		Params: []TypeKind{TypePtr, TypeInt}, ParamPointees: []*CType{voidPtee, nil}}
+	st.funcs["calloc"] = &FuncSig{Name: "calloc", ReturnType: TypePtr,
+		ReturnPointee: voidPtee, IsExtern: true,
+		Params: []TypeKind{TypeInt, TypeInt}, ParamPointees: []*CType{nil, nil}}
+	st.funcs["print_double"] = &FuncSig{Name: "print_double", ReturnType: TypeVoid, IsExtern: true,
 		Params: []TypeKind{TypeDouble}, ParamPointees: []*CType{nil}}
 	st.funcs["fflush"] = &FuncSig{Name: "fflush", ReturnType: TypeInt, IsExtern: true,
 		Params: []TypeKind{TypePtr}, ParamPointees: []*CType{voidPtee}}
@@ -273,6 +280,7 @@ func (st *symTable) lookup(name string) *symEntry {
 // Returns a multi-line error string if any errors are found.
 func semCheck(prog *Node, requireMain bool) error {
 	st := newSymTable()
+	st.libraryMode = !requireMain
 	var errs []string
 
 	for _, decl := range prog.Children {
@@ -1390,9 +1398,15 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		}
 		sig := st.funcs[n.Name]
 		if sig == nil {
-			*errs = append(*errs, fmt.Sprintf("undefined function '%s'", n.Name))
-			n.Type = TypeInt
-			return TypeInt
+			if st.libraryMode {
+				// Implicit extern declaration (C89 style): assume int return, variadic.
+				sig = &FuncSig{Name: n.Name, ReturnType: TypeInt, IsExtern: true, IsVariadic: true}
+				st.funcs[n.Name] = sig
+			} else {
+				*errs = append(*errs, fmt.Sprintf("undefined function '%s'", n.Name))
+				n.Type = TypeInt
+				return TypeInt
+			}
 		}
 		// Variadic and built-in functions skip strict arity check.
 		if !sig.IsVariadic && n.Name != "input" && n.Name != "output" &&

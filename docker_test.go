@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -646,60 +647,19 @@ func buildLibgastonc(t *testing.T) (libPath string) {
 	libPath = "/tmp/gaston-test-libgastonc.a"
 	t.Cleanup(func() { os.Remove(libPath) })
 
-	var objPaths []string
-
-	// ── gaston .cm sources (libc/) ──────────────────────────────────────
-	entries, err := os.ReadDir("libc")
+	// Use `go tool gastonlibc` to build the full archive (including stdlib/dlmalloc,
+	// all picolibc groups, and gaston .cm libc sources).
+	goPath := os.Getenv("GO")
+	if goPath == "" {
+		goPath = "go"
+	}
+	// gastonlibc runs from the repo root; tests run from cmd/gaston, so go up two levels.
+	repoRoot := filepath.Join(".", "..", "..")
+	cmd := exec.Command(goPath, "tool", "gastonlibc", "-go", goPath, "-o", libPath)
+	cmd.Dir = repoRoot
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("read libc dir: %v", err)
-	}
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".cm") {
-			continue
-		}
-		src := "libc/" + e.Name()
-		obj := fmt.Sprintf("/tmp/gaston-test-libgastonc-%s.o",
-			strings.TrimSuffix(e.Name(), ".cm"))
-		t.Cleanup(func() { os.Remove(obj) })
-		if err := compileObjPath(src, obj, nil); err != nil {
-			t.Fatalf("compile %s: %v", src, err)
-		}
-		objPaths = append(objPaths, obj)
-	}
-
-	// ── picolibc tinystdio sources ──────────────────────────────────────
-	tsdir := "picolibc/libc/tinystdio"
-	tsInc := tinystdioIncludePaths()
-	tsDefines := []string{"__PICOLIBC__=1", "TINY_STDIO=1", "FORMAT_DEFAULT_DOUBLE=1"}
-	for _, f := range []string{"vfprintf.c", "filestrput.c", "dtoa_engine.c", "dtoa_data.c"} {
-		src := tsdir + "/" + f
-		obj := fmt.Sprintf("/tmp/gaston-test-libgastonc-ts-%s.o", strings.TrimSuffix(f, ".c"))
-		t.Cleanup(func() { os.Remove(obj) })
-		if err := compileObjPath(src, obj, tsInc, tsDefines...); err != nil {
-			t.Fatalf("compile tinystdio %s: %v", f, err)
-		}
-		objPaths = append(objPaths, obj)
-	}
-
-	// ── picolibc string functions ───────────────────────────────────────
-	stringDir := "picolibc/libc/string"
-	strInc := stringIncludePaths()
-	strDefines := []string{"__SVID_VISIBLE=1", "__POSIX_VISIBLE=1", "__XSI_VISIBLE=1"}
-	for _, f := range []string{"strcmp.c", "strlen.c", "strnlen.c", "memset.c", "memcpy.c"} {
-		src := stringDir + "/" + f
-		obj := fmt.Sprintf("/tmp/gaston-test-libgastonc-str-%s.o", strings.TrimSuffix(f, ".c"))
-		t.Cleanup(func() { os.Remove(obj) })
-		if err := compileObjPath(src, obj, strInc, strDefines...); err != nil {
-			t.Fatalf("compile string %s: %v", f, err)
-		}
-		objPaths = append(objPaths, obj)
-	}
-
-	if len(objPaths) == 0 {
-		t.Fatal("no source files compiled for libgastonc")
-	}
-	if err := archiveCreate(libPath, objPaths); err != nil {
-		t.Fatalf("archive libgastonc.a: %v", err)
+		t.Fatalf("gastonlibc: %v\n%s", err, out)
 	}
 	return libPath
 }
@@ -1524,21 +1484,31 @@ func TestSignalCompile(t *testing.T) {
 	}
 }
 
-// TestDockerRun compiles each test program and runs it in an Alpine ARM64
-// container, comparing stdout to the expected string.
+// TestDockerRun compiles each test program, links it with libgastonc.a,
+// and runs it in an Alpine ARM64 container, comparing stdout to the expected string.
 func TestDockerRun(t *testing.T) {
 	if _, err := exec.LookPath("docker"); err != nil {
 		t.Skip("docker not found in PATH; skipping container tests")
 	}
 
+	libPath := buildLibgastonc(t)
+
 	for _, tt := range featureTests {
 		tt := tt // capture loop variable
 		t.Run(tt.name, func(t *testing.T) {
+			// Compile to object file.
+			mainSrc := fmt.Sprintf("testdata/%s.cm", tt.name)
+			mainObj := fmt.Sprintf("/tmp/gaston-test-%s.o", tt.name)
+			t.Cleanup(func() { os.Remove(mainObj) })
+			if err := compileObjPath(mainSrc, mainObj, nil); err != nil {
+				t.Fatalf("compile: %v", err)
+			}
+
+			// Link: main.o + libgastonc.a → binary.
 			binPath := fmt.Sprintf("/tmp/gaston-test-%s", tt.name)
 			t.Cleanup(func() { os.Remove(binPath) })
-
-			if err := compileTest(tt.name, binPath); err != nil {
-				t.Fatalf("compile: %v", err)
+			if err := link(binPath, []string{mainObj, libPath}); err != nil {
+				t.Fatalf("link: %v", err)
 			}
 
 			cmd := exec.Command("docker", "run", "--rm",

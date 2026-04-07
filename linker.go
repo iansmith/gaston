@@ -6,7 +6,7 @@
 //
 // Linking steps:
 //  1. Parse each .o file: extract .text, .rodata, .data, .bss, symbols, rela.
-//  2. Emit runtime helpers (_start, gaston_output, …) into a codeBuilder.
+//  2. Emit runtime helpers (_start, sbrk, POSIX syscalls) into a codeBuilder.
 //  3. Append each file's .text as raw words to the codeBuilder.
 //  4. Build a global symbol table (VA for every defined symbol).
 //  5. Apply .rela.text relocations (ABS64 and CALL26).
@@ -308,6 +308,7 @@ func link(outpath string, inputpaths []string) error {
 					}
 					objs = append(objs, pulled)
 					added = true
+					fmt.Fprintf(os.Stderr, "linker: pulled %s for %s\n", m.name, sym.name)
 				}
 			}
 		}
@@ -317,11 +318,10 @@ func link(outpath string, inputpaths []string) error {
 	}
 
 	// ── emit runtime helper code ───────────────────────────────────────────
-	// The helper codeBuilder has one pool entry: the allocator's free-list head
-	// pointer (gaston_free_list_head), which lives in BSS.  Its address is
-	// patched into the pool after the BSS layout is determined below.
-	freeListSynth := IRGlobal{Name: freeListGlobalName, Size: 1}
-	cb := newCodeBuilder([]IRGlobal{freeListSynth}, nil, nil, nil)
+	// The helper codeBuilder has one pool entry: sbrk's current-break pointer
+	// (sbrk_cur_brk), which lives in BSS.  Its address is patched after layout.
+	sbrkSynth := IRGlobal{Name: sbrkGlobalName, Size: 1}
+	cb := newCodeBuilder([]IRGlobal{sbrkSynth}, nil, nil, nil)
 	gen := &elfGen{
 		cb:            cb,
 		pendingParams: make([]paramArg, 0, 8),
@@ -331,18 +331,13 @@ func link(outpath string, inputpaths []string) error {
 
 	// _start: call gaston_main (extern → fixed-up after symbol layout), then exit.
 	cb.defineLabel("_start")
-	cb.emitBL("gaston_main") // fixup resolved after all user text is loaded
+	cb.emitBL("main") // fixup resolved after all user text is loaded
 	cb.emitMOVimm(regX0, 0)
 	cb.emitMOVimm(regX8, 94)
 	cb.emit(encSVC(0))
 
-	gen.emitOutputFn()
-	gen.emitInputFn()
-	gen.emitPrintCharFn()
-	gen.emitPrintStringFn()
-	gen.emitPrintDoubleFn()
-	gen.emitMallocFn()
-	gen.emitFreeFn()
+	gen.emitSbrkFn()
+	gen.emitPosixSyscalls()
 
 	helperWords := len(cb.instrs) // number of words used by runtime helpers
 
@@ -393,11 +388,10 @@ func link(outpath string, inputpaths []string) error {
 	dataBase := nextPage(rodataBase + totalRodata)
 	bssBase := nextPage(dataBase + totalData)
 
-	// The allocator's free-list head sits at the end of the BSS segment
-	// (after all object-file BSS).  Patch its address into the helper pool.
-	freeListHeadVA := bssBase + totalBss
-	totalBss += 8 // 8-byte pointer, zero-initialised by the OS
-	cb.patchPool(map[string]uint64{freeListGlobalName: freeListHeadVA})
+	// sbrk's current-break pointer sits at the end of BSS.
+	sbrkCurBrkVA := bssBase + totalBss
+	totalBss += 8
+	cb.patchPool(map[string]uint64{sbrkGlobalName: sbrkCurBrkVA})
 
 	// ── build global symbol table (name → VA) ─────────────────────────────
 	symVA := make(map[string]uint64)
@@ -426,12 +420,12 @@ func link(outpath string, inputpaths []string) error {
 		}
 	}
 
-	// Add gaston_main label to cb.labels so applyFixups() can resolve _start's BL.
-	if va, ok := symVA["gaston_main"]; ok {
+	// Add main label to cb.labels so applyFixups() can resolve _start's BL.
+	if va, ok := symVA["main"]; ok {
 		wordIdx := int((va - lnkCodeBase) / 4)
-		cb.labels["gaston_main"] = wordIdx
+		cb.labels["main"] = wordIdx
 	} else {
-		return fmt.Errorf("linker: undefined symbol 'gaston_main' (no main function)")
+		return fmt.Errorf("linker: undefined symbol 'main' (no main function)")
 	}
 
 	// Resolve internal branch fixups (helper code internal labels + gaston_main).
@@ -473,6 +467,12 @@ func link(outpath string, inputpaths []string) error {
 				// Try global table by name.
 				symVAval = symVA[obj.syms[rela.symIdx].name]
 			}
+			if symVAval == 0 && rela.symIdx < uint32(len(obj.syms)) {
+				sym := obj.syms[rela.symIdx]
+				if sym.name != "" {
+					fmt.Fprintf(os.Stderr, "linker: warning: unresolved symbol '%s' (rela.text) in %s\n", sym.name, obj.path)
+				}
+			}
 
 			switch rela.rtype {
 			case rAArch64Abs64:
@@ -480,6 +480,14 @@ func link(outpath string, inputpaths []string) error {
 				addr := symVAval + uint64(rela.addend)
 				cb.instrs[wordIdx] = uint32(addr)
 				cb.instrs[wordIdx+1] = uint32(addr >> 32)
+				if addr == 0 || (rela.symIdx < uint32(len(obj.syms)) && obj.syms[rela.symIdx].name == "__malloc_av_") {
+					symName := ""
+					if rela.symIdx < uint32(len(obj.syms)) {
+						symName = obj.syms[rela.symIdx].name
+					}
+					fmt.Fprintf(os.Stderr, "linker: ABS64 %s pool[%d] wordIdx=%d → %#x (sym=%s)\n",
+						obj.path, rela.offset/8, wordIdx, addr, symName)
+				}
 
 			case rAArch64Call26:
 				// Patch BL instruction: offset = (sym_va - instr_va) / 4
@@ -529,6 +537,12 @@ func link(outpath string, inputpaths []string) error {
 			symVAval := fileSymVA[rela.symIdx]
 			if symVAval == 0 && rela.symIdx < uint32(len(obj.syms)) {
 				symVAval = symVA[obj.syms[rela.symIdx].name]
+			}
+			if symVAval == 0 && rela.symIdx < uint32(len(obj.syms)) {
+				sym := obj.syms[rela.symIdx]
+				if sym.name != "" {
+					fmt.Fprintf(os.Stderr, "linker: warning: unresolved symbol '%s' (rela.data) in %s\n", sym.name, obj.path)
+				}
 			}
 
 			if rela.rtype == rAArch64Abs64 {

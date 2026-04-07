@@ -1,17 +1,15 @@
 /* printf.cm — gaston printf / puts / putchar backed by picolibc tinystdio.
  *
- * This file provides:
- *   - A static stdout FILE struct backed by print_char()
- *   - printf(), sprintf(), snprintf() wrappers that call tinystdio's vfprintf()
- *   - putchar() and puts()
+ * stdout, stderr, stdin are defined by picolibc's posixiob.c, which uses
+ * real POSIX read/write syscalls.  This file just provides the variadic
+ * wrappers that call picolibc's vfprintf engine.
  *
- * The actual format engine lives in picolibc's tinystdio vfprintf.c, which is
- * compiled separately and linked into libgastonc.a.
+ * Provides: printf, fprintf, sprintf, snprintf, putchar, puts
  */
 
 #include <stdarg.h>
 
-/* ── tinystdio FILE definition (must match picolibc's struct __file) ────── */
+/* ---- tinystdio FILE definition (must match picolibc's struct __file) ---- */
 
 typedef unsigned short __ungetc_t;
 typedef unsigned char uint8_t;
@@ -34,67 +32,50 @@ struct __file_str {
     size_t size;
 };
 
-/* ── Forward declarations for tinystdio functions ─────────────────────── */
+/* ---- Forward declarations for picolibc tinystdio functions -------------- */
 extern int vfprintf(FILE *stream, const char *fmt, va_list ap);
 extern int __file_str_put(char c, FILE *stream);
 
-/* ── stdout/stderr: backed by print_char() ────────────────────────────── */
+/* ---- stdout/stderr/stdin come from picolibc's posixiob.c ---------------- */
+extern FILE *stdout;
+extern FILE *stderr;
+extern FILE *stdin;
 
-int __gaston_stdout_put(char c, FILE *stream) {
-    print_char(c);
-    return (int)(unsigned char)c;
-}
-
-struct __file __gaston_stdout_file;
-struct __file __gaston_stderr_file;
-FILE *stdout;
-FILE *stderr;
-
-void __gaston_stdio_init(void) {
-    __gaston_stdout_file.unget = 0;
-    __gaston_stdout_file.flags = 2;
-    __gaston_stdout_file.put = __gaston_stdout_put;
-    __gaston_stdout_file.get = 0;
-    __gaston_stdout_file.flush = 0;
-    stdout = &__gaston_stdout_file;
-
-    __gaston_stderr_file.unget = 0;
-    __gaston_stderr_file.flags = 2;
-    __gaston_stderr_file.put = __gaston_stdout_put;
-    __gaston_stderr_file.get = 0;
-    __gaston_stderr_file.flush = 0;
-    stderr = &__gaston_stderr_file;
-}
-
-/* ── putchar / puts ─────────────────────────────────────────────────────── */
+/* ---- putchar / puts ----------------------------------------------------- */
 
 int putchar(int c) {
-    print_char(c);
+    char buf[1];
+    buf[0] = (char)c;
+    write(1, buf, 1);
     return c;
 }
 
 int puts(char *s) {
-    print_string(s);
-    print_char('\n');
+    int i;
+    i = 0;
+    while (s[i] != 0) {
+        i = i + 1;
+    }
+    write(1, s, i);
+    write(1, "\n", 1);
     return 0;
 }
 
-/* ── printf: format and print to stdout ─────────────────────────────────── */
+/* ---- printf: format and print to stdout --------------------------------- */
 int printf(char *fmt, ...) {
     va_list ap;
-    __gaston_stdio_init();
     ap = __va_start();
     return vfprintf(stdout, fmt, ap);
 }
 
-/* ── fprintf: format and print to a stream ──────────────────────────────── */
+/* ---- fprintf: format and print to a stream ------------------------------ */
 int fprintf(FILE *stream, char *fmt, ...) {
     va_list ap;
     ap = __va_start();
     return vfprintf(stream, fmt, ap);
 }
 
-/* ── sprintf: format into null-terminated buffer (no size limit) ────────── */
+/* ---- sprintf: format into null-terminated buffer (no size limit) -------- */
 int sprintf(char *buf, char *fmt, ...) {
     struct __file_str f;
     va_list ap;
@@ -115,7 +96,7 @@ int sprintf(char *buf, char *fmt, ...) {
     return r;
 }
 
-/* ── snprintf: format into buf writing at most n-1 chars plus null ──────── */
+/* ---- snprintf: format into buf writing at most n-1 chars plus null ------ */
 int snprintf(char *buf, long n, char *fmt, ...) {
     struct __file_str f;
     va_list ap;

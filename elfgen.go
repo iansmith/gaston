@@ -66,7 +66,7 @@ type branchFixup struct {
 // (used in ET_REL object file mode to generate CALL26 relocations).
 type externBLRecord struct {
 	at  int    // instruction index
-	sym string // symbol name (e.g. "gaston_input")
+	sym string // symbol name (e.g. "__gaston_input")
 }
 
 // codeBuilder accumulates ARM64 machine-code words, label locations, and
@@ -314,8 +314,10 @@ func (g *elfGen) newLabel() string {
 	return l
 }
 
-// funcLabel returns the global entry label for a C-minus function.
-func funcLabel(name string) string { return "gaston_" + name }
+// funcLabel returns the global entry label for a C function.
+// No prefix — symbols match standard C conventions so that user code
+// and library code (libc, picolibc) link together naturally.
+func funcLabel(name string) string { return name }
 
 // irLabel returns the label for an IR-level named label within a function.
 func (g *elfGen) irLabel(extra string) string {
@@ -1483,52 +1485,14 @@ func (g *elfGen) emitCall(q Quad) {
 	}
 
 	if g.isObjMode {
-		switch q.Extra {
-		case "input":
-			g.cb.emitBLextern("gaston_input")
-		case "output":
-			g.cb.emitBLextern("gaston_output")
-		case "print_char":
-			g.cb.emitBLextern("gaston_print_char")
-		case "print_string":
-			g.cb.emitBLextern("gaston_print_string")
-		case "print_double":
-			g.cb.emitBLextern("gaston_print_double")
-		case "fflush":
-			g.cb.emitBLextern("gaston_fflush")
-		case "malloc":
-			g.cb.emitBLextern("gaston_malloc")
-		case "free":
-			g.cb.emitBLextern("gaston_free")
-		default:
-			label := funcLabel(q.Extra)
-			if g.localFuncs[q.Extra] {
-				g.cb.emitBL(label)
-			} else {
-				g.cb.emitBLextern(label)
-			}
+		label := funcLabel(q.Extra)
+		if g.localFuncs[q.Extra] {
+			g.cb.emitBL(label)
+		} else {
+			g.cb.emitBLextern(label)
 		}
 	} else {
-		switch q.Extra {
-		case "input":
-			g.cb.emitBL("gaston_input")
-		case "output":
-			g.cb.emitBL("gaston_output")
-		case "print_char":
-			g.cb.emitBL("gaston_print_char")
-		case "print_string":
-			g.cb.emitBL("gaston_print_string")
-		case "print_double":
-			g.cb.emitBL("gaston_print_double")
-		case "fflush":
-			g.cb.emitBL("gaston_fflush")
-		case "malloc":
-			g.cb.emitBL("gaston_malloc")
-		case "free":
-			g.cb.emitBL("gaston_free")
-		default:
-			g.cb.emitBL(funcLabel(q.Extra))
-		}
+		g.cb.emitBL(funcLabel(q.Extra))
 	}
 
 	if q.Dst.Kind != AddrNone {
@@ -1595,730 +1559,127 @@ func (g *elfGen) emitStart(globals []IRGlobal) {
 	g.cb.emit(encSVC(0))
 }
 
-// emitOutputFn emits gaston_output(X0 = int64 value).
+// sbrkGlobalName is the synthetic BSS global for sbrk's current program break.
+const sbrkGlobalName = "sbrk_cur_brk"
+
+// emitSbrkFn emits sbrk(X0 = increment) → X0 = old_break or (void*)-1.
 //
-// Frame layout (64 bytes):
-//   SP+0:  FP, SP+8: LR
-//   SP+16: X19 (abs(value) — decremented in loop)
-//   SP+24: X20 (sign flag: 0=positive, 1=negative)
-//   SP+32: X21 (write pointer into buffer)
-//   SP+40..SP+63: 24-byte char buffer (max "-9223372036854775808\n" = 22 chars)
-func (g *elfGen) emitOutputFn() {
+// Uses the Linux brk syscall (214 on ARM64).  On the first call
+// (sbrk_cur_brk == 0), discovers the current break via brk(0).
+//
+// Register plan:
+//   X19 = increment (saved)
+//   X20 = &sbrk_cur_brk
+//   X21 = old_brk
+func (g *elfGen) emitSbrkFn() {
 	cb := g.cb
-	cb.defineLabel("gaston_output")
-
-	// Prologue — save callee-saved registers.
-	cb.emit(encSUBimm(regSP, regSP, 64))
-	cb.emit(encSTP(regFP, regLR, regSP, 0))
-	cb.emit(encSTP(regX19, regX20, regSP, 16))
-	cb.emit(encSTRuoff(regX21, regSP, 32))
-	cb.emit(encADDimm(regFP, regSP, 0))
-
-	// Set up: X19 = abs(value), X20 = sign flag, X21 = &buf[23]
-	cb.emit(encMOVreg(regX19, regX0))                // X19 = value
-	cb.emitMOVimm(regX20, 0)                         // X20 = 0 (positive)
-	cb.emit(encCMPimm0(regX19))
-	cb.emitBcond(condGE, "out_pos")
-	cb.emit(encNEG(regX19, regX19))                  // X19 = abs(value)
-	cb.emitMOVimm(regX20, 1)                         // X20 = 1 (negative)
-	cb.defineLabel("out_pos")
-	cb.emit(encADDimm(regX21, regSP, 63))            // X21 = &buf[23]
-
-	// Write '\n' at buf[23], then back up.
-	cb.emitMOVimm(regX0, '\n')
-	cb.emit(encSTRBuoff(regX0, regX21, 0))
-	cb.emit(encSUBimm(regX21, regX21, 1))
-
-	// Special case: value == 0.
-	cb.emitCBNZ(regX19, "out_nonzero")
-	cb.emitMOVimm(regX0, '0')
-	cb.emit(encSTRBuoff(regX0, regX21, 0))
-	cb.emit(encSUBimm(regX21, regX21, 1))
-	cb.emitB("out_done_digits")
-
-	// Digit-extraction loop: divide by 10 until X19 == 0.
-	cb.defineLabel("out_nonzero")
-	cb.emitMOVimm(regX0, 10) // X0 = divisor (constant in loop)
-	cb.defineLabel("out_loop")
-	cb.emit(encUDIV(regX2, regX19, regX0))           // X2 = X19 / 10
-	cb.emit(encMUL(regX3, regX2, regX0))             // X3 = X2 * 10
-	cb.emit(encSUBreg(regX3, regX19, regX3))         // X3 = X19 mod 10
-	cb.emit(encADDimm(regX3, regX3, '0'))            // X3 = ASCII digit
-	cb.emit(encSTRBuoff(regX3, regX21, 0))           // *X21 = digit
-	cb.emit(encSUBimm(regX21, regX21, 1))            // X21--
-	cb.emit(encMOVreg(regX19, regX2))                // X19 = X19 / 10
-	cb.emitCBNZ(regX19, "out_loop")
-
-	cb.defineLabel("out_done_digits")
-	cb.emit(encADDimm(regX21, regX21, 1)) // X21 = first digit position
-
-	// Prepend '-' if negative.
-	cb.emitCBZ(regX20, "out_write")
-	cb.emitMOVimm(regX0, '-')
-	cb.emit(encSUBimm(regX21, regX21, 1))
-	cb.emit(encSTRBuoff(regX0, regX21, 0))
-
-	// write(1, X21, SP+64−X21).
-	cb.defineLabel("out_write")
-	cb.emit(encMOVreg(regX1, regX21))               // X1 = buf start
-	cb.emit(encADDimm(regX2, regSP, 64))            // X2 = SP+64 (past-end)
-	cb.emit(encSUBreg(regX2, regX2, regX1))         // X2 = length
-	cb.emitMOVimm(regX0, 1)                         // fd = stdout
-	cb.emitMOVimm(regX8, 64)                        // write syscall
-	cb.emit(encSVC(0))
-
-	// Epilogue.
-	cb.emit(encLDP(regX19, regX20, regSP, 16))
-	cb.emit(encLDRuoff(regX21, regSP, 32))
-	cb.emit(encLDP(regFP, regLR, regSP, 0))
-	cb.emit(encADDimm(regSP, regSP, 64))
-	cb.emit(encRET())
-}
-
-// emitInputFn emits gaston_input() → X0 = int64 read from stdin.
-//
-// Reads one byte at a time so that sequential calls to gaston_input()
-// each consume exactly the bytes they use, leaving the file offset
-// positioned correctly for the next call.
-//
-// Frame layout (64 bytes):
-//   SP+0: FP, SP+8: LR
-//   SP+16: X19 (result accumulator)
-//   SP+24: X20 (sign flag: 0=positive, 1=negative)
-//   SP+32: X21 (address of the single-byte read buffer at SP+40)
-//   SP+40: 1-byte read buffer
-//   SP+41..SP+63: padding
-func (g *elfGen) emitInputFn() {
-	cb := g.cb
-	cb.defineLabel("gaston_input")
+	cb.defineLabel("sbrk")
 
 	// Prologue.
-	cb.emit(encSUBimm(regSP, regSP, 64))
-	cb.emit(encSTP(regFP, regLR, regSP, 0))
-	cb.emit(encSTP(regX19, regX20, regSP, 16))
-	cb.emit(encSTRuoff(regX21, regSP, 32))
-	cb.emit(encADDimm(regFP, regSP, 0))
-
-	// Initialise state.
-	cb.emitMOVimm(regX19, 0)              // result = 0
-	cb.emitMOVimm(regX20, 0)              // sign = positive
-	cb.emit(encADDimm(regX21, regSP, 40)) // X21 = &buf[0]  (1-byte buffer)
-
-	// Skip non-digit, non-sign characters (whitespace, newlines, etc.).
-	// Each iteration reads exactly one byte from stdin.
-	cb.defineLabel("in_scan")
-	cb.emitMOVimm(regX0, 0)              // fd = stdin
-	cb.emit(encMOVreg(regX1, regX21))    // buf = &buf[0]
-	cb.emitMOVimm(regX2, 1)             // count = 1
-	cb.emitMOVimm(regX8, 63)            // sys_read
-	cb.emit(encSVC(0))
-	cb.emitCBZ(regX0, "in_done")         // 0 bytes read = EOF
-
-	cb.emit(encLDRBuoff(regX2, regX21, 0)) // X2 = byte read
-	// Check for '-'
-	cb.emitMOVimm(regX3, '-')
-	cb.emit(encCMPreg(regX2, regX3))
-	cb.emitBcond(condEQ, "in_minus")
-	// Check if >= '0' (potential digit)
-	cb.emitMOVimm(regX3, '0')
-	cb.emit(encCMPreg(regX2, regX3))
-	cb.emitBcond(condGE, "in_digit") // W2 >= '0': try digit
-	// Not digit, not '-': skip and read next byte.
-	cb.emitB("in_scan")
-
-	// Found '-': set sign flag, continue scanning for first digit.
-	cb.defineLabel("in_minus")
-	cb.emitMOVimm(regX20, 1)
-	cb.emitB("in_scan")
-
-	// in_digit: X2 holds current char, already checked >= '0'.
-	// Validate <= '9' then accumulate; then read the next byte and loop.
-	cb.defineLabel("in_digit")
-	cb.emitMOVimm(regX3, '9')
-	cb.emit(encCMPreg(regX2, regX3))
-	cb.emitBcond(condGT, "in_done")      // > '9': stop (not a real digit)
-	cb.emit(encSUBimm(regX2, regX2, '0')) // digit value
-	cb.emitMOVimm(regX3, 10)
-	cb.emit(encMUL(regX19, regX19, regX3))  // result *= 10
-	cb.emit(encADDreg(regX19, regX19, regX2)) // result += digit
-
-	// Read the next byte for the next iteration.
-	cb.emitMOVimm(regX0, 0)
-	cb.emit(encMOVreg(regX1, regX21))
-	cb.emitMOVimm(regX2, 1)
-	cb.emitMOVimm(regX8, 63)
-	cb.emit(encSVC(0))
-	cb.emitCBZ(regX0, "in_done") // EOF: stop
-
-	cb.emit(encLDRBuoff(regX2, regX21, 0)) // X2 = next byte
-	cb.emitMOVimm(regX3, '0')
-	cb.emit(encCMPreg(regX2, regX3))
-	cb.emitBcond(condLT, "in_done") // < '0': stop
-	cb.emitMOVimm(regX3, '9')
-	cb.emit(encCMPreg(regX2, regX3))
-	cb.emitBcond(condGT, "in_done") // > '9': stop
-	cb.emitB("in_digit")             // continue accumulating
-
-	cb.defineLabel("in_done")
-	cb.emitCBZ(regX20, "in_return")
-	cb.emit(encNEG(regX19, regX19))
-
-	cb.defineLabel("in_return")
-	cb.emit(encMOVreg(regX0, regX19))
-
-	// Epilogue.
-	cb.emit(encLDP(regX19, regX20, regSP, 16))
-	cb.emit(encLDRuoff(regX21, regSP, 32))
-	cb.emit(encLDP(regFP, regLR, regSP, 0))
-	cb.emit(encADDimm(regSP, regSP, 64))
-	cb.emit(encRET())
-}
-
-// emitFflushFn emits gaston_fflush(X0 = FILE*, ignored).
-//
-// Calls fdatasync(1) to flush the Linux shepherd's line buffer for stdout.
-// Returns 0 on success, -1 on error (from fdatasync return value).
-// Frame layout (32 bytes): SP+0: FP, SP+8: LR, SP+16..31: pad.
-func (g *elfGen) emitFflushFn() {
-	cb := g.cb
-	cb.defineLabel("gaston_fflush")
-
-	cb.emit(encSUBimm(regSP, regSP, 32))
-	cb.emit(encSTP(regFP, regLR, regSP, 0))
-	cb.emit(encADDimm(regFP, regSP, 0))
-
-	// fdatasync(1)
-	cb.emitMOVimm(regX0, 1)  // fd = stdout
-	cb.emitMOVimm(regX8, 83) // sys_fdatasync (ARM64)
-	cb.emit(encSVC(0))
-
-	cb.emit(encLDP(regFP, regLR, regSP, 0))
-	cb.emit(encADDimm(regSP, regSP, 32))
-	cb.emit(encRET())
-}
-
-// emitPrintCharFn emits gaston_print_char(X0 = character as int64).
-//
-// Writes the low byte of X0 to stdout via write(1, &buf, 1).
-// Frame layout (32 bytes): SP+0: FP, SP+8: LR, SP+16: 1-byte buf, SP+17..31: pad.
-func (g *elfGen) emitPrintCharFn() {
-	cb := g.cb
-	cb.defineLabel("gaston_print_char")
-
-	cb.emit(encSUBimm(regSP, regSP, 32))
-	cb.emit(encSTP(regFP, regLR, regSP, 0))
-	cb.emit(encADDimm(regFP, regSP, 0))
-
-	// Store low byte of X0 into buf at SP+16.
-	cb.emit(encSTRBuoff(regX0, regSP, 16))
-
-	// write(1, SP+16, 1)
-	cb.emitMOVimm(regX0, 1)                   // fd = stdout
-	cb.emit(encADDimm(regX1, regSP, 16))      // buf = &SP[16]
-	cb.emitMOVimm(regX2, 1)                   // count = 1
-	cb.emitMOVimm(regX8, 64)                  // sys_write
-	cb.emit(encSVC(0))
-
-	cb.emit(encLDP(regFP, regLR, regSP, 0))
-	cb.emit(encADDimm(regSP, regSP, 32))
-	cb.emit(encRET())
-}
-
-// emitPrintStringFn emits gaston_print_string(X0 = pointer to null-terminated string).
-//
-// Scans forward from X0 to find the null terminator, then calls write(1, X0, len).
-// Frame layout (48 bytes): SP+0: FP, SP+8: LR, SP+16: X19 (base ptr), SP+24: X20 (scan ptr).
-func (g *elfGen) emitPrintStringFn() {
-	cb := g.cb
-	cb.defineLabel("gaston_print_string")
-
 	cb.emit(encSUBimm(regSP, regSP, 48))
 	cb.emit(encSTP(regFP, regLR, regSP, 0))
 	cb.emit(encSTP(regX19, regX20, regSP, 16))
+	cb.emit(encSTP(regX21, 22, regSP, 32))
 	cb.emit(encADDimm(regFP, regSP, 0))
 
-	// X19 = base (start of string), X20 = scan pointer.
-	cb.emit(encMOVreg(regX19, regX0))
-	cb.emit(encMOVreg(regX20, regX0))
+	cb.emit(encMOVreg(regX19, regX0)) // X19 = increment
 
-	// Scan loop: load byte at X20, if zero stop, else X20++.
-	cb.defineLabel("ps_scan")
-	cb.emit(encLDRBuoff(regX0, regX20, 0))    // X0 = *X20
-	cb.emitCBZ(regX0, "ps_write")             // if zero → done
-	cb.emit(encADDimm(regX20, regX20, 1))     // X20++
-	cb.emitB("ps_scan")
+	// X20 = &sbrk_cur_brk (from literal pool)
+	cb.emitLDRglobal(sbrkGlobalName)
+	cb.emit(encMOVreg(regX20, regX9))
 
-	// write(1, X19, X20-X19).
-	cb.defineLabel("ps_write")
-	cb.emit(encSUBreg(regX2, regX20, regX19)) // X2 = length
-	cb.emitCBZ(regX2, "ps_ret")               // skip write if empty
-	cb.emitMOVimm(regX0, 1)                   // fd = stdout
-	cb.emit(encMOVreg(regX1, regX19))         // buf = base
-	cb.emitMOVimm(regX8, 64)                  // sys_write
+	// X21 = *X20 = cur_brk
+	cb.emit(encLDRuoff(regX21, regX20, 0))
+	cb.emitCBNZ(regX21, "sbrk_have_brk")
+
+	// First call: brk(0) → discover current break.
+	cb.emit(encMOVZ(regX0, 0, 0))
+	cb.emitMOVimm(regX8, 214)
 	cb.emit(encSVC(0))
+	cb.emitCBNZ(regX0, "sbrk_init_ok")
+	// failure
+	cb.emit(encMOVN(regX0, 0, 0)) // X0 = -1
+	cb.emitB("sbrk_epilogue")
 
-	cb.defineLabel("ps_ret")
+	cb.defineLabel("sbrk_init_ok")
+	cb.emit(encMOVreg(regX21, regX0))       // X21 = discovered break
+	cb.emit(encSTRuoff(regX21, regX20, 0))  // store it
+
+	cb.defineLabel("sbrk_have_brk")
+	// if (increment == 0) return cur_brk
+	cb.emit(encMOVreg(regX0, regX21))       // X0 = cur_brk (return value)
+	cb.emitCBZ(regX19, "sbrk_epilogue")
+
+	// new_brk = cur_brk + increment
+	cb.emit(encADDreg(regX0, regX21, regX19)) // X0 = new_brk (arg to brk)
+	cb.emitMOVimm(regX8, 214)
+	cb.emit(encSVC(0))
+	// X0 = actual new break.  On Linux, if brk fails it returns the old break.
+	// Success: X0 >= X21 + X19.
+	cb.emit(encADDreg(regX1, regX21, regX19)) // X1 = requested new_brk
+	cb.emit(encCMPreg(regX0, regX1))           // cmp X0, X1
+	cb.emitBcond(condGE, "sbrk_ok")            // if actual >= requested, OK
+
+	// failure: return -1
+	cb.emit(encMOVN(regX0, 0, 0))
+	cb.emitB("sbrk_epilogue")
+
+	cb.defineLabel("sbrk_ok")
+	cb.emit(encSTRuoff(regX0, regX20, 0))    // update sbrk_cur_brk = actual
+	cb.emit(encMOVreg(regX0, regX21))        // return old_brk
+
+	cb.defineLabel("sbrk_epilogue")
+	cb.emit(encLDP(regX21, 22, regSP, 32))
 	cb.emit(encLDP(regX19, regX20, regSP, 16))
 	cb.emit(encLDP(regFP, regLR, regSP, 0))
 	cb.emit(encADDimm(regSP, regSP, 48))
 	cb.emit(encRET())
 }
 
-// emitPrintDoubleFn emits gaston_print_double(D0 = double value).
-//
-// Prints the value as "[-]integer.fraction\n" with 6 decimal places.
-//
-// Frame layout (80 bytes):
-//   SP+0:  FP       SP+8:  LR
-//   SP+16: X19 (integer part of |D0|)
-//   SP+24: X20 (fractional part scaled to 6 digits)
-//   SP+32: X21 (digit buffer pointer)
-//   SP+40: X22 (digit loop counter)
-//   SP+48..SP+79: 32-byte scratch buffer
-//     SP+48:       1-byte scratch (sign char, '.', '\n')
-//     SP+49..SP+79: 31-byte integer digit buffer (built right-to-left)
-//     SP+48..SP+53: 6-byte fractional digit buffer (reused after int write)
-func (g *elfGen) emitPrintDoubleFn() {
+// emitPosixSyscalls emits thin wrappers for the POSIX syscalls that picolibc
+// needs: read, write, open, close, lseek.  Each is a leaf function that loads
+// the syscall number into X8 and executes SVC #0.  Arguments are already in
+// X0-X2 per the AAPCS64 calling convention, matching the Linux syscall ABI.
+func (g *elfGen) emitPosixSyscalls() {
 	cb := g.cb
-	cb.defineLabel("gaston_print_double")
 
-	// Prologue.
-	cb.emit(encSUBimm(regSP, regSP, 80))
-	cb.emit(encSTP(regFP, regLR, regSP, 0))
-	cb.emit(encSTP(regX19, regX20, regSP, 16))
-	cb.emit(encSTP(regX21, 22, regSP, 32)) // X21, X22
-	cb.emit(encADDimm(regFP, regSP, 0))
-
-	// Step 1: handle sign — FCMP D0, #0.0; if ≥ 0 skip sign printing.
-	cb.emit(encFCMPDzero(0))
-	cb.emitBcond(condGE, "pd_pos")
-	cb.emitMOVimm(regX0, '-')
-	cb.emit(encSTRBuoff(regX0, regSP, 48))
-	cb.emitMOVimm(regX0, 1)
-	cb.emit(encADDimm(regX1, regSP, 48))
-	cb.emitMOVimm(regX2, 1)
-	cb.emitMOVimm(regX8, 64)
+	// ssize_t read(int fd, void *buf, size_t count)  — syscall 63
+	cb.defineLabel("read")
+	cb.emitMOVimm(regX8, 63)
 	cb.emit(encSVC(0))
-	cb.emit(encFNEGD(0, 0)) // D0 = |D0|
-	cb.defineLabel("pd_pos")
-
-	// Step 2: extract integer part into X19.
-	cb.emit(encFCVTZSD(regX19, 0)) // X19 = (int64)D0
-
-	// Step 3: compute fractional part in D1 = D0 − (double)X19.
-	cb.emit(encSCVTFD(1, regX19)) // D1 = (double)X19
-	cb.emit(encFSUBD(1, 0, 1))   // D1 = D0 − D1
-
-	// Step 4: scale fractional to 6 digits in X20.
-	cb.emitMOVimm(regX0, 1000000)
-	cb.emit(encSCVTFD(2, regX0))   // D2 = 1000000.0
-	cb.emit(encFMULD(1, 1, 2))     // D1 = D1 * 1000000.0
-	cb.emit(encFCVTZSD(regX20, 1)) // X20 = 6-digit fractional
-
-	// Step 5: print integer part (X19) — build digits backward into SP+49..SP+79.
-	cb.emit(encADDimm(regX21, regSP, 79)) // X21 = &buf[31]
-	cb.emitCBNZ(regX19, "pd_int_nonzero")
-	// X19 == 0: emit single '0'.
-	cb.emitMOVimm(regX0, '0')
-	cb.emit(encSTRBuoff(regX0, regX21, 0))
-	cb.emit(encSUBimm(regX21, regX21, 1))
-	cb.emitB("pd_int_done")
-	// X19 != 0: digit-extract loop.
-	cb.defineLabel("pd_int_nonzero")
-	cb.emitMOVimm(regX0, 10) // divisor in X0 (constant through loop)
-	cb.defineLabel("pd_int_loop")
-	cb.emit(encUDIV(regX2, regX19, regX0))    // X2  = X19 / 10
-	cb.emit(encMUL(3, regX2, regX0))          // X3  = quotient * 10
-	cb.emit(encSUBreg(3, regX19, 3))          // X3  = X19 mod 10
-	cb.emit(encADDimm(3, 3, '0'))             // X3  = ASCII digit
-	cb.emit(encSTRBuoff(3, regX21, 0))        // *X21 = digit
-	cb.emit(encSUBimm(regX21, regX21, 1))     // X21--
-	cb.emit(encMOVreg(regX19, regX2))         // X19 = X19 / 10
-	cb.emitCBNZ(regX19, "pd_int_loop")
-	cb.defineLabel("pd_int_done")
-	cb.emit(encADDimm(regX21, regX21, 1)) // X21 = first digit
-	// write(1, X21, SP+80 − X21)
-	cb.emit(encMOVreg(regX1, regX21))
-	cb.emit(encADDimm(regX2, regSP, 80))
-	cb.emit(encSUBreg(regX2, regX2, regX1))
-	cb.emitMOVimm(regX0, 1)
-	cb.emitMOVimm(regX8, 64)
-	cb.emit(encSVC(0))
-
-	// Step 6: print '.'.
-	cb.emitMOVimm(regX0, '.')
-	cb.emit(encSTRBuoff(regX0, regSP, 48))
-	cb.emitMOVimm(regX0, 1)
-	cb.emit(encADDimm(regX1, regSP, 48))
-	cb.emitMOVimm(regX2, 1)
-	cb.emitMOVimm(regX8, 64)
-	cb.emit(encSVC(0))
-
-	// Step 7: print 6 fractional digits (zero-padded) from X20.
-	// Build backward into SP+48..SP+53 (least-significant digit at SP+53).
-	cb.emit(encADDimm(regX21, regSP, 53)) // X21 = SP+53 (last slot)
-	cb.emitMOVimm(22, 6)                  // X22 = 6 (counter)
-	cb.emitMOVimm(regX0, 10)
-	cb.defineLabel("pd_frac_loop")
-	cb.emit(encUDIV(regX2, regX20, regX0))  // X2  = X20 / 10
-	cb.emit(encMUL(3, regX2, regX0))        // X3  = quotient * 10
-	cb.emit(encSUBreg(3, regX20, 3))        // X3  = X20 mod 10
-	cb.emit(encADDimm(3, 3, '0'))           // X3  = ASCII digit
-	cb.emit(encSTRBuoff(3, regX21, 0))      // *X21 = digit
-	cb.emit(encSUBimm(regX21, regX21, 1))   // X21--
-	cb.emit(encMOVreg(regX20, regX2))       // X20 = X20 / 10
-	cb.emit(encSUBimm(22, 22, 1))           // X22--
-	cb.emitCBNZ(22, "pd_frac_loop")
-	// write(1, SP+48, 6)
-	cb.emitMOVimm(regX0, 1)
-	cb.emit(encADDimm(regX1, regSP, 48))
-	cb.emitMOVimm(regX2, 6)
-	cb.emitMOVimm(regX8, 64)
-	cb.emit(encSVC(0))
-
-	// Step 8: print '\n'.
-	cb.emitMOVimm(regX0, '\n')
-	cb.emit(encSTRBuoff(regX0, regSP, 48))
-	cb.emitMOVimm(regX0, 1)
-	cb.emit(encADDimm(regX1, regSP, 48))
-	cb.emitMOVimm(regX2, 1)
-	cb.emitMOVimm(regX8, 64)
-	cb.emit(encSVC(0))
-
-	// Epilogue.
-	cb.emit(encLDP(regX21, 22, regSP, 32))
-	cb.emit(encLDP(regX19, regX20, regSP, 16))
-	cb.emit(encLDP(regFP, regLR, regSP, 0))
-	cb.emit(encADDimm(regSP, regSP, 80))
-	cb.emit(encRET())
-}
-
-// freeListGlobalName is the synthetic BSS global used as the allocator's
-// free-list head pointer.  It is registered in the literal pool so that
-// emitMallocFn / emitFreeFn can load its address via emitLDRglobal, just
-// like any user-declared global.  The slot is zero-initialised by the OS
-// because it lives in the BSS segment.
-const freeListGlobalName = "gaston_free_list_head"
-
-// ── boundary-tag coalescing allocator ─────────────────────────────────────────
-//
-// Block layout (every block, free or allocated):
-//
-//	[+0]  header  8 bytes: (block_size | alloc_bit)
-//	              block_size includes header + payload + footer, always ≥ 32,
-//	              always a multiple of 8.  alloc_bit = bit 0: 1=allocated, 0=free.
-//	[+8]  payload (or, when free: next_free ptr 8 bytes)
-//	[+16] …       (or, when free: prev_free ptr 8 bytes)
-//	…
-//	[size-8]  footer 8 bytes: identical to header
-//
-// The user pointer returned by malloc points to [+8] (payload start).
-//
-// Each 1 MB slab is initialised with:
-//   [+0..+15]   prologue  (allocated sentinel, size=16, alloc=1)
-//   [+16..end-9] one big free block
-//   [end-8..end-1] epilogue (allocated sentinel, size=0, alloc=1)
-//
-// The prologue prevents backward coalescing past the slab start; the
-// epilogue (size=0) stops forward coalescing at the slab end.
-//
-// Register conventions inside malloc/free:
-//   X19 = n_bytes (malloc) / block_ptr (free)
-//   X20 = block_size_needed (malloc) / current coalesced size (free)
-//   X21 = &gaston_free_list_slot  (constant throughout the function)
-//   X22 = current/chosen block pointer
-//   X23 = confirmed block size (malloc found_block section)
-
-const allocSlabSize = 1 << 20 // 1 MB
-
-// emitMallocFn emits gaston_malloc(X0 = n_bytes) → X0 = user_ptr.
-//
-// First-fit search of the explicit free list; splits large blocks; lazy-mmaps
-// a new 1 MB slab when the list has no block large enough.
-func (g *elfGen) emitMallocFn() {
-	cb := g.cb
-	cb.defineLabel("gaston_malloc")
-
-	// ── prologue (64-byte frame, save X19-X23) ────────────────────────────
-	cb.emit(encSUBimm(regSP, regSP, 64))
-	cb.emit(encSTP(regFP, regLR, regSP, 0))
-	cb.emit(encSTP(regX19, regX20, regSP, 16))
-	cb.emit(encSTP(regX21, regX22, regSP, 32))
-	cb.emit(encSTP(regX23, 24 /*X24*/, regSP, 48)) // save X24 as spare callee pair
-	cb.emit(encADDimm(regFP, regSP, 0))
-
-	cb.emit(encMOVreg(regX19, regX0)) // X19 = n_bytes
-
-	// ── compute block_size_needed → X20 ──────────────────────────────────
-	// payload  = max(roundup8(n_bytes), 16)
-	// block_sz = payload + 16  (header + footer)
-	cb.emitMOVimm(regX1, 16)
-	cb.emit(encCMPreg(regX19, regX1))
-	cb.emitBcond(condGE, "gaston_malloc_size_ok")
-	cb.emit(encMOVreg(regX0, regX1)) // X0 = 16 (minimum payload)
-	cb.emitB("gaston_malloc_size_done")
-	cb.defineLabel("gaston_malloc_size_ok")
-	cb.emit(encMOVreg(regX0, regX19)) // X0 = n_bytes
-	cb.defineLabel("gaston_malloc_size_done")
-	cb.emit(encADDimm(regX0, regX0, 7))   // X0 += 7
-	cb.emit(encLSRimm(regX0, regX0, 3))   // X0 >>= 3
-	cb.emit(encLSLimm(regX0, regX0, 3))   // X0 <<= 3  → roundup8(payload)
-	cb.emit(encADDimm(regX20, regX0, 16)) // X20 = block_size_needed
-
-	// ── load free-list head address ───────────────────────────────────────
-	// gaston_free_list_head lives in the BSS segment (RW); load its VA via
-	// the literal pool, then read the current head pointer.
-	cb.emitLDRglobal(freeListGlobalName)        // X9 = &gaston_free_list_head
-	cb.emit(encMOVreg(regX21, regX9))           // X21 = &gaston_free_list_head
-	cb.emit(encLDRuoff(regX22, regX21, 0))      // X22 = *X21 = free_list_head
-
-	// ── first-fit search ──────────────────────────────────────────────────
-	cb.defineLabel("gaston_malloc_search")
-	cb.emitCBZ(regX22, "gaston_malloc_new_slab")
-	cb.emit(encLDRuoff(regX0, regX22, 0)) // X0 = header
-	cb.emit(encLSRimm(regX1, regX0, 1))   // X1 = header >> 1
-	cb.emit(encLSLimm(regX1, regX1, 1))   // X1 = block_size (alloc bit cleared)
-	cb.emit(encCMPreg(regX1, regX20))
-	cb.emitBcond(condGE, "gaston_malloc_found")
-	cb.emit(encLDRuoff(regX22, regX22, 8)) // X22 = X22.next
-	cb.emitB("gaston_malloc_search")
-
-	// ── found a fitting block ─────────────────────────────────────────────
-	// X22 = block ptr,  X1 = block_size
-	cb.defineLabel("gaston_malloc_found")
-	cb.emit(encMOVreg(regX23, regX1)) // X23 = block_size (save)
-
-	// Check split condition: remainder = block_size - block_size_needed ≥ 32
-	cb.emit(encSUBreg(regX2, regX23, regX20)) // X2 = remainder
-	cb.emitMOVimm(regX0, 32)
-	cb.emit(encCMPreg(regX2, regX0))
-	cb.emitBcond(condLT, "gaston_malloc_use_whole")
-
-	// ── split: carve X20-byte block from front, leave X2-byte block ──────
-	cb.emit(encADDreg(regX3, regX22, regX20)) // X3 = new free block ptr
-
-	// new free block header + footer
-	cb.emit(encSTRuoff(regX2, regX3, 0)) // new.header = X2
-	cb.emit(encADDreg(regX0, regX3, regX2))
-	cb.emit(encSUBimm(regX0, regX0, 8))
-	cb.emit(encSTRuoff(regX2, regX0, 0)) // new.footer = X2
-
-	// new.next = X22.next;  new.prev = X22.prev
-	cb.emit(encLDRuoff(regX0, regX22, 8))  // X0 = X22.next
-	cb.emit(encLDRuoff(regX1, regX22, 16)) // X1 = X22.prev
-	cb.emit(encSTRuoff(regX0, regX3, 8))   // new.next = X0
-	cb.emit(encSTRuoff(regX1, regX3, 16))  // new.prev = X1
-
-	// fix up prev.next → X3 (or free_list_head → X3)
-	cb.emitCBZ(regX1, "gaston_malloc_split_fix_head")
-	cb.emit(encSTRuoff(regX3, regX1, 8)) // prev.next = X3
-	cb.emitB("gaston_malloc_split_fix_next")
-	cb.defineLabel("gaston_malloc_split_fix_head")
-	cb.emit(encSTRuoff(regX3, regX21, 0)) // free_list_head = X3
-	cb.defineLabel("gaston_malloc_split_fix_next")
-	// fix up next.prev → X3 (if next != 0)
-	cb.emitCBZ(regX0, "gaston_malloc_split_alloc")
-	cb.emit(encSTRuoff(regX3, regX0, 16)) // next.prev = X3
-
-	// mark X22 as allocated (size = X20)
-	cb.defineLabel("gaston_malloc_split_alloc")
-	cb.emit(encADDimm(regX0, regX20, 1))        // X0 = X20 | 1
-	cb.emit(encSTRuoff(regX0, regX22, 0))        // X22.header = X20|1
-	cb.emit(encADDreg(regX1, regX22, regX20))
-	cb.emit(encSUBimm(regX1, regX1, 8))
-	cb.emit(encSTRuoff(regX0, regX1, 0)) // X22.footer = X20|1
-	cb.emitB("gaston_malloc_ret")
-
-	// ── use whole block (no split) ────────────────────────────────────────
-	cb.defineLabel("gaston_malloc_use_whole")
-	// mark as allocated (size = X23)
-	cb.emit(encADDimm(regX0, regX23, 1))  // X0 = X23 | 1
-	cb.emit(encSTRuoff(regX0, regX22, 0)) // header
-	cb.emit(encADDreg(regX1, regX22, regX23))
-	cb.emit(encSUBimm(regX1, regX1, 8))
-	cb.emit(encSTRuoff(regX0, regX1, 0)) // footer
-
-	// remove X22 from free list
-	cb.emit(encLDRuoff(regX0, regX22, 8))  // X0 = next
-	cb.emit(encLDRuoff(regX1, regX22, 16)) // X1 = prev
-	cb.emitCBZ(regX1, "gaston_malloc_whole_fix_head")
-	cb.emit(encSTRuoff(regX0, regX1, 8)) // prev.next = next
-	cb.emitB("gaston_malloc_whole_fix_next")
-	cb.defineLabel("gaston_malloc_whole_fix_head")
-	cb.emit(encSTRuoff(regX0, regX21, 0)) // free_list_head = next
-	cb.defineLabel("gaston_malloc_whole_fix_next")
-	cb.emitCBZ(regX0, "gaston_malloc_ret")
-	cb.emit(encSTRuoff(regX1, regX0, 16)) // next.prev = prev
-
-	// ── return user pointer ───────────────────────────────────────────────
-	cb.defineLabel("gaston_malloc_ret")
-	cb.emit(encADDimm(regX0, regX22, 8)) // X0 = block + 8 (skip header)
-
-	// ── epilogue ──────────────────────────────────────────────────────────
-	cb.defineLabel("gaston_malloc_epi")
-	cb.emit(encLDP(regX23, 24, regSP, 48))
-	cb.emit(encLDP(regX21, regX22, regSP, 32))
-	cb.emit(encLDP(regX19, regX20, regSP, 16))
-	cb.emit(encLDP(regFP, regLR, regSP, 0))
-	cb.emit(encADDimm(regSP, regSP, 64))
 	cb.emit(encRET())
 
-	// ── new slab: mmap 1 MB, initialise, prepend to free list ────────────
-	cb.defineLabel("gaston_malloc_new_slab")
-	cb.emitMOVimm(regX0, 0)
-	cb.emitMOVimm(regX1, allocSlabSize)
-	cb.emitMOVimm(regX2, 3)    // PROT_READ|PROT_WRITE
-	cb.emitMOVimm(regX3, 0x22) // MAP_PRIVATE|MAP_ANONYMOUS
-	cb.emit(encMOVN(regX4, 0, 0))
-	cb.emitMOVimm(regX5, 0)
-	cb.emitMOVimm(regX8, 222) // SYS_MMAP
+	// ssize_t write(int fd, const void *buf, size_t count)  — syscall 64
+	cb.defineLabel("write")
+	cb.emitMOVimm(regX8, 64)
 	cb.emit(encSVC(0))
-	// X0 = slab_base
-	cb.emit(encMOVreg(regX23, regX0)) // X23 = slab_base
+	cb.emit(encRET())
 
-	// prologue: [+0]=16|1, [+8]=16|1
-	cb.emitMOVimm(regX0, 17) // 16 | 1
-	cb.emit(encSTRuoff(regX0, regX23, 0))
-	cb.emit(encSTRuoff(regX0, regX23, 8))
+	// int open(const char *pathname, int flags, int mode)  — syscall 56
+	cb.defineLabel("open")
+	// ARM64 Linux uses openat (56) with AT_FDCWD=-100 in X0, path in X1.
+	// But glibc's open() wrapper uses openat internally.  For simplicity,
+	// ARM64 Linux doesn't have a plain "open" syscall — it only has openat (56).
+	// open(path, flags, mode) = openat(AT_FDCWD, path, flags, mode)
+	cb.emit(encMOVreg(regX3, regX2))  // mode → X3
+	cb.emit(encMOVreg(regX2, regX1))  // flags → X2
+	cb.emit(encMOVreg(regX1, regX0))  // pathname → X1
+	cb.emitMOVimm(regX0, 0)           // AT_FDCWD = -100
+	cb.emit(encSUBimm(regX0, regX0, 100))
+	cb.emitMOVimm(regX8, 56)          // openat
+	cb.emit(encSVC(0))
+	cb.emit(encRET())
 
-	// first free block at slab_base+16, size = allocSlabSize−24
-	cb.emit(encADDimm(regX3, regX23, 16)) // X3 = first free block ptr
-	cb.emitMOVimm(regX0, allocSlabSize-24)
-	cb.emit(encSTRuoff(regX0, regX3, 0)) // header = size
-	// footer at X3 + size − 8
-	cb.emit(encADDreg(regX1, regX3, regX0))
-	cb.emit(encSUBimm(regX1, regX1, 8))
-	cb.emit(encSTRuoff(regX0, regX1, 0)) // footer = size
-	// next = old head; prev = 0
-	cb.emit(encLDRuoff(regX1, regX21, 0))                   // X1 = old head
-	cb.emit(encSTRuoff(regX1, regX3, 8))                    // new.next = old head
-	cb.emit(encSTRuoff(regXZR, regX3, 16))                  // new.prev = 0
-	cb.emitCBZ(regX1, "gaston_malloc_slab_fix_head")
-	cb.emit(encSTRuoff(regX3, regX1, 16)) // old_head.prev = X3
-	cb.defineLabel("gaston_malloc_slab_fix_head")
-	cb.emit(encSTRuoff(regX3, regX21, 0)) // free_list_head = X3
+	// int close(int fd)  — syscall 57
+	cb.defineLabel("close")
+	cb.emitMOVimm(regX8, 57)
+	cb.emit(encSVC(0))
+	cb.emit(encRET())
 
-	// epilogue sentinel at slab_base + allocSlabSize − 8
-	cb.emitMOVimm(regX0, 1) // size=0, alloc=1
-	cb.emitMOVimm(regX1, allocSlabSize-8)
-	cb.emit(encADDreg(regX1, regX23, regX1))
-	cb.emit(encSTRuoff(regX0, regX1, 0)) // epilogue header
-
-	// retry search with X22 = new block
-	cb.emit(encMOVreg(regX22, regX3))
-	cb.emitB("gaston_malloc_search")
-}
-
-// emitFreeFn emits gaston_free(X0 = user_ptr).
-//
-// Marks the block free, coalesces with adjacent free neighbours (O(1) via
-// boundary tags), then prepends the result to the free list.
-func (g *elfGen) emitFreeFn() {
-	cb := g.cb
-	cb.defineLabel("gaston_free")
-
-	// ── prologue ──────────────────────────────────────────────────────────
-	cb.emit(encSUBimm(regSP, regSP, 64))
-	cb.emit(encSTP(regFP, regLR, regSP, 0))
-	cb.emit(encSTP(regX19, regX20, regSP, 16))
-	cb.emit(encSTP(regX21, regX22, regSP, 32))
-	cb.emit(encSTP(regX23, 24 /*X24*/, regSP, 48))
-	cb.emit(encADDimm(regFP, regSP, 0))
-
-	cb.emitLDRglobal(freeListGlobalName)    // X9 = &gaston_free_list_head
-	cb.emit(encMOVreg(regX21, regX9))      // X21 = &gaston_free_list_head
-	cb.emit(encSUBimm(regX19, regX0, 8))        // X19 = block_ptr = user_ptr − 8
-
-	// load header, extract size into X20
-	cb.emit(encLDRuoff(regX0, regX19, 0))
-	cb.emit(encLSRimm(regX20, regX0, 1))
-	cb.emit(encLSLimm(regX20, regX20, 1)) // X20 = block_size
-
-	// mark block free (write size with alloc=0 to header and footer)
-	cb.emit(encSTRuoff(regX20, regX19, 0)) // header = size
-	cb.emit(encADDreg(regX0, regX19, regX20))
-	cb.emit(encSUBimm(regX0, regX0, 8))
-	cb.emit(encSTRuoff(regX20, regX0, 0)) // footer = size
-
-	// ── coalesce right ─────────────────────────────────────────────────────
-	cb.emit(encADDreg(regX0, regX19, regX20)) // X0 = next_block
-	cb.emit(encLDRuoff(regX1, regX0, 0))      // X1 = next.header
-	cb.emit(encLSRimm(regX2, regX1, 1))
-	cb.emit(encLSLimm(regX2, regX2, 1))   // X2 = next_size (alloc bit cleared)
-	cb.emit(encCMPreg(regX1, regX2))
-	cb.emitBcond(condNE, "gaston_free_cl") // next is allocated → skip
-	cb.emitCBZ(regX2, "gaston_free_cl")   // epilogue sentinel (size=0) → skip
-
-	// remove next_block (X0) from free list
-	cb.emit(encLDRuoff(regX22, regX0, 8))  // X22 = next.next
-	cb.emit(encLDRuoff(regX23, regX0, 16)) // X23 = next.prev
-	cb.emitCBZ(regX23, "gaston_free_cr_head")
-	cb.emit(encSTRuoff(regX22, regX23, 8)) // prev.next = next.next
-	cb.emitB("gaston_free_cr_next")
-	cb.defineLabel("gaston_free_cr_head")
-	cb.emit(encSTRuoff(regX22, regX21, 0)) // free_list_head = next.next
-	cb.defineLabel("gaston_free_cr_next")
-	cb.emitCBZ(regX22, "gaston_free_cr_done")
-	cb.emit(encSTRuoff(regX23, regX22, 16)) // next.next.prev = next.prev
-	cb.defineLabel("gaston_free_cr_done")
-
-	// extend current block
-	cb.emit(encADDreg(regX20, regX20, regX2)) // X20 += next_size
-	cb.emit(encSTRuoff(regX20, regX19, 0))    // update header
-	cb.emit(encADDreg(regX0, regX19, regX20))
-	cb.emit(encSUBimm(regX0, regX0, 8))
-	cb.emit(encSTRuoff(regX20, regX0, 0)) // update footer
-
-	// ── coalesce left ──────────────────────────────────────────────────────
-	cb.defineLabel("gaston_free_cl")
-	cb.emit(encSUBimm(regX0, regX19, 8))  // X0 = prev footer addr
-	cb.emit(encLDRuoff(regX1, regX0, 0))  // X1 = prev.footer value
-	cb.emit(encLSRimm(regX2, regX1, 1))
-	cb.emit(encLSLimm(regX2, regX2, 1))  // X2 = prev_size (alloc bit cleared)
-	cb.emit(encCMPreg(regX1, regX2))
-	cb.emitBcond(condNE, "gaston_free_add") // prev is allocated → skip
-	cb.emitCBZ(regX2, "gaston_free_add")   // prev_size=0? (shouldn't happen, safety)
-
-	// prev_block = X19 − prev_size
-	cb.emit(encSUBreg(regX0, regX19, regX2)) // X0 = prev_block ptr
-
-	// remove prev_block (X0) from free list
-	cb.emit(encLDRuoff(regX22, regX0, 8))  // X22 = prev.next
-	cb.emit(encLDRuoff(regX23, regX0, 16)) // X23 = prev.prev
-	cb.emitCBZ(regX23, "gaston_free_cl_head")
-	cb.emit(encSTRuoff(regX22, regX23, 8)) // prev.prev.next = prev.next
-	cb.emitB("gaston_free_cl_next")
-	cb.defineLabel("gaston_free_cl_head")
-	cb.emit(encSTRuoff(regX22, regX21, 0)) // free_list_head = prev.next
-	cb.defineLabel("gaston_free_cl_next")
-	cb.emitCBZ(regX22, "gaston_free_cl_done")
-	cb.emit(encSTRuoff(regX23, regX22, 16)) // prev.next.prev = prev.prev
-	cb.defineLabel("gaston_free_cl_done")
-
-	// merge current block into prev
-	cb.emit(encADDreg(regX20, regX20, regX2)) // X20 += prev_size
-	cb.emit(encMOVreg(regX19, regX0))         // X19 = prev_block
-	cb.emit(encSTRuoff(regX20, regX19, 0))    // update header
-	cb.emit(encADDreg(regX0, regX19, regX20))
-	cb.emit(encSUBimm(regX0, regX0, 8))
-	cb.emit(encSTRuoff(regX20, regX0, 0)) // update footer
-
-	// ── prepend to free list ───────────────────────────────────────────────
-	cb.defineLabel("gaston_free_add")
-	cb.emit(encLDRuoff(regX0, regX21, 0))     // X0 = old_head
-	cb.emit(encSTRuoff(regX0, regX19, 8))     // new.next = old_head
-	cb.emit(encSTRuoff(regXZR, regX19, 16))   // new.prev = 0
-	cb.emitCBZ(regX0, "gaston_free_add_head")
-	cb.emit(encSTRuoff(regX19, regX0, 16)) // old_head.prev = new_block
-	cb.defineLabel("gaston_free_add_head")
-	cb.emit(encSTRuoff(regX19, regX21, 0)) // free_list_head = new_block
-
-	// ── epilogue ──────────────────────────────────────────────────────────
-	cb.emit(encLDP(regX23, 24, regSP, 48))
-	cb.emit(encLDP(regX21, regX22, regSP, 32))
-	cb.emit(encLDP(regX19, regX20, regSP, 16))
-	cb.emit(encLDP(regFP, regLR, regSP, 0))
-	cb.emit(encADDimm(regSP, regSP, 64))
+	// off_t lseek(int fd, off_t offset, int whence)  — syscall 62
+	cb.defineLabel("lseek")
+	cb.emitMOVimm(regX8, 62)
+	cb.emit(encSVC(0))
 	cb.emit(encRET())
 }
 
@@ -2371,19 +1732,18 @@ func genELF(irp *IRProgram, outpath string) error {
 
 	// Only include non-extern globals in the pool (extern globals are resolved
 	// by the linker; in single-file ELF mode they would not exist anyway).
-	// Also add a synthetic global for the allocator's free-list head (BSS, 8 bytes).
+	// Also add a synthetic BSS global for sbrk's current-break pointer.
 	definedGlobals := make([]IRGlobal, 0, len(irp.Globals))
 	for _, gbl := range irp.Globals {
 		if !gbl.IsExtern {
 			definedGlobals = append(definedGlobals, gbl)
 		}
 	}
-	// Synthetic global: malloc's free-list head pointer (lives in BSS, zero-init).
-	freeListSynth := IRGlobal{Name: freeListGlobalName, Size: 1}
-	bssOffset[freeListGlobalName] = bssTotal
-	bssList = append(bssList, globalInfo{freeListGlobalName, bssTotal})
+	sbrkSynth := IRGlobal{Name: sbrkGlobalName, Size: 1}
+	bssOffset[sbrkGlobalName] = bssTotal
+	bssList = append(bssList, globalInfo{sbrkGlobalName, bssTotal})
 	bssTotal += 8
-	allPoolGlobals := append(definedGlobals, freeListSynth)
+	definedGlobals = append(definedGlobals, sbrkSynth)
 
 	// Build function return-type map for FP return detection in emitCall.
 	funcRetType := make(map[string]TypeKind, len(irp.Funcs))
@@ -2391,7 +1751,7 @@ func genELF(irp *IRProgram, outpath string) error {
 		funcRetType[fn.Name] = fn.ReturnType
 	}
 
-	cb := newCodeBuilder(allPoolGlobals, irp.StrLits, irp.FConsts, irp.FuncRefs)
+	cb := newCodeBuilder(definedGlobals, irp.StrLits, irp.FConsts, irp.FuncRefs)
 	gen := &elfGen{
 		cb:            cb,
 		pendingParams: make([]paramArg, 0, 8),
@@ -2401,14 +1761,8 @@ func genELF(irp *IRProgram, outpath string) error {
 	}
 
 	gen.emitStart(definedGlobals)
-	gen.emitOutputFn()
-	gen.emitInputFn()
-	gen.emitFflushFn()
-	gen.emitPrintCharFn()
-	gen.emitPrintStringFn()
-	gen.emitPrintDoubleFn()
-	gen.emitMallocFn()
-	gen.emitFreeFn()
+	gen.emitSbrkFn()
+	gen.emitPosixSyscalls()
 	for _, fn := range irp.Funcs {
 		gen.genFunc(fn)
 	}

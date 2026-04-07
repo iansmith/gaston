@@ -14,7 +14,7 @@
 //   [8] .shstrtab — section name strings
 //
 // Symbol naming:
-//   Functions   → "gaston_<name>" (STB_GLOBAL, STT_FUNC, in .text)
+//   Functions   → "<name>" (STB_GLOBAL, STT_FUNC, in .text)
 //   Global vars → "<name>"        (STB_GLOBAL, STT_OBJECT, in .bss or .data)
 //   Str lits    → ".str<n>"       (STB_LOCAL,  STT_OBJECT, in .rodata)
 //
@@ -261,7 +261,7 @@ func genObjectFile(irp *IRProgram, outpath string) error {
 	// Global symbols for locally-defined functions (STB_GLOBAL, STT_FUNC).
 	funcSymIdx := make(map[string]int) // C-minus name → symtab index
 	for _, fn := range irp.Funcs {
-		label := funcLabel(fn.Name) // "gaston_<name>"
+		label := funcLabel(fn.Name)
 		wordIdx, ok := cb.labels[label]
 		if !ok {
 			return fmt.Errorf("genObjectFile: function label %q not found", label)
