@@ -29,30 +29,23 @@
 
 /* $Id: vsnprintf.c 1944 2009-04-01 23:12:20Z arcanum $ */
 
-#include <limits.h>
 #include <stdarg.h>
 #include "stdio_private.h"
+
+#ifndef FDEV_STRING_WRITE_END
+#define FDEV_STRING_WRITE_END(_s, _n) (((int)(_n) < 0) ? ((char *)0) : ((_n) ? (_s) + (_n) - 1 : (_s)))
+#endif
 
 int
 vsnprintf(char *s, size_t n, const char *fmt, va_list ap)
 {
-	int i;
+    int               i;
+    struct __file_str f = FDEV_SETUP_STRING_WRITE(s, FDEV_STRING_WRITE_END(s, n));
 
-	/* Restrict max output length to INT_MAX, as snprintf() return
-	   signed int. The fputc() function uses a signed comparison
-	   between estimated len and f.size field. So we can write a
-	   negative value into f.size in the case of n was 0. Note,
-	   that f.size will be a max number of nonzero symbols.	*/
+    i = vfprintf(&f.file, fmt, ap);
 
-	if ((int) n < 0)
-		n = (unsigned)INT_MAX + 1;
+    if (n)
+        *f.pos = '\0';
 
-	struct __file_str f = FDEV_SETUP_STRING_WRITE(s, n ? n - 1 : 0);
-
-	i = vfprintf(&f.file, fmt, ap);
-
-	if (n)
-            *f.pos = '\0';
-
-	return i;
+    return i;
 }
