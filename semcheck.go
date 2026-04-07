@@ -459,7 +459,8 @@ func arrayParamToPtr(p *Node) (TypeKind, *CType) {
 		return p.Type, p.Pointee
 	}
 	if p.ElemType == TypePtr {
-		return TypePtr, p.ElemPointee
+		// Array of pointers (e.g. char *argv[]) decays to pointer-to-pointer (char **).
+		return TypePtr, ptrCType(p.ElemPointee)
 	}
 	if p.ElemType != 0 {
 		return TypePtr, leafCType(p.ElemType)
@@ -529,6 +530,9 @@ func checkCompound(n *Node, st *symTable, fn *Node, errs *[]string) {
 			if sd != nil {
 				st.structDefs[sd.Name] = sd
 			}
+		case KindFunDecl:
+			// Local function prototype (e.g. "void f(int, void *);") — register as extern.
+			checkFunDecl(child, st, errs)
 		case KindVarDecl:
 			// Resolve typeof(expr) before processing the declaration.
 			if child.Type == TypeTypeof && child.TypeofExpr != nil {
@@ -613,13 +617,21 @@ func checkStmt(n *Node, st *symTable, fn *Node, errs *[]string) {
 		checkStmt(n.Children[1], st, fn, errs)
 	case KindFor:
 		if n.Children[0] != nil {
-			checkExpr(n.Children[0], st, errs)
+			if n.Children[0].Kind == KindCompound {
+				checkStmt(n.Children[0], st, fn, errs)
+			} else {
+				checkExpr(n.Children[0], st, errs)
+			}
 		}
 		if n.Children[1] != nil {
 			checkExpr(n.Children[1], st, errs)
 		}
 		if n.Children[2] != nil {
-			checkExpr(n.Children[2], st, errs)
+			if n.Children[2].Kind == KindCompound {
+				checkStmt(n.Children[2], st, fn, errs)
+			} else {
+				checkExpr(n.Children[2], st, errs)
+			}
 		}
 		checkStmt(n.Children[3], st, fn, errs)
 	case KindDoWhile:
@@ -737,7 +749,10 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			return TypeInt
 		}
 		if ptee.Kind == TypeVoid {
-			*errs = append(*errs, "cannot dereference void pointer")
+			// Allow deref of function pointer casts — *((void (*)(T)) fn) is valid C.
+			if child.Kind != KindCast {
+				*errs = append(*errs, "cannot dereference void pointer")
+			}
 			n.Type = TypeInt
 			return TypeInt
 		}
@@ -860,8 +875,17 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		}
 		checkExpr(n.Children[0], st, errs)
 		checkExpr(n.Children[1], st, errs)
-		// Element type of the 2D array
-		if e.elemType != 0 {
+		// Element type of the 2D array (or array-of-pointers: arr[i][j] = (arr[i])[j]).
+		if e.elemType == TypePtr {
+			// Array of pointers: second subscript dereferences the pointer element.
+			if e.elemPointee != nil {
+				n.Type = e.elemPointee.Kind
+				n.StructTag = e.elemPointee.Tag
+				n.Pointee = e.elemPointee.Pointee
+			} else {
+				n.Type = TypeInt
+			}
+		} else if e.elemType != 0 {
 			n.Type = e.elemType
 		} else {
 			n.Type = TypeInt
@@ -1018,9 +1042,26 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			if isPtrType(lt) && !isPtrType(rt) && (n.Op == "+" || n.Op == "-") {
 				n.Type = lt
 				n.Pointee = n.Children[0].Pointee
+				n.StructTag = n.Children[0].StructTag
 			} else if isPtrType(rt) && !isPtrType(lt) && n.Op == "+" {
 				n.Type = rt
 				n.Pointee = n.Children[1].Pointee
+				n.StructTag = n.Children[1].StructTag
+			} else if lt == TypeIntArray && !isPtrType(rt) && (n.Op == "+" || n.Op == "-") {
+				// Array + integer: array decays to pointer, result is pointer.
+				n.Type = TypePtr
+				lc := n.Children[0]
+				if lc.ElemType == TypePtr {
+					n.Pointee = ptrCType(lc.ElemPointee)
+				} else if lc.ElemType != 0 {
+					n.Pointee = leafCType(lc.ElemType)
+					if lc.ElemType == TypeStruct {
+						n.StructTag = lc.StructTag
+						if n.Pointee != nil {
+							n.Pointee.Tag = lc.StructTag
+						}
+					}
+				}
 			} else if isFPType(lt) || isFPType(rt) {
 				n.Type = TypeDouble
 			} else if lt == TypeUint128 || rt == TypeUint128 {

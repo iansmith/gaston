@@ -64,6 +64,7 @@ package main
 %type <declrs> gd_init_declarator_list
 %type <ctyp>   gd_pointer
 %type <fdecl>  gd_fun_declarator
+%type <sval>   local_fun_proto
 
 // Logical operators: || < &&
 %left OROR
@@ -244,11 +245,11 @@ param
 	: type_specifier ID
 		{ $$ = ctNode(KindParam, $1, $2) }
 	| type_specifier ID '[' const_int_expr ']' '[' const_int_expr ']'
-		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $2, ElemType: $1.Kind, Dim2: $7} }
+		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $2, ElemType: $1.Kind, StructTag: $1.Tag, Dim2: $7} }
 	| type_specifier ID '[' const_int_expr ']'
-		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $2, ElemType: $1.Kind, Val: $4} }
+		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $2, ElemType: $1.Kind, StructTag: $1.Tag, Val: $4} }
 	| type_specifier ID '[' ']'
-		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $2, ElemType: $1.Kind} }
+		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $2, ElemType: $1.Kind, StructTag: $1.Tag} }
 	| type_specifier '*' ID '[' ']'
 		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $3, ElemType: TypePtr, ElemPointee: $1} }
 	| type_specifier '*' ID
@@ -347,9 +348,9 @@ param
 		{ $$ = &Node{Kind: KindParam, Type: TypeFuncPtr, Name: ""} }
 	/* Nameless sized/unsized array parameters: e.g. "unsigned short[3]", "regmatch_t[]" */
 	| type_specifier '[' const_int_expr ']'
-		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: $1.Kind, Val: $3} }
+		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: $1.Kind, StructTag: $1.Tag, Val: $3} }
 	| type_specifier '[' ']'
-		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: $1.Kind} }
+		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: $1.Kind, StructTag: $1.Tag} }
 	/* const-qualified scalar parameters: "const int32_t e" */
 	| CONST type_specifier ID
 		{ $$ = ctNode(KindParam, $2, $3) }
@@ -374,8 +375,8 @@ block_item_list
 	| block_item_list var_declaration
 		{ $$ = append($1, $2...) }
 	/* const_declaration merged into var_declaration */
-	| block_item_list declaration_specifiers gd_fun_declarator ';'
-		{ $$ = $1 }  /* local function prototype — ignore */
+	| block_item_list declaration_specifiers local_fun_proto ';'
+		{ fn := applyDeclToFunNode($2, $3, nil, nil, nil); $$ = append($1, fn) }
 	| block_item_list STRUCT ID ';'
 		{ $$ = $1 }
 	| block_item_list UNION ID ';'
@@ -629,6 +630,11 @@ postfix_expr
 	/* Parenthesized expression with subscript: (expr)[idx] */
 	| '(' expression ')' '[' expression ']'
 		{ $$ = &Node{Kind: KindIndexExpr, Children: []*Node{$2, $5}} }
+	/* Post-increment/decrement on parenthesized expression: (x)++, (x)-- */
+	| '(' expression ')' INC
+		{ $$ = &Node{Kind: KindPostInc, Children: []*Node{$2}} }
+	| '(' expression ')' DEC
+		{ $$ = &Node{Kind: KindPostDec, Children: []*Node{$2}} }
 	/* Indirect call through parenthesized expression: (ptr->fn)(args), (fnptr)(args) */
 	| '(' expression ')' '(' args ')'
 		{ $$ = &Node{Kind: KindIndirectCall, Children: append([]*Node{$2}, $5...)} }
@@ -652,6 +658,10 @@ expression
 		{ $$ = &Node{Kind: KindCompoundAssign, Op: "|", Children: []*Node{$2, $5}} }
 	| '(' expression ')' XOREQ expression
 		{ $$ = &Node{Kind: KindCompoundAssign, Op: "^", Children: []*Node{$2, $5}} }
+	| '(' expression ')' SHLEQ expression
+		{ $$ = &Node{Kind: KindCompoundAssign, Op: "<<", Children: []*Node{$2, $5}} }
+	| '(' expression ')' SHREQ expression
+		{ $$ = &Node{Kind: KindCompoundAssign, Op: ">>", Children: []*Node{$2, $5}} }
 	| '*' factor '=' expression
 		{ lhs := &Node{Kind: KindDeref, Children: []*Node{$2}}; $$ = &Node{Kind: KindAssign, Children: []*Node{lhs, $4}} }
 	/* ── Compound assignment through pointer: "*eptr += expr" ── */
@@ -1126,6 +1136,62 @@ typedef_declaration
 		{ yylex.(*lexer).registerTypedef($6, leafCType(TypeInt)); $$ = $4 }
 	;
 
+/* local_fun_proto matches function prototypes inside function bodies.
+   These are always ignored (block_item_list produces $1), so we don't
+   need semantic values.  Uses its own param rules to support both named
+   and unnamed parameters without conflicting with the global params rule. */
+local_fun_proto
+	: ID '(' local_params ')'
+		{ $$ = $1 }
+	| gd_pointer ID '(' local_params ')'
+		{ $$ = $2 }
+	| gd_pointer CONST ID '(' local_params ')'
+		{ $$ = $3 }
+	| '(' ID ')' '(' local_params ')'
+		{ $$ = $2 }
+	;
+
+local_params
+	: local_param_list
+	| local_param_list ',' ELLIPSIS
+	| /* empty */
+	;
+
+local_param_list
+	: local_param_list ',' local_param
+	| local_param
+	;
+
+local_param
+	: type_specifier
+	| type_specifier ID
+	| type_specifier '*'
+	| type_specifier '*' ID
+	| type_specifier '*' '*'
+	| type_specifier '*' '*' ID
+	| type_specifier '*' CONST
+	| type_specifier '*' CONST ID
+	| type_specifier CONST '*'
+	| type_specifier CONST '*' ID
+	| STRUCT ID
+	| STRUCT ID ID
+	| STRUCT ID '*'
+	| STRUCT ID '*' ID
+	| STRUCT ID '*' '*'
+	| STRUCT ID '*' '*' ID
+	| CONST type_specifier
+	| CONST type_specifier ID
+	| CONST type_specifier '*'
+	| CONST type_specifier '*' ID
+	| CONST type_specifier '*' CONST
+	| CONST type_specifier '*' CONST ID
+	| CONST STRUCT ID '*'
+	| CONST STRUCT ID '*' ID
+	| CONST STRUCT ID ID
+	| type_specifier '(' '*' ID ')' '(' fp_param_types ')'
+	| type_specifier '(' '*' ')' '(' fp_param_types ')'
+	;
+
 fp_param_types
 	: fp_param_type_list { $$ = $1 }
 	| /* empty */        { $$ = nil }
@@ -1151,8 +1217,8 @@ fp_param_type
 	| CONST type_specifier '*' ID { n := &Node{Kind: KindParam, Type: TypePtr, Name: $4}; n.Pointee = $2; $$ = n }
 	| type_specifier CONST '*'    { n := &Node{Kind: KindParam, Type: TypePtr}; n.Pointee = $1; $$ = n }
 	| type_specifier CONST '*' ID { n := &Node{Kind: KindParam, Type: TypePtr, Name: $4}; n.Pointee = $1; $$ = n }
-	| type_specifier '[' const_int_expr ']' { $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: $1.Kind, Val: $3} }
-	| type_specifier '[' ']'   { $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: $1.Kind} }
+	| type_specifier '[' const_int_expr ']' { $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: $1.Kind, StructTag: $1.Tag, Val: $3} }
+	| type_specifier '[' ']'   { $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: $1.Kind, StructTag: $1.Tag} }
 	| CONST type_specifier ID  { $$ = ctNode(KindParam, $2, $3) }
 	| CONST type_specifier     { $$ = ctNode(KindParam, $2, "") }
 	| CONST STRUCT ID '[' const_int_expr ']' { $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: TypeStruct, ElemPointee: structCType($3), Val: $5} }

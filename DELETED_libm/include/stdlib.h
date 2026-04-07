@@ -83,6 +83,7 @@ typedef int (*__compar_fn_t)(const void *, const void *);
 
 #define EXIT_FAILURE 1
 #define EXIT_SUCCESS 0
+#define ATEXIT_MAX   32
 
 #define RAND_MAX     __RAND_MAX
 
@@ -400,6 +401,10 @@ constraint_handler_t set_constraint_handler_s(constraint_handler_t handler);
 void abort_handler_s(const char * __restrict msg, void * __restrict ptr, __errno_t error);
 void ignore_handler_s(const char * __restrict msg, void * __restrict ptr, __errno_t error);
 #endif
+
+/* picolibc internal — declared here so getenv.c/setenv.c compile without
+   implicit function declarations */
+char *_findenv(const char *, int *);
 
 _END_STD_C
 

@@ -364,6 +364,10 @@ func (g *irGen) genCompound(n *Node) {
 			g.prog.StructDefs[sd.Name] = sd
 			continue
 		}
+		if child.Kind == KindFunDecl {
+			// Local function prototype — no codegen needed.
+			continue
+		}
 		if child.Kind == KindVarDecl && child.IsConst {
 			continue // const locals are folded away by semcheck; no storage needed
 		}
