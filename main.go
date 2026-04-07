@@ -77,7 +77,7 @@ func main() {
 		}
 		outFile := *outFlag
 		if outFile == "" {
-			outFile = "a.out"
+			outFile = "a.elf"
 		}
 		// Resolve -l flags into archive paths and append to input list.
 		inputs := flag.Args()
@@ -189,7 +189,7 @@ func main() {
 	// Default: emit Linux ARM64 ELF binary.
 	outFile := *outFlag
 	if outFile == "" {
-		outFile = filepath.Join(dir, base)
+		outFile = filepath.Join(dir, base+".elf")
 	}
 	if err := genELF(irp, outFile); err != nil {
 		fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
