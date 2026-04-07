@@ -29,8 +29,12 @@ func main() {
 	outFlag    := flag.String("o", "", "output file name (used with -c, -link, or -ar)")
 	var includePaths includeFlags
 	var defines defineFlags
+	var libPaths libPathFlags
+	var libs libFlags
 	flag.Var(&includePaths, "I", "add `directory` to the include search path (may be repeated)")
 	flag.Var(&defines, "D", "define preprocessor macro `NAME[=value]` (may be repeated)")
+	flag.Var(&libPaths, "L", "add `directory` to the library search path (may be repeated)")
+	flag.Var(&libs, "l", "link against lib`name` (searches -L paths for libname.a)")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage:\n")
@@ -42,6 +46,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  gaston -preprocess <file.cm>        — preprocess only; write <base>.pre.cm\n")
 		fmt.Fprintf(os.Stderr, "  gaston -I <dir> <file.cm>           — add include search path\n")
 		fmt.Fprintf(os.Stderr, "  gaston -D NAME[=val] <file.cm>      — define preprocessor macro\n")
+		fmt.Fprintf(os.Stderr, "  gaston -L <dir> -l <name>           — library search path / library\n")
 	}
 	flag.Parse()
 
@@ -74,7 +79,17 @@ func main() {
 		if outFile == "" {
 			outFile = "a.out"
 		}
-		if err := link(outFile, flag.Args()); err != nil {
+		// Resolve -l flags into archive paths and append to input list.
+		inputs := flag.Args()
+		for _, lib := range libs {
+			path, err := resolveLib(lib, []string(libPaths))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
+				os.Exit(1)
+			}
+			inputs = append(inputs, path)
+		}
+		if err := link(outFile, inputs); err != nil {
 			fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
 			os.Exit(1)
 		}

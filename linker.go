@@ -22,6 +22,19 @@ import (
 	"strings"
 )
 
+// resolveLib searches for libname.a in the given directories.
+// Returns the full path to the first match, or an error if not found.
+func resolveLib(name string, searchPaths []string) (string, error) {
+	filename := "lib" + name + ".a"
+	for _, dir := range searchPaths {
+		path := dir + "/" + filename
+		if _, err := os.Stat(path); err == nil {
+			return path, nil
+		}
+	}
+	return "", fmt.Errorf("cannot find -l%s (searched: %v)", name, searchPaths)
+}
+
 // linkerLoadBase is the virtual base address for the output ET_EXEC.
 const linkerLoadBase = uint64(0x400000)
 

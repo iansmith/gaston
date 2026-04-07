@@ -42,6 +42,18 @@ type defineFlags []string
 func (f *defineFlags) String() string        { return strings.Join(*f, " ") }
 func (f *defineFlags) Set(v string) error    { *f = append(*f, v); return nil }
 
+// libPathFlags is a flag.Value that accumulates -L <dir> library search paths.
+type libPathFlags []string
+
+func (f *libPathFlags) String() string     { return strings.Join(*f, ":") }
+func (f *libPathFlags) Set(v string) error { *f = append(*f, v); return nil }
+
+// libFlags is a flag.Value that accumulates -l <name> library names.
+type libFlags []string
+
+func (f *libFlags) String() string     { return strings.Join(*f, " ") }
+func (f *libFlags) Set(v string) error { *f = append(*f, v); return nil }
+
 // builtinHeaders provides virtual content for standard headers that gaston
 // implements internally rather than relying on a host system libc.
 var builtinHeaders = map[string]string{
