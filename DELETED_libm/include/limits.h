@@ -26,6 +26,9 @@
 
 #define MB_LEN_MAX 1
 
+/* size_t limit */
+#define SIZE_MAX   18446744073709551615UL
+
 /* POSIX limits */
 #define ATEXIT_MAX    32
 #define PATH_MAX      1024

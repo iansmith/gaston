@@ -1158,7 +1158,7 @@ func TestStdlibCompile(t *testing.T) {
 		t.Fatalf("read stdlib dir: %v", err)
 	}
 	includePaths := stdlibIncludePaths()
-	defines := []string{"__SVID_VISIBLE=1", "__POSIX_VISIBLE=1", "__XSI_VISIBLE=1"}
+	defines := []string{"__SVID_VISIBLE=1", "__POSIX_VISIBLE=1", "__XSI_VISIBLE=1", "_LIBC=1", "__SINGLE_THREAD=1"}
 
 	passed := 0
 	var failed []string
