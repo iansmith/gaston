@@ -802,6 +802,11 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			n.Pointee = child.ElemPointee
 			return elemType
 		}
+		if t == TypeFuncPtr {
+			// Dereferencing a function pointer is a no-op in C: (*fnptr)(args) == fnptr(args).
+			n.Type = TypeFuncPtr
+			return TypeFuncPtr
+		}
 		if t != TypePtr && t != TypeCharPtr {
 			// Allow deref on opaque types from struct field access or array subscripts —
 			// the actual type may be a function pointer that semcheck can't track.

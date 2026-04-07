@@ -860,6 +860,8 @@ factor
 		{ $$ = &Node{Kind: KindSizeof, Children: []*Node{$3}} }
 	| SIZEOF postfix_expr
 		{ $$ = &Node{Kind: KindSizeof, Children: []*Node{$2}} }
+	| SIZEOF '*' factor
+		{ deref := &Node{Kind: KindDeref, Children: []*Node{$3}}; $$ = &Node{Kind: KindSizeof, Children: []*Node{deref}} }
 	| VA_ARG '(' expression ',' type_specifier ')'
 		{
 			n := ctNode(KindVAArg, $5, "")

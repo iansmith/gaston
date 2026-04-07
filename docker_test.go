@@ -1198,13 +1198,7 @@ func TestCtypeCompile(t *testing.T) {
 
 // searchSkip lists search/ source files that are not yet supported.
 var searchSkip = map[string]bool{
-	"hcreate_r.c": true, // sizeof *ptr (no parens)
-	"ndbm.c":      true, // function pointer inside struct typedef
-	"tdelete.c":   true, // double-pointer locals + dereference
-	"tdestroy.c":  true, // double-pointer locals + dereference
-	"tfind.c":     true, // double-pointer locals + dereference
-	"tsearch.c":   true, // double-pointer locals + dereference
-	"twalk.c":     true, // double-pointer locals + dereference
+	"ndbm.c": true, // BSD db internals: function pointer fields in typedef'd struct, local headers
 }
 
 // searchIncludePaths returns the include search paths for picolibc search/ sources.
@@ -1294,9 +1288,7 @@ func TestMiscCompile(t *testing.T) {
 }
 
 // argzSkip lists argz/ source files that are not yet supported.
-var argzSkip = map[string]bool{
-	"argz_create.c": true, // cannot dereference non-pointer (double-pointer pattern)
-}
+var argzSkip = map[string]bool{}
 
 // TestArgzCompile compiles every picolibc argz/*.c source file.
 func TestArgzCompile(t *testing.T) {
