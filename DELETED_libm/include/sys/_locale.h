@@ -4,6 +4,7 @@
 #ifndef _SYS__LOCALE_H
 #define _SYS__LOCALE_H
 
-typedef int locale_t;
+/* locale_t is a pointer to the internal locale struct (matches picolibc internals). */
+typedef struct __locale_t *locale_t;
 
 #endif /* _SYS__LOCALE_H */

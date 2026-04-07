@@ -1008,6 +1008,332 @@ func TestSemErrors(t *testing.T) {
 	}
 }
 
+// timeIncludePaths returns the include search paths for picolibc time/ sources.
+func timeIncludePaths() []string {
+	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/time"
+	return []string{
+		tdir,
+		"libm/include",
+		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+	}
+}
+
+// timeSkip lists time/ source files that are not yet supported.
+var timeSkip = map[string]bool{}
+
+// TestTimeCompile compiles every picolibc time/*.c source file and verifies
+// gaston can parse and codegen each one.
+func TestTimeCompile(t *testing.T) {
+	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/time"
+	entries, err := os.ReadDir(tdir)
+	if err != nil {
+		t.Fatalf("read time dir: %v", err)
+	}
+	includePaths := timeIncludePaths()
+	defines := []string{"__SVID_VISIBLE=1", "__POSIX_VISIBLE=1", "__XSI_VISIBLE=1"}
+
+	passed := 0
+	var failed []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".c") {
+			continue
+		}
+		if timeSkip[e.Name()] {
+			continue
+		}
+		src := tdir + "/" + e.Name()
+		obj := fmt.Sprintf("/tmp/time-%s.o", strings.TrimSuffix(e.Name(), ".c"))
+		t.Cleanup(func() { os.Remove(obj) })
+		if err := compileObjPath(src, obj, includePaths, defines...); err != nil {
+			t.Logf("FAIL %s: %v", e.Name(), err)
+			failed = append(failed, e.Name())
+			continue
+		}
+		passed++
+	}
+	t.Logf("%d passed, %d failed", passed, len(failed))
+	if len(failed) > 0 {
+		t.Errorf("failed files: %v", failed)
+	}
+}
+
+// stringSkip lists string/ source files that are not yet supported.
+var stringSkip = map[string]bool{
+	"strdup_r.c":       true, // calls _malloc_r
+	"strndup_r.c":      true, // calls _malloc_r
+	"strerror.c":       true, // calls _user_strerror (custom hook, not in headers)
+	"strerror_r.c":     true, // calls _strerror_r
+	"xpg_strerror_r.c": true, // calls _strerror_r
+}
+
+// stringIncludePaths returns the include search paths for picolibc string/ sources.
+func stringIncludePaths() []string {
+	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/string"
+	return []string{
+		tdir,
+		"libm/include",
+		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+	}
+}
+
+// TestStringCompile compiles every picolibc string/*.c source file and verifies
+// gaston can parse and codegen each one.
+func TestStringCompile(t *testing.T) {
+	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/string"
+	entries, err := os.ReadDir(tdir)
+	if err != nil {
+		t.Fatalf("read string dir: %v", err)
+	}
+	includePaths := stringIncludePaths()
+	defines := []string{"__SVID_VISIBLE=1", "__POSIX_VISIBLE=1", "__XSI_VISIBLE=1"}
+
+	passed := 0
+	var failed []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".c") {
+			continue
+		}
+		if stringSkip[e.Name()] {
+			continue
+		}
+		src := tdir + "/" + e.Name()
+		obj := fmt.Sprintf("/tmp/string-%s.o", strings.TrimSuffix(e.Name(), ".c"))
+		t.Cleanup(func() { os.Remove(obj) })
+		if err := compileObjPath(src, obj, includePaths, defines...); err != nil {
+			t.Logf("FAIL %s: %v", e.Name(), err)
+			failed = append(failed, e.Name())
+			continue
+		}
+		passed++
+	}
+	t.Logf("%d passed, %d failed", passed, len(failed))
+	if len(failed) > 0 {
+		t.Errorf("failed files: %v", failed)
+	}
+}
+
+// stdlibSkip lists stdlib/ source files that are not yet supported.
+var stdlibSkip = map[string]bool{
+	// Reentrant internal variants
+	"calloc.c": true, // calls _calloc_r
+	"mtrim.c":  true, // calls _malloc_trim_r
+	// OS-level
+	"system.c": true,
+	// Regex dependency
+	"rpmatch.c": true,
+	// Complex floating-point conversion
+	"dtoa.c":        true,
+	"strtod.c":      true,
+	"strtodg.c":     true,
+	"ldtoa.c":       true,
+	"mprec.c":       true,
+	"ecvtbuf.c":     true,
+	"gdtoa-dmisc.c": true,
+	"gdtoa-gdtoa.c": true,
+	"gdtoa-gethex.c": true,
+	"gdtoa-gmisc.c": true,
+	"gdtoa-hexnan.c": true,
+	"gdtoa-ldtoa.c": true,
+	// Internal malloc variants
+	"mallocr.c":     true,
+	"nano-mallocr.c": true,
+}
+
+// stdlibIncludePaths returns the include search paths for picolibc stdlib/ sources.
+func stdlibIncludePaths() []string {
+	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/stdlib"
+	return []string{
+		tdir,
+		"libm/include",
+		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+	}
+}
+
+// TestStdlibCompile compiles every picolibc stdlib/*.c source file and verifies
+// gaston can parse and codegen each one.
+func TestStdlibCompile(t *testing.T) {
+	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/stdlib"
+	entries, err := os.ReadDir(tdir)
+	if err != nil {
+		t.Fatalf("read stdlib dir: %v", err)
+	}
+	includePaths := stdlibIncludePaths()
+	defines := []string{"__SVID_VISIBLE=1", "__POSIX_VISIBLE=1", "__XSI_VISIBLE=1"}
+
+	passed := 0
+	var failed []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".c") {
+			continue
+		}
+		if stdlibSkip[e.Name()] {
+			continue
+		}
+		src := tdir + "/" + e.Name()
+		obj := fmt.Sprintf("/tmp/stdlib-%s.o", strings.TrimSuffix(e.Name(), ".c"))
+		t.Cleanup(func() { os.Remove(obj) })
+		if err := compileObjPath(src, obj, includePaths, defines...); err != nil {
+			t.Logf("FAIL %s: %v", e.Name(), err)
+			failed = append(failed, e.Name())
+			continue
+		}
+		passed++
+	}
+	t.Logf("%d passed, %d failed", passed, len(failed))
+	if len(failed) > 0 {
+		t.Errorf("failed files: %v", failed)
+	}
+}
+
+// localeSkip lists locale/ source files that are not yet supported.
+var localeSkip = map[string]bool{}
+
+// localeIncludePaths returns the include search paths for picolibc locale/ sources.
+func localeIncludePaths() []string {
+	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/locale"
+	return []string{
+		tdir,
+		"libm/include",
+		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+	}
+}
+
+// TestLocaleCompile compiles every picolibc locale/*.c source file and verifies
+// gaston can parse and codegen each one.
+func TestLocaleCompile(t *testing.T) {
+	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/locale"
+	entries, err := os.ReadDir(tdir)
+	if err != nil {
+		t.Fatalf("read locale dir: %v", err)
+	}
+	includePaths := localeIncludePaths()
+	defines := []string{"__SVID_VISIBLE=1", "__POSIX_VISIBLE=1", "__XSI_VISIBLE=1"}
+
+	passed := 0
+	var failed []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".c") {
+			continue
+		}
+		if localeSkip[e.Name()] {
+			continue
+		}
+		src := tdir + "/" + e.Name()
+		obj := fmt.Sprintf("/tmp/locale-%s.o", strings.TrimSuffix(e.Name(), ".c"))
+		t.Cleanup(func() { os.Remove(obj) })
+		if err := compileObjPath(src, obj, includePaths, defines...); err != nil {
+			t.Logf("FAIL %s: %v", e.Name(), err)
+			failed = append(failed, e.Name())
+			continue
+		}
+		passed++
+	}
+	t.Logf("%d passed, %d failed", passed, len(failed))
+	if len(failed) > 0 {
+		t.Errorf("failed files: %v", failed)
+	}
+}
+
+// posixSkip lists posix/ source files that are not yet supported.
+var posixSkip = map[string]bool{
+	"engine.c": true, // template file #include'd by regexec.c, not independently compilable
+}
+
+// posixIncludePaths returns the include search paths for picolibc posix/ sources.
+func posixIncludePaths() []string {
+	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/posix"
+	return []string{
+		tdir,
+		"libm/include",
+		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+	}
+}
+
+// TestPosixCompile compiles every picolibc posix/*.c source file and verifies
+// gaston can parse and codegen each one.
+func TestPosixCompile(t *testing.T) {
+	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/posix"
+	entries, err := os.ReadDir(tdir)
+	if err != nil {
+		t.Fatalf("read posix dir: %v", err)
+	}
+	includePaths := posixIncludePaths()
+	defines := []string{"__SVID_VISIBLE=1", "__POSIX_VISIBLE=1", "__XSI_VISIBLE=1"}
+
+	passed := 0
+	var failed []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".c") {
+			continue
+		}
+		if posixSkip[e.Name()] {
+			continue
+		}
+		src := tdir + "/" + e.Name()
+		obj := fmt.Sprintf("/tmp/posix-%s.o", strings.TrimSuffix(e.Name(), ".c"))
+		t.Cleanup(func() { os.Remove(obj) })
+		if err := compileObjPath(src, obj, includePaths, defines...); err != nil {
+			t.Logf("FAIL %s: %v", e.Name(), err)
+			failed = append(failed, e.Name())
+			continue
+		}
+		passed++
+	}
+	t.Logf("%d passed, %d failed", passed, len(failed))
+	if len(failed) > 0 {
+		t.Errorf("failed files: %v", failed)
+	}
+}
+
+// signalSkip lists signal/ source files that are not yet supported.
+var signalSkip = map[string]bool{}
+
+// signalIncludePaths returns the include search paths for picolibc signal/ sources.
+func signalIncludePaths() []string {
+	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/signal"
+	return []string{
+		tdir,
+		"libm/include",
+		"/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/include",
+	}
+}
+
+// TestSignalCompile compiles every picolibc signal/*.c source file and verifies
+// gaston can parse and codegen each one.
+func TestSignalCompile(t *testing.T) {
+	tdir := "/Users/iansmith/wazero/tinygo/lib/picolibc/newlib/libc/signal"
+	entries, err := os.ReadDir(tdir)
+	if err != nil {
+		t.Fatalf("read signal dir: %v", err)
+	}
+	includePaths := signalIncludePaths()
+	defines := []string{"__SVID_VISIBLE=1", "__POSIX_VISIBLE=1", "__XSI_VISIBLE=1"}
+
+	passed := 0
+	var failed []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".c") {
+			continue
+		}
+		if signalSkip[e.Name()] {
+			continue
+		}
+		src := tdir + "/" + e.Name()
+		obj := fmt.Sprintf("/tmp/signal-%s.o", strings.TrimSuffix(e.Name(), ".c"))
+		t.Cleanup(func() { os.Remove(obj) })
+		if err := compileObjPath(src, obj, includePaths, defines...); err != nil {
+			t.Logf("FAIL %s: %v", e.Name(), err)
+			failed = append(failed, e.Name())
+			continue
+		}
+		passed++
+	}
+	t.Logf("%d passed, %d failed", passed, len(failed))
+	if len(failed) > 0 {
+		t.Errorf("failed files: %v", failed)
+	}
+}
+
 // TestDockerRun compiles each test program and runs it in an Alpine ARM64
 // container, comparing stdout to the expected string.
 func TestDockerRun(t *testing.T) {

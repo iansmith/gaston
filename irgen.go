@@ -137,6 +137,15 @@ func genIR(prog *Node) *IRProgram {
 				if init.Kind == KindNum {
 					gbl.HasInitVal = true
 					gbl.InitVal = init.Val
+				} else if init.Kind == KindStrLit {
+					// char array initialized from string literal.
+					// Copy bytes into InitData; NUL-terminate only if there is space.
+					content := []byte(init.Name)
+					byteSize := sz * 8
+					buf := make([]byte, byteSize)
+					copy(buf, content)
+					// NUL at len(content) is already zero (make zeroes)
+					gbl.InitData = buf
 				} else if init.Kind == KindInitList {
 					// Build a byte-buffer from constant-valued init entries.
 					byteSize := sz * 8
@@ -863,8 +872,20 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 		return dst
 
 	case KindAddrOf:
-		// &var → get the storage address of the variable (never loads through a pointer slot)
 		varNode := n.Children[0]
+		if varNode.Kind == KindFieldAccess {
+			// &expr.field or &expr->field: base pointer + field byte offset.
+			// Handles the classic offsetof pattern &((T*)0)->field where base == 0.
+			ptr := g.fieldBasePtr(varNode)
+			offset := g.fieldByteOffset(varNode)
+			if offset == 0 {
+				return ptr
+			}
+			dst := g.newTemp()
+			g.emit(Quad{Op: IRAdd, Dst: dst, Src1: ptr, Src2: IRAddr{Kind: AddrConst, IVal: offset}})
+			return dst
+		}
+		// &var → get the storage address of the variable (never loads through a pointer slot)
 		src := g.addrOf(varNode.Name)
 		dst := g.newTemp()
 		g.emit(Quad{Op: IRAddrOf, Dst: dst, Src1: src})
@@ -1279,6 +1300,11 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 		g.emit(Quad{Op: IRCopy, Dst: dst, Src1: IRAddr{Kind: AddrConst, IVal: 0}})
 		g.emitLabel(doneL)
 		return dst
+
+	case KindCommaExpr:
+		// C comma operator: evaluate left for side effects, return value of right.
+		g.genExpr(n.Children[0])
+		return g.genExpr(n.Children[1])
 
 	case KindTernary:
 		condVal := g.genExpr(n.Children[0])

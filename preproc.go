@@ -516,6 +516,7 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 /* These would otherwise reach the parser and cause syntax errors.        */
 #define __attribute__(x)
 #define __attribute(x)
+#define _ATTRIBUTE(x)
 #define __asm__(x)
 #define __asm(x)
 #define __volatile__(x)
@@ -551,6 +552,17 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 #define __builtin_isgreaterequal(x,y) ((x) >= (y))
 #define __builtin_islessgreater(x,y) ((x) < (y) || (x) > (y))
 #define __builtin_isunordered(x,y)   ((x) != (x) || (y) != (y))
+#define __builtin_offsetof(type,member) ((size_t)(&((type*)0)->member))
+
+/* ── Prevent picolibc's limits.h from clobbering gaston's values ─────── */
+/* picolibc/limits.h has two problematic blocks outside _LIBC_LIMITS_H_ guard:
+   - #include_next <limits.h>  (gaston does not support include_next)
+   These guards tell picolibc that GCC's limits.h has already been processed. */
+#define _LIBC_LIMITS_H_ 1
+#define _GCC_LIMITS_H_  1
+/* Provide LONG_MAX/ULONG_MAX directly so code using them without limits.h works */
+#define LONG_MAX   9223372036854775807L
+#define ULONG_MAX  18446744073709551615UL
 `
 	var dummy strings.Builder
 	pp.processFile(builtinSrc, "<builtin>", &dummy)
@@ -986,6 +998,37 @@ func (p *preprocessor) expandLineOnceDisabled(line string, disabled map[string]b
 				}
 				newDisabled[name] = true
 				expanded := p.expandLineDisabled(def.body, newDisabled)
+				// Rescan rule (C11 §6.10.3.4): if the expanded text is exactly a
+				// function-like macro name and the next source token is '(', apply
+				// the function-like macro now (consuming the argument list from the
+				// remaining source).  This handles e.g. OP(5) where #define OP DOUBLE.
+				trimmedExp := strings.TrimSpace(expanded)
+				if isIdentToken(trimmedExp) && !newDisabled[trimmedExp] {
+					if innerDef, ok := p.defines[trimmedExp]; ok && innerDef.params != nil {
+						k2 := j
+						for k2 < len(line) && (line[k2] == ' ' || line[k2] == '\t') {
+							k2++
+						}
+						if k2 < len(line) && line[k2] == '(' {
+							if args, end, ok2 := collectArgs(line, k2+1); ok2 {
+								expandedArgs := make([]string, len(args))
+								for ai, arg := range args {
+									expandedArgs[ai] = p.expandLineDisabled(arg, disabled)
+								}
+								innerDisabled := make(map[string]bool, len(newDisabled)+1)
+								for kk, v := range newDisabled {
+									innerDisabled[kk] = v
+								}
+								innerDisabled[trimmedExp] = true
+								raw := p.applyFuncMacro(innerDef, trimmedExp, expandedArgs)
+								result := p.expandLineDisabled(raw, innerDisabled)
+								out.WriteString(result)
+								i = end
+								continue
+							}
+						}
+					}
+				}
 				out.WriteString(expanded)
 				i = j
 				continue
@@ -1958,7 +2001,7 @@ func joinOpenLines(lines []logLine) []logLine {
 }
 
 // lineParenDepth returns the net unbalanced open-paren count in s, ignoring
-// content inside string and character literals.
+// content inside string literals, character literals, and // comments.
 func lineParenDepth(s string) int {
 	depth := 0
 	for i := 0; i < len(s); i++ {
@@ -1982,6 +2025,10 @@ func lineParenDepth(s string) int {
 					break
 				}
 				i++
+			}
+		case '/':
+			if i+1 < len(s) && s[i+1] == '/' {
+				return depth // rest of line is a // comment; stop counting
 			}
 		case '(':
 			depth++

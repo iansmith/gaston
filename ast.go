@@ -87,6 +87,21 @@ func ctypeEq(a, b *CType) bool {
 	return ctypeEq(a.Pointee, b.Pointee)
 }
 
+// ctypeCharCompatible reports whether two leaf CTypes are compatible for call-site
+// pointer matching, allowing char ↔ unsigned char interchange (GCC -Wpointer-sign).
+func ctypeCharCompatible(a, b *CType) bool {
+	if ctypeEq(a, b) {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	isCharKind := func(k TypeKind) bool {
+		return k == TypeChar || k == TypeUnsignedChar
+	}
+	return isCharKind(a.Kind) && isCharKind(b.Kind)
+}
+
 // ctypeIsVoidPtr reports whether a CType represents void* (a single pointer to void).
 func ctypeIsVoidPtr(ct *CType) bool {
 	return ct != nil && ct.Kind == TypeVoid
@@ -173,6 +188,7 @@ const (
 	KindPreDec      // --x: Children[0]=lvalue; decrements, then evaluates to new value
 	KindLogAnd      // a && b: short-circuit logical AND; yields 0 or 1 (TypeInt)
 	KindLogOr       // a || b: short-circuit logical OR; yields 0 or 1 (TypeInt)
+	KindCommaExpr   // (expr, expr) — C comma operator; Children[0]=left (side-effect), Children[1]=right (value)
 	KindCast        // (type)expr — explicit type cast; Type/Pointee = target type; Children[0] = source expr
 	KindTernary     // cond ? then : else — Children[0]=cond, [1]=then-expr, [2]=else-expr
 
@@ -423,6 +439,7 @@ func applyTypeToDecls(ct *CType, decls []*Node, isStatic, isConst bool) []*Node 
 		if d.Type == TypeIntArray {
 			// Array item: element type comes from ct; Type stays TypeIntArray.
 			d.ElemType = ct.Kind
+			d.StructTag = ct.Tag // propagate struct tag so array-of-struct subscript resolves fields
 		} else {
 			d.Type = ct.Kind
 			d.StructTag = ct.Tag
@@ -432,6 +449,275 @@ func applyTypeToDecls(ct *CType, decls []*Node, isStatic, isConst bool) []*Node 
 		d.IsConst = isConst
 	}
 	return decls
+}
+
+// ─── DeclSpec / Declarator ─────────────────────────────────────────────────
+// These types support the factored C standard grammar:
+//   declaration: declaration_specifiers init_declarator_list ';'
+// DeclSpec accumulates storage class + qualifiers + base type.
+// Declarator describes name + pointer chain + array dims + initializer.
+
+// DeclSpec holds the accumulated declaration specifiers
+// (storage class + qualifiers + base type).
+type DeclSpec struct {
+	BaseType      *CType // resolved base type from type keywords
+	IsStatic      bool
+	IsExtern      bool
+	IsConst       bool   // leading const (qualifier on type)
+	IsConstTarget bool   // const T *p pattern (pointer target is const)
+	IsTypedef     bool
+	IsUnion       bool   // true when BaseType came from UNION
+	StructDef     *Node  // non-nil if inline struct/union definition
+	TypeofExpr    *Node  // non-nil for typeof(expr) — deferred resolution
+}
+
+// Declarator describes a single declarator: name, pointer chain, array dims, etc.
+type Declarator struct {
+	Name       string // "" for abstract declarators (unnamed params)
+	PtrChain   *CType // pointer chain (nil=no pointers, ptrCType(nil)=single *, etc.)
+	IsConstPtr bool   // T * const p — the pointer itself is const
+	IsArray    bool
+	ArraySize  int  // dimension; -1 for unsized [], 0 for VLA
+	Dim2       int  // inner dimension for 2D arrays
+	IsVLA      bool
+	VLAExpr    *Node // VLA size expression (non-nil when IsVLA)
+	IsFuncPtr  bool  // (*name)(params) function pointer declarator
+	Init       *Node // initializer: expression, KindInitList, or KindStrLit
+}
+
+// FunDeclarator describes a function declarator: name, optional pointer return,
+// parameter list, and whether it's variadic.
+type FunDeclarator struct {
+	Name       string   // function name
+	PtrChain   *CType   // pointer chain for return type (nil = non-pointer return)
+	Params     []*Node  // parameter nodes (KindParam)
+	IsParenName bool    // true for (name)(params) — parenthesized name to prevent macro expansion
+}
+
+// ptrDepth returns the pointer depth of the declarator's PtrChain.
+func (d *Declarator) ptrDepth() int {
+	n := 0
+	for p := d.PtrChain; p != nil; p = p.Pointee {
+		n++
+	}
+	return n
+}
+
+// buildPointee resolves the full pointee CType by combining the DeclSpec base type
+// with the declarator's pointer chain.
+// For single pointer (*): returns ds.BaseType directly.
+// For double pointer (**): returns ptrCType(ds.BaseType).
+// For triple pointer (***): returns ptrCType(ptrCType(ds.BaseType)).
+func buildPointee(ds *DeclSpec, d *Declarator) *CType {
+	depth := d.ptrDepth()
+	if depth == 0 {
+		return nil
+	}
+	// Start from the base type and wrap in (depth-1) pointer layers.
+	result := ds.BaseType
+	for i := 1; i < depth; i++ {
+		result = ptrCType(result)
+	}
+	return result
+}
+
+// applyDeclToVarNode builds a KindVarDecl Node from a DeclSpec and Declarator.
+// The resulting Node has exactly the same field layout as the old grammar actions produce.
+func applyDeclToVarNode(ds *DeclSpec, d *Declarator) *Node {
+	n := &Node{
+		Kind:     KindVarDecl,
+		Name:     d.Name,
+		IsStatic: ds.IsStatic,
+		IsExtern: ds.IsExtern,
+	}
+
+	hasPtr := d.PtrChain != nil
+
+	switch {
+	case d.IsFuncPtr:
+		n.Type = TypeFuncPtr
+		if d.Init != nil {
+			n.Children = []*Node{d.Init}
+		}
+
+	case d.IsArray && hasPtr:
+		// Array of pointers: T *name[N]
+		n.Type = TypeIntArray
+		arrSz := d.ArraySize
+		if arrSz == -1 && d.Init != nil {
+			arrSz = 0 // unsized with init: size inferred from initializer
+		}
+		n.Val = arrSz
+		n.ElemType = TypePtr
+		n.ElemPointee = ds.BaseType
+		if d.Init != nil {
+			n.Children = []*Node{d.Init}
+		}
+
+	case d.IsArray:
+		// Plain array: T name[N] or T name[]
+		n.Type = TypeIntArray
+		arrSz2 := d.ArraySize
+		if arrSz2 == -1 && d.Init != nil {
+			arrSz2 = 0 // unsized with init: size inferred from initializer
+		}
+		n.Val = arrSz2
+		n.Dim2 = d.Dim2
+		n.ElemType = ds.BaseType.Kind
+		n.StructTag = ds.BaseType.Tag
+		if ds.BaseType.Kind == TypeStruct {
+			n.ElemPointee = ds.BaseType
+		}
+		if d.IsVLA {
+			n.IsVLA = true
+			n.Children = []*Node{d.VLAExpr}
+		} else if d.Init != nil {
+			n.Children = []*Node{d.Init}
+		}
+
+	case hasPtr:
+		// Pointer: T *name or T **name
+		n.Type = TypePtr
+		n.Pointee = buildPointee(ds, d)
+		if ds.IsConst && d.ptrDepth() == 1 {
+			n.IsConstTarget = true
+		}
+		if d.Init != nil {
+			n.Children = []*Node{d.Init}
+		}
+
+	default:
+		// Plain scalar or struct
+		n.Type = ds.BaseType.Kind
+		n.StructTag = ds.BaseType.Tag
+		if ds.BaseType.Kind == TypePtr {
+			n.Pointee = ds.BaseType.Pointee
+		}
+		if d.Init != nil {
+			n.Children = []*Node{d.Init}
+		}
+	}
+
+	return n
+}
+
+// applyDeclToParamNode builds a KindParam Node from a DeclSpec and Declarator.
+func applyDeclToParamNode(ds *DeclSpec, d *Declarator) *Node {
+	n := &Node{
+		Kind: KindParam,
+		Name: d.Name,
+	}
+
+	hasPtr := d.PtrChain != nil
+
+	switch {
+	case d.IsFuncPtr:
+		n.Type = TypeFuncPtr
+
+	case d.IsArray && hasPtr:
+		// Array of pointers param: T *name[]
+		n.Type = TypeIntArray
+		n.ElemType = TypePtr
+		n.ElemPointee = ds.BaseType
+		n.Val = d.ArraySize
+
+	case d.IsArray:
+		// Array param: T name[N] or T name[]
+		n.Type = TypeIntArray
+		n.ElemType = ds.BaseType.Kind
+		if ds.BaseType.Kind == TypeStruct {
+			n.ElemPointee = ds.BaseType
+		}
+		n.Val = d.ArraySize
+
+	case hasPtr:
+		// Pointer param: T *name or T **name
+		n.Type = TypePtr
+		n.Pointee = buildPointee(ds, d)
+		if ds.IsConst && d.ptrDepth() == 1 {
+			n.IsConstTarget = true
+		}
+
+	default:
+		// Scalar or struct param
+		n.Type = ds.BaseType.Kind
+		n.StructTag = ds.BaseType.Tag
+		if ds.BaseType.Kind == TypePtr {
+			n.Pointee = ds.BaseType.Pointee
+		}
+	}
+
+	return n
+}
+
+// applyDeclToFunNode builds a KindFunDecl Node from declaration specifiers,
+// a function name, optional pointer return chain, params, and optional body.
+// If body is nil, the declaration is treated as a prototype (IsExtern=true).
+func applyDeclToFunNode(ds *DeclSpec, name string, retPtrChain *CType, params []*Node, body *Node) *Node {
+	n := &Node{
+		Kind:     KindFunDecl,
+		Name:     name,
+		IsStatic: ds.IsStatic,
+		IsExtern: ds.IsExtern,
+	}
+
+	if retPtrChain != nil {
+		// Function returns a pointer type.
+		n.Type = TypePtr
+		n.Pointee = buildPointee(ds, &Declarator{PtrChain: retPtrChain})
+	} else {
+		n.Type = ds.BaseType.Kind
+		n.StructTag = ds.BaseType.Tag
+		if ds.BaseType.Kind == TypePtr {
+			n.Pointee = ds.BaseType.Pointee
+		}
+	}
+
+	if body != nil {
+		n.Children = append(params, body)
+	} else {
+		n.IsExtern = true
+		n.Children = params
+	}
+
+	return n
+}
+
+// buildDeclNodes builds one or more KindVarDecl Nodes from a DeclSpec and a list
+// of Declarators (for multi-variable declarations like "int a, b=3, c[10];").
+// If ds.StructDef is non-nil (inline struct definition), the StructDef node is
+// prepended to the result.
+func buildDeclNodes(ds *DeclSpec, decls []*Declarator, lex *lexer) []*Node {
+	var result []*Node
+
+	// Emit inline struct/union definition if present.
+	if ds.StructDef != nil {
+		result = append(result, ds.StructDef)
+	}
+
+	for _, d := range decls {
+		n := applyDeclToVarNode(ds, d)
+		// Handle typeof expressions.
+		if ds.TypeofExpr != nil {
+			n.TypeofExpr = ds.TypeofExpr
+		}
+		result = append(result, n)
+	}
+
+	return result
+}
+
+// buildFieldNodes builds KindVarDecl Nodes for struct/union fields.
+func buildFieldNodes(ds *DeclSpec, decls []*Declarator) []*Node {
+	var result []*Node
+	if ds.StructDef != nil {
+		result = append(result, ds.StructDef)
+	}
+	for _, d := range decls {
+		n := applyDeclToVarNode(ds, d)
+		result = append(result, n)
+	}
+	return result
 }
 
 func (sd *StructDef) FindFieldDeep(name string, structDefs map[string]*StructDef) *StructField {

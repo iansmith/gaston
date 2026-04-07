@@ -90,6 +90,15 @@ func newLexer(src, file string) *lexer {
 	l.typedefs["__float32"]   = leafCType(TypeFloat)
 	// tinystdio internal type: ultoa_unsigned_t is unsigned long long on LP64.
 	l.typedefs["ultoa_unsigned_t"] = leafCType(TypeUnsignedLong)
+	// Compiler-provided opaque FILE type (picolibc wchar.h uses __FILE directly).
+	l.typedefs["__FILE"] = structCType("__FILE")
+	// GCC built-in va_list types — treat as opaque pointer.
+	l.typedefs["va_list"]        = structCType("__va_list")
+	l.typedefs["__gnuc_va_list"] = structCType("__va_list")
+	// locale_t is a pointer to struct __locale_t (POSIX; picolibc internals).
+	// Pre-register here so function declarations that use locale_t before
+	// the typedef is seen get the correct pointer type.
+	l.typedefs["locale_t"] = ptrCType(structCType("__locale_t"))
 	return l
 }
 
@@ -173,6 +182,7 @@ var skipWords = map[string]bool{
 	"noreturn":   true,
 	// GCC alternate spellings (appear after __GNUC__=4 cdefs.h expansion)
 	"__restrict__":  true,
+	"__restrict":    true,
 	"__volatile__":  true,
 	"__const__":     true,
 	"__signed__":    true,
@@ -186,6 +196,9 @@ var skipWords = map[string]bool{
 	// Thread-local storage specifier (GCC __thread / C11 _Thread_local)
 	"__thread":       true,
 	"_Thread_local":  true,
+	// C++ linkage block delimiters — expand to nothing in C mode.
+	"__BEGIN_DECLS": true,
+	"__END_DECLS":   true,
 }
 
 // Lex scans and returns the next token, filling lval with the token's value.
@@ -215,7 +228,7 @@ func (l *lexer) lex(lval *yySymType) int {
 	for l.pos < len(l.src) {
 		c := l.src[l.pos]
 		switch {
-		case c == ' ' || c == '\t' || c == '\r':
+		case c == ' ' || c == '\t' || c == '\r' || c == '\f' || c == '\v':
 			l.pos++
 		case c == '\n':
 			l.line++
@@ -431,6 +444,8 @@ scan:
 				val = '\''
 			case '"':
 				val = '"'
+			case '?':
+				val = '?'
 			case 'x', 'X':
 				// Hex escape: \xNN
 				l.pos++
@@ -506,6 +521,8 @@ scan:
 					buf = append(buf, '\'')
 				case '"':
 					buf = append(buf, '"')
+				case '?':
+					buf = append(buf, '?')
 				case 'x', 'X':
 					// Hex escape: \xNN
 					l.pos++
@@ -602,6 +619,15 @@ scan:
 			l.pos++
 		}
 		word := l.src[start:l.pos]
+		// Wide/Unicode character literals: L'x', u'x', U'x', u8"..."
+		// Treat as ordinary char/string literal by delegating to the char/string handler.
+		if (word == "L" || word == "u" || word == "U" || word == "u8") &&
+			l.pos < len(l.src) && (l.src[l.pos] == '\'' || l.src[l.pos] == '"') {
+			// Rewind so the char/string literal handler runs on the next character.
+			l.pos = start + len(word)
+			// Fall through to string or char literal handling below by re-entering.
+			return l.Lex(lval)
+		}
 		// Silently skip storage-class/qualifier keywords (volatile, register, restrict, inline).
 		if skipWords[word] {
 			return l.Lex(lval) // re-enter to skip whitespace and get next token

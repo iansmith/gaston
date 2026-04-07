@@ -16,6 +16,9 @@ extern int printf(const char *fmt, ...);
 extern int fprintf(FILE *stream, const char *fmt, ...);
 extern int sprintf(char *buf, const char *fmt, ...);
 extern int snprintf(char *buf, size_t n, const char *fmt, ...);
+extern int scanf(const char *fmt, ...);
+extern int sscanf(const char *buf, const char *fmt, ...);
+extern int fscanf(FILE *stream, const char *fmt, ...);
 extern int puts(const char *s);
 extern int putchar(int c);
 

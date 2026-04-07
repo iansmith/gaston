@@ -684,4 +684,14 @@
 #define FALLTHROUGH do { } while(0)
 #endif
 
+/* Prevent loop-to-libcall transformation (GCC-specific, no-op here). */
+#ifndef __inhibit_loop_to_libcall
+#define __inhibit_loop_to_libcall
+#endif
+
+/* BSD file ID: swallow the string argument as a harmless incomplete-struct decl. */
+#ifndef __FBSDID
+#define __FBSDID(s) struct __hack
+#endif
+
 #endif /* !_SYS_CDEFS_H_ */

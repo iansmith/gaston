@@ -172,12 +172,15 @@ typedef __pid_t pid_t; /* process id */
 
 /* defines for the opengroup specifications Derived from Issue 1 of the SVID.  */
 #if __SVID_VISIBLE || __XSI_VISIBLE
-extern long timezone;
-extern int  daylight;
+extern long _timezone;
+extern int  _daylight;
+#define timezone _timezone
+#define daylight _daylight
 #endif
 
 #if __POSIX_VISIBLE
-extern char * const tzname[2];
+extern char *_tzname[2];
+#define tzname _tzname
 #endif /* __POSIX_VISIBLE */
 
 char *asctime(const struct tm *_tblock);

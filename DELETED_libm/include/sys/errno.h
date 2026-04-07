@@ -33,6 +33,11 @@ SUCH DAMAGE.
 #ifndef _SYS_ERRNO_H_
 #define _SYS_ERRNO_H_
 
+extern int errno;
+#define errno errno              /* satisfies #ifdef errno checks in picolibc */
+#define __errno_r(ptr) (errno)
+#define _REENT_ERRNO(r) (errno)
+
 #define EPERM           1      /* Not owner */
 #define ENOENT          2      /* No such file or directory */
 #define ESRCH           3      /* No such process */

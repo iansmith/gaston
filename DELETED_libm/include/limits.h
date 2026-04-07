@@ -1,6 +1,9 @@
 /* Simplified limits.h for gaston — replaces picolibc version */
 #ifndef _LIMITS_H_
 #define _LIMITS_H_ 1
+/* Prevent picolibc's limits.h from running (it would try #include_next) */
+#define _LIBC_LIMITS_H_ 1
+#define _GCC_LIMITS_H_  1
 
 #define CHAR_BIT   8
 #define SCHAR_MIN  (-128)
@@ -22,5 +25,10 @@
 #define ULLONG_MAX 18446744073709551615ULL
 
 #define MB_LEN_MAX 1
+
+/* POSIX limits */
+#define ATEXIT_MAX    32
+#define PATH_MAX      1024
+#define _POSIX2_RE_DUP_MAX 255
 
 #endif /* _LIMITS_H_ */
