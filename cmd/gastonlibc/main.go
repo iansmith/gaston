@@ -44,18 +44,18 @@ func main() {
 	var objPaths []string
 	passed, failed := 0, 0
 
-	// Gaston .cm sources (libc/).
+	// Gaston libc C sources (libc/).
 	cmDir := filepath.Join(gastonDir, "libc")
 	entries, err := os.ReadDir(cmDir)
 	if err != nil {
 		fatalf("read %s: %v", cmDir, err)
 	}
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".cm") {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".c") {
 			continue
 		}
 		src := filepath.Join(cmDir, e.Name())
-		obj := filepath.Join(os.TempDir(), fmt.Sprintf("gastonlibc-%s.o", strings.TrimSuffix(e.Name(), ".cm")))
+		obj := filepath.Join(os.TempDir(), fmt.Sprintf("gastonlibc-%s.o", strings.TrimSuffix(e.Name(), ".c")))
 		if err := compile(*goPath, gastonDir, src, obj, nil, nil); err != nil {
 			fmt.Fprintf(os.Stderr, "FAIL %s: %v\n", e.Name(), err)
 			failed++

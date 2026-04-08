@@ -36,7 +36,7 @@ func main() {
 	compOnly   := flag.Bool("c", false, "compile to relocatable object (.o) only; do not link")
 	linkMode   := flag.Bool("link", false, "link mode: combine .o/.a files into an ELF executable")
 	arMode     := flag.Bool("ar", false, "archive mode: package .o files into a static library (.a)")
-	preprocOnly := flag.Bool("preprocess", false, "stop after preprocessing; write <base>.pre.cm")
+	preprocOnly := flag.Bool("preprocess", false, "stop after preprocessing; write <base>.pre.c")
 	outFlag    := flag.String("o", "", "output file name (used with -c, -link, or -ar)")
 	var includePaths includeFlags
 	var defines defineFlags
@@ -158,7 +158,7 @@ func main() {
 		}
 
 		if *preprocOnly {
-			outFile := filepath.Join(dir, base+".pre.cm")
+			outFile := filepath.Join(dir, base+".pre.c")
 			if err := os.WriteFile(outFile, []byte(src), 0644); err != nil {
 				fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
 				os.Exit(1)
@@ -229,7 +229,7 @@ func main() {
 	for _, arg := range flag.Args() {
 		ext := filepath.Ext(arg)
 		switch ext {
-		case ".c", ".cm":
+		case ".c", ".c":
 			if firstName == "" {
 				firstName = strings.TrimSuffix(filepath.Base(arg), ext)
 			}

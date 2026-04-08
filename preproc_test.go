@@ -310,7 +310,7 @@ func TestPP_IncludeGuard(t *testing.T) {
 		"r = MAGIC;\n"
 
 	p := newPreprocessor([]string{dir}, nil)
-	got, err := p.Preprocess(src, filepath.Join(dir, "test.cm"))
+	got, err := p.Preprocess(src, filepath.Join(dir, "test.c"))
 	if err != nil {
 		t.Fatalf("Preprocess: %v", err)
 	}
@@ -336,7 +336,7 @@ func TestPP_IncludeSearchPath(t *testing.T) {
 		"b = GREETING;\n"
 
 	p := newPreprocessor([]string{incDir}, nil)
-	got, err := p.Preprocess(src, filepath.Join(srcDir, "test.cm"))
+	got, err := p.Preprocess(src, filepath.Join(srcDir, "test.c"))
 	if err != nil {
 		t.Fatalf("Preprocess: %v", err)
 	}

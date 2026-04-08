@@ -478,7 +478,7 @@ var sepTests = []sepTest{
 
 // compileObj compiles testdata/<name>.cm to an ET_REL object at outPath.
 func compileObj(name, outPath string) error {
-	srcPath := fmt.Sprintf("testdata/%s.cm", name)
+	srcPath := fmt.Sprintf("testdata/%s.c", name)
 	raw, err := os.ReadFile(srcPath)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", srcPath, err)
@@ -748,7 +748,7 @@ func preprocessToFile(srcPath string, includePaths []string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	tmp, err := os.CreateTemp("", "gaston-pp-*.cm")
+	tmp, err := os.CreateTemp("", "gaston-pp-*.c")
 	if err != nil {
 		return "", err
 	}
@@ -875,7 +875,7 @@ func TestLibc(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			// Compile the main program with the libc include path.
-			mainSrc := fmt.Sprintf("testdata/%s.cm", tt.name)
+			mainSrc := fmt.Sprintf("testdata/%s.c", tt.name)
 			mainObj := fmt.Sprintf("/tmp/gaston-test-%s.o", tt.name)
 			t.Cleanup(func() { os.Remove(mainObj) })
 			if err := compileObjPath(mainSrc, mainObj, includePaths); err != nil {
@@ -956,7 +956,7 @@ func TestSemErrors(t *testing.T) {
 	for _, tt := range semErrorTests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			srcPath := fmt.Sprintf("testdata/%s.cm", tt.name)
+			srcPath := fmt.Sprintf("testdata/%s.c", tt.name)
 			raw, err := os.ReadFile(srcPath)
 			if err != nil {
 				t.Fatalf("read %s: %v", srcPath, err)
@@ -1476,7 +1476,7 @@ func TestDockerRun(t *testing.T) {
 		tt := tt // capture loop variable
 		t.Run(tt.name, func(t *testing.T) {
 			// Compile to object file.
-			mainSrc := fmt.Sprintf("testdata/%s.cm", tt.name)
+			mainSrc := fmt.Sprintf("testdata/%s.c", tt.name)
 			mainObj := fmt.Sprintf("/tmp/gaston-test-%s.o", tt.name)
 			t.Cleanup(func() { os.Remove(mainObj) })
 			if err := compileObjPath(mainSrc, mainObj, nil); err != nil {
@@ -1563,7 +1563,7 @@ func TestTinystdioRun(t *testing.T) {
 	libPath := buildLibgastonc(t)
 
 	// Compile the test program.
-	testSrc := "testdata/tinystdio_snprintf.cm"
+	testSrc := "testdata/tinystdio_snprintf.c"
 	testObj := "/tmp/gaston-ts-test.o"
 	t.Cleanup(func() { os.Remove(testObj) })
 	if err := compileObjPath(testSrc, testObj, nil); err != nil {
