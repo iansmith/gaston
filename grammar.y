@@ -87,7 +87,10 @@ import "fmt"
 
 program
 	: declaration_list
-		{ yylex.(*lexer).result = &Node{Kind: KindProgram, Children: $1} }
+		{ l := yylex.(*lexer)
+		  // Prepend any anonymous struct defs created by cast expressions.
+		  all := append(l.pendingStructDefs, $1...)
+		  l.result = &Node{Kind: KindProgram, Children: all} }
 	| /* empty */
 		{ yylex.(*lexer).result = &Node{Kind: KindProgram} }
 	;
@@ -439,6 +442,11 @@ param
 		{ $$ = &Node{Kind: KindParam, Type: TypeFuncPtr, Name: $4} }
 	| type_specifier '(' '*' ')' '(' fp_param_types ')'
 		{ $$ = &Node{Kind: KindParam, Type: TypeFuncPtr, Name: ""} }
+	/* Function pointer parameter returning struct pointer: struct T *(*fn)(params) */
+	| STRUCT ID '*' '(' '*' ID ')' '(' fp_param_types ')'
+		{ $$ = &Node{Kind: KindParam, Type: TypeFuncPtr, Name: $6} }
+	| STRUCT ID '*' '(' '*' ')' '(' fp_param_types ')'
+		{ $$ = &Node{Kind: KindParam, Type: TypeFuncPtr, Name: ""} }
 	/* Nameless sized/unsized array parameters: e.g. "unsigned short[3]", "regmatch_t[]" */
 	| type_specifier '[' const_int_expr ']'
 		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: $1.Kind, StructTag: $1.Tag, Val: $3} }
@@ -484,9 +492,9 @@ block_item_list
 		{ $$ = $1 }
 	/* Local anonymous enum declaration: enum { A, B, C }; — defines constants in local scope */
 	| block_item_list ENUM '{' enum_list '}' ';'
-		{ yylex.(*lexer).declareAll($4); $$ = $1 }
+		{ $$ = append($1, $4...) }
 	| block_item_list ENUM ID '{' enum_list '}' ';'
-		{ yylex.(*lexer).declareAll($5); $$ = $1 }
+		{ $$ = append($1, $5...) }
 	/* Local typedef declaration */
 	| block_item_list typedef_declaration
 		{ $$ = $1 }
@@ -786,6 +794,13 @@ postfix_expr
 	/* Parenthesized expression with arrow: (expr)->field */
 	| '(' expression ')' ARROW ID
 		{ $$ = &Node{Kind: KindFieldAccess, Op: "->", Name: $5, Children: []*Node{$2}} }
+	/* Indirect call through parenthesized arrow: (expr)->fn(args) */
+	| '(' expression ')' ARROW ID '(' args ')'
+		{ callee := &Node{Kind: KindFieldAccess, Op: "->", Name: $5, Children: []*Node{$2}}
+		  $$ = &Node{Kind: KindIndirectCall, Children: append([]*Node{callee}, $7...)} }
+	| '(' expression ')' '.' ID '(' args ')'
+		{ callee := &Node{Kind: KindFieldAccess, Op: ".", Name: $5, Children: []*Node{$2}}
+		  $$ = &Node{Kind: KindIndirectCall, Children: append([]*Node{callee}, $7...)} }
 	/* Parenthesized expression with subscript: (expr)[idx] */
 	| '(' expression ')' '[' expression ']'
 		{ $$ = &Node{Kind: KindIndexExpr, Children: []*Node{$2, $5}} }
@@ -1080,11 +1095,17 @@ factor
 		{ n := &Node{Kind: KindCast, Type: TypePtr}; n.Pointee = structCType($3); n.Children = []*Node{$6}; $$ = n }
 	| '(' STRUCT ID ')' factor
 		{ n := &Node{Kind: KindCast, Type: TypeStruct, StructTag: $3}; n.Children = []*Node{$5}; $$ = n }
-	/* Cast to anonymous struct pointer: (struct { ... }*) expr — treat as void* cast */
+	/* Cast to anonymous struct pointer: (struct { ... }*) expr — register a real struct def */
 	| '(' STRUCT '{' field_list '}' '*' ')' factor
-		{ n := &Node{Kind: KindCast, Type: TypePtr}; n.Pointee = leafCType(TypeVoid); n.Children = []*Node{$8}; $$ = n }
+		{ l := yylex.(*lexer); tag := l.nextAnon()
+		  sd := &Node{Kind: KindStructDef, Name: tag, Children: $4}
+		  l.pendingStructDefs = append(l.pendingStructDefs, sd)
+		  n := &Node{Kind: KindCast, Type: TypePtr}; n.Pointee = structCType(tag); n.Children = []*Node{$8}; $$ = n }
 	| '(' STRUCT '{' field_list '}' ')' factor
-		{ n := &Node{Kind: KindCast, Type: TypeStruct}; n.Children = []*Node{$7}; $$ = n }
+		{ l := yylex.(*lexer); tag := l.nextAnon()
+		  sd := &Node{Kind: KindStructDef, Name: tag, Children: $4}
+		  l.pendingStructDefs = append(l.pendingStructDefs, sd)
+		  n := &Node{Kind: KindCast, Type: TypeStruct, StructTag: tag}; n.Children = []*Node{$7}; $$ = n }
 	/* Cast to function pointer: (rettype (*)(params)) expr — treated as TypePtr cast */
 	| '(' type_specifier '(' '*' ')' '(' fp_param_types ')' ')' factor
 		{ n := &Node{Kind: KindCast, Type: TypePtr}; n.Pointee = $2; n.Children = []*Node{$10}; $$ = n }
@@ -1845,6 +1866,15 @@ const_int_primary
 	| SIZEOF '(' '(' ID ')' '[' NUM ']' ')'   { $$ = 8 /* opaque sizeof((arr)[i]): assume element size 8 */ }
 	/* sizeof((arr)[0]) with const_int_expr index */
 	| SIZEOF '(' '(' ID ')' '[' const_int_expr ']' ')'  { $$ = 8 /* opaque: assume element size 8 */ }
+	/* sizeof(a.b), sizeof(a.b.c) — struct field sizeof */
+	| SIZEOF '(' ID '.' ID ')'                { $$ = 8 }
+	| SIZEOF '(' ID '.' ID '.' ID ')'         { $$ = 8 }
+	/* sizeof((a.b.c)) — parenthesized struct field */
+	| SIZEOF '(' '(' ID '.' ID '.' ID ')' ')' { $$ = 8 }
+	| SIZEOF '(' '(' ID '.' ID ')' ')'        { $$ = 8 }
+	/* sizeof(((a.b.c))[i]) — subscript on parenthesized struct field */
+	| SIZEOF '(' '(' '(' ID '.' ID '.' ID ')' ')' '[' const_int_expr ']' ')'  { $$ = 8 }
+	| SIZEOF '(' '(' '(' ID '.' ID ')' ')' '[' const_int_expr ']' ')'         { $$ = 8 }
 	| ALIGNOF '(' type_specifier ')'          { $$ = alignofType($3) }
 	| ALIGNOF '(' type_specifier '*' ')'      { $$ = 8 }
 	| ALIGNOF '(' STRUCT ID ')'               { $$ = 8 }

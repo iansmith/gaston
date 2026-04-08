@@ -24,6 +24,7 @@ type lexer struct {
 	typeofExpr      *Node              // scratch: holds typeof(expr) expression until declaration picks it up
 	prevTok         int                // previous token returned (for struct/union tag disambiguation)
 	pendingToks     []int              // tokens queued by scanAttrParens for multi-attr blocks
+	pendingStructDefs []*Node          // anonymous struct defs created in cast expressions, injected into AST after parse
 }
 
 func newLexer(src, file string) *lexer {
@@ -101,6 +102,8 @@ func newLexer(src, file string) *lexer {
 	// Pre-register here so function declarations that use locale_t before
 	// the typedef is seen get the correct pointer type.
 	l.typedefs["locale_t"] = ptrCType(structCType("__locale_t"))
+	// POSIX/BSD convenience typedefs commonly used without explicit includes.
+	l.typedefs["uint"] = leafCType(TypeUnsignedInt)
 	return l
 }
 
@@ -109,6 +112,71 @@ func (l *lexer) nextAnon() string {
 	name := fmt.Sprintf("__anon_%d", l.anonCount)
 	l.anonCount++
 	return name
+}
+
+// skipAsmBody skips the optional 'volatile' keyword and the entire
+// parenthesised body of an asm statement.  The position should be
+// right after the ASM_KW token.  On return the position is just past
+// the closing ')'.
+func (l *lexer) skipAsmBody() {
+	// Skip whitespace/newlines.
+	for l.pos < len(l.src) && (l.src[l.pos] == ' ' || l.src[l.pos] == '\t' || l.src[l.pos] == '\n' || l.src[l.pos] == '\r') {
+		if l.src[l.pos] == '\n' {
+			l.line++
+		}
+		l.pos++
+	}
+	// Skip optional 'volatile' / '__volatile__'.
+	for _, kw := range []string{"volatile", "__volatile__"} {
+		if l.pos+len(kw) <= len(l.src) && l.src[l.pos:l.pos+len(kw)] == kw {
+			next := l.pos + len(kw)
+			if next >= len(l.src) || !(isLetter(l.src[next]) || isDigit(l.src[next])) {
+				l.pos = next
+				break
+			}
+		}
+	}
+	// Skip to '('.
+	for l.pos < len(l.src) && l.src[l.pos] != '(' {
+		if l.src[l.pos] == '\n' {
+			l.line++
+		}
+		l.pos++
+	}
+	if l.pos >= len(l.src) {
+		return
+	}
+	// Consume balanced parens.
+	depth := 0
+	for l.pos < len(l.src) {
+		c := l.src[l.pos]
+		if c == '\n' {
+			l.line++
+		}
+		l.pos++
+		if c == '(' {
+			depth++
+		} else if c == ')' {
+			depth--
+			if depth == 0 {
+				return
+			}
+		} else if c == '"' {
+			// Skip string literals inside asm body.
+			for l.pos < len(l.src) && l.src[l.pos] != '"' {
+				if l.src[l.pos] == '\\' {
+					l.pos++ // skip escaped char
+				}
+				if l.pos < len(l.src) && l.src[l.pos] == '\n' {
+					l.line++
+				}
+				l.pos++
+			}
+			if l.pos < len(l.src) {
+				l.pos++ // skip closing "
+			}
+		}
+	}
 }
 
 // registerTypedef registers a typedef name with its full CType.
@@ -230,6 +298,16 @@ func (l *lexer) Lex(lval *yySymType) int {
 		return tok
 	}
 	tok := l.lex(lval)
+	// When we see ASM_KW, consume the optional 'volatile' and the entire
+	// parenthesised body (which may contain GCC extended asm constraints
+	// with colons that break the normal grammar). Queue '(' ')' so the
+	// grammar rule ASM_KW '(' args ')' ';' still matches with empty args.
+	if tok == ASM_KW {
+		l.skipAsmBody()
+		l.pendingToks = append(l.pendingToks, int('('), int(')'))
+		l.prevTok = tok
+		return tok
+	}
 	l.prevTok = tok
 	// Track brace depth for typedef-shadow scoping.
 	if tok == int('{') {

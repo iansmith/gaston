@@ -80,12 +80,31 @@ typedef int           int32_t;
 typedef unsigned int  uint32_t;
 typedef long          intmax_t;
 typedef unsigned long uintmax_t;
+typedef long          intptr_t;
+typedef unsigned long uintptr_t;
 typedef long          ssize_t;
 typedef long          size_t;
-#define INT64_MAX  9223372036854775807
-#define UINT64_MAX 18446744073709551615
+typedef long          ptrdiff_t;
+typedef unsigned int  uint;
+typedef short         int16_t;
+typedef unsigned short uint16_t;
+typedef signed char   int8_t;
+typedef unsigned char uint8_t;
+#define INT8_MIN   (-128)
+#define INT8_MAX   127
+#define UINT8_MAX  255
+#define INT16_MIN  (-32768)
+#define INT16_MAX  32767
+#define UINT16_MAX 65535
+#define INT32_MIN  (-2147483647-1)
 #define INT32_MAX  2147483647
+#define UINT32_MAX 4294967295
+#define INT64_MAX  9223372036854775807
+#define INT64_MIN  (-9223372036854775807-1)
+#define UINT64_MAX 18446744073709551615
 #define SIZE_MAX   18446744073709551615
+#define INTPTR_MAX  9223372036854775807
+#define UINTPTR_MAX 18446744073709551615
 `,
 	"limits.h": `
 /* gaston built-in <limits.h> */
@@ -404,6 +423,127 @@ float copysignf(float x, float y);
 #define INFINITY  __builtin_inff()
 #define M_PI      3.14159265358979323846
 #define M_E       2.71828182845904523536
+#endif
+`,
+	"time.h": `
+/* gaston built-in <time.h> */
+#ifndef _TIME_H
+#define _TIME_H
+typedef long time_t;
+typedef long clock_t;
+typedef long suseconds_t;
+struct timespec { time_t tv_sec; long tv_nsec; };
+struct timeval { time_t tv_sec; suseconds_t tv_usec; };
+struct tm {
+    int tm_sec; int tm_min; int tm_hour;
+    int tm_mday; int tm_mon; int tm_year;
+    int tm_wday; int tm_yday; int tm_isdst;
+};
+time_t time(time_t *t);
+clock_t clock(void);
+double difftime(time_t t1, time_t t0);
+struct tm *localtime(const time_t *t);
+struct tm *gmtime(const time_t *t);
+time_t mktime(struct tm *tm);
+int gettimeofday(struct timeval *tv, void *tz);
+int clock_gettime(int clk_id, struct timespec *tp);
+int nanosleep(const struct timespec *req, struct timespec *rem);
+size_t strftime(char *s, size_t max, const char *fmt, const struct tm *tm);
+#define CLOCK_REALTIME  0
+#define CLOCK_MONOTONIC 1
+#endif
+`,
+	"sys/mman.h": `
+/* gaston built-in <sys/mman.h> */
+#ifndef _SYS_MMAN_H
+#define _SYS_MMAN_H
+typedef long size_t;
+typedef long off_t;
+#define PROT_NONE  0x0
+#define PROT_READ  0x1
+#define PROT_WRITE 0x2
+#define PROT_EXEC  0x4
+#define MAP_SHARED    0x01
+#define MAP_PRIVATE   0x02
+#define MAP_ANONYMOUS 0x20
+#define MAP_FIXED     0x10
+#define MAP_FAILED    ((void *)-1)
+void *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset);
+int munmap(void *addr, size_t len);
+#endif
+`,
+	"ctype.h": `
+/* gaston built-in <ctype.h> */
+#ifndef _CTYPE_H
+#define _CTYPE_H
+int isalpha(int c);
+int isdigit(int c);
+int isalnum(int c);
+int isspace(int c);
+int isupper(int c);
+int islower(int c);
+int isprint(int c);
+int ispunct(int c);
+int iscntrl(int c);
+int isxdigit(int c);
+int toupper(int c);
+int tolower(int c);
+#endif
+`,
+	"stdnoreturn.h": `
+/* gaston built-in <stdnoreturn.h> */
+#ifndef _STDNORETURN_H
+#define _STDNORETURN_H
+#define noreturn __attribute__((noreturn))
+#endif
+`,
+	"signal.h": `
+/* gaston built-in <signal.h> */
+#ifndef _SIGNAL_H
+#define _SIGNAL_H
+typedef int sig_atomic_t;
+typedef void (*sighandler_t)(int);
+typedef unsigned long sigset_t;
+struct sigaction {
+    void (*sa_handler)(int);
+    void (*sa_sigaction)(int, void *, void *);
+    sigset_t sa_mask;
+    int sa_flags;
+    void (*sa_restorer)(void);
+};
+#define SIG_DFL ((sighandler_t)0)
+#define SIG_IGN ((sighandler_t)1)
+#define SIG_ERR ((sighandler_t)-1)
+#define SIGINT    2
+#define SIGTERM  15
+#define SIGPIPE  13
+#define SA_SIGINFO 4
+int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
+int sigemptyset(sigset_t *set);
+int sigfillset(sigset_t *set);
+int sigaddset(sigset_t *set, int signum);
+sighandler_t signal(int signum, sighandler_t handler);
+int raise(int sig);
+#endif
+`,
+	"sys/time.h": `
+/* gaston built-in <sys/time.h> */
+#ifndef _SYS_TIME_H
+#define _SYS_TIME_H
+#include "time.h"
+#endif
+`,
+	"sys/types.h": `
+/* gaston built-in <sys/types.h> */
+#ifndef _SYS_TYPES_H
+#define _SYS_TYPES_H
+typedef long ssize_t;
+typedef long size_t;
+typedef long off_t;
+typedef int  pid_t;
+typedef unsigned int uid_t;
+typedef unsigned int gid_t;
+typedef unsigned int mode_t;
 #endif
 `,
 }

@@ -60,6 +60,11 @@ func isConstantScalar(n *Node) bool {
 		return true
 	case KindStrLit:
 		return true
+	case KindVar:
+		// Enum constants and const globals are compile-time constants.
+		return true
+	case KindSizeof:
+		return true
 	case KindUnary:
 		return n.Op == "-" && len(n.Children) == 1 && isConstantScalar(n.Children[0])
 	case KindCast:
@@ -68,6 +73,10 @@ func isConstantScalar(n *Node) bool {
 	case KindBinOp:
 		// Constant arithmetic: 128L * 1024L, 1 << 16, etc.
 		return len(n.Children) == 2 && isConstantScalar(n.Children[0]) && isConstantScalar(n.Children[1])
+	case KindTernary:
+		// Ternary with constant operands: cond ? a : b
+		return len(n.Children) == 3 && isConstantScalar(n.Children[0]) &&
+			isConstantScalar(n.Children[1]) && isConstantScalar(n.Children[2])
 	case KindAddrOf:
 		// &staticvar or &staticvar.field.field... is a link-time constant
 		// and valid as a global variable initializer (C99 §6.6).
@@ -1082,31 +1091,7 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 						arrayDecayLostTag := (lTag != "" && rhsPtee != nil && rhsPtee.Kind == TypeStruct && rTag == "") ||
 							(rTag != "" && lhsPtee != nil && lhsPtee.Kind == TypeStruct && lTag == "")
 						if !bothStruct && !arrayDecayLostTag {
-							lhsName := ""
-							if n.Children[0].Kind == KindVar {
-								lhsName = n.Children[0].Name
-							}
-								rhsDesc := fmt.Sprintf("nodeKind=%v", n.Children[1].Kind)
-							if n.Children[1].Kind == KindVar { rhsDesc += " name=" + n.Children[1].Name }
-							if n.Children[1].Kind == KindCall { rhsDesc += " call=" + n.Children[1].Name }
-							if n.Children[1].Kind == KindBinOp {
-								rhsDesc += " op=" + n.Children[1].Op
-								lc := n.Children[1].Children[0]
-								rhsDesc += fmt.Sprintf(" lchild(kind=%v", lc.Kind)
-								if lc.Kind == KindVar { rhsDesc += " name=" + lc.Name }
-								if lc.Kind == KindBinOp { rhsDesc += " op=" + lc.Op }
-								rhsDesc += fmt.Sprintf(" type=%v ptee=%v", lc.Type, lc.Pointee)
-								if lc.Kind == KindAddrOf && len(lc.Children) > 0 {
-									gc := lc.Children[0]
-									rhsDesc += fmt.Sprintf(" addrof-child(kind=%v name=%q op=%q type=%v ptee=%v)", gc.Kind, gc.Name, gc.Op, gc.Type, gc.Pointee)
-								}
-								rhsDesc += ")"
-							}
-							lhsNodeKind := n.Children[0].Kind
-								if gc2 := func() *Node { if n.Children[1].Kind == KindBinOp && len(n.Children[1].Children) > 0 { lc2 := n.Children[1].Children[0]; if lc2.Kind == KindAddrOf && len(lc2.Children) > 0 { gc := lc2.Children[0]; if gc.Kind == KindIndexExpr && len(gc.Children) > 0 { return gc.Children[0] } } }; return nil }(); gc2 != nil {
-									rhsDesc += fmt.Sprintf(" idx-base(kind=%v name=%q type=%v ptee=%v elemType=%v elemPtee=%v)", gc2.Kind, gc2.Name, gc2.Type, gc2.Pointee, gc2.ElemType, gc2.ElemPointee)
-								}
-								*errs = append(*errs, fmt.Sprintf("line %d: assignment of incompatible pointer types: lhsKind=%v lhs=%q(kind=%v ptee=%v), rhs(%s kind=%v ptee=%v)", n.Line, lhsNodeKind, lhsName, normLhs, lhsPtee, rhsDesc, normRhs, rhsPtee))
+							*errs = append(*errs, "assignment of incompatible pointer types")
 						}
 					}
 				}
@@ -1157,6 +1142,11 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		checkExpr(n.Children[0], st, errs)
 		t := checkExpr(n.Children[1], st, errs)
 		n.Type = t
+		// Propagate struct tag and pointee from the right operand so that
+		// field access on (expr, struct_val).field works correctly.
+		rhs := n.Children[1]
+		n.StructTag = rhs.StructTag
+		n.Pointee = rhs.Pointee
 		return t
 
 	case KindTernary:
@@ -1683,9 +1673,7 @@ func checkInitList(list *Node, decl *Node, st *symTable, errs *[]string) {
 			list.Children[0].Val = 0
 			list.Children[0].Type = decl.Type
 		} else {
-			ops := ""
-			for _, c := range list.Children { ops += "|" + c.Op + ":" + c.Name }
-			*errs = append(*errs, fmt.Sprintf("scalar initializer must have exactly one element (decl.Type=%v decl.Tag=%s entries=%d %s)", decl.Type, decl.StructTag, len(list.Children), ops))
+			*errs = append(*errs, "scalar initializer must have exactly one element")
 		}
 	}
 }
