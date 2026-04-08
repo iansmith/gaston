@@ -229,7 +229,7 @@ func main() {
 	for _, arg := range flag.Args() {
 		ext := filepath.Ext(arg)
 		switch ext {
-		case ".c", ".c":
+		case ".c":
 			if firstName == "" {
 				firstName = strings.TrimSuffix(filepath.Base(arg), ext)
 			}
