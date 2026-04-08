@@ -315,6 +315,39 @@ func castNode(ct *CType, child *Node) *Node {
 	return n
 }
 
+// constAddrOf returns a positive integer representing the "address" of a named
+// global in a compile-time constant expression context (e.g. static asserts).
+// Gaston cannot know actual link-time addresses, so this uses a deterministic
+// hash of the name.  Two distinct names are extremely unlikely to collide.
+// Guarantees: non-zero, and equal iff names are equal.
+func constAddrOf(name string) int {
+	h := 0x811c9dc5 // FNV-1a basis
+	for _, c := range name {
+		h ^= int(c)
+		h *= 0x01000193 // FNV-1a prime
+	}
+	if h == 0 {
+		h = 1 // never return 0 (null address would be invalid)
+	}
+	return h
+}
+
+// arrayElemPtee returns the ElemPointee to store for an array whose element type
+// is described by ct (the base type from a type_specifier).
+//   - TypePtr element (e.g. mp_obj_t = void*): returns ct.Pointee so that
+//     indexing yields TypePtr with the correct inner pointee.
+//   - TypeStruct element: returns ct itself (the full struct CType).
+//   - All others: returns nil.
+func arrayElemPtee(ct *CType) *CType {
+	if ct.Kind == TypePtr {
+		return ct.Pointee
+	}
+	if ct.Kind == TypeStruct {
+		return ct
+	}
+	return nil
+}
+
 // ctNode creates a node of the given kind with Type/Pointee/StructTag properly
 // initialised from a *CType returned by type_specifier.
 // For pointer types (ct.Kind == TypePtr): sets Type=TypePtr, Pointee=ct.Pointee.
@@ -644,6 +677,9 @@ func applyDeclToVarNode(ds *DeclSpec, d *Declarator) *Node {
 		n.StructTag = ds.BaseType.Tag
 		if ds.BaseType.Kind == TypeStruct {
 			n.ElemPointee = ds.BaseType
+		} else if ds.BaseType.Kind == TypePtr {
+			// Typedef'd pointer element (e.g. mp_obj_t = void*): preserve the pointee chain.
+			n.ElemPointee = ds.BaseType.Pointee
 		}
 		if d.IsVLA {
 			n.IsVLA = true

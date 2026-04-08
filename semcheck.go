@@ -35,6 +35,7 @@ type symEntry struct {
 	isParam       bool
 	isGlobal      bool
 	isExtern      bool     // true for extern forward declarations (may be overridden by a definition)
+	isTentative   bool     // true for non-extern declarations without an initializer (C tentative definitions)
 	isConst       bool
 	constVal      int
 	arrSize       int      // for TypeIntArray locals/globals: number of elements (0 for params)
@@ -240,13 +241,15 @@ func (st *symTable) declareGlobal(name string, typ TypeKind, structTag ...string
 }
 
 func (st *symTable) declareGlobalFull(n *Node) error {
+	hasInit := len(n.Children) > 0
 	if existing, ok := st.globals[n.Name]; ok {
-		if !existing.isExtern {
+		if !existing.isExtern && !existing.isTentative {
 			return fmt.Errorf("redeclaration of global '%s'", n.Name)
 		}
-		// Extern forward declaration — allow a definition to override it.
+		// Extern forward declaration or tentative definition — allow a definition to override it.
 	}
 	e := &symEntry{name: n.Name, typ: n.Type, isGlobal: true, isExtern: n.IsExtern,
+		isTentative:   !n.IsExtern && !hasInit,
 		structTag: n.StructTag, pointee: n.Pointee, isConstTarget: n.IsConstTarget}
 	st.globals[n.Name] = e
 	return nil
@@ -889,10 +892,8 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			return TypeInt
 		}
 		if ptee.Kind == TypeVoid {
-			// Allow deref of function pointer casts — *((void (*)(T)) fn) is valid C.
-			if child.Kind != KindCast {
-				*errs = append(*errs, "cannot dereference void pointer")
-			}
+			// GNU C allows void pointer dereference (treats result as char-sized int).
+			// MicroPython and other real-world C code rely on this.
 			n.Type = TypeInt
 			return TypeInt
 		}
@@ -1081,7 +1082,31 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 						arrayDecayLostTag := (lTag != "" && rhsPtee != nil && rhsPtee.Kind == TypeStruct && rTag == "") ||
 							(rTag != "" && lhsPtee != nil && lhsPtee.Kind == TypeStruct && lTag == "")
 						if !bothStruct && !arrayDecayLostTag {
-							*errs = append(*errs, "assignment of incompatible pointer types")
+							lhsName := ""
+							if n.Children[0].Kind == KindVar {
+								lhsName = n.Children[0].Name
+							}
+								rhsDesc := fmt.Sprintf("nodeKind=%v", n.Children[1].Kind)
+							if n.Children[1].Kind == KindVar { rhsDesc += " name=" + n.Children[1].Name }
+							if n.Children[1].Kind == KindCall { rhsDesc += " call=" + n.Children[1].Name }
+							if n.Children[1].Kind == KindBinOp {
+								rhsDesc += " op=" + n.Children[1].Op
+								lc := n.Children[1].Children[0]
+								rhsDesc += fmt.Sprintf(" lchild(kind=%v", lc.Kind)
+								if lc.Kind == KindVar { rhsDesc += " name=" + lc.Name }
+								if lc.Kind == KindBinOp { rhsDesc += " op=" + lc.Op }
+								rhsDesc += fmt.Sprintf(" type=%v ptee=%v", lc.Type, lc.Pointee)
+								if lc.Kind == KindAddrOf && len(lc.Children) > 0 {
+									gc := lc.Children[0]
+									rhsDesc += fmt.Sprintf(" addrof-child(kind=%v name=%q op=%q type=%v ptee=%v)", gc.Kind, gc.Name, gc.Op, gc.Type, gc.Pointee)
+								}
+								rhsDesc += ")"
+							}
+							lhsNodeKind := n.Children[0].Kind
+								if gc2 := func() *Node { if n.Children[1].Kind == KindBinOp && len(n.Children[1].Children) > 0 { lc2 := n.Children[1].Children[0]; if lc2.Kind == KindAddrOf && len(lc2.Children) > 0 { gc := lc2.Children[0]; if gc.Kind == KindIndexExpr && len(gc.Children) > 0 { return gc.Children[0] } } }; return nil }(); gc2 != nil {
+									rhsDesc += fmt.Sprintf(" idx-base(kind=%v name=%q type=%v ptee=%v elemType=%v elemPtee=%v)", gc2.Kind, gc2.Name, gc2.Type, gc2.Pointee, gc2.ElemType, gc2.ElemPointee)
+								}
+								*errs = append(*errs, fmt.Sprintf("line %d: assignment of incompatible pointer types: lhsKind=%v lhs=%q(kind=%v ptee=%v), rhs(%s kind=%v ptee=%v)", n.Line, lhsNodeKind, lhsName, normLhs, lhsPtee, rhsDesc, normRhs, rhsPtee))
 						}
 					}
 				}
@@ -1274,7 +1299,9 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			}
 			n.Type = TypePtr
 			if et == TypePtr {
-				n.Pointee = f.ElemPointee
+				// Array of pointers: e.g. "const char *qstrs[]" decays to "const char **".
+				// The pointee is itself a pointer (TypePtr → ElemPointee).
+				n.Pointee = &CType{Kind: TypePtr, Pointee: f.ElemPointee}
 			} else {
 				n.Pointee = leafCType(et)
 			}
@@ -1656,7 +1683,9 @@ func checkInitList(list *Node, decl *Node, st *symTable, errs *[]string) {
 			list.Children[0].Val = 0
 			list.Children[0].Type = decl.Type
 		} else {
-			*errs = append(*errs, "scalar initializer must have exactly one element")
+			ops := ""
+			for _, c := range list.Children { ops += "|" + c.Op + ":" + c.Name }
+			*errs = append(*errs, fmt.Sprintf("scalar initializer must have exactly one element (decl.Type=%v decl.Tag=%s entries=%d %s)", decl.Type, decl.StructTag, len(list.Children), ops))
 		}
 	}
 }

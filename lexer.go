@@ -132,6 +132,14 @@ func (l *lexer) lookupConstInt(name string) int {
 	return 1 // opaque: preprocessor macros are expanded before parse; any remaining ID is unknown
 }
 
+// declareAll registers enum-constant nodes from a local anonymous enum declaration.
+// Semcheck handles the actual type-system registration; here we just need the call to compile.
+func (l *lexer) declareAll(nodes []*Node) {
+	// Enum constants are registered by semcheck when it processes IsConst nodes.
+	// Nothing to do at parse time — lookupConstInt returns 1 for all unknowns.
+	_ = nodes
+}
+
 // keywords maps reserved words to their goyacc token constants.
 var keywords = map[string]int{
 	"int":      INT,
@@ -176,6 +184,9 @@ var keywords = map[string]int{
 	"__alignof__":     ALIGNOF,
 	"__alignof":       ALIGNOF,
 	"_Generic":        GENERIC,
+	"asm":             ASM_KW,
+	"__asm":           ASM_KW,
+	"__asm__":         ASM_KW,
 }
 
 // skipWords lists storage-class and qualifier keywords that the lexer silently drops.

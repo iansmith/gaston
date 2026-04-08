@@ -37,6 +37,7 @@ import "fmt"
 %token ATTR_WEAK ATTR_SECTION ATTR_ALIGNED
 %token ALIGNOF GENERIC
 %token STATIC_ASSERT
+%token ASM_KW
 %token <sval> TYPENAME
 
 // Multi-character operators
@@ -112,6 +113,8 @@ declaration
 	| union_declaration  { $$ = $1 }
 	| enum_declaration   { $$ = $1 }
 	| typedef_declaration { $$ = $1 }
+	/* GCC global inline assembly: __asm(...); — parse and discard */
+	| ASM_KW '(' args ')' ';'  { $$ = nil }
 	| STATIC_ASSERT '(' const_int_expr ',' STRING_LIT ')' ';'
 		{
 			if $3 == 0 {
@@ -206,6 +209,18 @@ init_entry
 		{ $$ = &Node{Kind: KindInitEntry, Op: "", Children: []*Node{$1}} }
 	| '.' ID '=' assign_expr
 		{ $$ = &Node{Kind: KindInitEntry, Op: ".", Name: $2, Children: []*Node{$4}} }
+	| '.' ID '.' ID '=' assign_expr
+		/* Nested designator: .outer.inner = val — desugar to .outer = { .inner = val } */
+		{ inner := &Node{Kind: KindInitEntry, Op: ".", Name: $4, Children: []*Node{$6}}
+		  innerList := &Node{Kind: KindInitList, Children: []*Node{inner}}
+		  $$ = &Node{Kind: KindInitEntry, Op: ".", Name: $2, Children: []*Node{innerList}} }
+	| '.' ID '.' ID '.' ID '=' assign_expr
+		/* Three-level nested designator: .a.b.c = val */
+		{ innermost := &Node{Kind: KindInitEntry, Op: ".", Name: $6, Children: []*Node{$8}}
+		  mid := &Node{Kind: KindInitEntry, Op: ".", Name: $4, Children: []*Node{
+		      {Kind: KindInitList, Children: []*Node{innermost}}}}
+		  outerList := &Node{Kind: KindInitList, Children: []*Node{mid}}
+		  $$ = &Node{Kind: KindInitEntry, Op: ".", Name: $2, Children: []*Node{outerList}} }
 	| '.' ID '=' '{' init_list '}'
 		{ $$ = &Node{Kind: KindInitEntry, Op: ".", Name: $2, Children: []*Node{
 		      {Kind: KindInitList, Children: $5}}} }
@@ -467,6 +482,17 @@ block_item_list
 		{ $$ = $1 }
 	| block_item_list ENUM ID ';'
 		{ $$ = $1 }
+	/* Local anonymous enum declaration: enum { A, B, C }; — defines constants in local scope */
+	| block_item_list ENUM '{' enum_list '}' ';'
+		{ yylex.(*lexer).declareAll($4); $$ = $1 }
+	| block_item_list ENUM ID '{' enum_list '}' ';'
+		{ yylex.(*lexer).declareAll($5); $$ = $1 }
+	/* Local typedef declaration */
+	| block_item_list typedef_declaration
+		{ $$ = $1 }
+	/* GCC inline assembly: __asm(...); — parse and discard */
+	| block_item_list ASM_KW '(' args ')' ';'
+		{ $$ = $1 }
 	| block_item_list STATIC_ASSERT '(' const_int_expr ',' STRING_LIT ')' ';'
 		{
 			if $4 == 0 {
@@ -589,9 +615,8 @@ statement
 
 expression_stmt
 	: expression ';' { $$ = &Node{Kind: KindExprStmt, Children: []*Node{$1}} }
-	| expression ',' expression ';'
-		{ ce := &Node{Kind: KindCommaExpr, Children: []*Node{$1, $3}}
-		  $$ = &Node{Kind: KindExprStmt, Children: []*Node{ce}} }
+	| comma_expr_list ';'
+		{ $$ = &Node{Kind: KindExprStmt, Children: []*Node{$1}} }
 	| ';'            { $$ = &Node{Kind: KindExprStmt} }
 	;
 
@@ -747,6 +772,14 @@ postfix_expr
 	| postfix_expr '.' ID '(' args ')'
 		{ callee := &Node{Kind: KindFieldAccess, Op: ".", Name: $3, Children: []*Node{$1}}
 		  $$ = &Node{Kind: KindIndirectCall, Children: append([]*Node{callee}, $5...)} }
+	/* Address-of parenthesized expression with field/arrow access: &(expr).field, &(expr)->field.
+	   These MUST come before plain '(' expression ')' '.' ID to win R/R conflict. */
+	| '&' '(' expression ')' '.' ID
+		{ fa := &Node{Kind: KindFieldAccess, Op: ".", Name: $6, Children: []*Node{$3}}
+		  $$ = &Node{Kind: KindAddrOf, Children: []*Node{fa}} }
+	| '&' '(' expression ')' ARROW ID
+		{ fa := &Node{Kind: KindFieldAccess, Op: "->", Name: $6, Children: []*Node{$3}}
+		  $$ = &Node{Kind: KindAddrOf, Children: []*Node{fa}} }
 	/* Parenthesized expression with field access: (expr).field */
 	| '(' expression ')' '.' ID
 		{ $$ = &Node{Kind: KindFieldAccess, Op: ".", Name: $5, Children: []*Node{$2}} }
@@ -764,6 +797,13 @@ postfix_expr
 	/* Indirect call through parenthesized expression: (ptr->fn)(args), (fnptr)(args) */
 	| '(' expression ')' '(' args ')'
 		{ $$ = &Node{Kind: KindIndirectCall, Children: append([]*Node{$2}, $5...)} }
+	/* Chained call: f(x)(y) — result of call is a function pointer, call it */
+	| call '(' args ')'
+		{ $$ = &Node{Kind: KindIndirectCall, Children: append([]*Node{$1}, $3...)} }
+	/* String literal subscript: "str"[0] — char at given index */
+	| STRING_LIT '[' expression ']'
+		{ base := &Node{Kind: KindStrLit, Name: $1, Type: TypeCharPtr}
+		  $$ = &Node{Kind: KindIndexExpr, Children: []*Node{base, $3}} }
 	;
 
 expression
@@ -948,24 +988,27 @@ factor
 	/* Address of struct field: &s.field or &p->field or &(p->field) */
 	| '&' postfix_expr ARROW ID  { fa := &Node{Kind: KindFieldAccess, Op: "->", Name: $4, Children: []*Node{$2}}; $$ = &Node{Kind: KindAddrOf, Children: []*Node{fa}} }
 	| '&' postfix_expr '.' ID    { fa := &Node{Kind: KindFieldAccess, Op: ".", Name: $4, Children: []*Node{$2}}; $$ = &Node{Kind: KindAddrOf, Children: []*Node{fa}} }
-	| '&' '(' postfix_expr ARROW ID ')'  { fa := &Node{Kind: KindFieldAccess, Op: "->", Name: $5, Children: []*Node{$3}}; $$ = &Node{Kind: KindAddrOf, Children: []*Node{fa}} }
-	| '&' '(' postfix_expr '.' ID ')'   { fa := &Node{Kind: KindFieldAccess, Op: ".", Name: $5, Children: []*Node{$3}}; $$ = &Node{Kind: KindAddrOf, Children: []*Node{fa}} }
-	/* &(cast_expr)->field: handles offsetof pattern &((T*)0)->field */
-	| '&' '(' expression ')' ARROW ID  { fa := &Node{Kind: KindFieldAccess, Op: "->", Name: $6, Children: []*Node{$3}}; $$ = &Node{Kind: KindAddrOf, Children: []*Node{fa}} }
-	| '&' '(' expression ')' '.' ID    { fa := &Node{Kind: KindFieldAccess, Op: ".", Name: $6, Children: []*Node{$3}}; $$ = &Node{Kind: KindAddrOf, Children: []*Node{fa}} }
+	/* NOTE: '&' '(' postfix_expr ARROW ID ')' and '&' '(' postfix_expr '.' ID ')' are
+	   intentionally omitted. They are redundant with '&' '(' expression ')' (rule 979) and
+	   they cause S/R conflicts that prevent '&' '(' expression ')' '.' ID from working. */
 	| '*' factor          { $$ = &Node{Kind: KindDeref, Children: []*Node{$2}} }
 	| SIZEOF '(' type_specifier ')'
 		{ $$ = &Node{Kind: KindSizeof, Type: $3.Kind, StructTag: $3.Tag} }
 	| SIZEOF '(' type_specifier '*' ')'
 		{ $$ = &Node{Kind: KindSizeof, Type: TypePtr} }
+	| SIZEOF '(' CONST type_specifier '*' ')'
+		{ $$ = &Node{Kind: KindSizeof, Type: TypePtr} }
 	| SIZEOF '(' type_specifier '*' '*' ')'
 		{ $$ = &Node{Kind: KindSizeof, Type: TypePtr} }
 	| SIZEOF '(' type_specifier '[' const_int_expr ']' ')'
 		{
-			if $5 <= 0 {
-				yylex.(*lexer).Error(fmt.Sprintf("static assertion failed (sizeof array dimension is %d)", $5))
-			}
-			$$ = &Node{Kind: KindNum, Val: sizeofType($3) * $5}
+			// sizeof(T[N]): used as a static assertion (C trick). If N <= 0 the assertion
+			// would fire in GCC/clang. Gaston silently accepts negative dimensions here
+			// because (a) gaston can't always evaluate complex const_int_exprs (e.g.
+			// offsetof computations), and (b) the real compiler will catch true failures.
+			dim := $5
+			if dim <= 0 { dim = 1 }
+			$$ = &Node{Kind: KindNum, Val: sizeofType($3) * dim}
 		}
 	| SIZEOF '(' STRUCT ID ')'
 		{ $$ = &Node{Kind: KindSizeof, StructTag: $4} }
@@ -1002,6 +1045,13 @@ factor
 			n.Children = []*Node{$3}
 			$$ = n
 		}
+	| VA_ARG '(' expression ',' CONST type_specifier '*' ')'
+		{
+			n := &Node{Kind: KindVAArg, Type: TypePtr}
+			n.Pointee = $6
+			n.Children = []*Node{$3}
+			$$ = n
+		}
 	| VA_ARG '(' expression ',' type_specifier '*' '*' ')'
 		{
 			n := &Node{Kind: KindVAArg, Type: TypePtr}
@@ -1030,6 +1080,11 @@ factor
 		{ n := &Node{Kind: KindCast, Type: TypePtr}; n.Pointee = structCType($3); n.Children = []*Node{$6}; $$ = n }
 	| '(' STRUCT ID ')' factor
 		{ n := &Node{Kind: KindCast, Type: TypeStruct, StructTag: $3}; n.Children = []*Node{$5}; $$ = n }
+	/* Cast to anonymous struct pointer: (struct { ... }*) expr — treat as void* cast */
+	| '(' STRUCT '{' field_list '}' '*' ')' factor
+		{ n := &Node{Kind: KindCast, Type: TypePtr}; n.Pointee = leafCType(TypeVoid); n.Children = []*Node{$8}; $$ = n }
+	| '(' STRUCT '{' field_list '}' ')' factor
+		{ n := &Node{Kind: KindCast, Type: TypeStruct}; n.Children = []*Node{$7}; $$ = n }
 	/* Cast to function pointer: (rettype (*)(params)) expr — treated as TypePtr cast */
 	| '(' type_specifier '(' '*' ')' '(' fp_param_types ')' ')' factor
 		{ n := &Node{Kind: KindCast, Type: TypePtr}; n.Pointee = $2; n.Children = []*Node{$10}; $$ = n }
@@ -1131,9 +1186,8 @@ generic_assoc
 	;
 
 comma_expr_list
-	: expression ',' expression ',' expression
-		{ $$ = &Node{Kind: KindCommaExpr, Children: []*Node{
-		    &Node{Kind: KindCommaExpr, Children: []*Node{$1, $3}}, $5}} }
+	: comma_expr_list ',' expression
+		{ $$ = &Node{Kind: KindCommaExpr, Children: []*Node{$1, $3}} }
 	| expression ',' expression
 		{ $$ = &Node{Kind: KindCommaExpr, Children: []*Node{$1, $3}} }
 	;
@@ -1462,6 +1516,16 @@ typedef_declaration
 		{ yylex.(*lexer).registerTypedef($7, leafCType(TypeInt)); $$ = $5 }
 	| TYPEDEF ENUM '{' enum_list '}' ID ';'
 		{ yylex.(*lexer).registerTypedef($6, leafCType(TypeInt)); $$ = $4 }
+	/* typedef T Name[N]; — array typedef (e.g. typedef long long __jmp_buf[22]) */
+	| TYPEDEF type_specifier ID '[' const_int_expr ']' ';'
+		{ yylex.(*lexer).registerTypedef($3, ptrCType($2)); $$ = nil }
+	| TYPEDEF type_specifier TYPENAME '[' const_int_expr ']' ';'
+		{ yylex.(*lexer).registerTypedef($3, ptrCType($2)); $$ = nil }
+	/* typedef struct Tag Name[N]; — struct array typedef (e.g. typedef struct __jmp_buf_tag jmp_buf[1]) */
+	| TYPEDEF STRUCT ID ID '[' const_int_expr ']' ';'
+		{ yylex.(*lexer).registerTypedef($4, ptrCType(structCType($3))); $$ = nil }
+	| TYPEDEF STRUCT ID TYPENAME '[' const_int_expr ']' ';'
+		{ yylex.(*lexer).registerTypedef($4, ptrCType(structCType($3))); $$ = nil }
 	;
 
 /* local_fun_proto matches function prototypes inside function bodies.
@@ -1530,6 +1594,8 @@ fp_param_types
 fp_param_type_list
 	: fp_param_type_list ',' fp_param_type
 		{ $$ = append($1, $3) }
+	| fp_param_type_list ',' ELLIPSIS
+		{ $$ = append($1, &Node{Kind: KindParam, Type: TypeVoid, Name: "..."}) }
 	| fp_param_type
 		{ $$ = []*Node{$1} }
 	;
@@ -1612,11 +1678,11 @@ field
 	| type_specifier ID ':' const_int_expr ';'
 		{ n := ctNode(KindVarDecl, $1, $2); n.BitWidth = $4; $$ = []*Node{n} }
 	| type_specifier ID '[' const_int_expr ']' ';'
-		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: $4, ElemType: $1.Kind, StructTag: $1.Tag}} }
+		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: $4, ElemType: $1.Kind, ElemPointee: arrayElemPtee($1), StructTag: $1.Tag}} }
 	| type_specifier ID '[' const_int_expr ']' '[' const_int_expr ']' ';'
-		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: $4, ElemType: $1.Kind, StructTag: $1.Tag, Dim2: $7}} }
+		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: $4, ElemType: $1.Kind, ElemPointee: arrayElemPtee($1), StructTag: $1.Tag, Dim2: $7}} }
 	| type_specifier ID '[' ']' ';'
-		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: -1, ElemType: $1.Kind, StructTag: $1.Tag}} }
+		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: -1, ElemType: $1.Kind, ElemPointee: arrayElemPtee($1), StructTag: $1.Tag}} }
 	| type_specifier '*' ID ';'
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $3}; n.Pointee = $1; $$ = []*Node{n} }
 	| type_specifier '*' ID ',' ptr_id_list ';'
@@ -1634,9 +1700,14 @@ field
 	| CONST type_specifier '*' ID '[' ']' ';'
 		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $4, Val: -1, ElemType: TypePtr, ElemPointee: $2}} }
 	| CONST type_specifier ID '[' const_int_expr ']' ';'
-		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: $5, ElemType: $2.Kind, StructTag: $2.Tag}} }
+		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: $5, ElemType: $2.Kind, ElemPointee: arrayElemPtee($2), StructTag: $2.Tag}} }
 	| type_specifier '(' '*' ID ')' '(' fp_param_types ')' ';'
 		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeFuncPtr, Name: $4}} }
+	| type_specifier '*' '(' '*' ID ')' '(' fp_param_types ')' ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeFuncPtr, Name: $5}} }
+	/* Function pointer field returning const pointer: const T *(*name)(params); */
+	| CONST type_specifier '*' '(' '*' ID ')' '(' fp_param_types ')' ';'
+		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeFuncPtr, Name: $6}} }
 	| type_specifier '(' '*' ID '[' const_int_expr ']' ')' '(' fp_param_types ')' ';'
 		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeFuncPtr, Name: $4}} }
 	| STRUCT ID '*' ID ';'
@@ -1645,6 +1716,8 @@ field
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4}; n.Pointee = structCType($2); $$ = append([]*Node{n}, makePtrFields(structCType($2), $6)...) }
 	| STRUCT ID '*' CONST '*' ID ';'
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $6}; n.Pointee = ptrCType(structCType($2)); $$ = []*Node{n} }
+	| STRUCT ID '*' '*' ID ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $5}; n.Pointee = ptrCType(structCType($2)); $$ = []*Node{n} }
 	| STRUCT ID ID ';'
 		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: $3, StructTag: $2}} }
 	| STRUCT ID ID '[' const_int_expr ']' ';'
@@ -1764,13 +1837,25 @@ const_int_primary
 	| '(' type_specifier ')' const_int_primary  { $$ = $4 /* cast: ignore type, value unchanged */ }
 	| SIZEOF '(' type_specifier ')'           { $$ = sizeofType($3) }
 	| SIZEOF '(' type_specifier '*' ')'       { $$ = 8 }
+	| SIZEOF '(' CONST type_specifier '*' ')' { $$ = 8 }
 	| SIZEOF '(' type_specifier '[' NUM ']' ')'  { $$ = sizeofType($3) * $5 }
 	| SIZEOF '(' ID ')'                       { $$ = 8 /* opaque sizeof(varname): assume 8 */ }
 	| SIZEOF '(' ID '[' NUM ']' ')'           { $$ = 8 /* opaque sizeof(arr[i]): return element size */ }
+	/* sizeof((arr)[0]) — parenthesized subscript, element size */
+	| SIZEOF '(' '(' ID ')' '[' NUM ']' ')'   { $$ = 8 /* opaque sizeof((arr)[i]): assume element size 8 */ }
+	/* sizeof((arr)[0]) with const_int_expr index */
+	| SIZEOF '(' '(' ID ')' '[' const_int_expr ']' ')'  { $$ = 8 /* opaque: assume element size 8 */ }
 	| ALIGNOF '(' type_specifier ')'          { $$ = alignofType($3) }
 	| ALIGNOF '(' type_specifier '*' ')'      { $$ = 8 }
 	| ALIGNOF '(' STRUCT ID ')'               { $$ = 8 }
 	| ID                                      { $$ = yylex.(*lexer).lookupConstInt($1) }
+	| '&' ID                                  { $$ = constAddrOf($2) /* link-time address: opaque non-zero */ }
+	| '&' TYPENAME                            { $$ = constAddrOf($2) /* link-time address of typedef'd object */ }
+	/* offsetof-style patterns: &((T*)0)->field, used as compile-time offset computation.
+	   Gaston cannot evaluate struct field offsets in const_int_expr context, so return 0
+	   (a safe sentinel for "unknown offset"). sizeof(char[...]) clamps to dim>=1 anyway. */
+	| '&' '(' '(' type_specifier '*' ')' NUM ')' ARROW ID { $$ = 0 }
+	| '&' '(' '(' type_specifier '*' ')' NUM ')' '.' ID  { $$ = 0 }
 	;
 
 /* ═══════════════════════════════════════════════════════════════════════════

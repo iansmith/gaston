@@ -105,6 +105,7 @@ typedef long          size_t;
 #define LLONG_MAX  9223372036854775807
 #define LLONG_MIN  (-9223372036854775808)
 #define ULLONG_MAX 18446744073709551615
+#define PATH_MAX   4096
 `,
 	"float.h": `
 /* gaston built-in <float.h> */
@@ -130,6 +131,280 @@ typedef long          size_t;
 #ifndef _COMPLEX_H
 #define _COMPLEX_H
 #endif /* _COMPLEX_H */
+`,
+	"stdalign.h": `
+/* gaston built-in <stdalign.h> */
+#ifndef _STDALIGN_H
+#define _STDALIGN_H
+/* On ARM64/x86_64, alignment equals size for all basic types */
+#define alignof(x) sizeof(x)
+#define __alignof__(x) sizeof(x)
+#define _Alignof(x) sizeof(x)
+#endif
+`,
+	"stdbool.h": `
+/* gaston built-in <stdbool.h> */
+#ifndef _STDBOOL_H
+#define _STDBOOL_H
+#define _Bool int
+#define bool  int
+#define true  1
+#define false 0
+#endif
+`,
+	"assert.h": `
+/* gaston built-in <assert.h> */
+#ifndef _ASSERT_H
+#define _ASSERT_H
+#ifdef NDEBUG
+# define assert(expr) ((void)0)
+#else
+# define assert(expr) ((expr) ? (void)0 : __builtin_trap())
+#endif
+#define static_assert _Static_assert
+#endif
+`,
+	"string.h": `
+/* gaston built-in <string.h> */
+#ifndef _STRING_H
+#define _STRING_H
+typedef long size_t;
+void *memcpy(void *dst, const void *src, size_t n);
+void *memmove(void *dst, const void *src, size_t n);
+void *memset(void *s, int c, size_t n);
+int   memcmp(const void *s1, const void *s2, size_t n);
+void *memchr(const void *s, int c, size_t n);
+size_t strlen(const char *s);
+char  *strcpy(char *dst, const char *src);
+char  *strncpy(char *dst, const char *src, size_t n);
+char  *strcat(char *dst, const char *src);
+char  *strncat(char *dst, const char *src, size_t n);
+int    strcmp(const char *s1, const char *s2);
+int    strncmp(const char *s1, const char *s2, size_t n);
+char  *strchr(const char *s, int c);
+char  *strrchr(const char *s, int c);
+char  *strstr(const char *haystack, const char *needle);
+char  *strtok(char *str, const char *delim);
+char  *strtok_r(char *str, const char *delim, char **saveptr);
+size_t strspn(const char *s, const char *accept);
+size_t strcspn(const char *s, const char *reject);
+char  *strerror(int errnum);
+size_t strnlen(const char *s, size_t maxlen);
+#endif
+`,
+	"stdio.h": `
+/* gaston built-in <stdio.h> */
+#ifndef _STDIO_H
+#define _STDIO_H
+typedef long size_t;
+typedef struct _IO_FILE FILE;
+extern FILE *stdin;
+extern FILE *stdout;
+extern FILE *stderr;
+#define EOF (-1)
+int printf(const char *fmt, ...);
+int fprintf(FILE *stream, const char *fmt, ...);
+int sprintf(char *buf, const char *fmt, ...);
+int snprintf(char *buf, size_t n, const char *fmt, ...);
+int vprintf(const char *fmt, void *ap);
+int vfprintf(FILE *stream, const char *fmt, void *ap);
+int vsnprintf(char *buf, size_t n, const char *fmt, void *ap);
+int puts(const char *s);
+int fputs(const char *s, FILE *stream);
+int fputc(int c, FILE *stream);
+int putchar(int c);
+int fflush(FILE *stream);
+FILE *fopen(const char *path, const char *mode);
+int fclose(FILE *f);
+size_t fread(void *buf, size_t size, size_t n, FILE *f);
+size_t fwrite(const void *buf, size_t size, size_t n, FILE *f);
+#endif
+`,
+	"stdlib.h": `
+/* gaston built-in <stdlib.h> */
+#ifndef _STDLIB_H
+#define _STDLIB_H
+typedef long size_t;
+void *malloc(size_t size);
+void *calloc(size_t nmemb, size_t size);
+void *realloc(void *ptr, size_t size);
+void  free(void *ptr);
+void  exit(int status);
+void  abort(void);
+int   abs(int x);
+long  labs(long x);
+long  strtol(const char *s, char **end, int base);
+unsigned long strtoul(const char *s, char **end, int base);
+double strtod(const char *s, char **end);
+int   atoi(const char *s);
+long  atol(const char *s);
+double atof(const char *s);
+int   rand(void);
+void  srand(unsigned int seed);
+void *bsearch(const void *key, const void *base, size_t nmemb, size_t size,
+              int (*cmp)(const void *, const void *));
+void  qsort(void *base, size_t nmemb, size_t size,
+            int (*cmp)(const void *, const void *));
+#define alloca(n) __builtin_alloca(n)
+#define RAND_MAX 2147483647
+#define EXIT_SUCCESS 0
+#define EXIT_FAILURE 1
+#endif
+`,
+	"alloca.h": `
+/* gaston built-in <alloca.h> */
+#ifndef _ALLOCA_H
+#define _ALLOCA_H
+#define alloca(n) __builtin_alloca(n)
+#endif
+`,
+	"unistd.h": `
+/* gaston built-in <unistd.h> */
+#ifndef _UNISTD_H
+#define _UNISTD_H
+typedef long ssize_t;
+typedef long size_t;
+typedef int  pid_t;
+typedef unsigned int uid_t;
+typedef unsigned int gid_t;
+ssize_t read(int fd, void *buf, size_t count);
+ssize_t write(int fd, const void *buf, size_t count);
+int     close(int fd);
+void    _exit(int status);
+pid_t   getpid(void);
+uid_t   getuid(void);
+int     isatty(int fd);
+int     usleep(unsigned int usec);
+unsigned int sleep(unsigned int seconds);
+#define STDIN_FILENO  0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+off_t lseek(int fd, off_t offset, int whence);
+typedef long off_t;
+#endif
+`,
+	"sched.h": `
+/* gaston built-in <sched.h> */
+#ifndef _SCHED_H
+#define _SCHED_H
+int sched_yield(void);
+#endif
+`,
+	"errno.h": `
+/* gaston built-in <errno.h> */
+#ifndef _ERRNO_H
+#define _ERRNO_H
+extern int errno;
+#define EPERM   1
+#define ENOENT  2
+#define ESRCH   3
+#define EINTR   4
+#define EIO     5
+#define ENXIO   6
+#define ENOMEM  12
+#define EACCES  13
+#define EFAULT  14
+#define EBUSY   16
+#define EEXIST  17
+#define ENODEV  19
+#define ENOTDIR 20
+#define EISDIR  21
+#define EINVAL  22
+#define ENFILE  23
+#define EMFILE  24
+#define ENOSPC  28
+#define ERANGE  34
+#define ENOSYS  38
+#endif
+`,
+	"setjmp.h": `
+/* gaston built-in <setjmp.h> */
+#ifndef _SETJMP_H
+#define _SETJMP_H
+typedef long jmp_buf[22];
+int  setjmp(jmp_buf env);
+void longjmp(jmp_buf env, int val);
+#endif
+`,
+	"sys/stat.h": `
+/* gaston built-in <sys/stat.h> */
+#ifndef _SYS_STAT_H
+#define _SYS_STAT_H
+typedef unsigned int mode_t;
+typedef long off_t;
+struct stat {
+    mode_t st_mode;
+    off_t  st_size;
+};
+#define S_ISREG(m) (((m) & 0170000) == 0100000)
+#define S_ISDIR(m) (((m) & 0170000) == 0040000)
+int stat(const char *path, struct stat *buf);
+int fstat(int fd, struct stat *buf);
+#endif
+`,
+	"fcntl.h": `
+/* gaston built-in <fcntl.h> */
+#ifndef _FCNTL_H
+#define _FCNTL_H
+#define O_RDONLY 0
+#define O_WRONLY 1
+#define O_RDWR   2
+#define O_CREAT  0100
+#define O_TRUNC  01000
+#define O_APPEND 02000
+int open(const char *path, int flags, ...);
+#endif
+`,
+	"math.h": `
+/* gaston built-in <math.h> */
+#ifndef _MATH_H
+#define _MATH_H
+double sqrt(double x);
+double fabs(double x);
+double floor(double x);
+double ceil(double x);
+double round(double x);
+double fmod(double x, double y);
+double pow(double x, double y);
+double exp(double x);
+double log(double x);
+double log2(double x);
+double log10(double x);
+double sin(double x);
+double cos(double x);
+double tan(double x);
+double asin(double x);
+double acos(double x);
+double atan(double x);
+double atan2(double y, double x);
+double sinh(double x);
+double cosh(double x);
+double tanh(double x);
+double copysign(double x, double y);
+double frexp(double x, int *exp);
+double ldexp(double x, int exp);
+double modf(double x, double *iptr);
+float sqrtf(float x);
+float fabsf(float x);
+float floorf(float x);
+float ceilf(float x);
+float roundf(float x);
+float fmodf(float x, float y);
+float powf(float x, float y);
+float sinf(float x);
+float cosf(float x);
+float tanf(float x);
+float copysignf(float x, float y);
+#define HUGE_VAL  __builtin_huge_val()
+#define HUGE_VALF __builtin_huge_valf()
+#define NAN       __builtin_nanf("")
+#define INFINITY  __builtin_inff()
+#define M_PI      3.14159265358979323846
+#define M_E       2.71828182845904523536
+#endif
 `,
 }
 
@@ -577,9 +852,10 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 #define LONG_MAX   9223372036854775807L
 #define ULONG_MAX  18446744073709551615UL
 
-/* GCC predefined identifiers — approximate as string literals */
+/* GCC/C99 predefined identifiers — approximate as empty string literals */
 #define __FUNCTION__ ""
 #define __PRETTY_FUNCTION__ ""
+#define __func__ ""
 `
 	var dummy strings.Builder
 	pp.processFile(builtinSrc, "<builtin>", &dummy)
@@ -614,6 +890,8 @@ func (p *preprocessor) Preprocess(src, file string) (string, error) {
 // each comment with a single space on the starting line and preserving any
 // embedded newlines so that line numbers are not disturbed.
 // String and character literals are not scanned for comment markers.
+// Line comments (//) are also skipped so that apostrophes inside them don't
+// confuse the char-literal detector.
 func stripBlockComments(src string) string {
 	var out strings.Builder
 	out.Grow(len(src))
@@ -648,6 +926,11 @@ func stripBlockComments(src string) string {
 				} else if c == '\'' {
 					break
 				}
+			}
+		case c == '/' && i+1 < len(src) && src[i+1] == '/': // line comment — copy to end of line
+			for i < len(src) && src[i] != '\n' {
+				out.WriteByte(src[i])
+				i++
 			}
 		case c == '/' && i+1 < len(src) && src[i+1] == '*': // block comment
 			i += 2 // skip /*
@@ -2096,14 +2379,19 @@ func joinOpenLines(lines []logLine) []logLine {
 			if strings.HasPrefix(strings.TrimLeft(lines[i].text, " \t"), "#") {
 				break
 			}
-			ll.text += " " + lines[i].text
+			// Strip any trailing // line comment from the current accumulated text
+			// before joining, so the comment doesn't become part of a macro argument.
+			ll.text = stripLineComment(ll.text) + " " + lines[i].text
 			ll.count += lines[i].count
 			i++
 		}
+		// Strip trailing // comment from the final accumulated text too.
+		ll.text = stripLineComment(ll.text)
 		result = append(result, ll)
 	}
 	return result
 }
+
 
 // lineParenDepth returns the net unbalanced open-paren count in s, ignoring
 // content inside string literals, character literals, and // comments.
