@@ -1406,18 +1406,61 @@ func collectArgs(line string, start int) ([]string, int, bool) {
 
 // evalIfExpr evaluates a preprocessor constant expression (from #if or #elif).
 func (p *preprocessor) evalIfExpr(expr, file string, line int) int64 {
-	expanded := p.expandForIf(expr)
+	expanded := p.expandForIf(expr, file)
 	toks := scanPPTokens(expanded)
 	pos := 0
 	val := evalPPExpr(toks, &pos)
 	return val
 }
 
+// hasIncludeSearch returns 1 if the given include argument (e.g. "<stdio.h>"
+// or '"foo.h"') can be found on the include path, 0 otherwise.
+func (p *preprocessor) hasIncludeSearch(arg, currentFile string) string {
+	arg = strings.TrimSpace(arg)
+	var filename string
+	var systemSearch bool
+	switch {
+	case strings.HasPrefix(arg, `"`):
+		end := strings.IndexByte(arg[1:], '"')
+		if end < 0 {
+			return "0"
+		}
+		filename = arg[1 : end+1]
+	case strings.HasPrefix(arg, "<"):
+		end := strings.IndexByte(arg, '>')
+		if end < 0 {
+			return "0"
+		}
+		filename = arg[1:end]
+		systemSearch = true
+	default:
+		return "0"
+	}
+	// Check built-in virtual headers first.
+	if _, ok := builtinHeaders[filename]; ok {
+		return "1"
+	}
+	// Search disk: current-dir relative (for "..." includes), then include paths.
+	if !systemSearch && currentFile != "" {
+		rel := filepath.Join(filepath.Dir(currentFile), filename)
+		if fileExists(rel) {
+			return "1"
+		}
+	}
+	for _, dir := range p.includePaths {
+		if fileExists(filepath.Join(dir, filename)) {
+			return "1"
+		}
+	}
+	return "0"
+}
+
 // expandForIf expands macros in a #if expression, handles defined(), and
 // replaces unknown identifiers with 0 (C standard rule).
-func (p *preprocessor) expandForIf(expr string) string {
+func (p *preprocessor) expandForIf(expr, currentFile string) string {
 	// First, handle __has_attribute, __has_builtin, __has_feature,
-	// __has_include, __has_c_attribute — replace with 0 before macro expansion.
+	// __has_include, __has_c_attribute — replace with 0 (or 1 for __has_include)
+	// before macro expansion.
 	hasBuiltins := []string{
 		"__has_attribute", "__has_builtin", "__has_feature",
 		"__has_include", "__has_c_attribute", "__has_extension",
@@ -1451,7 +1494,12 @@ func (p *preprocessor) expandForIf(expr string) string {
 				}
 				k++
 			}
-			expr = expr[:idx] + "0" + expr[k:]
+			// For __has_include, actually search the include path.
+			replacement := "0"
+			if hb == "__has_include" || hb == "__has_include_next" {
+				replacement = p.hasIncludeSearch(expr[j+1:k-1], currentFile)
+			}
+			expr = expr[:idx] + replacement + expr[k:]
 		}
 	}
 

@@ -523,6 +523,35 @@ func TestPreprocIf(t *testing.T) {
 	}
 }
 
+func TestPP_HasInclude(t *testing.T) {
+	cases := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{
+			name: "found_builtin",
+			src:  "#if __has_include(<stdint.h>)\nint x;\n#endif",
+			want: "int x;",
+		},
+		{
+			name: "not_found",
+			src:  "#if __has_include(<totally_nonexistent_xyz.h>)\nint x;\n#else\nint y;\n#endif",
+			want: "int y;",
+		},
+		{
+			name: "found_stddef",
+			src:  "#if __has_include(<stddef.h>)\nint x;\n#endif",
+			want: "int x;",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			checkPP(t, pp(t, tc.src), tc.want)
+		})
+	}
+}
+
 func TestPP_VAArgsSuppression(t *testing.T) {
 	cases := []struct {
 		name string
