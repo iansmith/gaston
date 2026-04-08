@@ -6,6 +6,8 @@
 // Dangling-else resolved via %prec LOWER_THAN_ELSE.
 %{
 package main
+
+import "fmt"
 %}
 
 %union {
@@ -32,6 +34,7 @@ package main
 %token LONG UNSIGNED SHORT FLOAT DOUBLE STRUCT SIZEOF ENUM UNION TYPEDEF STATIC VA_ARG TYPEOF INT128 SIGNED
 %token SWITCH CASE DEFAULT
 %token ATTR_PACKED
+%token STATIC_ASSERT
 %token <sval> TYPENAME
 
 // Multi-character operators
@@ -105,6 +108,20 @@ declaration
 	| union_declaration  { $$ = $1 }
 	| enum_declaration   { $$ = $1 }
 	| typedef_declaration { $$ = $1 }
+	| STATIC_ASSERT '(' const_int_expr ',' STRING_LIT ')' ';'
+		{
+			if $3 == 0 {
+				yylex.(*lexer).Error(fmt.Sprintf("_Static_assert failed: %s", $5))
+			}
+			$$ = nil
+		}
+	| STATIC_ASSERT '(' const_int_expr ')' ';'
+		{
+			if $3 == 0 {
+				yylex.(*lexer).Error("_Static_assert failed")
+			}
+			$$ = nil
+		}
 	/* ── Unified function definition: declaration_specifiers fun_declarator compound_stmt ── */
 	| declaration_specifiers gd_fun_declarator compound_stmt
 		{ $$ = []*Node{applyDeclToFunNode($1, $2.Name, $2.PtrChain, $2.Params, $3)} }
@@ -392,6 +409,20 @@ block_item_list
 		{ $$ = $1 }
 	| block_item_list ENUM ID ';'
 		{ $$ = $1 }
+	| block_item_list STATIC_ASSERT '(' const_int_expr ',' STRING_LIT ')' ';'
+		{
+			if $4 == 0 {
+				yylex.(*lexer).Error(fmt.Sprintf("_Static_assert failed: %s", $6))
+			}
+			$$ = $1
+		}
+	| block_item_list STATIC_ASSERT '(' const_int_expr ')' ';'
+		{
+			if $4 == 0 {
+				yylex.(*lexer).Error("_Static_assert failed")
+			}
+			$$ = $1
+		}
 	| /* empty */
 		{ $$ = nil }
 	;
@@ -1406,6 +1437,27 @@ field_list
 		{ $$ = append($1, $2...) }
 	| field
 		{ $$ = $1 }
+	| field_list STATIC_ASSERT '(' const_int_expr ',' STRING_LIT ')' ';'
+		{
+			if $4 == 0 {
+				yylex.(*lexer).Error(fmt.Sprintf("_Static_assert failed: %s", $6))
+			}
+			$$ = $1
+		}
+	| field_list STATIC_ASSERT '(' const_int_expr ')' ';'
+		{
+			if $4 == 0 {
+				yylex.(*lexer).Error("_Static_assert failed")
+			}
+			$$ = $1
+		}
+	| STATIC_ASSERT '(' const_int_expr ',' STRING_LIT ')' ';'
+		{
+			if $3 == 0 {
+				yylex.(*lexer).Error(fmt.Sprintf("_Static_assert failed: %s", $5))
+			}
+			$$ = nil
+		}
 	;
 
 field
