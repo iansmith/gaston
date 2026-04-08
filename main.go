@@ -1,12 +1,13 @@
-// Command gaston is a C-minus compiler targeting Linux ARM64.
+// Command gaston is a C compiler targeting Linux ARM64.
 //
-// Default mode: reads <file.cm>, writes a ready-to-run Linux ARM64 ELF binary.
+// Default mode compiles .c/.cm sources to in-memory objects, links them with
+// any .o/.a files and -l libraries, and writes a ready-to-run ELF executable.
 //
 // Usage:
 //
-//	gaston <file.cm>                    — compile to ELF binary <file>
-//	gaston -c <file.cm>                 — compile to relocatable object <file.o>
-//	gaston -link -o <out> a.o b.o …    — link object files to ELF binary
+//	gaston [-I dir] [-L dir] [-l lib] [-o out] file.c [file2.c ...] [lib.a]
+//	gaston -c [-o out.o] <file.c>       — compile to relocatable object
+//	gaston -link -o <out> a.o b.o …     — link object files to ELF binary
 //	gaston -asm <file.cm>               — emit Plan 9 .s + Go bridge (legacy)
 //
 //go:generate go tool golang.org/x/tools/cmd/goyacc -o parser.go grammar.y
@@ -18,6 +19,16 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+)
+
+// defaultIncludes, defaultLibPaths, and defaultLibs are injected at build time
+// via -ldflags "-X main.defaultIncludes=... -X main.defaultLibPaths=... -X main.defaultLibs=..."
+// for target installs (e.g. mazarin). They are empty for dev/test builds.
+// Multiple entries are separated by colons (paths) or commas (lib names).
+var (
+	defaultIncludes = "" // e.g. "/gaston/include"
+	defaultLibPaths = "" // e.g. "/gaston/lib"
+	defaultLibs     = "" // e.g. "gastonc"
 )
 
 func main() {
@@ -38,17 +49,43 @@ func main() {
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage:\n")
-		fmt.Fprintf(os.Stderr, "  gaston <file.cm>                    — compile to ELF binary\n")
-		fmt.Fprintf(os.Stderr, "  gaston -c [-o out.o] <file.cm>      — compile to object file\n")
-		fmt.Fprintf(os.Stderr, "  gaston -link -o out a.o b.o …       — link objects/archives\n")
-		fmt.Fprintf(os.Stderr, "  gaston -ar -o libfoo.a a.o b.o …    — build static library\n")
-		fmt.Fprintf(os.Stderr, "  gaston -asm <file.cm>               — emit Plan 9 assembly (legacy)\n")
-		fmt.Fprintf(os.Stderr, "  gaston -preprocess <file.cm>        — preprocess only; write <base>.pre.cm\n")
-		fmt.Fprintf(os.Stderr, "  gaston -I <dir> <file.cm>           — add include search path\n")
-		fmt.Fprintf(os.Stderr, "  gaston -D NAME[=val] <file.cm>      — define preprocessor macro\n")
-		fmt.Fprintf(os.Stderr, "  gaston -L <dir> -l <name>           — library search path / library\n")
+		fmt.Fprintf(os.Stderr, "  gaston [flags] file.c [file2.c ...] [lib.a]  — compile + link to ELF\n")
+		fmt.Fprintf(os.Stderr, "  gaston -c [-o out.o] <file.c>                — compile to object file\n")
+		fmt.Fprintf(os.Stderr, "  gaston -link -o out a.o b.o …                — link objects/archives\n")
+		fmt.Fprintf(os.Stderr, "  gaston -ar -o libfoo.a a.o b.o …             — build static library\n")
+		fmt.Fprintf(os.Stderr, "  gaston -preprocess <file.c>                  — preprocess only\n")
+		fmt.Fprintf(os.Stderr, "\nflags:\n")
+		fmt.Fprintf(os.Stderr, "  -I <dir>          add include search path\n")
+		fmt.Fprintf(os.Stderr, "  -D NAME[=val]     define preprocessor macro\n")
+		fmt.Fprintf(os.Stderr, "  -L <dir>          add library search path\n")
+		fmt.Fprintf(os.Stderr, "  -l <name>         link against lib<name>.a\n")
+		fmt.Fprintf(os.Stderr, "  -o <file>         output file name\n")
 	}
 	flag.Parse()
+
+	// Append built-in defaults (set at build time via -ldflags) after any
+	// explicit flags, so explicit -I/-L/-l always take precedence.
+	if defaultIncludes != "" {
+		for _, p := range strings.Split(defaultIncludes, ":") {
+			if p != "" {
+				includePaths = append(includePaths, p)
+			}
+		}
+	}
+	if defaultLibPaths != "" {
+		for _, p := range strings.Split(defaultLibPaths, ":") {
+			if p != "" {
+				libPaths = append(libPaths, p)
+			}
+		}
+	}
+	if defaultLibs != "" {
+		for _, l := range strings.Split(defaultLibs, ",") {
+			if l != "" {
+				libs = append(libs, l)
+			}
+		}
+	}
 
 	// ── archive mode ──────────────────────────────────────────────────────
 	if *arMode {
@@ -97,83 +134,73 @@ func main() {
 		return
 	}
 
-	// ── compiler mode ─────────────────────────────────────────────────────
-	if flag.NArg() != 1 {
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	infile := flag.Arg(0)
-	ext := filepath.Ext(infile)
-	base := strings.TrimSuffix(filepath.Base(infile), ext)
-	dir := filepath.Dir(infile)
-
-	// Read source file.
-	rawSrc, err := os.ReadFile(infile)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Preprocess.
-	pp := newPreprocessor([]string(includePaths), []string(defines))
-	src, err := pp.Preprocess(string(rawSrc), infile)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
-		os.Exit(1)
-	}
-
-	if *preprocOnly {
-		outFile := filepath.Join(dir, base+".pre.cm")
-		if err := os.WriteFile(outFile, []byte(src), 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
+	// ── single-file modes: -c, -preprocess, -asm ─────────────────────────
+	if *compOnly || *preprocOnly || *asmMode {
+		if flag.NArg() != 1 {
+			flag.Usage()
 			os.Exit(1)
 		}
-		fmt.Fprintf(os.Stderr, "gaston: wrote %s\n", outFile)
-		return
-	}
+		infile := flag.Arg(0)
+		ext := filepath.Ext(infile)
+		base := strings.TrimSuffix(filepath.Base(infile), ext)
+		dir := filepath.Dir(infile)
 
-	// Parse.
-	lex := newLexer(src, infile)
-	yyParse(lex)
-	if lex.errors > 0 {
-		fmt.Fprintf(os.Stderr, "gaston: %d error(s), aborting\n", lex.errors)
-		os.Exit(1)
-	}
-	if lex.result == nil {
-		fmt.Fprintf(os.Stderr, "gaston: empty program\n")
-		os.Exit(1)
-	}
-
-	// Semantic analysis. In -c mode, main() is not required.
-	if err := semCheck(lex.result, !*compOnly); err != nil {
-		fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
-		os.Exit(1)
-	}
-
-	// IR generation.
-	irp := genIR(lex.result)
-
-	if *asmMode {
-		// Legacy: emit Plan 9 assembly + Go runtime bridge.
-		asmFile := filepath.Join(dir, base+".s")
-		asmOut, err := os.Create(asmFile)
+		rawSrc, err := os.ReadFile(infile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
 			os.Exit(1)
 		}
-		genARM64(irp, asmOut)
-		asmOut.Close()
-		fmt.Fprintf(os.Stderr, "gaston: wrote %s\n", asmFile)
-		if err := genRuntime(filepath.Join(dir, base)); err != nil {
+		pp := newPreprocessor([]string(includePaths), []string(defines))
+		src, err := pp.Preprocess(string(rawSrc), infile)
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
 			os.Exit(1)
 		}
-		return
-	}
 
-	if *compOnly {
-		// Compile-only: emit ET_REL object file.
+		if *preprocOnly {
+			outFile := filepath.Join(dir, base+".pre.cm")
+			if err := os.WriteFile(outFile, []byte(src), 0644); err != nil {
+				fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Fprintf(os.Stderr, "gaston: wrote %s\n", outFile)
+			return
+		}
+
+		lex := newLexer(src, infile)
+		yyParse(lex)
+		if lex.errors > 0 {
+			fmt.Fprintf(os.Stderr, "gaston: %d error(s), aborting\n", lex.errors)
+			os.Exit(1)
+		}
+		if lex.result == nil {
+			fmt.Fprintf(os.Stderr, "gaston: empty program\n")
+			os.Exit(1)
+		}
+		if err := semCheck(lex.result, false); err != nil {
+			fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
+			os.Exit(1)
+		}
+		irp := genIR(lex.result)
+
+		if *asmMode {
+			asmFile := filepath.Join(dir, base+".s")
+			asmOut, err := os.Create(asmFile)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
+				os.Exit(1)
+			}
+			genARM64(irp, asmOut)
+			asmOut.Close()
+			fmt.Fprintf(os.Stderr, "gaston: wrote %s\n", asmFile)
+			if err := genRuntime(filepath.Join(dir, base)); err != nil {
+				fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
+				os.Exit(1)
+			}
+			return
+		}
+
+		// -c: compile to .o file on disk.
 		outFile := *outFlag
 		if outFile == "" {
 			outFile = filepath.Join(dir, base+".o")
@@ -186,12 +213,97 @@ func main() {
 		return
 	}
 
-	// Default: emit Linux ARM64 ELF binary.
+	// ── default mode: compile + link ──────────────────────────────────────
+	// Accepts a mix of .c/.cm source files, .o object files, and .a archives.
+	// Source files are compiled to in-memory objects; everything is linked
+	// into a single ELF executable.
+	if flag.NArg() == 0 {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	var objs []*objFile
+	var archivePaths []string
+	firstName := ""
+
+	for _, arg := range flag.Args() {
+		ext := filepath.Ext(arg)
+		switch ext {
+		case ".c", ".cm":
+			if firstName == "" {
+				firstName = strings.TrimSuffix(filepath.Base(arg), ext)
+			}
+			rawSrc, err := os.ReadFile(arg)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
+				os.Exit(1)
+			}
+			pp := newPreprocessor([]string(includePaths), []string(defines))
+			src, err := pp.Preprocess(string(rawSrc), arg)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
+				os.Exit(1)
+			}
+			lex := newLexer(src, arg)
+			yyParse(lex)
+			if lex.errors > 0 {
+				fmt.Fprintf(os.Stderr, "gaston: %d error(s) in %s\n", lex.errors, arg)
+				os.Exit(1)
+			}
+			if lex.result == nil {
+				fmt.Fprintf(os.Stderr, "gaston: empty program: %s\n", arg)
+				os.Exit(1)
+			}
+			if err := semCheck(lex.result, false); err != nil {
+				fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
+				os.Exit(1)
+			}
+			irp := genIR(lex.result)
+			objData, err := genObjectBytes(irp)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
+				os.Exit(1)
+			}
+			obj, err := loadObjFromBytes(arg, objData)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
+				os.Exit(1)
+			}
+			objs = append(objs, obj)
+		case ".o":
+			obj, err := loadObjFile(arg)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
+				os.Exit(1)
+			}
+			objs = append(objs, obj)
+		case ".a":
+			archivePaths = append(archivePaths, arg)
+		default:
+			fmt.Fprintf(os.Stderr, "gaston: unrecognized file type: %s\n", arg)
+			os.Exit(1)
+		}
+	}
+
+	// Resolve -l flags into archive paths.
+	for _, lib := range libs {
+		path, err := resolveLib(lib, []string(libPaths))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
+			os.Exit(1)
+		}
+		archivePaths = append(archivePaths, path)
+	}
+
 	outFile := *outFlag
 	if outFile == "" {
-		outFile = filepath.Join(dir, base+".elf")
+		outFile = firstName
 	}
-	if err := genELF(irp, outFile); err != nil {
+	if outFile == "" {
+		outFile = "a.out"
+	}
+
+	if err := linkWithObjs(outFile, objs, archivePaths); err != nil {
 		fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
 		os.Exit(1)
 	}
