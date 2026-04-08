@@ -1753,6 +1753,11 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 		}
 		switch n.Op {
 		case "-": // 0 - operand
+			if n.Children[0].Type == TypeInt128 || n.Children[0].Type == TypeUint128 {
+				dst128 := g.alloc128Slot()
+				g.emit(Quad{Op: IR128Neg, Dst: dst128, Src1: operand})
+				return dst128
+			}
 			g.emit(Quad{Op: IRSub, Dst: dst, Src1: zero, Src2: operand})
 		case "!": // operand == 0
 			g.emit(Quad{Op: IREq, Dst: dst, Src1: operand, Src2: zero})

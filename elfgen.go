@@ -909,10 +909,10 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 			case n > 0 && n < 64:
 				// lo = (lo >> n) | (hi << (64-n))
 				// hi = hi >> n  (arithmetic)
-				g.cb.emit(encUBFM(regX0, regX0, n, 63))       // lo = lo >> n (logical)
-				g.cb.emit(encUBFM(regX2, regX1, 64-n, 63-n))  // X2 = hi << (64-n)
-				g.cb.emit(encORR(regX0, regX0, regX2))         // lo |= X2
-				g.cb.emit(encASR(regX1, regX1, n))             // hi = hi >> n (arithmetic)
+				g.cb.emit(encUBFM(regX0, regX0, n, 63))      // lo = lo >> n (logical)
+				g.cb.emit(encUBFM(regX2, regX1, n, n-1))     // X2 = hi << (64-n)
+				g.cb.emit(encORR(regX0, regX0, regX2))        // lo |= X2
+				g.cb.emit(encASR(regX1, regX1, n))            // hi = hi >> n (arithmetic)
 				g.store128(regX0, regX1, q.Dst)
 			default: // n >= 64
 				g.cb.emit(encASR(regX0, regX1, 63)) // lo = sign bit
@@ -1308,12 +1308,12 @@ func (g *elfGen) emit128Shl(lo, hi, n int) {
 func (g *elfGen) emit128LShr(lo, hi, n int) {
 	// lo = (lo >> n) | (hi << (64-n))
 	// hi = hi >> n
-	// LSR lo, lo, #n  = UBFM lo, lo, #n, #63
-	// LSL X2, hi, #(64-n) = UBFM X2, hi, #(64-n), #(63-n)
+	// LSR lo, lo, #n    = UBFM lo, lo, #n, #63
+	// LSL X2, hi, #(64-n) = UBFM X2, hi, #n, #(n-1)
 	// ORR lo, lo, X2
-	// LSR hi, hi, #n  = UBFM hi, hi, #n, #63
+	// LSR hi, hi, #n    = UBFM hi, hi, #n, #63
 	g.cb.emit(encUBFM(lo, lo, n, 63))                 // lo = lo >> n
-	g.cb.emit(encUBFM(regX2, hi, 64-n, 63-n))        // X2 = hi << (64-n)
+	g.cb.emit(encUBFM(regX2, hi, n, n-1))             // X2 = hi << (64-n)
 	g.cb.emit(encORR(lo, lo, regX2))                  // lo |= X2
 	g.cb.emit(encUBFM(hi, hi, n, 63))                 // hi = hi >> n
 }

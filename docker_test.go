@@ -456,6 +456,8 @@ var featureTests = []dockerTest{
 	{name: "int128_arith", want: "1\n0\n1\n"},
 	// int128_cast: cast chain long → __uint128_t → long
 	{name: "int128_cast", want: "100\n"},
+	// int128_wide: comprehensive 128-bit test with nonzero hi words throughout
+	{name: "int128_wide", want: "1\n0\n0\n1\n1\n1\n1\n1\n1\n-2\n0\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n"},
 	// inline_union_local: local variable with inline anonymous union type + brace-init
 	{name: "inline_union_local", want: "1\n"},
 	// paren_assign: parenthesized lvalue "(x) = expr"
