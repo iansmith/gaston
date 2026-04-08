@@ -307,6 +307,16 @@ func (g *arm64Gen) genFunc(fn *IRFunc, structDefs map[string]*StructDef) {
 		case IRJump:
 			g.insnf("B gaston_%s_%s", fn.Name, q.Extra)
 
+		case IRLabelAddr:
+			// &&label — load PC-relative address of user label into temp.
+			g.insnf("ADR R0, gaston_%s_%s", fn.Name, q.Extra)
+			g.emit_store(f, "R0", q.Dst)
+
+		case IRIndirectJump:
+			// goto *expr — branch to address in register.
+			g.emit_load(f, q.Src1, "R0")
+			g.insn("JMP (R0)")
+
 		case IRJumpT:
 			g.emit_load(f, q.Src1, "R0")
 			g.insn("CMP $0, R0")

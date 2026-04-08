@@ -977,6 +977,9 @@ func (g *irGen) genStmt(n *Node) {
 		}
 	case KindGoto:
 		g.emitJump("user_" + n.Name)
+	case KindIndirectGoto:
+		addr := g.genExpr(n.Children[0])
+		g.emit(Quad{Op: IRIndirectJump, Src1: addr})
 	case KindLabel:
 		g.emitLabel("user_" + n.Name)
 		g.genStmt(n.Children[0])
@@ -1182,6 +1185,12 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 		g.prog.StrLits = append(g.prog.StrLits, IRStrLit{Label: label, Content: n.Name})
 		dst := g.newTemp()
 		g.emit(Quad{Op: IRStrAddr, Dst: dst, Extra: label})
+		return dst
+
+	case KindLabelAddr:
+		// &&label — load PC-relative address of a user label.
+		dst := g.newTemp()
+		g.emit(Quad{Op: IRLabelAddr, Dst: dst, Extra: "user_" + n.Name})
 		return dst
 
 	case KindAddrOf:

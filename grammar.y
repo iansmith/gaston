@@ -593,6 +593,8 @@ case_item
 goto_stmt
 	: GOTO ID ';'
 		{ $$ = &Node{Kind: KindGoto, Name: $2} }
+	| GOTO '*' expression ';'
+		{ $$ = &Node{Kind: KindIndirectGoto, Children: []*Node{$3}} }
 	;
 
 break_stmt
@@ -827,6 +829,7 @@ factor
 	| INC factor          { $$ = &Node{Kind: KindPreInc, Children: []*Node{$2}} }
 	| DEC factor          { $$ = &Node{Kind: KindPreDec, Children: []*Node{$2}} }
 	| '&' var             { $$ = &Node{Kind: KindAddrOf, Children: []*Node{$2}} }
+	| ANDAND ID           { $$ = &Node{Kind: KindLabelAddr, Name: $2, Type: TypePtr} }
 	| '&' '(' expression ')' { $$ = &Node{Kind: KindAddrOf, Children: []*Node{$3}} }
 	/* Address-of array element through dereference: &(*p)[idx] — &(expr)[idx] */
 	| '&' '(' expression ')' '[' expression ']'

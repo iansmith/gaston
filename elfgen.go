@@ -982,6 +982,17 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 		case IR128SGe:
 			g.emit128Cmp(q, false, condGE) // a >= b: a-b, GE (N=V)
 
+		case IRLabelAddr:
+			// &&label — load PC-relative address of a user label.
+			// Emits: ADR X0, gaston_fn_user_labelname
+			g.cb.emitADR(regX0, g.irLabel(q.Extra))
+			g.store(regX0, q.Dst)
+
+		case IRIndirectJump:
+			// goto *expr — load pointer from Src1 and branch to it.
+			g.load(q.Src1, regX16) // X16 = IP0, intra-procedure scratch
+			g.cb.emit(encBR(regX16))
+
 		case IRStrAddr:
 			// Load the address of a string literal via the pool.
 			g.cb.emitLDRglobal(q.Extra)              // X9 = VA of string literal

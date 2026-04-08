@@ -25,6 +25,8 @@ const (
 	IRJump                 // goto Extra
 	IRJumpT                // if Src1 != 0 goto Extra
 	IRJumpF                // if Src1 == 0 goto Extra
+	IRLabelAddr            // Dst = address of user label; Extra = label name (without prefix)
+	IRIndirectJump         // goto *Src1 (branch to address in Src1; computed goto)
 	IRLt                   // Dst = (Src1 < Src2)
 	IRLe                   // Dst = (Src1 <= Src2)
 	IRGt                   // Dst = (Src1 > Src2)

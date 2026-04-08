@@ -164,8 +164,10 @@ const (
 	KindReturn    // return [expr];
 	KindBreak     // break;
 	KindContinue  // continue;
-	KindGoto      // goto label;   Name = label name
-	KindLabel     // label: stmt   Name = label name; Children[0] = statement
+	KindGoto         // goto label;     Name = label name
+	KindIndirectGoto // goto *expr;     Children[0] = pointer expression (computed goto)
+	KindLabel        // label: stmt     Name = label name; Children[0] = statement
+	KindLabelAddr    // &&label (GCC):  Name = label name; Type = TypePtr (void*)
 
 	// Expressions
 	KindAssign         // var = expr

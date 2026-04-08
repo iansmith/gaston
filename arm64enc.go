@@ -136,6 +136,11 @@ func encBL(imm26 int) uint32 {
 	return 0x94000000 | uint32(imm26)&0x3FFFFFF
 }
 
+// encBR encodes BR Xn (unconditional branch to register, no link). rn is the register index (0–30).
+func encBR(rn int) uint32 {
+	return 0xD61F0000 | uint32(rn)<<5
+}
+
 // encBLR encodes BLR Xn (branch with link to register). rn is the register index (0–30).
 func encBLR(rn int) uint32 {
 	return 0xD63F0000 | uint32(rn)<<5

@@ -680,6 +680,9 @@ func checkStmt(n *Node, st *symTable, fn *Node, errs *[]string) {
 		// valid anywhere inside a loop; runtime check in irgen
 	case KindGoto:
 		// target label is function-scoped; validated at assembly time
+	case KindIndirectGoto:
+		// goto *expr; validate the expression
+		checkExpr(n.Children[0], st, errs)
 	case KindLabel:
 		checkStmt(n.Children[0], st, fn, errs)
 	case KindReturn:
@@ -761,6 +764,12 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 	case KindStrLit:
 		n.Type = TypeCharPtr
 		return TypeCharPtr
+
+	case KindLabelAddr:
+		// &&label (GCC computed goto) — address of a user label; type is void*.
+		n.Type = TypePtr
+		n.Pointee = leafCType(TypeVoid)
+		return TypePtr
 
 	case KindAddrOf:
 		_ = checkExpr(n.Children[0], st, errs)
