@@ -53,7 +53,7 @@ import "fmt"
 %type <nodes> struct_declaration field_list union_declaration enum_declaration enum_list typedef_declaration
 %type <nodes> fp_param_types fp_param_type_list
 %type <nodes> field
-%type <ival>  const_int_expr const_int_ternary const_int_cmp const_int_shift const_int_add const_int_mul const_int_unary const_int_primary
+%type <ival>  const_int_expr const_int_ternary const_int_or const_int_and const_int_cmp const_int_shift const_int_add const_int_mul const_int_unary const_int_primary
 %type <nodes> generic_assoc_list
 %type <node>  generic_assoc
 %type <node>  param compound_stmt postfix_expr enum_member fp_param_type
@@ -340,6 +340,10 @@ param
 		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: $4}; n.Pointee = structCType($2); $$ = n }
 	| STRUCT ID '*' '*' ID
 		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: $5}; n.Pointee = ptrCType(structCType($2)); $$ = n }
+	| STRUCT ID '*' CONST '*' ID
+		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: $6}; n.Pointee = ptrCType(structCType($2)); $$ = n }
+	| STRUCT ID '*' CONST '*'
+		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: ""}; n.Pointee = ptrCType(structCType($2)); $$ = n }
 	| CONST type_specifier '*' ID
 		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: $4, IsConstTarget: true}; n.Pointee = $2; $$ = n }
 	| type_specifier CONST '*' ID
@@ -606,6 +610,23 @@ iteration_stmt
 for_stmt
 	: FOR '(' opt_expression ';' opt_expression ';' opt_expression ')' statement
 		{ $$ = &Node{Kind: KindFor, Children: []*Node{$3, $5, $7, $9}} }
+	/* C99: for (type var = init; cond; post) — variable declared in for-init */
+	| FOR '(' var_declaration opt_expression ';' opt_expression ')' statement
+		{ init := &Node{Kind: KindCompound, Children: $3}
+		  $$ = &Node{Kind: KindFor, Children: []*Node{init, $4, $6, $8}} }
+	| FOR '(' var_declaration opt_expression ';' expression ',' expression ')' statement
+		{ init := &Node{Kind: KindCompound, Children: $3}
+		  inc := &Node{Kind: KindCompound, Children: []*Node{
+		      {Kind: KindExprStmt, Children: []*Node{$6}},
+		      {Kind: KindExprStmt, Children: []*Node{$8}}}}
+		  $$ = &Node{Kind: KindFor, Children: []*Node{init, $4, inc, $10}} }
+	| FOR '(' var_declaration opt_expression ';' expression ',' expression ',' expression ')' statement
+		{ init := &Node{Kind: KindCompound, Children: $3}
+		  inc := &Node{Kind: KindCompound, Children: []*Node{
+		      {Kind: KindExprStmt, Children: []*Node{$6}},
+		      {Kind: KindExprStmt, Children: []*Node{$8}},
+		      {Kind: KindExprStmt, Children: []*Node{$10}}}}
+		  $$ = &Node{Kind: KindFor, Children: []*Node{init, $4, inc, $12}} }
 	/* ── For loop with comma expression in increment: "for (i=0; cond; i++, j++)" ── */
 	| FOR '(' opt_expression ';' opt_expression ';' expression ',' expression ')' statement
 		{ inc := &Node{Kind: KindCompound, Children: []*Node{
@@ -939,6 +960,13 @@ factor
 		{ $$ = &Node{Kind: KindSizeof, Type: TypePtr} }
 	| SIZEOF '(' type_specifier '*' '*' ')'
 		{ $$ = &Node{Kind: KindSizeof, Type: TypePtr} }
+	| SIZEOF '(' type_specifier '[' const_int_expr ']' ')'
+		{
+			if $5 <= 0 {
+				yylex.(*lexer).Error(fmt.Sprintf("static assertion failed (sizeof array dimension is %d)", $5))
+			}
+			$$ = &Node{Kind: KindNum, Val: sizeofType($3) * $5}
+		}
 	| SIZEOF '(' STRUCT ID ')'
 		{ $$ = &Node{Kind: KindSizeof, StructTag: $4} }
 	| SIZEOF '(' STRUCT ID '*' ')'
@@ -1215,6 +1243,36 @@ typedef_declaration
 			yylex.(*lexer).registerTypedef($5, ptrCType(ptrCType($2)))
 			$$ = nil
 		}
+	| TYPEDEF CONST type_specifier ID ';'
+		{
+			yylex.(*lexer).registerTypedef($4, $3)
+			$$ = nil
+		}
+	| TYPEDEF CONST type_specifier TYPENAME ';'
+		{
+			yylex.(*lexer).registerTypedef($4, $3)
+			$$ = nil
+		}
+	| TYPEDEF CONST type_specifier '*' ID ';'
+		{
+			yylex.(*lexer).registerTypedef($5, ptrCType($3))
+			$$ = nil
+		}
+	| TYPEDEF CONST type_specifier '*' TYPENAME ';'
+		{
+			yylex.(*lexer).registerTypedef($5, ptrCType($3))
+			$$ = nil
+		}
+	| TYPEDEF CONST type_specifier '*' '*' ID ';'
+		{
+			yylex.(*lexer).registerTypedef($6, ptrCType(ptrCType($3)))
+			$$ = nil
+		}
+	| TYPEDEF CONST type_specifier '*' '*' TYPENAME ';'
+		{
+			yylex.(*lexer).registerTypedef($6, ptrCType(ptrCType($3)))
+			$$ = nil
+		}
 	| TYPEDEF STRUCT ID ID ';'
 		{
 			yylex.(*lexer).registerTypedef($4, structCType($3))
@@ -1254,6 +1312,12 @@ typedef_declaration
 	| TYPEDEF type_specifier '(' '*' ID ')' '(' fp_param_types ')' ';'
 		{
 			yylex.(*lexer).registerTypedef($5, leafCType(TypeFuncPtr))
+			$$ = nil
+		}
+	/* typedef of function pointer with pointer return type: typedef T *(*name)(params); */
+	| TYPEDEF type_specifier '*' '(' '*' ID ')' '(' fp_param_types ')' ';'
+		{
+			yylex.(*lexer).registerTypedef($6, leafCType(TypeFuncPtr))
 			$$ = nil
 		}
 	/* typedef of function type (not pointer): typedef int name(params); */
@@ -1545,7 +1609,7 @@ field
 		{ $$ = []*Node{ctNode(KindVarDecl, $1, $2)} }
 	| type_specifier id_list ';'
 		{ $$ = makeMultiDecl($1, $2) }
-	| type_specifier ID ':' NUM ';'
+	| type_specifier ID ':' const_int_expr ';'
 		{ n := ctNode(KindVarDecl, $1, $2); n.BitWidth = $4; $$ = []*Node{n} }
 	| type_specifier ID '[' const_int_expr ']' ';'
 		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: $4, ElemType: $1.Kind, StructTag: $1.Tag}} }
@@ -1579,6 +1643,8 @@ field
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4}; n.Pointee = structCType($2); $$ = []*Node{n} }
 	| STRUCT ID '*' ID ',' ptr_id_list ';'
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4}; n.Pointee = structCType($2); $$ = append([]*Node{n}, makePtrFields(structCType($2), $6)...) }
+	| STRUCT ID '*' CONST '*' ID ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $6}; n.Pointee = ptrCType(structCType($2)); $$ = []*Node{n} }
 	| STRUCT ID ID ';'
 		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: $3, StructTag: $2}} }
 	| STRUCT ID ID '[' const_int_expr ']' ';'
@@ -1643,8 +1709,18 @@ const_int_expr
 	;
 
 const_int_ternary
-	: const_int_cmp                                               { $$ = $1 }
-	| const_int_cmp QUESTION const_int_cmp ':' const_int_cmp     { if $1 != 0 { $$ = $3 } else { $$ = $5 } }
+	: const_int_or                                                        { $$ = $1 }
+	| const_int_or QUESTION const_int_or ':' const_int_or                { if $1 != 0 { $$ = $3 } else { $$ = $5 } }
+	;
+
+const_int_or
+	: const_int_and                           { $$ = $1 }
+	| const_int_or OROR  const_int_and        { if $1 != 0 || $3 != 0 { $$ = 1 } else { $$ = 0 } }
+	;
+
+const_int_and
+	: const_int_cmp                           { $$ = $1 }
+	| const_int_and ANDAND const_int_cmp      { if $1 != 0 && $3 != 0 { $$ = 1 } else { $$ = 0 } }
 	;
 
 const_int_cmp
@@ -1653,6 +1729,8 @@ const_int_cmp
 	| const_int_cmp NE const_int_shift        { if $1 != $3 { $$ = 1 } else { $$ = 0 } }
 	| const_int_cmp '<' const_int_shift       { if $1 < $3  { $$ = 1 } else { $$ = 0 } }
 	| const_int_cmp '>' const_int_shift       { if $1 > $3  { $$ = 1 } else { $$ = 0 } }
+	| const_int_cmp LE  const_int_shift       { if $1 <= $3 { $$ = 1 } else { $$ = 0 } }
+	| const_int_cmp GE  const_int_shift       { if $1 >= $3 { $$ = 1 } else { $$ = 0 } }
 	;
 
 const_int_shift
