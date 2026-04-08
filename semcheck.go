@@ -131,6 +131,12 @@ func newSymTable() *symTable {
 			ParamPointees: []*CType{nil},
 		}
 	}
+	// __builtin_unreachable() — no-op marker; tells compiler a path is never reached.
+	st.funcs["__builtin_unreachable"] = &FuncSig{Name: "__builtin_unreachable", ReturnType: TypeVoid}
+	// __builtin_frame_address(N) — returns frame pointer of Nth calling frame as void*.
+	// Restrict to N=0 (current frame's FP) for simplicity.
+	st.funcs["__builtin_frame_address"] = &FuncSig{Name: "__builtin_frame_address", ReturnType: TypePtr,
+		ReturnPointee: leafCType(TypeVoid), Params: []TypeKind{TypeInt}, ParamPointees: []*CType{nil}}
 	// GCC bit-manipulation intrinsics.
 	for _, name := range []string{
 		"__builtin_clz", "__builtin_clzl", "__builtin_clzll",

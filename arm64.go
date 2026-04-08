@@ -307,6 +307,11 @@ func (g *arm64Gen) genFunc(fn *IRFunc, structDefs map[string]*StructDef) {
 		case IRJump:
 			g.insnf("B gaston_%s_%s", fn.Name, q.Extra)
 
+		case IRFrameAddr:
+			// __builtin_frame_address(0) — return current frame pointer.
+			g.insn("MOVD R29, R0") // FP (R29) → R0
+			g.emit_store(f, "R0", q.Dst)
+
 		case IRLabelAddr:
 			// &&label — load PC-relative address of user label into temp.
 			g.insnf("ADR R0, gaston_%s_%s", fn.Name, q.Extra)

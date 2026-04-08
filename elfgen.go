@@ -982,6 +982,11 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 		case IR128SGe:
 			g.emit128Cmp(q, false, condGE) // a >= b: a-b, GE (N=V)
 
+		case IRFrameAddr:
+			// __builtin_frame_address(0) — return current frame pointer (X29/FP).
+			g.cb.emit(encMOVreg(regX0, 29)) // MOV X0, X29 (FP register)
+			g.store(regX0, q.Dst)
+
 		case IRLabelAddr:
 			// &&label — load PC-relative address of a user label.
 			// Emits: ADR X0, gaston_fn_user_labelname

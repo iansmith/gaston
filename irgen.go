@@ -2203,6 +2203,14 @@ func (g *irGen) genCall(n *Node) IRAddr {
 			return g.genExpr(n.Children[0])
 		}
 		return g.newTemp()
+	case "__builtin_unreachable":
+		// No-op: generates no code. Returns a dummy temp.
+		return g.newTemp()
+	case "__builtin_frame_address":
+		// __builtin_frame_address(0) — return current frame pointer as void*.
+		dst := g.newTemp()
+		g.emit(Quad{Op: IRFrameAddr, Dst: dst})
+		return dst
 	}
 	isVariadic := g.variadicFuncs[n.Name]
 	// Phase 1: materialize all args (inner calls complete here, draining pendingParams).

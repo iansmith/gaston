@@ -27,6 +27,7 @@ const (
 	IRJumpF                // if Src1 == 0 goto Extra
 	IRLabelAddr            // Dst = address of user label; Extra = label name (without prefix)
 	IRIndirectJump         // goto *Src1 (branch to address in Src1; computed goto)
+	IRFrameAddr            // Dst = current frame pointer (__builtin_frame_address(0))
 	IRLt                   // Dst = (Src1 < Src2)
 	IRLe                   // Dst = (Src1 <= Src2)
 	IRGt                   // Dst = (Src1 > Src2)
