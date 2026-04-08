@@ -166,6 +166,24 @@ const (
 	IR128FromI64 // Dst (128-bit) = sign_extend(Src1 (int64)): lo = Src1; hi = ASR Src1, 63
 	IR128FromU64 // Dst (128-bit) = zero_extend(Src1 (uint64)): lo = Src1; hi = 0
 	IR64From128  // Dst (int64/uint64) = Src1_lo  (narrow; hi discarded)
+
+	// alloca() stack allocation — byte-granular (unlike IRVLAAlloc which is word-granular).
+	// Src1 = byte count. Dst = frame slot that receives the allocated pointer.
+	// The function's HasVLA flag is set so FP-relative addressing is used.
+	IRAllocaAlloc
+
+	// Byte-swap (bswap) intrinsics — emit REV16/REV32/REV64 instructions.
+	// Src1 = input value. Dst = result.
+	// TypeHint distinguishes: TypeUnsignedShort=16-bit, TypeUnsignedInt=32-bit, TypeUnsignedLong=64-bit.
+	IRBswap
+
+	// Overflow-checked arithmetic — __builtin_add_overflow(a, b, *result).
+	// Dst = sum result temp. Src1 = a, Src2 = b.
+	// Extra = name of overflow-flag temp (allocated by irgen, stored here by elfgen).
+	// A subsequent IRDerefStore stores the sum to *ptr.
+	IRAddOverflow
+	IRSubOverflow
+	IRMulOverflow
 )
 
 // AddrKind identifies what an IR address refers to.
@@ -221,6 +239,7 @@ type IRGlobal struct {
 	Pointee    *CType  // non-nil when IsPtr: full pointee type
 	StructTag  string  // struct type name (when IsStruct)
 	IsExtern   bool    // true for extern-declared globals (no storage allocated)
+	IsWeak     bool   // true for __attribute__((weak)) globals
 	Size       int     // 1 for scalar, N for array[N] or struct (N = numFields)
 	InnerDim   int     // inner dimension for 2D arrays (0 for 1D or non-array)
 	HasInitVal bool
@@ -263,6 +282,7 @@ type IRFunc struct {
 	ParamStructTag  []string   // parallel to ParamType; non-empty when ParamType[i]==TypeStruct
 	IsVariadic   bool       // true if this function accepts variadic arguments
 	HasVLA       bool       // true if any local is a VLA (requires FP-relative frame addressing)
+	IsWeak       bool       // true for __attribute__((weak)) functions
 	Locals       []IRLocal  // local variables declared inside the function body
 	Quads        []Quad
 }

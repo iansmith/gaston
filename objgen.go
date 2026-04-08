@@ -292,9 +292,13 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 		idx := len(syms)
 		funcSymIdx[fn.Name] = idx
 		nameIdx := strtab.add(label)
+		binding := uint8(1) // STB_GLOBAL
+		if fn.IsWeak {
+			binding = 2 // STB_WEAK
+		}
 		syms = append(syms, symRec{
 			nameIdx: nameIdx,
-			info:    (1 << 4) | 2, // STB_GLOBAL | STT_FUNC
+			info:    (binding << 4) | 2, // STB_{GLOBAL,WEAK} | STT_FUNC
 			shndx:   objSecText,
 			value:   uint64(wordIdx) * 4,
 		})
@@ -307,10 +311,14 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 		globalSymIdx[sl.gbl.Name] = idx
 		nameIdx := strtab.add(sl.gbl.Name)
 		sz := uint64(sl.gbl.Size) * 8
+		gblBinding := uint8(1) // STB_GLOBAL
+		if sl.gbl.IsWeak {
+			gblBinding = 2 // STB_WEAK
+		}
 		if sl.inData {
 			syms = append(syms, symRec{
 				nameIdx: nameIdx,
-				info:    (1 << 4) | 1, // STB_GLOBAL | STT_OBJECT
+				info:    (gblBinding << 4) | 1, // STB_{GLOBAL,WEAK} | STT_OBJECT
 				shndx:   objSecData,
 				value:   sl.dataOff,
 				size:    sz,
@@ -318,7 +326,7 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 		} else {
 			syms = append(syms, symRec{
 				nameIdx: nameIdx,
-				info:    (1 << 4) | 1, // STB_GLOBAL | STT_OBJECT
+				info:    (gblBinding << 4) | 1, // STB_{GLOBAL,WEAK} | STT_OBJECT
 				shndx:   objSecBss,
 				value:   sl.bssOff,
 				size:    sz,

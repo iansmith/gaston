@@ -83,6 +83,23 @@ func sizeofType(ct *CType) int {
 	}
 }
 
+// alignofType returns the alignment in bytes for the type represented by ct.
+func alignofType(ct *CType) int {
+	if ct == nil {
+		return 8
+	}
+	switch ct.Kind {
+	case TypeChar, TypeUnsignedChar:
+		return 1
+	case TypeShort, TypeUnsignedShort:
+		return 2
+	case TypeInt, TypeUnsignedInt, TypeFloat:
+		return 4
+	default:
+		return 8 // long, double, ptr, int128, struct → 8
+	}
+}
+
 // ctypeEq reports whether two CTypes are equivalent.
 // nil and nil are equal; nil and non-nil are not.
 func ctypeEq(a, b *CType) bool {
@@ -226,6 +243,21 @@ const (
 	// If last statement is not KindExprStmt (or body is empty), Type = TypeVoid.
 	KindStmtExpr
 
+	// KindAlignof: _Alignof(type) or __alignof__(expr) — folded to KindNum during semcheck.
+	// Same fields as KindSizeof: Type (for type-based), StructTag (for struct type),
+	// Children[0] (for expression-based).
+	KindAlignof
+
+	// KindGeneric: C11 _Generic(ctrl-expr, type: expr, ..., default: expr).
+	// Children[0] = controlling expression.
+	// Children[1..n] = KindGenericAssoc nodes.
+	KindGeneric
+
+	// KindGenericAssoc: one association in a _Generic expression.
+	// If Name == "default": the default association (Type == TypeVoid).
+	// Otherwise: Type/StructTag = the type to match; Children[0] = the value expression.
+	KindGenericAssoc
+
 	// TODO: struct return by value (on the stack).
 	// Currently all structs must be passed/returned by pointer (printf.cm works
 	// around this). Need ABI rules: small structs (≤16 bytes) in X0/X1 registers
@@ -334,6 +366,7 @@ type Node struct {
 	IsPacked       bool     // true for KindStructDef with __attribute__((packed))
 	IsConstTarget  bool     // true for pointer declared as const T *p (cannot store through)
 	IsStatic       bool     // true for static storage class (local: persistent, global: internal linkage)
+	IsWeak         bool     // true for __attribute__((weak)) functions/globals
 	ElemType       TypeKind // for TypeIntArray: element type; TypePtr when array-of-pointers
 	ElemPointee    *CType   // for TypeIntArray with ElemType==TypePtr: the pointer's pointee CType
 	Dim2           int      // inner dimension for 2D arrays (e.g. for int a[M][N]: Dim2=N)

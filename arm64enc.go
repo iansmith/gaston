@@ -432,6 +432,22 @@ func encUXTB(rd, rn int) uint32 { return 0xD3401C00 | uint32(rn)<<5 | uint32(rd)
 // encUXTH encodes UXTH Xd, Xn (zero-extend halfword to 64-bit = UBFM Xd, Xn, #0, #15).
 func encUXTH(rd, rn int) uint32 { return 0xD3403C00 | uint32(rn)<<5 | uint32(rd) }
 
+// encREV16 encodes REV16 Wd, Wn (32-bit: reverse bytes within each 16-bit halfword).
+// Used for __builtin_bswap16.
+func encREV16(rd, rn int) uint32 {
+	return 0x5AC00400 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encREV32 encodes REV Wd, Wn (32-bit: reverse all 4 bytes = bswap32).
+func encREV32(rd, rn int) uint32 {
+	return 0x5AC00800 | uint32(rn)<<5 | uint32(rd)
+}
+
+// encREV64 encodes REV Xd, Xn (64-bit: reverse all 8 bytes = bswap64).
+func encREV64(rd, rn int) uint32 {
+	return 0xDAC00C00 | uint32(rn)<<5 | uint32(rd)
+}
+
 // ── bit-manipulation instruction encoders ────────────────────────────────────
 
 // encCLZ encodes CLZ Xd, Xn (64-bit count leading zeros).

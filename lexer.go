@@ -23,6 +23,7 @@ type lexer struct {
 	braceDepth       int                // current {} nesting depth (0 = global scope)
 	typeofExpr      *Node              // scratch: holds typeof(expr) expression until declaration picks it up
 	prevTok         int                // previous token returned (for struct/union tag disambiguation)
+	pendingToks     []int              // tokens queued by scanAttrParens for multi-attr blocks
 }
 
 func newLexer(src, file string) *lexer {
@@ -171,6 +172,10 @@ var keywords = map[string]int{
 	"signed":          SIGNED,
 	"_Static_assert":  STATIC_ASSERT,
 	"static_assert":   STATIC_ASSERT,
+	"_Alignof":        ALIGNOF,
+	"__alignof__":     ALIGNOF,
+	"__alignof":       ALIGNOF,
+	"_Generic":        GENERIC,
 }
 
 // skipWords lists storage-class and qualifier keywords that the lexer silently drops.
@@ -193,9 +198,8 @@ var skipWords = map[string]bool{
 	"__inline":      true,
 	"__noreturn__":  true,
 	"__extension__": true,
-	// _Alignas / _Alignof are silently dropped (we don't enforce alignment)
+	// _Alignas is silently dropped (we don't enforce alignment)
 	"_Alignas":   true,
-	"_Alignof":   true,
 	// Thread-local storage specifier (GCC __thread / C11 _Thread_local)
 	"__thread":       true,
 	"_Thread_local":  true,
@@ -207,6 +211,13 @@ var skipWords = map[string]bool{
 // Lex scans and returns the next token, filling lval with the token's value.
 // Returns 0 on EOF.
 func (l *lexer) Lex(lval *yySymType) int {
+	// Drain any pending tokens queued by scanAttrParens.
+	if len(l.pendingToks) > 0 {
+		tok := l.pendingToks[0]
+		l.pendingToks = l.pendingToks[1:]
+		l.prevTok = tok
+		return tok
+	}
 	tok := l.lex(lval)
 	l.prevTok = tok
 	// Track brace depth for typedef-shadow scoping.
@@ -636,10 +647,11 @@ scan:
 			return l.Lex(lval) // re-enter to skip whitespace and get next token
 		}
 		// GCC __attribute__((...)) — scan and consume the ((...)) block.
-		// Return ATTR_PACKED if "packed" is among the listed attributes; otherwise skip.
+		// Returns first recognized attribute token (ATTR_PACKED, ATTR_WEAK, etc.); otherwise skip.
 		if word == "__attribute__" || word == "__attribute" {
-			if l.scanAttrParens() {
-				return ATTR_PACKED
+			tok := l.scanAttrParens()
+			if tok != 0 {
+				return tok
 			}
 			return l.Lex(lval)
 		}
@@ -835,11 +847,11 @@ func (l *lexer) Error(s string) {
 	l.errors++
 }
 
-// scanAttrParens scans and consumes a GCC __attribute__((...)) argument list.
-// It expects the current position to be just after the "__attribute__" (or
-// "__attribute") keyword. It consumes the outer "((" ... "))" with arbitrary
-// nesting inside, then returns true if the attribute list contained "packed".
-func (l *lexer) scanAttrParens() bool {
+// scanAttrParens scans a GCC __attribute__((...)) argument list.
+// It consumes the ((...)) block, detects named attributes (packed, weak, section, aligned),
+// pushes any additional attribute tokens into l.pendingToks, and returns the first attribute
+// token (or 0 if none recognized).
+func (l *lexer) scanAttrParens() int {
 	// skip whitespace
 	for l.pos < len(l.src) && (l.src[l.pos] == ' ' || l.src[l.pos] == '\t' ||
 		l.src[l.pos] == '\r' || l.src[l.pos] == '\n') {
@@ -849,7 +861,7 @@ func (l *lexer) scanAttrParens() bool {
 		l.pos++
 	}
 	if l.pos >= len(l.src) || l.src[l.pos] != '(' {
-		return false
+		return 0
 	}
 	// Scan entire balanced-paren block, collecting the text inside.
 	depth := 0
@@ -870,20 +882,35 @@ func (l *lexer) scanAttrParens() bool {
 		l.pos++
 	}
 	body := l.src[start:l.pos]
-	// Check whether "packed" appears as a word in the attribute body.
+	// Collect all recognized attribute names.
+	var found []int
 	for i := 0; i < len(body); i++ {
 		if isLetter(body[i]) {
 			j := i
 			for j < len(body) && (isLetter(body[j]) || isDigit(body[j])) {
 				j++
 			}
-			if body[i:j] == "packed" {
-				return true
+			word := body[i:j]
+			switch word {
+			case "packed":
+				found = append(found, ATTR_PACKED)
+			case "weak":
+				found = append(found, ATTR_WEAK)
+			case "section":
+				found = append(found, ATTR_SECTION)
+			case "aligned":
+				found = append(found, ATTR_ALIGNED)
 			}
 			i = j - 1
 		}
 	}
-	return false
+	if len(found) == 0 {
+		return 0
+	}
+	if len(found) > 1 {
+		l.pendingToks = append(l.pendingToks, found[1:]...)
+	}
+	return found[0]
 }
 
 func isLetter(c byte) bool {

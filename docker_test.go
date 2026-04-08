@@ -462,6 +462,24 @@ var featureTests = []dockerTest{
 	{name: "inline_union_local", want: "1\n"},
 	// paren_assign: parenthesized lvalue "(x) = expr"
 	{name: "paren_assign", want: "43\n"},
+
+	// ── GCC compatibility features ────────────────────────────────────────
+	// alloca_basic: alloca() stack allocation; pointer arithmetic on allocated region
+	{name: "alloca_basic", want: "10\n30\n50\n"},
+	// builtin_bswap: __builtin_bswap16/32/64 byte-swap intrinsics
+	{name: "builtin_bswap", want: "2018915346\n13330\n16777216\n16777216\n"},
+	// alignof_basic: _Alignof(type) returns natural alignment
+	{name: "alignof_basic", want: "1\n4\n8\n8\n2\n"},
+	// attr_weak: __attribute__((weak)) function definition; uses weak when no override
+	{name: "attr_weak", want: "99\n"},
+	// builtin_overflow: __builtin_add_overflow detects signed overflow
+	{name: "builtin_overflow", want: "300\n0\n1\n-50\n0\n"},
+	// generic_basic: _Generic controlling expression selects matching association
+	{name: "generic_basic", want: "1\n2\n3\n2\n"},
+	// attr_section: __attribute__((section)) parsed and ignored
+	{name: "attr_section", want: "77\n"},
+	// attr_aligned: __attribute__((aligned)) on struct parsed and ignored
+	{name: "attr_aligned", want: "10\n8\n"},
 }
 
 // sepTest describes a separate-compilation test: compile multiple .cm files

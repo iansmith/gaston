@@ -34,6 +34,8 @@ import "fmt"
 %token LONG UNSIGNED SHORT FLOAT DOUBLE STRUCT SIZEOF ENUM UNION TYPEDEF STATIC VA_ARG TYPEOF INT128 SIGNED
 %token SWITCH CASE DEFAULT
 %token ATTR_PACKED
+%token ATTR_WEAK ATTR_SECTION ATTR_ALIGNED
+%token ALIGNOF GENERIC
 %token STATIC_ASSERT
 %token <sval> TYPENAME
 
@@ -52,6 +54,8 @@ import "fmt"
 %type <nodes> fp_param_types fp_param_type_list
 %type <nodes> field
 %type <ival>  const_int_expr const_int_ternary const_int_cmp const_int_shift const_int_add const_int_mul const_int_unary const_int_primary
+%type <nodes> generic_assoc_list
+%type <node>  generic_assoc
 %type <node>  param compound_stmt postfix_expr enum_member fp_param_type
 %type <nodes> block_item_list statement_list
 %type <nodes> init_list
@@ -134,6 +138,50 @@ declaration
 			applyDeclToFunNode($1, $2.Name, $2.PtrChain, $2.Params, nil),
 			applyDeclToFunNode($1, $4.Name, $4.PtrChain, $4.Params, nil),
 		} }
+	/* ── __attribute__((weak)) function definitions ── */
+	| ATTR_WEAK declaration_specifiers gd_fun_declarator compound_stmt
+		{ n := applyDeclToFunNode($2, $3.Name, $3.PtrChain, $3.Params, $4); n.IsWeak = true; $$ = []*Node{n} }
+	| ATTR_WEAK declaration_specifiers gd_fun_declarator ';'
+		{ n := applyDeclToFunNode($2, $3.Name, $3.PtrChain, $3.Params, nil); n.IsWeak = true; $$ = []*Node{n} }
+	| declaration_specifiers ATTR_WEAK gd_fun_declarator compound_stmt
+		{ n := applyDeclToFunNode($1, $3.Name, $3.PtrChain, $3.Params, $4); n.IsWeak = true; $$ = []*Node{n} }
+	| declaration_specifiers ATTR_WEAK gd_fun_declarator ';'
+		{ n := applyDeclToFunNode($1, $3.Name, $3.PtrChain, $3.Params, nil); n.IsWeak = true; $$ = []*Node{n} }
+	| declaration_specifiers gd_fun_declarator ATTR_WEAK compound_stmt
+		{ n := applyDeclToFunNode($1, $2.Name, $2.PtrChain, $2.Params, $4); n.IsWeak = true; $$ = []*Node{n} }
+	/* ── __attribute__((weak)) prototype with trailing attribute ── */
+	| declaration_specifiers gd_fun_declarator ATTR_WEAK ';'
+		{ n := applyDeclToFunNode($1, $2.Name, $2.PtrChain, $2.Params, nil); n.IsWeak = true; $$ = []*Node{n} }
+	/* ── __attribute__((weak)) global variables ── */
+	| ATTR_WEAK declaration_specifiers gd_init_declarator_list ';'
+		{ nodes := buildDeclNodes($2, $3, yylex.(*lexer)); for _, n := range nodes { n.IsWeak = true }; $$ = nodes }
+	/* ── trailing attribute on function prototype ── */
+	| declaration_specifiers gd_fun_declarator ATTR_SECTION ';'
+		{ $$ = []*Node{applyDeclToFunNode($1, $2.Name, $2.PtrChain, $2.Params, nil)} }
+	| declaration_specifiers gd_fun_declarator ATTR_ALIGNED ';'
+		{ $$ = []*Node{applyDeclToFunNode($1, $2.Name, $2.PtrChain, $2.Params, nil)} }
+	/* ── __attribute__((section)) — parse and ignore ── */
+	| ATTR_SECTION declaration_specifiers gd_fun_declarator compound_stmt
+		{ $$ = []*Node{applyDeclToFunNode($2, $3.Name, $3.PtrChain, $3.Params, $4)} }
+	| ATTR_SECTION declaration_specifiers gd_fun_declarator ';'
+		{ $$ = []*Node{applyDeclToFunNode($2, $3.Name, $3.PtrChain, $3.Params, nil)} }
+	| ATTR_SECTION declaration_specifiers gd_init_declarator_list ';'
+		{ $$ = buildDeclNodes($2, $3, yylex.(*lexer)) }
+	| declaration_specifiers ATTR_SECTION gd_init_declarator_list ';'
+		{ $$ = buildDeclNodes($1, $3, yylex.(*lexer)) }
+	| declaration_specifiers ATTR_SECTION gd_fun_declarator compound_stmt
+		{ $$ = []*Node{applyDeclToFunNode($1, $3.Name, $3.PtrChain, $3.Params, $4)} }
+	| declaration_specifiers ATTR_SECTION gd_fun_declarator ';'
+		{ $$ = []*Node{applyDeclToFunNode($1, $3.Name, $3.PtrChain, $3.Params, nil)} }
+	/* ── __attribute__((aligned)) — parse and ignore ── */
+	| ATTR_ALIGNED declaration_specifiers gd_fun_declarator compound_stmt
+		{ $$ = []*Node{applyDeclToFunNode($2, $3.Name, $3.PtrChain, $3.Params, $4)} }
+	| ATTR_ALIGNED declaration_specifiers gd_fun_declarator ';'
+		{ $$ = []*Node{applyDeclToFunNode($2, $3.Name, $3.PtrChain, $3.Params, nil)} }
+	| ATTR_ALIGNED declaration_specifiers gd_init_declarator_list ';'
+		{ $$ = buildDeclNodes($2, $3, yylex.(*lexer)) }
+	| declaration_specifiers ATTR_ALIGNED gd_init_declarator_list ';'
+		{ $$ = buildDeclNodes($1, $3, yylex.(*lexer)) }
 	;
 
 /* extern_declaration removed — forward declarations handled inline in declaration/block_item_list,
@@ -402,6 +450,12 @@ block_item_list
 		{ $$ = append($1, $2...) }
 	/* const_declaration merged into var_declaration */
 	| block_item_list declaration_specifiers local_fun_proto ';'
+		{ fn := applyDeclToFunNode($2, $3, nil, nil, nil); $$ = append($1, fn) }
+	| block_item_list declaration_specifiers local_fun_proto ATTR_WEAK ';'
+		{ fn := applyDeclToFunNode($2, $3, nil, nil, nil); fn.IsWeak = true; $$ = append($1, fn) }
+	| block_item_list declaration_specifiers local_fun_proto ATTR_SECTION ';'
+		{ fn := applyDeclToFunNode($2, $3, nil, nil, nil); $$ = append($1, fn) }
+	| block_item_list declaration_specifiers local_fun_proto ATTR_ALIGNED ';'
 		{ fn := applyDeclToFunNode($2, $3, nil, nil, nil); $$ = append($1, fn) }
 	| block_item_list STRUCT ID ';'
 		{ $$ = $1 }
@@ -897,6 +951,16 @@ factor
 		{ $$ = &Node{Kind: KindSizeof, Children: []*Node{$2}} }
 	| SIZEOF '*' factor
 		{ deref := &Node{Kind: KindDeref, Children: []*Node{$3}}; $$ = &Node{Kind: KindSizeof, Children: []*Node{deref}} }
+	| ALIGNOF '(' type_specifier ')'
+		{ $$ = &Node{Kind: KindAlignof, Type: $3.Kind, StructTag: $3.Tag} }
+	| ALIGNOF '(' type_specifier '*' ')'
+		{ $$ = &Node{Kind: KindAlignof, Type: TypePtr} }
+	| ALIGNOF '(' STRUCT ID ')'
+		{ $$ = &Node{Kind: KindAlignof, StructTag: $4} }
+	| ALIGNOF '(' expression ')'
+		{ $$ = &Node{Kind: KindAlignof, Children: []*Node{$3}} }
+	| GENERIC '(' expression ',' generic_assoc_list ')'
+		{ $$ = &Node{Kind: KindGeneric, Children: append([]*Node{$3}, $5...)} }
 	| VA_ARG '(' expression ',' type_specifier ')'
 		{
 			n := ctNode(KindVAArg, $5, "")
@@ -1026,6 +1090,18 @@ factor
 		{ $$ = &Node{Kind: KindStmtExpr, Children: $3} }
 	;
 
+generic_assoc_list
+	: generic_assoc                           { $$ = []*Node{$1} }
+	| generic_assoc_list ',' generic_assoc    { $$ = append($1, $3) }
+	;
+
+generic_assoc
+	: type_specifier ':' assign_expr
+		{ $$ = &Node{Kind: KindGenericAssoc, Type: $1.Kind, StructTag: $1.Tag, Children: []*Node{$3}} }
+	| DEFAULT ':' assign_expr
+		{ $$ = &Node{Kind: KindGenericAssoc, Name: "default", Children: []*Node{$3}} }
+	;
+
 comma_expr_list
 	: expression ',' expression ',' expression
 		{ $$ = &Node{Kind: KindCommaExpr, Children: []*Node{
@@ -1060,6 +1136,10 @@ struct_declaration
 		{ $$ = []*Node{{Kind: KindStructDef, Name: $2, Children: $5, IsPacked: true}} }
 	| STRUCT ID '{' field_list '}' ATTR_PACKED ';'
 		{ $$ = []*Node{{Kind: KindStructDef, Name: $2, Children: $4, IsPacked: true}} }
+	| STRUCT ATTR_ALIGNED ID '{' field_list '}' ';'
+		{ $$ = []*Node{{Kind: KindStructDef, Name: $3, Children: $5}} }
+	| STRUCT ID ATTR_ALIGNED '{' field_list '}' ';'
+		{ $$ = []*Node{{Kind: KindStructDef, Name: $2, Children: $5}} }
 	;
 
 union_declaration
@@ -1609,6 +1689,9 @@ const_int_primary
 	| SIZEOF '(' type_specifier '[' NUM ']' ')'  { $$ = sizeofType($3) * $5 }
 	| SIZEOF '(' ID ')'                       { $$ = 8 /* opaque sizeof(varname): assume 8 */ }
 	| SIZEOF '(' ID '[' NUM ']' ')'           { $$ = 8 /* opaque sizeof(arr[i]): return element size */ }
+	| ALIGNOF '(' type_specifier ')'          { $$ = alignofType($3) }
+	| ALIGNOF '(' type_specifier '*' ')'      { $$ = 8 }
+	| ALIGNOF '(' STRUCT ID ')'               { $$ = 8 }
 	| ID                                      { $$ = yylex.(*lexer).lookupConstInt($1) }
 	;
 

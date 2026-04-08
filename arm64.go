@@ -207,6 +207,14 @@ func buildFrame(fn *IRFunc, structDefs map[string]*StructDef) *frame {
 				}
 			}
 		}
+		// For overflow quads, q.Extra holds the overflow temp name — allocate it too.
+		if (q.Op == IRAddOverflow || q.Op == IRSubOverflow || q.Op == IRMulOverflow) &&
+			q.Extra != "" {
+			if _, seen := f.offsets[q.Extra]; !seen {
+				f.offsets[q.Extra] = offset
+				offset += 8
+			}
+		}
 	}
 
 	// 16-byte alignment.

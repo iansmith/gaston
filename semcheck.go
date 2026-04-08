@@ -133,6 +133,27 @@ func newSymTable() *symTable {
 	}
 	// __builtin_unreachable() — no-op marker; tells compiler a path is never reached.
 	st.funcs["__builtin_unreachable"] = &FuncSig{Name: "__builtin_unreachable", ReturnType: TypeVoid}
+	// __builtin_bswap16/32/64: byte-swap intrinsics.
+	st.funcs["__builtin_bswap16"] = &FuncSig{Name: "__builtin_bswap16", ReturnType: TypeUnsignedInt,
+		Params: []TypeKind{TypeUnsignedInt}, ParamPointees: []*CType{nil}}
+	st.funcs["__builtin_bswap32"] = &FuncSig{Name: "__builtin_bswap32", ReturnType: TypeUnsignedInt,
+		Params: []TypeKind{TypeUnsignedInt}, ParamPointees: []*CType{nil}}
+	st.funcs["__builtin_bswap64"] = &FuncSig{Name: "__builtin_bswap64", ReturnType: TypeUnsignedLong,
+		Params: []TypeKind{TypeUnsignedLong}, ParamPointees: []*CType{nil}}
+	// alloca(size_t): allocate bytes on the stack; returns void*.
+	st.funcs["alloca"] = &FuncSig{Name: "alloca", ReturnType: TypePtr,
+		ReturnPointee: leafCType(TypeVoid),
+		Params: []TypeKind{TypeUnsignedLong}, ParamPointees: []*CType{nil}}
+	// __builtin_add_overflow / __builtin_sub_overflow / __builtin_mul_overflow.
+	st.funcs["__builtin_add_overflow"] = &FuncSig{Name: "__builtin_add_overflow", ReturnType: TypeInt,
+		Params: []TypeKind{TypeLong, TypeLong, TypePtr},
+		ParamPointees: []*CType{nil, nil, leafCType(TypeLong)}}
+	st.funcs["__builtin_sub_overflow"] = &FuncSig{Name: "__builtin_sub_overflow", ReturnType: TypeInt,
+		Params: []TypeKind{TypeLong, TypeLong, TypePtr},
+		ParamPointees: []*CType{nil, nil, leafCType(TypeLong)}}
+	st.funcs["__builtin_mul_overflow"] = &FuncSig{Name: "__builtin_mul_overflow", ReturnType: TypeInt,
+		Params: []TypeKind{TypeLong, TypeLong, TypePtr},
+		ParamPointees: []*CType{nil, nil, leafCType(TypeLong)}}
 	// __builtin_frame_address(N) — returns frame pointer of Nth calling frame as void*.
 	// Restrict to N=0 (current frame's FP) for simplicity.
 	st.funcs["__builtin_frame_address"] = &FuncSig{Name: "__builtin_frame_address", ReturnType: TypePtr,
@@ -182,6 +203,20 @@ func sizeofKind(t TypeKind, structTag string, structDefs map[string]*StructDef) 
 	default:
 		// TypeDouble, TypePtr, TypeFuncPtr, TypeCharPtr, TypeIntArray, TypeVoid → 8 bytes
 		return 8
+	}
+}
+
+// alignofKind returns the natural alignment in bytes for the given TypeKind.
+func alignofKind(t TypeKind) int {
+	switch t {
+	case TypeChar, TypeUnsignedChar:
+		return 1
+	case TypeShort, TypeUnsignedShort:
+		return 2
+	case TypeInt, TypeUnsignedInt, TypeFloat:
+		return 4
+	default:
+		return 8 // long, double, pointer, int128, struct, etc.
 	}
 }
 
@@ -1294,6 +1329,51 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		n.Children = nil
 		n.StructTag = ""
 		return TypeInt
+
+	case KindAlignof:
+		var align int
+		if len(n.Children) > 0 {
+			t := checkExpr(n.Children[0], st, errs)
+			align = alignofKind(t)
+		} else if n.StructTag != "" {
+			align = 8 // struct alignment = 8 (max alignment)
+		} else {
+			align = alignofKind(n.Type)
+		}
+		n.Kind = KindNum
+		n.Val = align
+		n.Type = TypeInt
+		n.Children = nil
+		n.StructTag = ""
+		return TypeInt
+
+	case KindGeneric:
+		if len(n.Children) == 0 {
+			return TypeInt
+		}
+		ctrlType := checkExpr(n.Children[0], st, errs)
+		// Find the first matching association, then the default.
+		var matched *Node
+		var deflt *Node
+		for _, assoc := range n.Children[1:] {
+			if assoc.Name == "default" {
+				deflt = assoc.Children[0]
+			} else if assoc.Type == ctrlType {
+				if matched == nil {
+					matched = assoc.Children[0]
+				}
+			}
+		}
+		if matched == nil {
+			matched = deflt
+		}
+		if matched == nil {
+			*errs = append(*errs, "_Generic: no matching association for controlling expression")
+			return TypeInt
+		}
+		matchedType := checkExpr(matched, st, errs)
+		*n = *matched
+		return matchedType
 
 	case KindVAArg:
 		// va_arg(ap, type) — type-check the ap expression; result type is already

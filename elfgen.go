@@ -1205,6 +1205,65 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 			g.cb.emit(encADDimm(regX0, regSP, 0))          // X0 = SP (VLA base)
 			g.store(regX0, q.Dst)                          // save base in FP-relative slot
 
+		case IRAllocaAlloc:
+			// alloca(size): allocate size bytes on the stack, 16-byte aligned.
+			// Src1 = byte count. Dst = frame slot for base pointer.
+			g.load(q.Src1, regX0)
+			g.cb.emit(encADDimm(regX0, regX0, 15))         // X0 += 15 (round-up bias)
+			g.cb.emitMOVimm(regX1, -16)                    // X1 = 0xFFFF…FFF0
+			g.cb.emit(encAND(regX0, regX0, regX1))         // X0 &= ~15 (align to 16)
+			g.cb.emit(encSUBext(regSP, regSP, regX0))      // SP -= aligned_size
+			g.cb.emit(encADDimm(regX0, regSP, 0))          // X0 = SP (alloca base)
+			g.store(regX0, q.Dst)                          // save base in FP-relative slot
+
+		case IRBswap:
+			g.load(q.Src1, regX0)
+			switch q.TypeHint {
+			case TypeUnsignedShort: // bswap16: REV16 W0, W0; zero-extend to 16 bits
+				g.cb.emit(encREV16(regX0, regX0))
+				g.cb.emit(encUXTH(regX0, regX0))
+			case TypeUnsignedInt: // bswap32: REV W0, W0 (32-bit REV, auto zero-extends)
+				g.cb.emit(encREV32(regX0, regX0))
+			default: // bswap64: REV X0, X0
+				g.cb.emit(encREV64(regX0, regX0))
+			}
+			g.store(regX0, q.Dst)
+
+		case IRAddOverflow:
+			// ADDS X2, X0, X1 — add and set flags; CSET X0, VS for overflow
+			g.load(q.Src1, regX0)
+			g.load(q.Src2, regX1)
+			g.cb.emit(encADDS(regX2, regX0, regX1))        // X2 = a+b, sets V flag
+			g.store(regX2, q.Dst)                          // sum → Dst temp
+			g.cb.emit(encCSET(regX0, condVS))               // overflow = (V set)
+			overflowAddr := IRAddr{Kind: AddrTemp, Name: q.Extra}
+			g.store(regX0, overflowAddr)                    // overflow → Extra temp
+
+		case IRSubOverflow:
+			// SUBS X2, X0, X1 — subtract and set flags; CSET X0, VS for overflow
+			g.load(q.Src1, regX0)
+			g.load(q.Src2, regX1)
+			g.cb.emit(encSUBS(regX2, regX0, regX1))        // X2 = a-b, sets V flag
+			g.store(regX2, q.Dst)                          // difference → Dst temp
+			g.cb.emit(encCSET(regX0, condVS))               // overflow = (V set)
+			overflowAddr := IRAddr{Kind: AddrTemp, Name: q.Extra}
+			g.store(regX0, overflowAddr)                    // overflow → Extra temp
+
+		case IRMulOverflow:
+			// MUL + SMULH for signed 64×64→128; overflow if hi != sign(lo)
+			g.load(q.Src1, regX0)
+			g.load(q.Src2, regX1)
+			g.cb.emit(encMUL(regX2, regX0, regX1))         // X2 = lo product
+			g.cb.emit(encSMULH(regX3, regX0, regX1))       // X3 = hi product (signed)
+			g.store(regX2, q.Dst)                          // product → Dst temp
+			g.cb.emit(encASR(regX4, regX2, 63))            // X4 = sign(lo) = lo>>63
+			g.cb.emit(encEOR(regX3, regX3, regX4))         // X3 = hi ^ sign(lo)
+			// overflow = (X3 != 0) — SUBS XZR, X3, XZR sets flags; CSET NE reads Z
+			g.cb.emit(encSUBS(regXZR, regX3, regXZR))      // flags set by X3-0
+			g.cb.emit(encCSET(regX0, condNE))               // X0 = (X3 != 0)
+			overflowAddr := IRAddr{Kind: AddrTemp, Name: q.Extra}
+			g.store(regX0, overflowAddr)                    // overflow → Extra temp
+
 		case IRFuncAddr:
 			// Load the virtual address of a named function from the literal pool into X0.
 			// The pool entry holds the function's VA (patched in Phase 4).

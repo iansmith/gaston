@@ -133,6 +133,7 @@ func genIR(prog *Node) *IRProgram {
 				Pointee:   decl.Pointee,
 				StructTag: decl.StructTag,
 				IsExtern:  decl.IsExtern,
+				IsWeak:    decl.IsWeak,
 				Size:      sz,
 				InnerDim:  decl.Dim2,
 			}
@@ -342,7 +343,7 @@ func buildStructDefIR(n *Node, structDefs map[string]*StructDef) *StructDef {
 
 func (g *irGen) genFunc(n *Node) {
 	g.fn = &IRFunc{Name: n.Name, ReturnType: n.Type, ReturnPointee: n.Pointee,
-		ReturnStructTag: n.StructTag}
+		ReturnStructTag: n.StructTag, IsWeak: n.IsWeak}
 	g.tempN = 0
 	g.labelN = 0
 	g.locals = make(map[string]localInfo)
@@ -2216,6 +2217,57 @@ func (g *irGen) genCall(n *Node) IRAddr {
 		dst := g.newTemp()
 		g.emit(Quad{Op: IRFrameAddr, Dst: dst})
 		return dst
+	case "__builtin_bswap16":
+		arg := g.genExpr(n.Children[0])
+		dst := g.newTemp()
+		g.emit(Quad{Op: IRBswap, Dst: dst, Src1: arg, TypeHint: TypeUnsignedShort})
+		return dst
+	case "__builtin_bswap32":
+		arg := g.genExpr(n.Children[0])
+		dst := g.newTemp()
+		g.emit(Quad{Op: IRBswap, Dst: dst, Src1: arg, TypeHint: TypeUnsignedInt})
+		return dst
+	case "__builtin_bswap64":
+		arg := g.genExpr(n.Children[0])
+		dst := g.newTemp()
+		g.emit(Quad{Op: IRBswap, Dst: dst, Src1: arg, TypeHint: TypeUnsignedLong})
+		return dst
+	case "alloca":
+		// alloca(size): allocate size bytes on the stack.
+		arg := g.genExpr(n.Children[0])
+		slotName := fmt.Sprintf("#alloca%d", g.tempN)
+		g.tempN++
+		g.fn.HasVLA = true
+		g.fn.Locals = append(g.fn.Locals, IRLocal{Name: slotName, IsArray: true, IsVLA: true, ArrSize: 0})
+		g.locals[slotName] = localInfo{isArray: true, arrSize: 0}
+		slotAddr := g.addrOf(slotName)
+		g.emit(Quad{Op: IRAllocaAlloc, Dst: slotAddr, Src1: arg})
+		// The slot holds the allocated pointer. Load it via IRCopy (FP-relative slot → temp).
+		result := g.newTemp()
+		g.emit(Quad{Op: IRCopy, Dst: result, Src1: slotAddr})
+		return result
+	case "__builtin_add_overflow", "__builtin_sub_overflow", "__builtin_mul_overflow":
+		aAddr := g.genExpr(n.Children[0])
+		bAddr := g.genExpr(n.Children[1])
+		ptrAddr := g.genExpr(n.Children[2])
+		sumTmp := g.newTemp()
+		overflowTmp := g.newTemp()
+		var op IROpCode
+		switch n.Name {
+		case "__builtin_add_overflow":
+			op = IRAddOverflow
+		case "__builtin_sub_overflow":
+			op = IRSubOverflow
+		default:
+			op = IRMulOverflow
+		}
+		// Dst=sumTmp, Src1=a, Src2=b, Extra=overflowTmp.Name
+		// elfgen: computes sum+overflow, stores both.
+		// We must ensure overflowTmp gets a frame slot: it appears as Src1 of IRDerefStore below.
+		g.emit(Quad{Op: op, Dst: sumTmp, Src1: aAddr, Src2: bAddr, Extra: overflowTmp.Name})
+		// Store sum to *ptr
+		g.emit(Quad{Op: IRDerefStore, Dst: ptrAddr, Src1: sumTmp})
+		return overflowTmp
 	}
 	isVariadic := g.variadicFuncs[n.Name]
 	// Phase 1: materialize all args (inner calls complete here, draining pendingParams).
