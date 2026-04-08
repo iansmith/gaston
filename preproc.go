@@ -525,9 +525,8 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 #define __USER_LABEL_PREFIX__
 
 /* ── Neutralise GCC-specific declaration attributes / extensions ─────── */
-/* These would otherwise reach the parser and cause syntax errors.        */
-#define __attribute__(x)
-#define __attribute(x)
+/* __attribute__((...)) is parsed directly by the lexer; only the         */
+/* lesser-known single-underscore variant needs a macro fallback.         */
 #define _ATTRIBUTE(x)
 #define __asm__(x)
 #define __asm(x)

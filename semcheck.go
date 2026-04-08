@@ -365,7 +365,7 @@ func semCheck(prog *Node, requireMain bool) error {
 // Flex arrays (Val==-1) are last and have no storage size.
 // structDefs is used to look up sizes of nested struct fields.
 func buildStructDef(n *Node, errs *[]string, structDefs map[string]*StructDef) *StructDef {
-	sd := &StructDef{Name: n.Name, IsUnion: n.IsUnion}
+	sd := &StructDef{Name: n.Name, IsUnion: n.IsUnion, IsPacked: n.IsPacked}
 	offset := 0
 	bfWordOffset := -1  // byte offset of current bit-field storage word (-1 = none active)
 	bfBitsUsed := 0
@@ -443,7 +443,7 @@ func buildStructDef(n *Node, errs *[]string, structDefs map[string]*StructDef) *
 			} else {
 				sz, align = fieldSizeAlign(child.Type, child.StructTag, structDefs)
 			}
-			if !sd.IsUnion {
+			if !sd.IsUnion && !sd.IsPacked {
 				// Struct: advance offset with natural alignment.
 				offset = (offset + align - 1) &^ (align - 1)
 			}

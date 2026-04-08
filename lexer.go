@@ -633,6 +633,14 @@ scan:
 		if skipWords[word] {
 			return l.Lex(lval) // re-enter to skip whitespace and get next token
 		}
+		// GCC __attribute__((...)) — scan and consume the ((...)) block.
+		// Return ATTR_PACKED if "packed" is among the listed attributes; otherwise skip.
+		if word == "__attribute__" || word == "__attribute" {
+			if l.scanAttrParens() {
+				return ATTR_PACKED
+			}
+			return l.Lex(lval)
+		}
 		if tok, ok := keywords[word]; ok {
 			return tok
 		}
@@ -823,6 +831,57 @@ func (l *lexer) Error(s string) {
 	}
 	fmt.Fprintf(os.Stderr, "%s:%d: %s%s\n", l.file, l.line, s, ctx)
 	l.errors++
+}
+
+// scanAttrParens scans and consumes a GCC __attribute__((...)) argument list.
+// It expects the current position to be just after the "__attribute__" (or
+// "__attribute") keyword. It consumes the outer "((" ... "))" with arbitrary
+// nesting inside, then returns true if the attribute list contained "packed".
+func (l *lexer) scanAttrParens() bool {
+	// skip whitespace
+	for l.pos < len(l.src) && (l.src[l.pos] == ' ' || l.src[l.pos] == '\t' ||
+		l.src[l.pos] == '\r' || l.src[l.pos] == '\n') {
+		if l.src[l.pos] == '\n' {
+			l.line++
+		}
+		l.pos++
+	}
+	if l.pos >= len(l.src) || l.src[l.pos] != '(' {
+		return false
+	}
+	// Scan entire balanced-paren block, collecting the text inside.
+	depth := 0
+	start := l.pos
+	for l.pos < len(l.src) {
+		ch := l.src[l.pos]
+		if ch == '(' {
+			depth++
+		} else if ch == ')' {
+			depth--
+			if depth == 0 {
+				l.pos++ // consume closing ')'
+				break
+			}
+		} else if ch == '\n' {
+			l.line++
+		}
+		l.pos++
+	}
+	body := l.src[start:l.pos]
+	// Check whether "packed" appears as a word in the attribute body.
+	for i := 0; i < len(body); i++ {
+		if isLetter(body[i]) {
+			j := i
+			for j < len(body) && (isLetter(body[j]) || isDigit(body[j])) {
+				j++
+			}
+			if body[i:j] == "packed" {
+				return true
+			}
+			i = j - 1
+		}
+	}
+	return false
 }
 
 func isLetter(c byte) bool {

@@ -329,6 +329,7 @@ type Node struct {
 	IsExtern       bool     // true for extern declarations (var or fun)
 	IsVLA          bool     // true for variable-length array: type ID '[' ID ']'
 	IsUnion        bool     // true for KindStructDef that is a union (all fields at offset 0)
+	IsPacked       bool     // true for KindStructDef with __attribute__((packed))
 	IsConstTarget  bool     // true for pointer declared as const T *p (cannot store through)
 	IsStatic       bool     // true for static storage class (local: persistent, global: internal linkage)
 	ElemType       TypeKind // for TypeIntArray: element type; TypePtr when array-of-pointers
@@ -356,9 +357,10 @@ type StructField struct {
 
 // StructDef describes one named struct or union type and its fields.
 type StructDef struct {
-	Name    string
-	Fields  []StructField
-	IsUnion bool // true when this is a union (all fields at offset 0)
+	Name     string
+	Fields   []StructField
+	IsUnion  bool // true when this is a union (all fields at offset 0)
+	IsPacked bool // true when declared with __attribute__((packed)): no alignment padding
 }
 
 // fieldSizeAlign returns the byte size and natural alignment for a field type.
@@ -450,6 +452,9 @@ func (sd *StructDef) SizeBytes(structDefs map[string]*StructDef) int {
 		if end > rawEnd {
 			rawEnd = end
 		}
+	}
+	if sd.IsPacked {
+		return rawEnd // no trailing alignment padding for packed structs
 	}
 	return (rawEnd + maxAlign - 1) &^ (maxAlign - 1)
 }

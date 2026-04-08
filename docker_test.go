@@ -174,6 +174,8 @@ var featureTests = []dockerTest{
 	{name: "sizeof_basic", want: "4\n1\n4\n1\n8\n8\n8\n"},
 	// struct_int_layout: verifies sizeof(int)==4 and LP64 struct layouts with int fields
 	{name: "struct_int_layout", want: "8\n8\n16\n4\n7\n42\n1\n"},
+	// struct_packed: __attribute__((packed)) removes alignment padding from structs
+	{name: "struct_packed", want: "6\n6\n12\n5\n"},
 	// sizeof_array: sizeof(local_arr)=N×8, sizeof(arr_param)=8, sizeof(global_arr)=N×8
 	{name: "sizeof_array", want: "24\n40\n8\n"},
 	// sizeof_types: sizeof for float=4, double=8, short=2, unsigned short=2, unsigned char=1, int=4, char=1

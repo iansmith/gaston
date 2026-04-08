@@ -31,6 +31,7 @@ package main
 %token INT VOID IF ELSE WHILE RETURN FOR DO BREAK CONTINUE CONST CHAR EXTERN GOTO
 %token LONG UNSIGNED SHORT FLOAT DOUBLE STRUCT SIZEOF ENUM UNION TYPEDEF STATIC VA_ARG TYPEOF INT128 SIGNED
 %token SWITCH CASE DEFAULT
+%token ATTR_PACKED
 %token <sval> TYPENAME
 
 // Multi-character operators
@@ -1019,11 +1020,23 @@ arg_list
 struct_declaration
 	: STRUCT ID '{' field_list '}' ';'
 		{ $$ = []*Node{{Kind: KindStructDef, Name: $2, Children: $4}} }
+	| STRUCT ATTR_PACKED ID '{' field_list '}' ';'
+		{ $$ = []*Node{{Kind: KindStructDef, Name: $3, Children: $5, IsPacked: true}} }
+	| STRUCT ID ATTR_PACKED '{' field_list '}' ';'
+		{ $$ = []*Node{{Kind: KindStructDef, Name: $2, Children: $5, IsPacked: true}} }
+	| STRUCT ID '{' field_list '}' ATTR_PACKED ';'
+		{ $$ = []*Node{{Kind: KindStructDef, Name: $2, Children: $4, IsPacked: true}} }
 	;
 
 union_declaration
 	: UNION ID '{' field_list '}' ';'
 		{ $$ = []*Node{{Kind: KindStructDef, Name: $2, Children: $4, IsUnion: true}} }
+	| UNION ATTR_PACKED ID '{' field_list '}' ';'
+		{ $$ = []*Node{{Kind: KindStructDef, Name: $3, Children: $5, IsUnion: true, IsPacked: true}} }
+	| UNION ID ATTR_PACKED '{' field_list '}' ';'
+		{ $$ = []*Node{{Kind: KindStructDef, Name: $2, Children: $5, IsUnion: true, IsPacked: true}} }
+	| UNION ID '{' field_list '}' ATTR_PACKED ';'
+		{ $$ = []*Node{{Kind: KindStructDef, Name: $2, Children: $4, IsUnion: true, IsPacked: true}} }
 	;
 
 enum_declaration
@@ -1143,11 +1156,39 @@ typedef_declaration
 			yylex.(*lexer).registerTypedef($6, structCType(tag))
 			$$ = []*Node{sd}
 		}
+	| TYPEDEF STRUCT ATTR_PACKED '{' field_list '}' ID ';'
+		{
+			tag := yylex.(*lexer).nextAnon()
+			sd := &Node{Kind: KindStructDef, Name: tag, Children: $5, IsPacked: true}
+			yylex.(*lexer).registerTypedef($7, structCType(tag))
+			$$ = []*Node{sd}
+		}
+	| TYPEDEF STRUCT '{' field_list '}' ATTR_PACKED ID ';'
+		{
+			tag := yylex.(*lexer).nextAnon()
+			sd := &Node{Kind: KindStructDef, Name: tag, Children: $4, IsPacked: true}
+			yylex.(*lexer).registerTypedef($7, structCType(tag))
+			$$ = []*Node{sd}
+		}
 	| TYPEDEF UNION '{' field_list '}' ID ';'
 		{
 			tag := yylex.(*lexer).nextAnon()
 			sd := &Node{Kind: KindStructDef, Name: tag, Children: $4, IsUnion: true}
 			yylex.(*lexer).registerTypedef($6, structCType(tag))
+			$$ = []*Node{sd}
+		}
+	| TYPEDEF UNION ATTR_PACKED '{' field_list '}' ID ';'
+		{
+			tag := yylex.(*lexer).nextAnon()
+			sd := &Node{Kind: KindStructDef, Name: tag, Children: $5, IsUnion: true, IsPacked: true}
+			yylex.(*lexer).registerTypedef($7, structCType(tag))
+			$$ = []*Node{sd}
+		}
+	| TYPEDEF UNION '{' field_list '}' ATTR_PACKED ID ';'
+		{
+			tag := yylex.(*lexer).nextAnon()
+			sd := &Node{Kind: KindStructDef, Name: tag, Children: $4, IsUnion: true, IsPacked: true}
+			yylex.(*lexer).registerTypedef($7, structCType(tag))
 			$$ = []*Node{sd}
 		}
 	/* typedef of named struct/union defining the struct inline: typedef struct Tag { ... } Name; */
@@ -1157,10 +1198,46 @@ typedef_declaration
 			yylex.(*lexer).registerTypedef($7, structCType($3))
 			$$ = []*Node{sd}
 		}
+	| TYPEDEF STRUCT ATTR_PACKED ID '{' field_list '}' ID ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $4, Children: $6, IsPacked: true}
+			yylex.(*lexer).registerTypedef($8, structCType($4))
+			$$ = []*Node{sd}
+		}
+	| TYPEDEF STRUCT ID ATTR_PACKED '{' field_list '}' ID ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $3, Children: $6, IsPacked: true}
+			yylex.(*lexer).registerTypedef($8, structCType($3))
+			$$ = []*Node{sd}
+		}
+	| TYPEDEF STRUCT ID '{' field_list '}' ATTR_PACKED ID ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $3, Children: $5, IsPacked: true}
+			yylex.(*lexer).registerTypedef($8, structCType($3))
+			$$ = []*Node{sd}
+		}
 	| TYPEDEF UNION ID '{' field_list '}' ID ';'
 		{
 			sd := &Node{Kind: KindStructDef, Name: $3, Children: $5, IsUnion: true}
 			yylex.(*lexer).registerTypedef($7, structCType($3))
+			$$ = []*Node{sd}
+		}
+	| TYPEDEF UNION ATTR_PACKED ID '{' field_list '}' ID ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $4, Children: $6, IsUnion: true, IsPacked: true}
+			yylex.(*lexer).registerTypedef($8, structCType($4))
+			$$ = []*Node{sd}
+		}
+	| TYPEDEF UNION ID ATTR_PACKED '{' field_list '}' ID ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $3, Children: $6, IsUnion: true, IsPacked: true}
+			yylex.(*lexer).registerTypedef($8, structCType($3))
+			$$ = []*Node{sd}
+		}
+	| TYPEDEF UNION ID '{' field_list '}' ATTR_PACKED ID ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $3, Children: $5, IsUnion: true, IsPacked: true}
+			yylex.(*lexer).registerTypedef($8, structCType($3))
 			$$ = []*Node{sd}
 		}
 	| TYPEDEF STRUCT ID '{' field_list '}' ';'
@@ -1168,9 +1245,39 @@ typedef_declaration
 			sd := &Node{Kind: KindStructDef, Name: $3, Children: $5}
 			$$ = []*Node{sd}
 		}
+	| TYPEDEF STRUCT ATTR_PACKED ID '{' field_list '}' ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $4, Children: $6, IsPacked: true}
+			$$ = []*Node{sd}
+		}
+	| TYPEDEF STRUCT ID ATTR_PACKED '{' field_list '}' ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $3, Children: $6, IsPacked: true}
+			$$ = []*Node{sd}
+		}
+	| TYPEDEF STRUCT ID '{' field_list '}' ATTR_PACKED ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $3, Children: $5, IsPacked: true}
+			$$ = []*Node{sd}
+		}
 	| TYPEDEF UNION ID '{' field_list '}' ';'
 		{
 			sd := &Node{Kind: KindStructDef, Name: $3, Children: $5, IsUnion: true}
+			$$ = []*Node{sd}
+		}
+	| TYPEDEF UNION ATTR_PACKED ID '{' field_list '}' ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $4, Children: $6, IsUnion: true, IsPacked: true}
+			$$ = []*Node{sd}
+		}
+	| TYPEDEF UNION ID ATTR_PACKED '{' field_list '}' ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $3, Children: $6, IsUnion: true, IsPacked: true}
+			$$ = []*Node{sd}
+		}
+	| TYPEDEF UNION ID '{' field_list '}' ATTR_PACKED ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $3, Children: $5, IsUnion: true, IsPacked: true}
 			$$ = []*Node{sd}
 		}
 	| TYPEDEF ENUM ID '{' enum_list '}' ID ';'
@@ -1477,42 +1584,121 @@ declaration_specifiers
 	| STRUCT ID '{' field_list '}'
 		{ $$ = &DeclSpec{BaseType: structCType($2),
 		    StructDef: &Node{Kind: KindStructDef, Name: $2, Children: $4}} }
+	| STRUCT ATTR_PACKED ID '{' field_list '}'
+		{ $$ = &DeclSpec{BaseType: structCType($3),
+		    StructDef: &Node{Kind: KindStructDef, Name: $3, Children: $5, IsPacked: true}} }
+	| STRUCT ID ATTR_PACKED '{' field_list '}'
+		{ $$ = &DeclSpec{BaseType: structCType($2),
+		    StructDef: &Node{Kind: KindStructDef, Name: $2, Children: $5, IsPacked: true}} }
+	| STRUCT ID '{' field_list '}' ATTR_PACKED
+		{ $$ = &DeclSpec{BaseType: structCType($2),
+		    StructDef: &Node{Kind: KindStructDef, Name: $2, Children: $4, IsPacked: true}} }
 	| STATIC STRUCT ID '{' field_list '}'
 		{ $$ = &DeclSpec{BaseType: structCType($3), IsStatic: true,
 		    StructDef: &Node{Kind: KindStructDef, Name: $3, Children: $5}} }
+	| STATIC STRUCT ATTR_PACKED ID '{' field_list '}'
+		{ $$ = &DeclSpec{BaseType: structCType($4), IsStatic: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: $4, Children: $6, IsPacked: true}} }
+	| STATIC STRUCT ID '{' field_list '}' ATTR_PACKED
+		{ $$ = &DeclSpec{BaseType: structCType($3), IsStatic: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: $3, Children: $5, IsPacked: true}} }
 	| STATIC CONST STRUCT ID '{' field_list '}'
 		{ $$ = &DeclSpec{BaseType: structCType($4), IsStatic: true, IsConst: true,
 		    StructDef: &Node{Kind: KindStructDef, Name: $4, Children: $6}} }
+	| STATIC CONST STRUCT ATTR_PACKED ID '{' field_list '}'
+		{ $$ = &DeclSpec{BaseType: structCType($5), IsStatic: true, IsConst: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: $5, Children: $7, IsPacked: true}} }
+	| STATIC CONST STRUCT ID '{' field_list '}' ATTR_PACKED
+		{ $$ = &DeclSpec{BaseType: structCType($4), IsStatic: true, IsConst: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: $4, Children: $6, IsPacked: true}} }
 	| EXTERN STRUCT ID '{' field_list '}'
 		{ $$ = &DeclSpec{BaseType: structCType($3), IsExtern: true,
 		    StructDef: &Node{Kind: KindStructDef, Name: $3, Children: $5}} }
+	| EXTERN STRUCT ATTR_PACKED ID '{' field_list '}'
+		{ $$ = &DeclSpec{BaseType: structCType($4), IsExtern: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: $4, Children: $6, IsPacked: true}} }
+	| EXTERN STRUCT ID '{' field_list '}' ATTR_PACKED
+		{ $$ = &DeclSpec{BaseType: structCType($3), IsExtern: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: $3, Children: $5, IsPacked: true}} }
 	| EXTERN CONST STRUCT ID '{' field_list '}'
 		{ $$ = &DeclSpec{BaseType: structCType($4), IsExtern: true, IsConst: true,
 		    StructDef: &Node{Kind: KindStructDef, Name: $4, Children: $6}} }
+	| EXTERN CONST STRUCT ATTR_PACKED ID '{' field_list '}'
+		{ $$ = &DeclSpec{BaseType: structCType($5), IsExtern: true, IsConst: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: $5, Children: $7, IsPacked: true}} }
+	| EXTERN CONST STRUCT ID '{' field_list '}' ATTR_PACKED
+		{ $$ = &DeclSpec{BaseType: structCType($4), IsExtern: true, IsConst: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: $4, Children: $6, IsPacked: true}} }
 	| CONST STRUCT ID '{' field_list '}'
 		{ $$ = &DeclSpec{BaseType: structCType($3), IsConst: true,
 		    StructDef: &Node{Kind: KindStructDef, Name: $3, Children: $5}} }
+	| CONST STRUCT ATTR_PACKED ID '{' field_list '}'
+		{ $$ = &DeclSpec{BaseType: structCType($4), IsConst: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: $4, Children: $6, IsPacked: true}} }
+	| CONST STRUCT ID '{' field_list '}' ATTR_PACKED
+		{ $$ = &DeclSpec{BaseType: structCType($3), IsConst: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: $3, Children: $5, IsPacked: true}} }
 	/* ── Anonymous struct/union definition ── */
 	| STRUCT '{' field_list '}'
 		{ tag := yylex.(*lexer).nextAnon()
 		  $$ = &DeclSpec{BaseType: structCType(tag),
 		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $3}} }
+	| STRUCT ATTR_PACKED '{' field_list '}'
+		{ tag := yylex.(*lexer).nextAnon()
+		  $$ = &DeclSpec{BaseType: structCType(tag),
+		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $4, IsPacked: true}} }
+	| STRUCT '{' field_list '}' ATTR_PACKED
+		{ tag := yylex.(*lexer).nextAnon()
+		  $$ = &DeclSpec{BaseType: structCType(tag),
+		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $3, IsPacked: true}} }
 	| STATIC STRUCT '{' field_list '}'
 		{ tag := yylex.(*lexer).nextAnon()
 		  $$ = &DeclSpec{BaseType: structCType(tag), IsStatic: true,
 		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $4}} }
+	| STATIC STRUCT ATTR_PACKED '{' field_list '}'
+		{ tag := yylex.(*lexer).nextAnon()
+		  $$ = &DeclSpec{BaseType: structCType(tag), IsStatic: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $5, IsPacked: true}} }
+	| STATIC STRUCT '{' field_list '}' ATTR_PACKED
+		{ tag := yylex.(*lexer).nextAnon()
+		  $$ = &DeclSpec{BaseType: structCType(tag), IsStatic: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $4, IsPacked: true}} }
 	| STATIC CONST STRUCT '{' field_list '}'
 		{ tag := yylex.(*lexer).nextAnon()
 		  $$ = &DeclSpec{BaseType: structCType(tag), IsStatic: true, IsConst: true,
 		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $5}} }
+	| STATIC CONST STRUCT ATTR_PACKED '{' field_list '}'
+		{ tag := yylex.(*lexer).nextAnon()
+		  $$ = &DeclSpec{BaseType: structCType(tag), IsStatic: true, IsConst: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $6, IsPacked: true}} }
+	| STATIC CONST STRUCT '{' field_list '}' ATTR_PACKED
+		{ tag := yylex.(*lexer).nextAnon()
+		  $$ = &DeclSpec{BaseType: structCType(tag), IsStatic: true, IsConst: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $5, IsPacked: true}} }
 	| CONST STRUCT '{' field_list '}'
 		{ tag := yylex.(*lexer).nextAnon()
 		  $$ = &DeclSpec{BaseType: structCType(tag), IsConst: true,
 		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $4}} }
+	| CONST STRUCT ATTR_PACKED '{' field_list '}'
+		{ tag := yylex.(*lexer).nextAnon()
+		  $$ = &DeclSpec{BaseType: structCType(tag), IsConst: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $5, IsPacked: true}} }
+	| CONST STRUCT '{' field_list '}' ATTR_PACKED
+		{ tag := yylex.(*lexer).nextAnon()
+		  $$ = &DeclSpec{BaseType: structCType(tag), IsConst: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $4, IsPacked: true}} }
 	| UNION '{' field_list '}'
 		{ tag := yylex.(*lexer).nextAnon()
 		  $$ = &DeclSpec{BaseType: structCType(tag), IsUnion: true,
 		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $3, IsUnion: true}} }
+	| UNION ATTR_PACKED '{' field_list '}'
+		{ tag := yylex.(*lexer).nextAnon()
+		  $$ = &DeclSpec{BaseType: structCType(tag), IsUnion: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $4, IsUnion: true, IsPacked: true}} }
+	| UNION '{' field_list '}' ATTR_PACKED
+		{ tag := yylex.(*lexer).nextAnon()
+		  $$ = &DeclSpec{BaseType: structCType(tag), IsUnion: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $3, IsUnion: true, IsPacked: true}} }
 	;
 
 gd_pointer
