@@ -106,6 +106,11 @@ var featureTests = []dockerTest{
 	// float_print: print_double runtime (integer-valued and fractional doubles)
 	{name: "float_print", want: "3.000000\n0.500000\n-1.250000\n100.000000\n"},
 
+	// ── setjmp / longjmp ─────────────────────────────────────────────────
+	// setjmp_basic: setjmp returns 0 on first call; longjmp resumes with val;
+	// longjmp(buf,0) must cause setjmp to return 1 (not 0).
+	{name: "setjmp_basic", want: "0\n42\n1\n"},
+
 	// ── Feature: goto / labeled statements ──────────────────────────────
 	// goto_basic: loop with goto, outputs 0–4 then 99
 	{name: "goto_basic", want: "0\n1\n2\n3\n4\n99\n"},

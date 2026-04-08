@@ -1644,3 +1644,56 @@ func (g *elfGen) emitPosixSyscalls() {
 	cb.emit(encRET())
 }
 
+// emitSetjmpFns emits setjmp and longjmp as inline ARM64 machine code.
+//
+// The jmp_buf layout matches picolibc's AArch64 definition (_JBLEN=22, _JBTYPE=long long,
+// total 176 bytes).  Only integer callee-saved registers are saved; D8–D15 (slots 13–21)
+// are reserved but not written because gaston-compiled code never keeps live values in
+// those registers across function call boundaries.
+//
+// Offset layout (each slot is 8 bytes):
+//   0: X19   8: X20   16: X21   24: X22   32: X23   40: X24
+//  48: X25  56: X26   64: X27   72: X28   80: X29   88: X30/LR
+//  96: SP
+//
+// See also: libc/setjmp_arm64.s — the canonical Plan 9 assembly source for this code.
+func (g *elfGen) emitSetjmpFns() {
+	cb := g.cb
+
+	// setjmp(jmp_buf *env) → int
+	// X0 = env pointer on entry; returns 0.
+	cb.defineLabel("setjmp")
+	cb.emit(encSTP(19, 20, regX0, 0))           // STP X19,X20,[X0,#0]
+	cb.emit(encSTP(21, 22, regX0, 16))           // STP X21,X22,[X0,#16]
+	cb.emit(encSTP(23, 24, regX0, 32))           // STP X23,X24,[X0,#32]
+	cb.emit(encSTP(25, 26, regX0, 48))           // STP X25,X26,[X0,#48]
+	cb.emit(encSTP(27, 28, regX0, 64))           // STP X27,X28,[X0,#64]
+	cb.emit(encSTP(regFP, regLR, regX0, 80))     // STP X29,X30,[X0,#80] (FP, LR)
+	cb.emit(encADDimm(regX1, regSP, 0))          // MOV X1, SP  (ADD X1, SP, #0)
+	cb.emit(encSTRuoff(regX1, regX0, 96))        // STR X1,[X0,#96]  (save SP)
+	cb.emitMOVimm(regX0, 0)                      // MOV X0, #0  (return 0)
+	cb.emit(encRET())
+
+	// longjmp(jmp_buf *env, int val)
+	// X0 = env pointer, X1 = val; restores state and returns to setjmp caller.
+	// If val == 0, returns 1 instead (setjmp must not return 0 on the longjmp path).
+	cb.defineLabel("longjmp")
+	cb.emit(encMOVreg(regX3, regX0))             // MOV X3, X0  (save env ptr)
+	cb.emit(encMOVreg(regX2, regX1))             // MOV X2, X1  (save val)
+	cb.emit(encLDP(19, 20, regX3, 0))            // LDP X19,X20,[X3,#0]
+	cb.emit(encLDP(21, 22, regX3, 16))           // LDP X21,X22,[X3,#16]
+	cb.emit(encLDP(23, 24, regX3, 32))           // LDP X23,X24,[X3,#32]
+	cb.emit(encLDP(25, 26, regX3, 48))           // LDP X25,X26,[X3,#48]
+	cb.emit(encLDP(27, 28, regX3, 64))           // LDP X27,X28,[X3,#64]
+	cb.emit(encLDP(regFP, regLR, regX3, 80))     // LDP X29,X30,[X3,#80] (FP, LR)
+	cb.emit(encLDRuoff(regX1, regX3, 96))        // LDR X1,[X3,#96]
+	cb.emit(encADDimm(regSP, regX1, 0))          // MOV SP, X1  (ADD SP, X1, #0)
+	// CBNZ X2, +2: if val != 0, skip the "use 1" instruction.
+	// imm19=2 means jump 2 words forward (target is the MOV X0, X2 after the MOVZ).
+	cb.emit(encCBNZ(regX2, 2))                   // CBNZ X2, done
+	cb.emitMOVimm(regX2, 1)                      // MOV X2, #1  (val was 0; substitute 1)
+	// done:
+	cb.emit(encMOVreg(regX0, regX2))             // MOV X0, X2  (return val)
+	cb.emit(encRET())
+}
+

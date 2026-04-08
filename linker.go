@@ -363,6 +363,7 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 
 	gen.emitSbrkFn()
 	gen.emitPosixSyscalls()
+	gen.emitSetjmpFns()
 
 	helperWords := len(cb.instrs) // number of words used by runtime helpers
 
