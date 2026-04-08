@@ -140,9 +140,9 @@ typedef long ultoa_signed_t;
 #endif
 
 #if SIZEOF_ULTOA <= 4
-#define PRINTF_BUF_SIZE 11
+#define PRINTF_BUF_SIZE 32   /* base-2 needs up to 32 digits for uint32 */
 #else
-#define PRINTF_BUF_SIZE 22
+#define PRINTF_BUF_SIZE 64   /* base-2 needs up to 64 digits for uint64 */
 #endif
 
 // At the call site the address of the result_var is taken (e.g. "&ap")
@@ -991,6 +991,8 @@ int vfprintf (FILE * stream, const char *fmt, va_list ap_orig)
                         base = 16;
                         if (c == 'X')
                             base = 16 | XTOA_UPPER;
+                    } else if (TOLOW(c) == 'b') {
+                        base = 2;
                     } else {
                         my_putc('%', stream);
                         my_putc(c, stream);

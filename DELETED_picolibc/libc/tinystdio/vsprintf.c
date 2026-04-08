@@ -34,10 +34,12 @@
 #include <stdio.h>
 #include "stdio_private.h"
 
+#define FDEV_STRING_WRITE_END(_s, _n) (((int)(_n) < 0) ? ((char *)0) : ((_n) ? (_s) + (_n) - 1 : (_s)))
+
 int
 vsprintf(char *s, const char *fmt, va_list ap)
 {
-	struct __file_str f = FDEV_SETUP_STRING_WRITE(s, INT_MAX);
+	struct __file_str f = FDEV_SETUP_STRING_WRITE(s, FDEV_STRING_WRITE_END(s, INT_MAX));
 	int i;
 
 	i = vfprintf(&f.file, fmt, ap);

@@ -40,33 +40,71 @@
 static char write_buf[BUFSIZ];
 static char read_buf[BUFSIZ];
 
-static struct __file_bufio __stdin = FDEV_SETUP_POSIX(0, read_buf, BUFSIZ, __SRD, 0);
-static struct __file_bufio __stdout = FDEV_SETUP_POSIX(1, write_buf, BUFSIZ, __SWR, __BLBF);
+static struct __file_bufio __stdin;
+static struct __file_bufio __stdout;
 
-FILE *const __posix_stdin = &__stdin.xfile.cfile.file;
-FILE *const __posix_stdout = &__stdout.xfile.cfile.file;
-
-#ifdef __strong_reference
-__strong_reference(__posix_stdout, __posix_stderr);
-#else
-FILE *const __posix_stderr = &__stdout.xfile.cfile.file;
-#endif
-
-/*
- * __weak_reference uses inline asm (.weak/.equ directives) which not all
- * compilers support.  Define the public names directly as aliases to the
- * __posix_* pointers.  This is safe because we control the picolibc build.
- */
-FILE *const stdin  = &__stdin.xfile.cfile.file;
-FILE *const stdout = &__stdout.xfile.cfile.file;
-FILE *const stderr = &__stdout.xfile.cfile.file;
+/* These pointers start NULL and are set by __posix_stdio_init(). */
+FILE *__posix_stdin;
+FILE *__posix_stdout;
+FILE *__posix_stderr;
+FILE *stdin;
+FILE *stdout;
+FILE *stderr;
 
 /*
- * Add a destructor function to get stdout flushed on
- * exit
+ * Runtime initializer — called from _start before main().
+ * Sets up the __stdin/__stdout bufio structs and wires the
+ * public FILE* pointers to them.
  */
-__attribute__((destructor (101)))
-static void posix_exit(void)
+void __posix_stdio_init(void)
 {
-	fflush(stdout);
+    /* __stdin: flags = __SRD | __SCLOSE | __SEXT | __SBUF */
+    __stdin.xfile.cfile.file.flags = (0x0001 | 0x0040 | 0x0020 | 0x0010);
+    __stdin.xfile.cfile.file.put   = __bufio_put;
+    __stdin.xfile.cfile.file.get   = __bufio_get;
+    __stdin.xfile.cfile.file.flush = __bufio_flush;
+    __stdin.xfile.cfile.close      = __bufio_close;
+    __stdin.xfile.seek             = __bufio_seek;
+    __stdin.xfile.setvbuf          = __bufio_setvbuf;
+    __stdin.fd    = 0;
+    __stdin.dir   = 0;
+    __stdin.bflags = 0;
+    __stdin.pos   = 0;
+    __stdin.buf   = read_buf;
+    __stdin.size  = BUFSIZ;
+    __stdin.len   = 0;
+    __stdin.off   = 0;
+    __stdin.read  = (void *)read;
+    __stdin.write = (void *)write;
+    __stdin.lseek = lseek;
+    __stdin.close = close;
+
+    /* __stdout: flags = __SWR | __SCLOSE | __SEXT | __SBUF, bflags = __BLBF */
+    __stdout.xfile.cfile.file.flags = (0x0002 | 0x0040 | 0x0020 | 0x0010);
+    __stdout.xfile.cfile.file.put   = __bufio_put;
+    __stdout.xfile.cfile.file.get   = __bufio_get;
+    __stdout.xfile.cfile.file.flush = __bufio_flush;
+    __stdout.xfile.cfile.close      = __bufio_close;
+    __stdout.xfile.seek             = __bufio_seek;
+    __stdout.xfile.setvbuf          = __bufio_setvbuf;
+    __stdout.fd    = 1;
+    __stdout.dir   = 0;
+    __stdout.bflags = 0x0002;
+    __stdout.pos   = 0;
+    __stdout.buf   = write_buf;
+    __stdout.size  = BUFSIZ;
+    __stdout.len   = 0;
+    __stdout.off   = 0;
+    __stdout.read  = (void *)read;
+    __stdout.write = (void *)write;
+    __stdout.lseek = lseek;
+    __stdout.close = close;
+
+    /* Wire up the public FILE* pointers */
+    __posix_stdin  = &__stdin.xfile.cfile.file;
+    __posix_stdout = &__stdout.xfile.cfile.file;
+    __posix_stderr = &__stdout.xfile.cfile.file;
+    stdin  = &__stdin.xfile.cfile.file;
+    stdout = &__stdout.xfile.cfile.file;
+    stderr = &__stdout.xfile.cfile.file;
 }

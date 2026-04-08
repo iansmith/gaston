@@ -90,13 +90,13 @@ bool __matchcaseprefix(const char *input, const char *pattern);
 		.pos = (char *) (_s)		\
 	}
 
-#define FDEV_SETUP_STRING_WRITE(_s, _size) {	\
+#define FDEV_SETUP_STRING_WRITE(_s, _end) {	\
 		.file = {			\
 			.flags = __SWR,		\
 			.put = __file_str_put	\
 		},				\
 		.pos = (_s),			\
-                .end = (_s) + (_size),          \
+                .end = (_end),                  \
 	}
 
 #define FDEV_SETUP_STRING_ALLOC() {		\

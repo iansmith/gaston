@@ -101,8 +101,16 @@ int snprintf(char *buf, long n, char *fmt, ...) {
     struct __file_str f;
     va_list ap;
     int r;
+    char *end_ptr;
 
-    if (n <= 0) { return 0; }
+    /* Per C99: snprintf(NULL, 0, ...) returns the would-be-written count.
+     * We must always call vfprintf to get the count; the __file_str_put
+     * function silently stops writing when pos == end. */
+    if (n <= 0) {
+        end_ptr = buf;  /* pos == end → nothing written */
+    } else {
+        end_ptr = buf + (n - 1);
+    }
 
     f.file.unget = 0;
     f.file.flags = 2;
@@ -110,11 +118,11 @@ int snprintf(char *buf, long n, char *fmt, ...) {
     f.file.get = 0;
     f.file.flush = 0;
     f.pos = buf;
-    f.end = buf + (n - 1);
+    f.end = end_ptr;
     f.size = 0;
 
     ap = __va_start();
     r = vfprintf(&f.file, fmt, ap);
-    *f.pos = 0;
+    if (n > 0) { *f.pos = 0; }
     return r;
 }

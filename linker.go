@@ -19,6 +19,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -243,8 +244,14 @@ func parseObjELF(path string, f *elf.File) (*objFile, error) {
 // and their members are lazy-linked (only included when they resolve an
 // otherwise-undefined symbol).
 func link(outpath string, inputpaths []string) error {
+	return linkWithObjs(outpath, nil, inputpaths)
+}
+
+// linkWithObjs links pre-loaded objects (preObjs) together with objects/archives
+// loaded from inputpaths, and writes the final ET_EXEC to outpath.
+func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error {
 	// ── phase 1: load .o files; collect .a archives ────────────────────────
-	var objs []*objFile
+	objs := append([]*objFile(nil), preObjs...)
 	type archiveState struct {
 		members []arMember
 		symMap  map[string]int // symbol name → member index
@@ -273,6 +280,23 @@ func link(outpath string, inputpaths []string) error {
 	}
 
 	// ── phase 2: lazy-link archive members ────────────────────────────────
+	// Force-pull symbols referenced by _start helper code that aren't in user objects.
+	for _, forceSym := range []string{"__posix_stdio_init"} {
+		for ai := range archives {
+			mi, ok := archives[ai].symMap[forceSym]
+			if !ok || archives[ai].used[mi] {
+				continue
+			}
+			archives[ai].used[mi] = true
+			m := archives[ai].members[mi]
+			pulled, err := loadObjFromBytes(m.name, m.data)
+			if err != nil {
+				return fmt.Errorf("link: archive member %s: %w", m.name, err)
+			}
+			objs = append(objs, pulled)
+		}
+	}
+
 	// Repeatedly scan undefined symbols in already-loaded objects; pull in any
 	// archive member that defines one.  Repeat until stable.
 	for {
@@ -329,9 +353,10 @@ func link(outpath string, inputpaths []string) error {
 		funcRetType:   make(map[string]TypeKind),
 	}
 
-	// _start: call gaston_main (extern → fixed-up after symbol layout), then exit.
+	// _start: call __posix_stdio_init, then main, then exit(0).
 	cb.defineLabel("_start")
-	cb.emitBL("main") // fixup resolved after all user text is loaded
+	cb.emitBL("__posix_stdio_init")
+	cb.emitBL("main")
 	cb.emitMOVimm(regX0, 0)
 	cb.emitMOVimm(regX8, 94)
 	cb.emit(encSVC(0))
@@ -420,15 +445,31 @@ func link(outpath string, inputpaths []string) error {
 		}
 	}
 
-	// Add main label to cb.labels so applyFixups() can resolve _start's BL.
+	// DEBUG: dump symbol addresses sorted by VA
+	type symEntry struct{ name string; va uint64 }
+	var sortedSyms []symEntry
+	for name, va := range symVA {
+		sortedSyms = append(sortedSyms, symEntry{name, va})
+	}
+	sort.Slice(sortedSyms, func(i, j int) bool { return sortedSyms[i].va < sortedSyms[j].va })
+	for _, s := range sortedSyms {
+		fmt.Fprintf(os.Stderr, "linker: sym 0x%08x %s\n", s.va, s.name)
+	}
+
+	// Add main and __posix_stdio_init labels to cb.labels so applyFixups() can
+	// resolve _start's BL instructions to archive-defined functions.
 	if va, ok := symVA["main"]; ok {
 		wordIdx := int((va - lnkCodeBase) / 4)
 		cb.labels["main"] = wordIdx
 	} else {
 		return fmt.Errorf("linker: undefined symbol 'main' (no main function)")
 	}
+	if va, ok := symVA["__posix_stdio_init"]; ok {
+		wordIdx := int((va - lnkCodeBase) / 4)
+		cb.labels["__posix_stdio_init"] = wordIdx
+	}
 
-	// Resolve internal branch fixups (helper code internal labels + gaston_main).
+	// Resolve internal branch fixups (helper code internal labels).
 	if err := cb.applyFixups(); err != nil {
 		return fmt.Errorf("linker: fixups: %w", err)
 	}

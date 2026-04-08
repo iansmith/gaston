@@ -231,6 +231,7 @@ type IRGlobal struct {
 type InitReloc struct {
 	ByteOff int    // byte offset within the global's storage
 	Label   string // label whose address should be stored (e.g. "str0")
+	Addend  int64  // constant addend (e.g. for &arr[i] - N)
 }
 
 // IRLocal describes one local variable in a function (not a parameter).

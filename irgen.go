@@ -7,9 +7,12 @@ import (
 )
 
 // loopLabels holds the break/continue targets for one loop level.
+// isSwitch is true for switch statements: in C, `continue` inside a switch
+// targets the enclosing loop, not the switch itself.
 type loopLabels struct {
 	breakLabel    string
 	continueLabel string
+	isSwitch      bool
 }
 
 // irGen holds state for IR generation from a type-checked AST.
@@ -138,6 +141,32 @@ func genIR(prog *Node) *IRProgram {
 				if init.Kind == KindNum {
 					gbl.HasInitVal = true
 					gbl.InitVal = init.Val
+				} else if init.Kind == KindFNum {
+					// Float/double global: store IEEE bits.
+					byteSize := 8
+					if decl.Type == TypeFloat {
+						byteSize = 4
+					}
+					buf := make([]byte, byteSize)
+					if byteSize == 4 {
+						bits := math.Float32bits(float32(init.FVal))
+						for i := 0; i < 4; i++ { buf[i] = byte(bits >> (uint(i) * 8)) }
+					} else {
+						bits := math.Float64bits(init.FVal)
+						for i := 0; i < 8; i++ { buf[i] = byte(bits >> (uint(i) * 8)) }
+					}
+					gbl.InitData = buf
+				} else if v, ok := tryEvalConstInt(init); ok {
+					// Complex constant expression (e.g. (char*)(-1), 128*1024)
+					gbl.HasInitVal = true
+					gbl.InitVal = int(v)
+				} else if sym, addend, ok := tryEvalConstAddr(init, g.prog.StructDefs, g.funcNames); ok {
+					// Address constant (e.g. &some_global, function_name)
+					byteSize := 8 // pointer
+					buf := make([]byte, byteSize)
+					relocs := []InitReloc{{ByteOff: 0, Label: sym, Addend: addend}}
+					gbl.InitData = buf
+					gbl.InitRelocs = relocs
 				} else if init.Kind == KindStrLit {
 					// char array initialized from string literal.
 					// Copy bytes into InitData; NUL-terminate only if there is space.
@@ -163,7 +192,7 @@ func genIR(prog *Node) *IRProgram {
 					buf := make([]byte, byteSize)
 					var relocs []InitReloc
 					buildInitDataBuf(buf, init, decl, g.prog.StructDefs,
-						0, g.prog, &relocs)
+						0, g.prog, &relocs, g.funcNames)
 					gbl.InitData = buf
 					gbl.InitRelocs = relocs
 				}
@@ -576,13 +605,228 @@ func (g *irGen) genInitEntry(entry *Node, basePtr IRAddr, decl *Node) {
 	}
 }
 
+// tryEvalConstInt attempts to evaluate an AST node as a compile-time integer constant.
+func tryEvalConstInt(n *Node) (int64, bool) {
+	if n == nil {
+		return 0, false
+	}
+	switch n.Kind {
+	case KindNum:
+		return int64(n.Val), true
+	case KindCharLit:
+		return int64(n.Val), true
+	case KindUnary:
+		if n.Op == "-" && len(n.Children) == 1 {
+			v, ok := tryEvalConstInt(n.Children[0])
+			return -v, ok
+		}
+		if n.Op == "~" && len(n.Children) == 1 {
+			v, ok := tryEvalConstInt(n.Children[0])
+			return ^v, ok
+		}
+	case KindCast:
+		if len(n.Children) == 1 {
+			return tryEvalConstInt(n.Children[0])
+		}
+	case KindBinOp:
+		if len(n.Children) == 2 {
+			l, lok := tryEvalConstInt(n.Children[0])
+			r, rok := tryEvalConstInt(n.Children[1])
+			if lok && rok {
+				switch n.Op {
+				case "+":
+					return l + r, true
+				case "-":
+					return l - r, true
+				case "*":
+					return l * r, true
+				case "/":
+					if r != 0 {
+						return l / r, true
+					}
+				case "%":
+					if r != 0 {
+						return l % r, true
+					}
+				case "<<":
+					return l << uint(r), true
+				case ">>":
+					return l >> uint(r), true
+				case "&":
+					return l & r, true
+				case "|":
+					return l | r, true
+				case "^":
+					return l ^ r, true
+				}
+			}
+		}
+	}
+	return 0, false
+}
+
+// tryEvalConstAddr attempts to evaluate an AST node as a compile-time address
+// expression of the form "address_of(symbol) + constant_offset".
+// Returns (symbol_name, addend_in_bytes, true) on success.
+// Handles patterns like: &global, &global[i], (type*)&global[i] + offset,
+// (type*)((char*)&global[i] - N), and bare function names used as pointers.
+func tryEvalConstAddr(n *Node, structDefs map[string]*StructDef, funcNames map[string]bool) (string, int64, bool) {
+	if n == nil {
+		return "", 0, false
+	}
+	switch n.Kind {
+	case KindCast:
+		// Casts don't change the address, just pass through.
+		if len(n.Children) == 1 {
+			return tryEvalConstAddr(n.Children[0], structDefs, funcNames)
+		}
+
+	case KindAddrOf:
+		// &var, &var[index], or &var.field.field...
+		if len(n.Children) == 1 {
+			child := n.Children[0]
+			switch child.Kind {
+			case KindFieldAccess:
+				// &var.f1.f2.f3 — walk the dot chain to find base var + cumulative offset.
+				sym, off, ok := evalFieldChainOffset(child, structDefs)
+				if ok {
+					return sym, off, true
+				}
+			case KindVar:
+				return child.Name, 0, true
+			case KindArrayVar:
+				// &arr[i] where i is a constant
+				idx, ok := tryEvalConstInt(child.Children[0])
+				if ok {
+					elemSz := int64(8) // default pointer size
+					if child.Type == TypeStruct && child.StructTag != "" {
+						if sd, ok2 := structDefs[child.StructTag]; ok2 {
+							elemSz = int64(sd.SizeBytes(structDefs))
+						}
+					} else if child.Type == TypeInt || child.Type == TypeLong || child.Type == TypePtr {
+						elemSz = 8
+					} else if child.Type == TypeChar {
+						elemSz = 1
+					} else if child.Type == TypeShort {
+						elemSz = 2
+					} else if child.Type == TypeFloat {
+						elemSz = 4
+					} else if child.Type == TypeDouble {
+						elemSz = 8
+					}
+					return child.Name, idx * elemSz, true
+				}
+			case KindIndexExpr:
+				// &(base[idx]) — e.g. &(av_[2*(i)+2])
+				if len(child.Children) == 2 {
+					baseSym, baseAdd, baseOk := tryEvalConstAddr(child.Children[0], structDefs, funcNames)
+					if baseOk {
+						idx, idxOk := tryEvalConstInt(child.Children[1])
+						if idxOk {
+							// Element size: base is a pointer type, element size from pointee.
+							elemSz := int64(8) // default
+							return baseSym, baseAdd + idx*elemSz, true
+						}
+					}
+					// Also handle: base is a plain variable name
+					if child.Children[0].Kind == KindVar {
+						idx, idxOk := tryEvalConstInt(child.Children[1])
+						if idxOk {
+							elemSz := int64(8) // default pointer size for pointer arrays
+							return child.Children[0].Name, idx * elemSz, true
+						}
+					}
+				}
+			}
+		}
+
+	case KindVar:
+		// A bare variable name — could be a function pointer reference.
+		if funcNames[n.Name] {
+			return n.Name, 0, true
+		}
+
+	case KindBinOp:
+		// addr + const or addr - const (pointer arithmetic)
+		if len(n.Children) == 2 && (n.Op == "+" || n.Op == "-") {
+			// Try left=addr, right=const
+			sym, add, ok := tryEvalConstAddr(n.Children[0], structDefs, funcNames)
+			if ok {
+				cval, cok := tryEvalConstInt(n.Children[1])
+				if cok {
+					if n.Op == "-" {
+						cval = -cval
+					}
+					// If this is pointer arithmetic (not char*), scale by element size.
+					// For char* arithmetic, no scaling needed.
+					// We determine this from the left operand's type.
+					return sym, add + cval, true
+				}
+			}
+			// Try right=addr, left=const (for const + addr)
+			if n.Op == "+" {
+				sym, add, ok := tryEvalConstAddr(n.Children[1], structDefs, funcNames)
+				if ok {
+					cval, cok := tryEvalConstInt(n.Children[0])
+					if cok {
+						return sym, add + cval, true
+					}
+				}
+			}
+		}
+	}
+	return "", 0, false
+}
+
+// evalFieldChainOffset walks a chain of KindFieldAccess nodes (e.g. var.f1.f2.f3)
+// and returns (base_var_name, total_byte_offset, ok).
+func evalFieldChainOffset(n *Node, structDefs map[string]*StructDef) (string, int64, bool) {
+	// Collect the chain of field names from outermost to innermost.
+	var fields []string
+	cur := n
+	for cur.Kind == KindFieldAccess {
+		fields = append(fields, cur.Name) // field name is in n.Name
+		if len(cur.Children) == 0 {
+			return "", 0, false
+		}
+		cur = cur.Children[0] // walk to base
+	}
+	// cur should now be the base variable (KindVar).
+	if cur.Kind != KindVar {
+		return "", 0, false
+	}
+	baseName := cur.Name
+	baseTag := cur.StructTag
+	if baseTag == "" {
+		return "", 0, false
+	}
+
+	// Walk fields in reverse (innermost first, since we collected outermost first).
+	var totalOff int64
+	tag := baseTag
+	for i := len(fields) - 1; i >= 0; i-- {
+		sd, ok := structDefs[tag]
+		if !ok {
+			return "", 0, false
+		}
+		f := sd.FindFieldDeep(fields[i], structDefs)
+		if f == nil {
+			return "", 0, false
+		}
+		totalOff += int64(f.ByteOffset)
+		// Next level: the field's struct tag (for chained access).
+		tag = f.StructTag
+	}
+	return baseName, totalOff, true
+}
+
 // buildInitDataBuf fills buf with the constant values from a KindInitList node.
 // Used for global variable initializers where all values must be compile-time constants.
 // baseOff is the byte offset of buf[0] within the top-level global (used for relocs).
 // String literal pointers are recorded as InitRelocs and the string content is
 // appended to prog.StrLits.
 func buildInitDataBuf(buf []byte, list *Node, decl *Node, structDefs map[string]*StructDef,
-	baseOff int, prog *IRProgram, relocs *[]InitReloc) {
+	baseOff int, prog *IRProgram, relocs *[]InitReloc, funcNames map[string]bool) {
 	for _, entry := range list.Children {
 		valNode := entry.Children[0]
 		byteOff := 0
@@ -607,7 +851,7 @@ func buildInitDataBuf(buf []byte, list *Node, decl *Node, structDefs map[string]
 			if byteOff < len(buf) {
 				subBuf := buf[byteOff:]
 				buildInitDataBuf(subBuf, valNode, synthDecl, structDefs,
-					baseOff+byteOff, prog, relocs)
+					baseOff+byteOff, prog, relocs, funcNames)
 			}
 			continue
 		}
@@ -639,7 +883,19 @@ func buildInitDataBuf(buf []byte, list *Node, decl *Node, structDefs map[string]
 			*relocs = append(*relocs, InitReloc{ByteOff: baseOff + byteOff, Label: label})
 			isStr = true
 		default:
-			continue // non-constant; semcheck should have caught this
+			// Try to evaluate as a compile-time address expression (e.g. &global, &arr[i], func_ptr).
+			sym, addend, ok := tryEvalConstAddr(valNode, structDefs, funcNames)
+			if ok {
+				*relocs = append(*relocs, InitReloc{ByteOff: baseOff + byteOff, Label: sym, Addend: addend})
+				isStr = true // skip byte-buffer write; address stored via reloc
+			} else {
+				// Also try evaluating as a compile-time integer constant (e.g. (char*)(-1)).
+				if ival2, ok2 := tryEvalConstInt(valNode); ok2 {
+					ival = ival2
+				} else {
+					continue // non-constant; semcheck should have caught this
+				}
+			}
 		}
 
 		if isStr {
@@ -706,10 +962,19 @@ func (g *irGen) genStmt(n *Node) {
 		}
 		g.emitJump(g.loopStack[len(g.loopStack)-1].breakLabel)
 	case KindContinue:
-		if len(g.loopStack) == 0 {
+		// In C, `continue` targets the enclosing loop, skipping any
+		// intervening switch statements on the loop stack.
+		found := false
+		for i := len(g.loopStack) - 1; i >= 0; i-- {
+			if !g.loopStack[i].isSwitch {
+				g.emitJump(g.loopStack[i].continueLabel)
+				found = true
+				break
+			}
+		}
+		if !found {
 			panic("continue outside loop")
 		}
-		g.emitJump(g.loopStack[len(g.loopStack)-1].continueLabel)
 	case KindGoto:
 		g.emitJump("user_" + n.Name)
 	case KindLabel:
@@ -852,7 +1117,7 @@ func (g *irGen) genSwitch(n *Node) {
 	// Children: [switchExpr, case1, case2, ...]
 	// KindCase: Val==-1 for default; Children[0]=expr (non-default), rest=stmts
 	endLabel := g.newLabel()
-	g.loopStack = append(g.loopStack, loopLabels{breakLabel: endLabel, continueLabel: endLabel})
+	g.loopStack = append(g.loopStack, loopLabels{breakLabel: endLabel, isSwitch: true})
 
 	val := g.genExpr(n.Children[0])
 
@@ -933,6 +1198,41 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 			g.emit(Quad{Op: IRAdd, Dst: dst, Src1: ptr, Src2: IRAddr{Kind: AddrConst, IVal: offset}})
 			return dst
 		}
+		if varNode.Kind == KindArrayVar {
+			// &(array[idx]) — compute base + idx*elemSize without loading.
+			base := g.addrOf(varNode.Name)
+			baseAddr := g.newTemp()
+			g.emit(Quad{Op: IRGetAddr, Dst: baseAddr, Src1: base})
+			idx := g.genExpr(varNode.Children[0])
+			if varNode.Type == TypeChar || varNode.Type == TypeUnsignedChar {
+				// char array: no scaling needed
+				dst := g.newTemp()
+				g.emit(Quad{Op: IRAdd, Dst: dst, Src1: baseAddr, Src2: idx})
+				return dst
+			}
+			// 8-byte elements (pointers, ints, etc.)
+			scaled := g.newTemp()
+			g.emit(Quad{Op: IRShl, Dst: scaled, Src1: idx, Src2: IRAddr{Kind: AddrConst, IVal: 3}})
+			dst := g.newTemp()
+			g.emit(Quad{Op: IRAdd, Dst: dst, Src1: baseAddr, Src2: scaled})
+			return dst
+		}
+		if varNode.Kind == KindIndexExpr {
+			// &(ptr[idx]) — compute ptr + idx*elemSize without loading.
+			ptr := g.genExpr(varNode.Children[0])
+			idx := g.genExpr(varNode.Children[1])
+			if varNode.Type == TypeChar || varNode.Type == TypeUnsignedChar {
+				dst := g.newTemp()
+				g.emit(Quad{Op: IRAdd, Dst: dst, Src1: ptr, Src2: idx})
+				return dst
+			}
+			// 8-byte elements
+			scaled := g.newTemp()
+			g.emit(Quad{Op: IRShl, Dst: scaled, Src1: idx, Src2: IRAddr{Kind: AddrConst, IVal: 3}})
+			dst := g.newTemp()
+			g.emit(Quad{Op: IRAdd, Dst: dst, Src1: ptr, Src2: scaled})
+			return dst
+		}
 		// &var → get the storage address of the variable (never loads through a pointer slot)
 		src := g.addrOf(varNode.Name)
 		dst := g.newTemp()
@@ -973,7 +1273,7 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 		// Array-to-pointer decay: bare array name used as a value decays to
 		// a pointer to the first element.  Skip 128-bit locals (2-slot arrays
 		// representing a single wide integer, not a real C array).
-		if li, ok := g.locals[n.Name]; ok && li.isArray && n.Type == TypeIntArray {
+		if g.isArrayName(n.Name) && n.Type == TypeIntArray {
 			tmp := g.newTemp()
 			g.emit(Quad{Op: IRGetAddr, Dst: tmp, Src1: addr})
 			return tmp
@@ -1306,6 +1606,32 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 				}
 			}
 			return tmp
+		case KindDeref:
+			ptrVal := g.genExpr(lhs.Children[0])
+			elem := g.newTemp()
+			g.emit(Quad{Op: IRDerefLoad, Dst: elem, Src1: ptrVal, TypeHint: lhsType})
+			g.emit(Quad{Op: irOp, Dst: tmp, Src1: elem, Src2: rhsAddr})
+			if isFPType(lhsType) {
+				g.emit(Quad{Op: IRFDerefStore, Dst: ptrVal, Src1: tmp})
+			} else {
+				g.emit(Quad{Op: IRDerefStore, Dst: ptrVal, Src1: tmp, TypeHint: lhsType})
+			}
+			return ptrVal
+		case KindFieldAccess:
+			ptr := g.fieldBasePtr(lhs)
+			offset := g.fieldByteOffset(lhs)
+			offAddr := IRAddr{Kind: AddrConst, IVal: offset}
+			elem := g.newTemp()
+			if isFPType(lhsType) {
+				g.emit(Quad{Op: IRFFieldLoad, Dst: elem, Src1: ptr, Src2: offAddr, TypeHint: lhsType})
+				g.emit(Quad{Op: irOp, Dst: tmp, Src1: elem, Src2: rhsAddr})
+				g.emit(Quad{Op: IRFFieldStore, Dst: ptr, Src1: tmp, Src2: offAddr, TypeHint: lhsType})
+			} else {
+				g.emit(Quad{Op: IRFieldLoad, Dst: elem, Src1: ptr, Src2: offAddr, TypeHint: lhsType})
+				g.emit(Quad{Op: irOp, Dst: tmp, Src1: elem, Src2: rhsAddr})
+				g.emit(Quad{Op: IRFieldStore, Dst: ptr, Src1: tmp, Src2: offAddr, TypeHint: lhsType})
+			}
+			return ptr
 		}
 
 

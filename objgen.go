@@ -24,9 +24,11 @@
 package main
 
 import (
+	"bytes"
 	"debug/elf"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -83,8 +85,27 @@ func (s *strtabBuilder) add(name string) uint32 {
 	return idx
 }
 
+// genObjectBytes compiles irp to an in-memory ET_REL ELF byte slice.
+func genObjectBytes(irp *IRProgram) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := genObjectTo(irp, &buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
 // genObjectFile compiles irp to a Linux ARM64 ET_REL object file at outpath.
 func genObjectFile(irp *IRProgram, outpath string) error {
+	f, err := os.OpenFile(outpath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Errorf("genObjectFile: %w", err)
+	}
+	defer f.Close()
+	return genObjectTo(irp, f)
+}
+
+// genObjectTo compiles irp to a Linux ARM64 ET_REL ELF, writing to w.
+func genObjectTo(irp *IRProgram, w io.Writer) error {
 	// ── build isGlobalPtr map ──────────────────────────────────────────────
 	isGlobalPtr := make(map[string]bool)
 	for _, gbl := range irp.Globals {
@@ -135,6 +156,7 @@ func genObjectFile(irp *IRProgram, outpath string) error {
 	type dataReloc struct {
 		offset uint64 // byte offset within .data
 		symbol string // symbol name to relocate against
+		addend int64  // constant addend (e.g. for &arr[i])
 	}
 	var dataRelocs []dataReloc
 	for _, sl := range slots {
@@ -147,6 +169,7 @@ func genObjectFile(irp *IRProgram, outpath string) error {
 					dataRelocs = append(dataRelocs, dataReloc{
 						offset: sl.dataOff + uint64(rel.ByteOff),
 						symbol: rel.Label,
+						addend: rel.Addend,
 					})
 				}
 			}
@@ -336,6 +359,31 @@ func genObjectFile(irp *IRProgram, outpath string) error {
 		}
 	}
 
+	// Ensure data reloc symbols are in the symbol table.
+	for _, dr := range dataRelocs {
+		if _, ok := strSymIdx[dr.symbol]; ok {
+			continue
+		}
+		if _, ok := globalSymIdx[dr.symbol]; ok {
+			continue
+		}
+		if _, ok := funcSymIdx[dr.symbol]; ok {
+			continue
+		}
+		if _, ok := externSymNames[dr.symbol]; ok {
+			continue
+		}
+		// Add as extern.
+		idx := len(syms)
+		externSymNames[dr.symbol] = idx
+		nameIdx := strtab.add(dr.symbol)
+		syms = append(syms, symRec{
+			nameIdx: nameIdx,
+			info:    (1 << 4) | 0, // STB_GLOBAL | STT_NOTYPE
+			shndx:   uint16(elf.SHN_UNDEF),
+		})
+	}
+
 	// ── build .rela.text ──────────────────────────────────────────────────
 	type relaRec struct {
 		off    uint64
@@ -440,12 +488,21 @@ func genObjectFile(irp *IRProgram, outpath string) error {
 	// ── serialise .rela.data ──────────────────────────────────────────────
 	var relaDataRecs []relaRec
 	for _, dr := range dataRelocs {
-		// Find the symbol index for this string literal label.
+		// Find the symbol index — check string literals, globals, and functions.
 		symIdx, ok := strSymIdx[dr.symbol]
+		if !ok {
+			symIdx, ok = globalSymIdx[dr.symbol]
+		}
+		if !ok {
+			symIdx, ok = funcSymIdx[dr.symbol]
+		}
+		if !ok {
+			symIdx, ok = externSymNames[dr.symbol]
+		}
 		if !ok {
 			return fmt.Errorf("genObjectFile: no symbol for data reloc %q", dr.symbol)
 		}
-		relaDataRecs = append(relaDataRecs, mkRela(dr.offset, symIdx, rAArch64Abs64, 0))
+		relaDataRecs = append(relaDataRecs, mkRela(dr.offset, symIdx, rAArch64Abs64, dr.addend))
 	}
 	relaDataBytes := make([]byte, len(relaDataRecs)*24)
 	for i, r := range relaDataRecs {
@@ -503,24 +560,19 @@ func genObjectFile(irp *IRProgram, outpath string) error {
 	}
 	shdrOff := off
 
-	// ── write file ────────────────────────────────────────────────────────
-	f, err := os.OpenFile(outpath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-	if err != nil {
-		return fmt.Errorf("genObjectFile: %w", err)
-	}
-	defer f.Close()
-
+	// ── write ELF ────────────────────────────────────────────────────────
+	var err error
 	write := func(data interface{}) {
 		if err != nil {
 			return
 		}
-		err = binary.Write(f, binary.LittleEndian, data)
+		err = binary.Write(w, binary.LittleEndian, data)
 	}
 	writeBytes := func(b []byte) {
 		if err != nil {
 			return
 		}
-		_, err = f.Write(b)
+		_, err = w.Write(b)
 	}
 
 	// ELF header.
@@ -627,7 +679,7 @@ func genObjectFile(irp *IRProgram, outpath string) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("genObjectFile: write: %w", err)
+		return fmt.Errorf("genObjectTo: write: %w", err)
 	}
 	_ = funcSymIdx
 	_ = poolCount

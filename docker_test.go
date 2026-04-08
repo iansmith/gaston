@@ -110,6 +110,10 @@ var featureTests = []dockerTest{
 	// goto_basic: loop with goto, outputs 0–4 then 99
 	{name: "goto_basic", want: "0\n1\n2\n3\n4\n99\n"},
 
+	// ── Feature: continue inside switch targets enclosing loop ──────────
+	// switch_continue: do-while, while, and for loops with continue inside switch
+	{name: "switch_continue", want: "120\n12\n9\n"},
+
 	// ── Feature: variable-length arrays (VLAs) ───────────────────────────
 	// vla_basic: int[n] with runtime n=5 → sum(0+2+4+6+8)=20; n=4 → sum(0+2+4+6)=12
 	{name: "vla_basic", want: "20\n12\n"},
@@ -507,6 +511,8 @@ func TestSepCompile(t *testing.T) {
 		t.Skip("docker not found in PATH; skipping container tests")
 	}
 
+	libPath := buildLibgastonc(t)
+
 	for _, tt := range sepTests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -522,7 +528,7 @@ func TestSepCompile(t *testing.T) {
 
 			binPath := fmt.Sprintf("/tmp/gaston-test-%s", tt.name)
 			t.Cleanup(func() { os.Remove(binPath) })
-			if err := link(binPath, objPaths); err != nil {
+			if err := link(binPath, append(objPaths, libPath)); err != nil {
 				t.Fatalf("link: %v", err)
 			}
 
@@ -550,33 +556,6 @@ func TestSepCompile(t *testing.T) {
 	}
 }
 
-// compileTest compiles testdata/<name>.cm to an ARM64 ELF at outPath using
-// gaston's internal pipeline (no subprocess).
-func compileTest(name, outPath string) error {
-	srcPath := fmt.Sprintf("testdata/%s.cm", name)
-	raw, err := os.ReadFile(srcPath)
-	if err != nil {
-		return fmt.Errorf("read %s: %w", srcPath, err)
-	}
-	pp := newPreprocessor(nil, nil)
-	src, err := pp.Preprocess(string(raw), srcPath)
-	if err != nil {
-		return fmt.Errorf("preprocess %s: %w", srcPath, err)
-	}
-	lex := newLexer(src, srcPath)
-	yyParse(lex)
-	if lex.errors > 0 {
-		return fmt.Errorf("%s: %d parse error(s)", name, lex.errors)
-	}
-	if lex.result == nil {
-		return fmt.Errorf("%s: empty program", name)
-	}
-	if err := semCheck(lex.result, true); err != nil {
-		return fmt.Errorf("%s: %w", name, err)
-	}
-	irp := genIR(lex.result)
-	return genELF(irp, outPath)
-}
 
 // compileObjPath compiles a .cm file at srcPath to an ET_REL object at outPath,
 // using the given include search paths.
