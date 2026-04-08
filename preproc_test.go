@@ -522,3 +522,37 @@ func TestPreprocIf(t *testing.T) {
 		})
 	}
 }
+
+func TestPP_VAArgsSuppression(t *testing.T) {
+	cases := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{
+			name: "comma_suppressed_no_varargs",
+			src:  "#define LOG(fmt, ...) printf(fmt, ##__VA_ARGS__)\nLOG(\"hello\")",
+			want: `printf("hello")`,
+		},
+		{
+			name: "comma_kept_with_varargs",
+			src:  "#define LOG(fmt, ...) printf(fmt, ##__VA_ARGS__)\nLOG(\"val=%d\", 42)",
+			want: `printf("val=%d",42)`,
+		},
+		{
+			name: "multiple_varargs",
+			src:  "#define DBG(fmt, ...) f(fmt, ##__VA_ARGS__)\nDBG(\"x=%d y=%d\", 1, 2)",
+			want: `f("x=%d y=%d",1, 2)`,
+		},
+		{
+			name: "no_fmt_no_varargs",
+			src:  "#define TRACE(...) log(##__VA_ARGS__)\nTRACE()",
+			want: `log()`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			checkPP(t, pp(t, tc.src), tc.want)
+		})
+	}
+}

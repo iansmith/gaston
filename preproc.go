@@ -1207,7 +1207,35 @@ func (p *preprocessor) applyFuncMacro(def *macroDef, name string, args []string)
 				j++
 			}
 			if j < len(body) && body[j] == '#' {
-				// ## token-paste operator: emit both '#' chars so applyTokenPaste
+				// ## token-paste operator.
+				// Special case: ##__VA_ARGS__ with empty variadic args →
+				// GCC extension that suppresses the ## and the preceding comma.
+				if def.variadic {
+					k := j + 1 // position after the second '#'
+					for k < len(body) && (body[k] == ' ' || body[k] == '\t') {
+						k++
+					}
+					const vaToken = "__VA_ARGS__"
+					if strings.HasPrefix(body[k:], vaToken) {
+						end := k + len(vaToken)
+						if end >= len(body) || (!isLetter(body[end]) && !isDigit(body[end])) {
+							// This is ##__VA_ARGS__
+							vaVal := argFor(len(def.params))
+							if vaVal == "" {
+								// Empty variadic: suppress ## and preceding comma.
+								cur := strings.TrimRight(out.String(), " \t")
+								if len(cur) > 0 && cur[len(cur)-1] == ',' {
+									cur = strings.TrimRight(cur[:len(cur)-1], " \t")
+								}
+								out.Reset()
+								out.WriteString(cur)
+								i = end // skip past ##__VA_ARGS__
+								continue
+							}
+						}
+					}
+				}
+				// Normal ## token-paste: emit both '#' chars so applyTokenPaste
 				// can collapse them after argument substitution.
 				out.WriteByte('#')
 				out.WriteByte('#')
