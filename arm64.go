@@ -675,6 +675,11 @@ func (g *arm64Gen) genFunc(fn *IRFunc, structDefs map[string]*StructDef) {
 				}
 				g.emitEpilogue(f)
 			}
+
+		default:
+			if q.Op >= IR128Add && q.Op <= IR64From128 {
+				panic(fmt.Sprintf("arm64 Plan 9 backend: __int128/__uint128_t not supported (opcode %v in %s)", q.Op, fn.Name))
+			}
 		}
 	}
 

@@ -231,6 +231,8 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 #define __SIZEOF_WCHAR_T__      4
 #define __SIZEOF_WINT_T__       4
 #define __SIZEOF_INT128__       16
+#define __INT128_TYPE__         __int128
+#define __UINT128_TYPE__        unsigned __int128
 
 /* ── integer type names ──────────────────────────────────────────────── */
 #define __INT8_TYPE__           signed char
