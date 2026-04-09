@@ -1,10 +1,10 @@
-# Build artifacts
+# Build artifacts (local builds only, not container outputs)
 build/
-gaston
-gastonlibc
+/gaston
+/gastonlibc
 *.o
 *.elf
 *.a
 
-# Keep container outputs tracked (they are the project's deliverables)
-# !third-party/*/output/
+# Container output binaries ARE tracked (they're the project's deliverables)
+!third-party/*/output/**
