@@ -289,18 +289,35 @@ typedef unsigned int gid_t;
 ssize_t read(int fd, void *buf, size_t count);
 ssize_t write(int fd, const void *buf, size_t count);
 int     close(int fd);
+int     open(const char *path, int flags, ...);
+int     chdir(const char *path);
+char   *getcwd(char *buf, size_t size);
+int     unlink(const char *path);
+int     rmdir(const char *path);
+int     rename(const char *oldpath, const char *newpath);
+int     access(int fd);
+int     dup(int oldfd);
+int     dup2(int oldfd, int newfd);
+int     pipe(int pipefd[2]);
 void    _exit(int status);
 pid_t   getpid(void);
 uid_t   getuid(void);
+gid_t   getgid(void);
 int     isatty(int fd);
 int     usleep(unsigned int usec);
 unsigned int sleep(unsigned int seconds);
+long    sysconf(int name);
+int     ftruncate(int fd, off_t length);
+int     truncate(const char *path, off_t length);
+ssize_t readlink(const char *path, char *buf, size_t bufsiz);
+int     symlink(const char *target, const char *linkpath);
 #define STDIN_FILENO  0
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
 #define SEEK_SET 0
 #define SEEK_CUR 1
 #define SEEK_END 2
+#define _SC_PAGESIZE 30
 off_t lseek(int fd, off_t offset, int whence);
 typedef long off_t;
 #endif
@@ -335,8 +352,19 @@ extern int errno;
 #define ENFILE  23
 #define EMFILE  24
 #define ENOSPC  28
+#define ESPIPE  29
+#define EROFS   30
 #define ERANGE  34
 #define ENOSYS  38
+#define ENOTEMPTY 39
+#define ELOOP   40
+#define ENODATA 61
+#define ENOTSOCK 88
+#define ECONNRESET 104
+#define ETIMEDOUT 110
+#define ECONNREFUSED 111
+#define EALREADY 114
+#define EINPROGRESS 115
 #endif
 `,
 	"setjmp.h": `
@@ -354,14 +382,37 @@ void longjmp(jmp_buf env, int val);
 #define _SYS_STAT_H
 typedef unsigned int mode_t;
 typedef long off_t;
+typedef unsigned long dev_t;
+typedef unsigned long ino_t;
+typedef unsigned long nlink_t;
+typedef long time_t;
 struct stat {
-    mode_t st_mode;
-    off_t  st_size;
+    dev_t   st_dev;
+    ino_t   st_ino;
+    mode_t  st_mode;
+    nlink_t st_nlink;
+    unsigned int st_uid;
+    unsigned int st_gid;
+    dev_t   st_rdev;
+    off_t   st_size;
+    long    st_blksize;
+    long    st_blocks;
+    time_t  st_atime;
+    time_t  st_mtime;
+    time_t  st_ctime;
 };
-#define S_ISREG(m) (((m) & 0170000) == 0100000)
-#define S_ISDIR(m) (((m) & 0170000) == 0040000)
+#define S_ISREG(m)  (((m) & 0170000) == 0100000)
+#define S_ISDIR(m)  (((m) & 0170000) == 0040000)
+#define S_ISLNK(m)  (((m) & 0170000) == 0120000)
+#define S_IFMT   0170000
+#define S_IFREG  0100000
+#define S_IFDIR  0040000
+#define S_IFLNK  0120000
 int stat(const char *path, struct stat *buf);
+int lstat(const char *path, struct stat *buf);
 int fstat(int fd, struct stat *buf);
+int mkdir(const char *path, mode_t mode);
+int chmod(const char *path, mode_t mode);
 #endif
 `,
 	"fcntl.h": `
@@ -524,6 +575,59 @@ int sigfillset(sigset_t *set);
 int sigaddset(sigset_t *set, int signum);
 sighandler_t signal(int signum, sighandler_t handler);
 int raise(int sig);
+#endif
+`,
+	"poll.h": `
+/* gaston built-in <poll.h> */
+#ifndef _POLL_H
+#define _POLL_H
+#define POLLIN   0x001
+#define POLLOUT  0x004
+#define POLLERR  0x008
+#define POLLHUP  0x010
+#define POLLNVAL 0x020
+struct pollfd { int fd; short events; short revents; };
+int poll(struct pollfd *fds, unsigned long nfds, int timeout);
+#endif
+`,
+	"dirent.h": `
+/* gaston built-in <dirent.h> */
+#ifndef _DIRENT_H
+#define _DIRENT_H
+struct dirent {
+    unsigned long d_ino;
+    unsigned char d_type;
+    char d_name[256];
+};
+typedef struct _DIR DIR;
+DIR *opendir(const char *name);
+struct dirent *readdir(DIR *dirp);
+int closedir(DIR *dirp);
+#define DT_UNKNOWN 0
+#define DT_DIR     4
+#define DT_REG     8
+#endif
+`,
+	"sys/statvfs.h": `
+/* gaston built-in <sys/statvfs.h> */
+#ifndef _SYS_STATVFS_H
+#define _SYS_STATVFS_H
+typedef unsigned long fsblkcnt_t;
+typedef unsigned long fsfilcnt_t;
+struct statvfs {
+    unsigned long f_bsize;
+    unsigned long f_frsize;
+    fsblkcnt_t f_blocks;
+    fsblkcnt_t f_bfree;
+    fsblkcnt_t f_bavail;
+    fsfilcnt_t f_files;
+    fsfilcnt_t f_ffree;
+    fsfilcnt_t f_favail;
+    unsigned long f_fsid;
+    unsigned long f_flag;
+    unsigned long f_namemax;
+};
+int statvfs(const char *path, struct statvfs *buf);
 #endif
 `,
 	"sys/time.h": `
