@@ -23,14 +23,14 @@ WORKDIR /build
 # Create a standalone go.mod (gaston and gastonlibc use only Go stdlib)
 RUN go mod init gaston-build
 
-# Copy the gaston compiler source (Go files only — not picolibc/libm/testdata)
-COPY cmd/gaston/*.go cmd/gaston/
+# Copy the gaston compiler source (Go files only — not testdata)
+COPY *.go ./
 
 # Copy the gastonlibc build tool source
 COPY cmd/gastonlibc/*.go cmd/gastonlibc/
 
 # Build gaston compiler (plain, no libc defaults)
-RUN go build -o /output/bin/gaston ./cmd/gaston
+RUN go build -o /output/bin/gaston .
 
 # Build gastonlibc tool
 RUN go build -o /output/bin/gastonlibc ./cmd/gastonlibc

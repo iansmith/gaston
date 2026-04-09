@@ -36,8 +36,8 @@ func main() {
 	testOnly := flag.Bool("test", false, "compile only, don't archive (test mode)")
 	flag.Parse()
 
-	// We run from the repo root but sources are relative to cmd/gaston.
-	gastonDir := "cmd/gaston"
+	// Sources are relative to the project root.
+	gastonDir := "."
 
 	groups := buildGroups()
 

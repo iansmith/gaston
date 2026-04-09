@@ -71,20 +71,27 @@ RUN make -C mpy-cross -j$(nproc)
 RUN make -C ports/unix VARIANT=minimal -j$(nproc)
 
 # Assemble the output tree for extraction.
+# Only copy source files (.c, .h) and generated headers — NOT build artifacts
+# (.o files, .i preprocessor dumps, etc.) which are 50MB+ of waste.
 # genhdr/ is placed at the src root so that #include "genhdr/foo.h"
 # resolves naturally when compiling with -I src/
 RUN set -e && \
-    mkdir -p /output/src/ports /output/bin && \
+    mkdir -p /output/src/ports/unix /output/src/genhdr /output/bin && \
     \
     # Source directories needed to compile micropython
     cp -r py         /output/src/ && \
     cp -r extmod     /output/src/ && \
     cp -r shared     /output/src/ && \
-    cp -r ports/unix /output/src/ports/ && \
     cp -r lib        /output/src/ && \
     \
-    # Generated headers from the build
-    cp -r ports/unix/build-minimal/genhdr /output/src/ && \
+    # ports/unix: copy only source files, not build-minimal/ artifacts
+    find ports/unix -maxdepth 1 -type f \( -name '*.c' -o -name '*.h' \) \
+        -exec cp {} /output/src/ports/unix/ \; && \
+    cp -r ports/unix/variants /output/src/ports/unix/ && \
+    \
+    # Generated headers from the build (only .h files, not .i/.i.last dumps)
+    find ports/unix/build-minimal/genhdr -name '*.h' \
+        -exec cp {} /output/src/genhdr/ \; && \
     \
     # Reference binary — proves the sources compile cleanly
     cp ports/unix/build-minimal/micropython /output/bin/

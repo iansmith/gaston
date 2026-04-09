@@ -1,0 +1,10 @@
+# Build artifacts
+build/
+gaston
+gastonlibc
+*.o
+*.elf
+*.a
+
+# Keep container outputs tracked (they are the project's deliverables)
+# !third-party/*/output/

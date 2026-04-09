@@ -36,38 +36,40 @@ RUN rm -rf /output
 ARG PICOLIBC_VERSION=1.8.6
 RUN curl -sL https://github.com/picolibc/picolibc/archive/refs/tags/${PICOLIBC_VERSION}.tar.gz | tar xz -C /tmp
 
-# Set up the workspace with the directory layout gastonlibc expects.
-# gastonlibc hardcodes gastonDir = "cmd/gaston" and runs from repo root.
+# Set up the workspace with the flat layout gastonlibc expects.
+# gastonlibc uses gastonDir = "." so sources are at workspace root:
+#   picolibc/libc/{tinystdio,string,ctype,...,include}
+#   libm/{math,common}
+#   libc/ (gaston's own libc)
 WORKDIR /workspace
 
-# Arrange pristine picolibc into the layout gastonlibc expects:
-#   cmd/gaston/picolibc/libc/{tinystdio,string,ctype,...,include}
-#   cmd/gaston/libm/{math,common}
-RUN mkdir -p cmd/gaston/picolibc/libc cmd/gaston/libm && \
+# Arrange pristine picolibc into the flat layout:
+RUN mkdir -p picolibc/libc libm && \
     for dir in tinystdio string ctype search misc argz stdlib locale posix signal time include; do \
-        cp -r /tmp/picolibc-${PICOLIBC_VERSION}/newlib/libc/$dir cmd/gaston/picolibc/libc/; \
+        cp -r /tmp/picolibc-${PICOLIBC_VERSION}/newlib/libc/$dir picolibc/libc/; \
     done && \
-    cp -r /tmp/picolibc-${PICOLIBC_VERSION}/newlib/libm/math cmd/gaston/libm/ && \
-    cp -r /tmp/picolibc-${PICOLIBC_VERSION}/newlib/libm/common cmd/gaston/libm/ && \
+    cp -r /tmp/picolibc-${PICOLIBC_VERSION}/newlib/libm/math libm/ && \
+    cp -r /tmp/picolibc-${PICOLIBC_VERSION}/newlib/libm/common libm/ && \
     rm -rf /tmp/picolibc-${PICOLIBC_VERSION}
 
 # Apply gaston patches (adds missing includes, FALLTHROUGH, code fixes,
-# and creates the curated libm/include header set)
+# and creates the curated libm/include header set).
+# Patch paths have prefix picolibc-pristine/cmd/gaston/ — strip 3 levels.
 COPY third-party/picolibc/gaston-picolibc.patch /tmp/gaston-picolibc.patch
-RUN patch -p1 < /tmp/gaston-picolibc.patch && rm /tmp/gaston-picolibc.patch
+RUN patch -p3 < /tmp/gaston-picolibc.patch && rm /tmp/gaston-picolibc.patch
 
 # Create a standalone go.mod for this build
 RUN go mod init gaston-build
 
 # Copy gaston Go source (needed to build gaston-mazarin)
-COPY cmd/gaston/*.go cmd/gaston/
+COPY *.go ./
 
 # Copy gastonlibc Go source (needed to run gastonlibc)
 COPY cmd/gastonlibc/*.go cmd/gastonlibc/
 
 # Copy gaston's own libc sources (errno.c, printf.c, etc. — these are
 # gaston source, not picolibc, so they're always copied from the repo)
-COPY cmd/gaston/libc/ cmd/gaston/libc/
+COPY libc/ libc/
 
 # Create a go-wrapper that routes "go tool gaston ..." to the real gaston binary.
 # gastonlibc calls: exec.Command(goPath, "tool", "gaston", "-c", ...)
@@ -90,14 +92,14 @@ RUN mkdir -p /output/lib && \
 #   2. Overlay libm/include on top (curated/extended headers with gaston additions)
 # Where both have a file, libm/include wins (it has the gaston-patched versions).
 RUN mkdir -p /output/include && \
-    cp -r cmd/gaston/picolibc/libc/include/* /output/include/ && \
-    cp -r cmd/gaston/libm/include/* /output/include/
+    cp -r picolibc/libc/include/* /output/include/ && \
+    cp -r libm/include/* /output/include/
 
 # Build gaston-mazarin (gaston with baked-in /gaston/include and /gaston/lib defaults)
 RUN mkdir -p /output/bin && \
     GOOS=linux GOARCH=arm64 go build \
     -ldflags="-X main.defaultIncludes=/gaston/include -X main.defaultLibPaths=/gaston/lib -X main.defaultLibs=gastonc" \
-    -o /output/bin/gaston-mazarin ./cmd/gaston
+    -o /output/bin/gaston-mazarin .
 
 WORKDIR /output
 

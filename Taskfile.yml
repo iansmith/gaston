@@ -1,0 +1,97 @@
+version: '3'
+
+vars:
+  GO: '{{.GO | default "go"}}'
+
+tasks:
+  # ===========================================================================
+  # Build
+  # ===========================================================================
+
+  build:
+    desc: Build gaston compiler
+    cmds:
+      - '{{.GO}} build -o build/gaston .'
+    sources:
+      - '*.go'
+      - 'grammar.y'
+    generates:
+      - build/gaston
+
+  gastonlibc:
+    desc: Build gastonlibc tool
+    cmds:
+      - '{{.GO}} build -o build/gastonlibc ./cmd/gastonlibc'
+    sources:
+      - 'cmd/gastonlibc/*.go'
+    generates:
+      - build/gastonlibc
+
+  generate:
+    desc: Regenerate parser from grammar.y
+    cmds:
+      - '{{.GO}} generate .'
+
+  test:
+    desc: Run gaston tests
+    cmds:
+      - '{{.GO}} test -count=1 -timeout 120s .'
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - rm -rf build/
+
+  # ===========================================================================
+  # Docker Build Pipeline (third-party artifacts)
+  # ===========================================================================
+  # These targets build third-party libraries and tools inside Docker containers.
+  # They are NOT part of the normal build — run them manually when upgrading
+  # a dependency version or rebuilding artifacts.
+  #
+  # Container layering: gaston → picolibc → micropython | lua
+  #
+  # Usage:
+  #   task docker-all        # Rebuild all containers + extract artifacts
+  #   task docker-gaston     # Just rebuild the gaston container
+  #   task docker-picolibc   # Rebuild picolibc (requires gaston)
+  #   task docker-micropython # Rebuild micropython
+  #   task docker-lua        # Rebuild lua (requires picolibc)
+
+  docker-gaston:
+    desc: Build gaston compiler container (iansmith/gaston)
+    cmds:
+      - 'third-party/gaston/extract.sh'
+
+  docker-picolibc:
+    desc: Build picolibc container and extract libgastonc.a + headers (iansmith/gaston-picolibc)
+    deps: [docker-gaston]
+    cmds:
+      - 'third-party/picolibc/extract.sh'
+
+  docker-micropython:
+    desc: Build micropython container and extract binary + generated headers
+    cmds:
+      - 'third-party/micropython/extract.sh'
+
+  docker-lua:
+    desc: Build Lua container and extract binaries (iansmith/gaston-lua)
+    deps: [docker-picolibc]
+    cmds:
+      - 'third-party/lua/extract.sh'
+
+  docker-all:
+    desc: Rebuild all third-party containers and extract artifacts
+    cmds:
+      - task: docker-gaston
+      - task: docker-picolibc
+      - task: docker-micropython
+      - task: docker-lua
+
+  # ===========================================================================
+  # Default
+  # ===========================================================================
+
+  default:
+    desc: Build gaston compiler
+    deps: [build]
