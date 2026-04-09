@@ -374,6 +374,10 @@ param
 		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: $4}; n.Pointee = $1; $$ = n }
 	| CONST type_specifier '*' CONST ID
 		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: $5, IsConstTarget: true}; n.Pointee = $2; $$ = n }
+	| CONST type_specifier '*' CONST ID '[' ']'
+		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $5, ElemType: TypePtr, ElemPointee: $2} }
+	| CONST type_specifier '*' CONST ID '[' const_int_expr ']'
+		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $5, ElemType: TypePtr, ElemPointee: $2, Val: $7} }
 	| CONST type_specifier '*' CONST
 		{ n := &Node{Kind: KindParam, Type: TypePtr, IsConstTarget: true}; n.Pointee = $2; $$ = n }
 	| type_specifier '*' CONST ID '[' ']'
@@ -1395,6 +1399,18 @@ typedef_declaration
 			yylex.(*lexer).registerTypedef($6, leafCType(TypeFuncPtr))
 			$$ = nil
 		}
+	/* typedef of function pointer with const pointer return: typedef const T *(*name)(params); */
+	| TYPEDEF CONST type_specifier '*' '(' '*' ID ')' '(' fp_param_types ')' ';'
+		{
+			yylex.(*lexer).registerTypedef($7, leafCType(TypeFuncPtr))
+			$$ = nil
+		}
+	/* typedef of function pointer with const non-pointer return: typedef const T (*name)(params); */
+	| TYPEDEF CONST type_specifier '(' '*' ID ')' '(' fp_param_types ')' ';'
+		{
+			yylex.(*lexer).registerTypedef($6, leafCType(TypeFuncPtr))
+			$$ = nil
+		}
 	/* typedef of function type (not pointer): typedef int name(params); */
 	| TYPEDEF type_specifier ID '(' fp_param_types ')' ';'
 		{
@@ -1403,6 +1419,14 @@ typedef_declaration
 		}
 	/* typedef of anonymous struct/union: typedef struct { ... } Name; */
 	| TYPEDEF STRUCT '{' field_list '}' ID ';'
+		{
+			tag := yylex.(*lexer).nextAnon()
+			sd := &Node{Kind: KindStructDef, Name: tag, Children: $4}
+			yylex.(*lexer).registerTypedef($6, structCType(tag))
+			$$ = []*Node{sd}
+		}
+	/* typedef struct { ... } name[N]; — struct-array typedef (e.g. sigjmp_buf[1]) */
+	| TYPEDEF STRUCT '{' field_list '}' ID '[' const_int_expr ']' ';'
 		{
 			tag := yylex.(*lexer).nextAnon()
 			sd := &Node{Kind: KindStructDef, Name: tag, Children: $4}
@@ -1712,6 +1736,10 @@ field
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4}; n.Pointee = ptrCType($1); $$ = []*Node{n} }
 	| type_specifier '*' ID '[' const_int_expr ']' ';'
 		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: $5, ElemType: TypePtr, ElemPointee: $1}} }
+	| type_specifier '*' ID '[' const_int_expr ']' '[' const_int_expr ']' ';'
+		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: $5, ElemType: TypePtr, ElemPointee: $1, Dim2: $8}} }
+	| STRUCT ID '*' ID '[' const_int_expr ']' ';'
+		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $4, Val: $6, ElemType: TypePtr, ElemPointee: structCType($2)}} }
 	| CONST type_specifier ID ';'
 		{ $$ = []*Node{ctNode(KindVarDecl, $2, $3)} }
 	| CONST type_specifier '*' ID ';'
@@ -1771,6 +1799,15 @@ field
 		{
 			tag := yylex.(*lexer).nextAnon()
 			$$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: "", StructTag: tag, Children: $4}}
+		}
+	/* Named struct/union with named member: struct Tag { ... } name; (e.g. Lua's Node type) */
+	| STRUCT ID '{' field_list '}' ID ';'
+		{
+			$$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: $6, StructTag: $2, Children: $4}}
+		}
+	| UNION ID '{' field_list '}' ID ';'
+		{
+			$$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: $6, StructTag: $2, Children: $4, IsUnion: true}}
 		}
 	| UNION ID '{' field_list '}' ';'
 		{
@@ -2139,9 +2176,17 @@ gd_fun_declarator
 	| gd_pointer ID '(' param_list ',' ELLIPSIS ')'
 		{ $$ = &FunDeclarator{Name: $2, PtrChain: $1,
 		    Params: append($4, &Node{Kind: KindParam, Type: TypeVoid, Name: "..."})} }
-	/* Parenthesized function name: type (name)(params) — prevents macro expansion */
+	/* Parenthesized function name: type (name)(params) — prevents macro expansion (Lua API pattern) */
 	| '(' ID ')' '(' params ')'
 		{ $$ = &FunDeclarator{Name: $2, Params: $5, IsParenName: true} }
+	| '(' ID ')' '(' param_list ',' ELLIPSIS ')'
+		{ $$ = &FunDeclarator{Name: $2,
+		    Params: append($5, &Node{Kind: KindParam, Type: TypeVoid, Name: "..."}), IsParenName: true} }
+	| gd_pointer '(' ID ')' '(' params ')'
+		{ $$ = &FunDeclarator{Name: $3, PtrChain: $1, Params: $6, IsParenName: true} }
+	| gd_pointer '(' ID ')' '(' param_list ',' ELLIPSIS ')'
+		{ $$ = &FunDeclarator{Name: $3, PtrChain: $1,
+		    Params: append($6, &Node{Kind: KindParam, Type: TypeVoid, Name: "..."}), IsParenName: true} }
 	| gd_pointer CONST ID '(' params ')'
 		{ $$ = &FunDeclarator{Name: $3, PtrChain: $1, Params: $5} }
 	| gd_pointer CONST ID '(' param_list ',' ELLIPSIS ')'
