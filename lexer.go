@@ -16,9 +16,10 @@ type lexer struct {
 	file        string
 	errors      int
 	result      *Node            // set by the top-level grammar action
-	enumAutoVal int              // auto-increment counter for enum constants
-	anonCount   int              // counter for anonymous struct/union synthetic names
-	typedefs        map[string]*CType   // typedef name → full CType (leaf or pointer)
+	enumAutoVal  int              // auto-increment counter for enum constants
+	enumConsts   map[string]int   // enum constant name → integer value (populated during parse)
+	anonCount    int              // counter for anonymous struct/union synthetic names
+	typedefs     map[string]*CType   // typedef name → full CType (leaf or pointer)
 	shadowedTypedefs map[string]int      // typedef names shadowed by local vars: name → brace depth when shadowed
 	braceDepth       int                // current {} nesting depth (0 = global scope)
 	typeofExpr      *Node              // scratch: holds typeof(expr) expression until declaration picks it up
@@ -33,8 +34,9 @@ func newLexer(src, file string) *lexer {
 		pos:      0,
 		line:     1,
 		file:     file,
-		typedefs:        make(map[string]*CType),
+		typedefs:         make(map[string]*CType),
 		shadowedTypedefs: make(map[string]int),
+		enumConsts:       make(map[string]int),
 	}
 	// Pre-register "bool" as a typedef for _Bool (TypeInt).
 	l.typedefs["bool"] = leafCType(TypeInt)
@@ -196,8 +198,16 @@ func (l *lexer) lookupTypedefCType(name string) *CType {
 // lookupConstInt looks up a named integer constant for use in const_int_expr
 // array dimension evaluation. Returns 1 for unknown names (safe non-zero default).
 func (l *lexer) lookupConstInt(name string) int {
-	_ = name
+	if v, ok := l.enumConsts[name]; ok {
+		return v
+	}
 	return 1 // opaque: preprocessor macros are expanded before parse; any remaining ID is unknown
+}
+
+// registerEnumConst records an enum constant's value so that const_int_expr
+// can resolve it in subsequent array dimension expressions.
+func (l *lexer) registerEnumConst(name string, val int) {
+	l.enumConsts[name] = val
 }
 
 // declareAll registers enum-constant nodes from a local anonymous enum declaration.

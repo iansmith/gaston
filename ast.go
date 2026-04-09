@@ -63,6 +63,51 @@ func ctypeStructTag(ct *CType) string {
 
 // sizeofType returns the byte size of the type represented by ct,
 // for use in const_int_expr array dimension evaluation.
+// strLitSize returns sizeof(string_literal): the number of bytes in the
+// string including the null terminator, matching what C sizeof("...") returns.
+// tok is the raw token text including the surrounding double-quotes.
+func strLitSize(tok string) int {
+	// Strip surrounding quotes.
+	if len(tok) < 2 || tok[0] != '"' {
+		return 1 // degenerate: just the null terminator
+	}
+	s := tok[1 : len(tok)-1]
+	count := 0
+	for i := 0; i < len(s); {
+		if s[i] == '\\' && i+1 < len(s) {
+			switch s[i+1] {
+			case 'x':
+				// \xHH — skip up to 2 hex digits
+				i += 2
+				for j := 0; j < 2 && i < len(s) && isHexDigit(s[i]); j++ {
+					i++
+				}
+			case 'u':
+				i += 2
+				for j := 0; j < 4 && i < len(s) && isHexDigit(s[i]); j++ {
+					i++
+				}
+			case 'U':
+				i += 2
+				for j := 0; j < 8 && i < len(s) && isHexDigit(s[i]); j++ {
+					i++
+				}
+			case '0', '1', '2', '3', '4', '5', '6', '7':
+				i += 2
+				for j := 0; j < 2 && i < len(s) && s[i] >= '0' && s[i] <= '7'; j++ {
+					i++
+				}
+			default:
+				i += 2
+			}
+		} else {
+			i++
+		}
+		count++
+	}
+	return count + 1 // +1 for null terminator
+}
+
 func sizeofType(ct *CType) int {
 	if ct == nil {
 		return 8

@@ -499,6 +499,11 @@ block_item_list
 		{ $$ = append($1, $4...) }
 	| block_item_list ENUM ID '{' enum_list '}' ';'
 		{ $$ = append($1, $5...) }
+	/* Local struct/union type declaration (no variable): struct Foo { ... }; inside a function */
+	| block_item_list struct_declaration
+		{ $$ = append($1, $2...) }
+	| block_item_list union_declaration
+		{ $$ = append($1, $2...) }
 	/* Local typedef declaration */
 	| block_item_list typedef_declaration
 		{ $$ = $1 }
@@ -641,6 +646,8 @@ selection_stmt
 
 iteration_stmt
 	: WHILE '(' expression ')' statement
+		{ $$ = &Node{Kind: KindIteration, Children: []*Node{$3, $5}} }
+	| WHILE '(' comma_expr_list ')' statement
 		{ $$ = &Node{Kind: KindIteration, Children: []*Node{$3, $5}} }
 	;
 
@@ -798,6 +805,12 @@ postfix_expr
 	/* Parenthesized expression with arrow: (expr)->field */
 	| '(' expression ')' ARROW ID
 		{ $$ = &Node{Kind: KindFieldAccess, Op: "->", Name: $5, Children: []*Node{$2}} }
+	/* Comma-expression in parens with arrow: (a, b)->field */
+	| '(' comma_expr_list ')' ARROW ID
+		{ $$ = &Node{Kind: KindFieldAccess, Op: "->", Name: $5, Children: []*Node{$2}} }
+	/* Comma-expression in parens with dot: (a, b).field */
+	| '(' comma_expr_list ')' '.' ID
+		{ $$ = &Node{Kind: KindFieldAccess, Op: ".", Name: $5, Children: []*Node{$2}} }
 	/* Indirect call through parenthesized arrow: (expr)->fn(args) */
 	| '(' expression ')' ARROW ID '(' args ')'
 		{ callee := &Node{Kind: KindFieldAccess, Op: "->", Name: $5, Children: []*Node{$2}}
@@ -1007,6 +1020,11 @@ factor
 	/* Address of struct field: &s.field or &p->field or &(p->field) */
 	| '&' postfix_expr ARROW ID  { fa := &Node{Kind: KindFieldAccess, Op: "->", Name: $4, Children: []*Node{$2}}; $$ = &Node{Kind: KindAddrOf, Children: []*Node{fa}} }
 	| '&' postfix_expr '.' ID    { fa := &Node{Kind: KindFieldAccess, Op: ".", Name: $4, Children: []*Node{$2}}; $$ = &Node{Kind: KindAddrOf, Children: []*Node{fa}} }
+	/* Address of string literal subscript: &"str"[N] → const char* pointer into the string */
+	| '&' STRING_LIT '[' expression ']'
+		{ base := &Node{Kind: KindStrLit, Name: $2, Type: TypeCharPtr}
+		  idx := &Node{Kind: KindIndexExpr, Type: TypeChar, Children: []*Node{base, $4}}
+		  $$ = &Node{Kind: KindAddrOf, Children: []*Node{idx}} }
 	/* NOTE: '&' '(' postfix_expr ARROW ID ')' and '&' '(' postfix_expr '.' ID ')' are
 	   intentionally omitted. They are redundant with '&' '(' expression ')' (rule 979) and
 	   they cause S/R conflicts that prevent '&' '(' expression ')' '.' ID from working. */
@@ -1279,13 +1297,14 @@ enum_list
 enum_member
 	: ID
 		{
-			n := &Node{Kind: KindVarDecl, Type: TypeInt, Name: $1,
-				Val: yylex.(*lexer).enumAutoVal, IsConst: true}
+			val := yylex.(*lexer).enumAutoVal
+			yylex.(*lexer).registerEnumConst($1, val)
 			yylex.(*lexer).enumAutoVal++
-			$$ = n
+			$$ = &Node{Kind: KindVarDecl, Type: TypeInt, Name: $1, Val: val, IsConst: true}
 		}
 	| ID '=' const_int_expr
 		{
+			yylex.(*lexer).registerEnumConst($1, $3)
 			yylex.(*lexer).enumAutoVal = $3 + 1
 			$$ = &Node{Kind: KindVarDecl, Type: TypeInt, Name: $1, Val: $3, IsConst: true}
 		}
@@ -1893,6 +1912,7 @@ const_int_primary
 	: NUM                                     { $$ = $1 }
 	| '(' const_int_ternary ')'               { $$ = $2 }
 	| '(' type_specifier ')' const_int_primary  { $$ = $4 /* cast: ignore type, value unchanged */ }
+	| SIZEOF '(' STRING_LIT ')'               { $$ = strLitSize($3) }
 	| SIZEOF '(' type_specifier ')'           { $$ = sizeofType($3) }
 	| SIZEOF '(' type_specifier '*' ')'       { $$ = 8 }
 	| SIZEOF '(' CONST type_specifier '*' ')' { $$ = 8 }
@@ -2067,6 +2087,18 @@ declaration_specifiers
 		{ tag := yylex.(*lexer).nextAnon()
 		  $$ = &DeclSpec{BaseType: structCType(tag), IsUnion: true,
 		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $3, IsUnion: true, IsPacked: true}} }
+	| STATIC UNION '{' field_list '}'
+		{ tag := yylex.(*lexer).nextAnon()
+		  $$ = &DeclSpec{BaseType: structCType(tag), IsStatic: true, IsUnion: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $4, IsUnion: true}} }
+	| STATIC CONST UNION '{' field_list '}'
+		{ tag := yylex.(*lexer).nextAnon()
+		  $$ = &DeclSpec{BaseType: structCType(tag), IsStatic: true, IsConst: true, IsUnion: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $5, IsUnion: true}} }
+	| CONST UNION '{' field_list '}'
+		{ tag := yylex.(*lexer).nextAnon()
+		  $$ = &DeclSpec{BaseType: structCType(tag), IsConst: true, IsUnion: true,
+		    StructDef: &Node{Kind: KindStructDef, Name: tag, Children: $4, IsUnion: true}} }
 	;
 
 gd_pointer

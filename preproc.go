@@ -1640,14 +1640,18 @@ func (p *preprocessor) expandLineOnceDisabled(line string, disabled map[string]b
 				// from re-expanding the trailing "ap" in "my_ap.ap" during rescan.
 				// Blue-paint rule: if the raw arg is a single identifier that is a
 			// macro and was expanded (result differs), disable that macro during
-			// the rescan so it cannot re-expand inside the substituted body.
-			// We limit to single-identifier args to avoid collateral disabling of
-			// unrelated macros in complex expressions.
+			// the rescan ONLY IF the expanded text still contains that identifier
+			// as a scannable word.  This prevents infinite re-expansion of
+			// recursive-ish macros (e.g. #define ap my_ap.ap) while allowing
+			// other macros that appear literally in the body (not from the arg)
+			// to expand normally (e.g. LUA_MULTRET in adjustresults body).
 			if expandedArgs[ai] != arg {
 					trimmed := strings.TrimSpace(arg)
 					if isIdentToken(trimmed) {
 						if _, isMacro := p.defines[trimmed]; isMacro {
-							newDisabled[trimmed] = true
+							if containsIdentifier(expandedArgs[ai], trimmed) {
+								newDisabled[trimmed] = true
+							}
 						}
 					}
 				}
@@ -1682,6 +1686,37 @@ func isIdentToken(s string) bool {
 		}
 	}
 	return true
+}
+
+// containsIdentifier reports whether text contains name as a standalone C
+// identifier that would be found by the preprocessor's left-to-right scanner.
+// A match requires: the name starts at a letter (or _), is not preceded by
+// another identifier character (which would make it part of a longer token),
+// and is not followed by one (which would also extend it).
+func containsIdentifier(text, name string) bool {
+	n := len(name)
+	if n == 0 {
+		return false
+	}
+	for i := 0; i <= len(text)-n; i++ {
+		c := text[i]
+		if !isLetter(c) {
+			continue
+		}
+		// Not preceded by an identifier char (would be mid-token otherwise).
+		if i > 0 && (isLetter(text[i-1]) || isDigit(text[i-1])) {
+			continue
+		}
+		if text[i:i+n] != name {
+			continue
+		}
+		// Must be a complete token: not followed by another identifier char.
+		if i+n < len(text) && (isLetter(text[i+n]) || isDigit(text[i+n])) {
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 // applyFuncMacro substitutes actual arguments into a function-like macro body.

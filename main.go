@@ -117,7 +117,28 @@ func main() {
 			outFile = "a.elf"
 		}
 		// Resolve -l flags into archive paths and append to input list.
-		inputs := flag.Args()
+		// Go's flag package stops parsing at the first non-flag arg, so
+		// -L / -l flags that appear after positional args (e.g. "lua.o liblua.a -L /lib -l foo")
+		// end up in flag.Args() rather than being handled by flag.Var.
+		// Extract them manually from the remaining args.
+		rawArgs := flag.Args()
+		var inputs []string
+		for i := 0; i < len(rawArgs); i++ {
+			arg := rawArgs[i]
+			if arg == "-L" && i+1 < len(rawArgs) {
+				libPaths = append(libPaths, rawArgs[i+1])
+				i++
+			} else if strings.HasPrefix(arg, "-L") && len(arg) > 2 {
+				libPaths = append(libPaths, arg[2:])
+			} else if arg == "-l" && i+1 < len(rawArgs) {
+				libs = append(libs, rawArgs[i+1])
+				i++
+			} else if strings.HasPrefix(arg, "-l") && len(arg) > 2 {
+				libs = append(libs, arg[2:])
+			} else {
+				inputs = append(inputs, arg)
+			}
+		}
 		for _, lib := range libs {
 			path, err := resolveLib(lib, []string(libPaths))
 			if err != nil {

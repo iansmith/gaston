@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -1091,7 +1092,12 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 						arrayDecayLostTag := (lTag != "" && rhsPtee != nil && rhsPtee.Kind == TypeStruct && rTag == "") ||
 							(rTag != "" && lhsPtee != nil && lhsPtee.Kind == TypeStruct && lTag == "")
 						if !bothStruct && !arrayDecayLostTag {
-							*errs = append(*errs, "assignment of incompatible pointer types")
+							// Demote to warning: incompatible pointer assignment is a
+							// constraint violation but GCC only warns by default.
+							// Gaston's pointee-type tracking through union fields and
+							// complex address-of chains is incomplete, so this check
+							// produces false positives for correct C code (e.g. Lua).
+							fmt.Fprintf(os.Stderr, "gaston: assignment of incompatible pointer types\n")
 						}
 					}
 				}
@@ -1617,11 +1623,13 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 							n.Name, i+1))
 					}
 				} else if isFPType(argType) && !isFPType(paramType) && !paramIsPtr {
-					*errs = append(*errs, fmt.Sprintf("'%s' arg %d: floating-point passed where integer expected",
-						n.Name, i+1))
+					// Implicit float→int conversion: warn but do not abort.
+					fmt.Fprintf(os.Stderr, "gaston: '%s' arg %d: floating-point passed where integer expected\n",
+						n.Name, i+1)
 				} else if !isFPType(argType) && isFPType(paramType) {
-					*errs = append(*errs, fmt.Sprintf("'%s' arg %d: integer passed where floating-point expected",
-						n.Name, i+1))
+					// Implicit int→float conversion: warn but do not abort.
+					fmt.Fprintf(os.Stderr, "gaston: '%s' arg %d: integer passed where floating-point expected\n",
+						n.Name, i+1)
 				}
 			}
 		}
