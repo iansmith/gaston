@@ -249,8 +249,9 @@ type IRGlobal struct {
 	IsStruct   bool    // true for TypeStruct globals
 	Pointee    *CType  // non-nil when IsPtr: full pointee type
 	StructTag  string  // struct type name (when IsStruct)
-	IsExtern   bool    // true for extern-declared globals (no storage allocated)
-	IsWeak     bool   // true for __attribute__((weak)) globals
+	IsExtern    bool   // true for extern-declared globals (no storage allocated)
+	IsWeak      bool   // true for __attribute__((weak)) globals
+	SectionName string // non-empty for __attribute__((section("name")))
 	Size       int     // 1 for scalar, N for array[N] or struct (N = numFields)
 	InnerDim   int     // inner dimension for 2D arrays (0 for 1D or non-array)
 	HasInitVal bool
@@ -294,6 +295,7 @@ type IRFunc struct {
 	IsVariadic   bool       // true if this function accepts variadic arguments
 	HasVLA       bool       // true if any local is a VLA (requires FP-relative frame addressing)
 	IsWeak       bool       // true for __attribute__((weak)) functions
+	SectionName  string     // non-empty for __attribute__((section("name")))
 	Locals       []IRLocal  // local variables declared inside the function body
 	Quads        []Quad
 }

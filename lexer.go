@@ -1004,9 +1004,11 @@ func (l *lexer) scanAttrParens() (int, string) {
 			case "weak":
 				found = append(found, ATTR_WEAK)
 				foundSvals = append(foundSvals, "")
-			case "section":
+			case "section", "__section__":
+				// Extract the quoted section name from the attribute argument: section("name")
+				secName := attrExtractStringArg(body[j:])
 				found = append(found, ATTR_SECTION)
-				foundSvals = append(foundSvals, "")
+				foundSvals = append(foundSvals, secName)
 			case "aligned":
 				found = append(found, ATTR_ALIGNED)
 				foundSvals = append(foundSvals, "")

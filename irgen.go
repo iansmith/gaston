@@ -146,9 +146,10 @@ func genIR(prog *Node) *IRProgram {
 				IsStruct:  isStruct,
 				Pointee:   decl.Pointee,
 				StructTag: decl.StructTag,
-				IsExtern:  decl.IsExtern,
-				IsWeak:    decl.IsWeak,
-				Size:      sz,
+				IsExtern:    decl.IsExtern,
+				IsWeak:      decl.IsWeak,
+				SectionName: decl.SectionName,
+				Size:        sz,
 				InnerDim:  decl.Dim2,
 			}
 			if !decl.IsExtern && len(decl.Children) > 0 {
@@ -365,7 +366,7 @@ func buildStructDefIR(n *Node, structDefs map[string]*StructDef) *StructDef {
 
 func (g *irGen) genFunc(n *Node) {
 	g.fn = &IRFunc{Name: n.Name, ReturnType: n.Type, ReturnPointee: n.Pointee,
-		ReturnStructTag: n.StructTag, IsWeak: n.IsWeak}
+		ReturnStructTag: n.StructTag, IsWeak: n.IsWeak, SectionName: n.SectionName}
 	g.tempN = 0
 	g.labelN = 0
 	g.locals = make(map[string]localInfo)

@@ -34,8 +34,8 @@ import "fmt"
 %token LONG UNSIGNED SHORT FLOAT DOUBLE STRUCT SIZEOF ENUM UNION TYPEDEF STATIC VA_ARG TYPEOF INT128 SIGNED
 %token SWITCH CASE DEFAULT
 %token ATTR_PACKED
-%token ATTR_WEAK ATTR_SECTION ATTR_ALIGNED
-%token <sval> ATTR_ALIAS
+%token ATTR_WEAK ATTR_ALIGNED
+%token <sval> ATTR_SECTION ATTR_ALIAS
 %token ALIGNOF GENERIC
 %token STATIC_ASSERT
 %token ASM_KW
@@ -164,22 +164,22 @@ declaration
 		{ nodes := buildDeclNodes($2, $3, yylex.(*lexer)); for _, n := range nodes { n.IsWeak = true }; $$ = nodes }
 	/* ── trailing attribute on function prototype ── */
 	| declaration_specifiers gd_fun_declarator ATTR_SECTION ';'
-		{ $$ = []*Node{applyDeclToFunNode($1, $2.Name, $2.PtrChain, $2.Params, nil)} }
+		{ n := applyDeclToFunNode($1, $2.Name, $2.PtrChain, $2.Params, nil); n.SectionName = $3; $$ = []*Node{n} }
 	| declaration_specifiers gd_fun_declarator ATTR_ALIGNED ';'
 		{ $$ = []*Node{applyDeclToFunNode($1, $2.Name, $2.PtrChain, $2.Params, nil)} }
-	/* ── __attribute__((section)) — parse and ignore ── */
+	/* ── __attribute__((section("name"))) — propagate section name into AST ── */
 	| ATTR_SECTION declaration_specifiers gd_fun_declarator compound_stmt
-		{ $$ = []*Node{applyDeclToFunNode($2, $3.Name, $3.PtrChain, $3.Params, $4)} }
+		{ n := applyDeclToFunNode($2, $3.Name, $3.PtrChain, $3.Params, $4); n.SectionName = $1; $$ = []*Node{n} }
 	| ATTR_SECTION declaration_specifiers gd_fun_declarator ';'
-		{ $$ = []*Node{applyDeclToFunNode($2, $3.Name, $3.PtrChain, $3.Params, nil)} }
+		{ n := applyDeclToFunNode($2, $3.Name, $3.PtrChain, $3.Params, nil); n.SectionName = $1; $$ = []*Node{n} }
 	| ATTR_SECTION declaration_specifiers gd_init_declarator_list ';'
-		{ $$ = buildDeclNodes($2, $3, yylex.(*lexer)) }
+		{ nodes := buildDeclNodes($2, $3, yylex.(*lexer)); for _, n := range nodes { n.SectionName = $1 }; $$ = nodes }
 	| declaration_specifiers ATTR_SECTION gd_init_declarator_list ';'
-		{ $$ = buildDeclNodes($1, $3, yylex.(*lexer)) }
+		{ nodes := buildDeclNodes($1, $3, yylex.(*lexer)); for _, n := range nodes { n.SectionName = $2 }; $$ = nodes }
 	| declaration_specifiers ATTR_SECTION gd_fun_declarator compound_stmt
-		{ $$ = []*Node{applyDeclToFunNode($1, $3.Name, $3.PtrChain, $3.Params, $4)} }
+		{ n := applyDeclToFunNode($1, $3.Name, $3.PtrChain, $3.Params, $4); n.SectionName = $2; $$ = []*Node{n} }
 	| declaration_specifiers ATTR_SECTION gd_fun_declarator ';'
-		{ $$ = []*Node{applyDeclToFunNode($1, $3.Name, $3.PtrChain, $3.Params, nil)} }
+		{ n := applyDeclToFunNode($1, $3.Name, $3.PtrChain, $3.Params, nil); n.SectionName = $2; $$ = []*Node{n} }
 	/* ── __attribute__((aligned)) — parse and ignore ── */
 	| ATTR_ALIGNED declaration_specifiers gd_fun_declarator compound_stmt
 		{ $$ = []*Node{applyDeclToFunNode($2, $3.Name, $3.PtrChain, $3.Params, $4)} }
@@ -491,7 +491,7 @@ block_item_list
 	| block_item_list declaration_specifiers local_fun_proto ATTR_WEAK ';'
 		{ fn := applyDeclToFunNode($2, $3, nil, nil, nil); fn.IsWeak = true; $$ = append($1, fn) }
 	| block_item_list declaration_specifiers local_fun_proto ATTR_SECTION ';'
-		{ fn := applyDeclToFunNode($2, $3, nil, nil, nil); $$ = append($1, fn) }
+		{ fn := applyDeclToFunNode($2, $3, nil, nil, nil); fn.SectionName = $4; $$ = append($1, fn) }
 	| block_item_list declaration_specifiers local_fun_proto ATTR_ALIGNED ';'
 		{ fn := applyDeclToFunNode($2, $3, nil, nil, nil); $$ = append($1, fn) }
 	| block_item_list STRUCT ID ';'

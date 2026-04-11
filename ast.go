@@ -446,6 +446,7 @@ type Node struct {
 	IsStatic       bool     // true for static storage class (local: persistent, global: internal linkage)
 	IsWeak         bool     // true for __attribute__((weak)) functions/globals
 	AliasTarget    string   // non-empty for __attribute__((alias("target"))): the target symbol name
+	SectionName    string   // non-empty for __attribute__((section("name"))): the target ELF section
 	ElemType       TypeKind // for TypeIntArray: element type; TypePtr when array-of-pointers
 	ElemPointee    *CType   // for TypeIntArray with ElemType==TypePtr: the pointer's pointee CType
 	Dim2           int      // inner dimension for 2D arrays (e.g. for int a[M][N]: Dim2=N)

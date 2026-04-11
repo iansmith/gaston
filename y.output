@@ -22,8 +22,8 @@ state 0
 	INT128  shift 33
 	SIGNED  shift 32
 	ATTR_WEAK  shift 16
-	ATTR_SECTION  shift 17
 	ATTR_ALIGNED  shift 18
+	ATTR_SECTION  shift 17
 	STATIC_ASSERT  shift 14
 	ASM_KW  shift 13
 	TYPENAME  shift 34
@@ -72,8 +72,8 @@ state 2
 	INT128  shift 33
 	SIGNED  shift 32
 	ATTR_WEAK  shift 16
-	ATTR_SECTION  shift 17
 	ATTR_ALIGNED  shift 18
+	ATTR_SECTION  shift 17
 	STATIC_ASSERT  shift 14
 	ASM_KW  shift 13
 	TYPENAME  shift 34
@@ -218,8 +218,8 @@ state 15
 
 	ID  shift 54
 	ATTR_WEAK  shift 50
-	ATTR_SECTION  shift 51
 	ATTR_ALIGNED  shift 52
+	ATTR_SECTION  shift 51
 	'('  shift 56
 	'*'  shift 58
 	.  error
@@ -838,8 +838,8 @@ state 49
 	declaration:  declaration_specifiers gd_fun_declarator.ATTR_ALIAS ';' 
 
 	ATTR_WEAK  shift 180
-	ATTR_SECTION  shift 181
 	ATTR_ALIGNED  shift 182
+	ATTR_SECTION  shift 181
 	ATTR_ALIAS  shift 183
 	';'  shift 178
 	','  shift 179
@@ -13657,8 +13657,8 @@ state 930
 	block_item_list:  block_item_list declaration_specifiers local_fun_proto.ATTR_ALIGNED ';' 
 
 	ATTR_WEAK  shift 1168
-	ATTR_SECTION  shift 1169
 	ATTR_ALIGNED  shift 1170
+	ATTR_SECTION  shift 1169
 	';'  shift 1167
 	.  error
 
