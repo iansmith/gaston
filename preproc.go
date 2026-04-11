@@ -1632,7 +1632,12 @@ func (p *preprocessor) processInclude(rest, file string, line int, out *strings.
 
 	// Locate the file on disk first (real files take priority over virtual headers).
 	var fullPath string
-	if !systemSearch {
+	if filepath.IsAbs(filename) {
+		// Absolute path — use it directly without searching.
+		if fileExists(filename) {
+			fullPath = filename
+		}
+	} else if !systemSearch {
 		rel := filepath.Join(filepath.Dir(file), filename)
 		if fileExists(rel) {
 			fullPath = rel

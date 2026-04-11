@@ -23,6 +23,22 @@ import (
 	"strings"
 )
 
+// forceIncludePrefix builds a string of #include directives for force-included
+// files (-include flag). These are prepended to every source file before
+// preprocessing, matching GCC's -include behaviour.
+func forceIncludePrefix(files []string) string {
+	if len(files) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	for _, f := range files {
+		b.WriteString(`#include "`)
+		b.WriteString(f)
+		b.WriteString("\"\n")
+	}
+	return b.String()
+}
+
 // defaultIncludes, defaultLibPaths, and defaultLibs are injected at build time
 // via -ldflags "-X main.defaultIncludes=... -X main.defaultLibPaths=... -X main.defaultLibs=..."
 // for target installs (e.g. mazarin). They are empty for dev/test builds.
@@ -169,14 +185,13 @@ func gccPredefinedMacros() string {
 
 // filterArgs strips flags that gaston intentionally ignores (e.g. GCC/Clang
 // machine or warning flags passed by build systems like meson) from args,
-// returning the filtered list. It also detects --version / -v requests and
-// whether -dM (dump predefined macros) was present.
-func filterArgs(args []string) (filtered []string, versionRequested bool, dumpMacros bool) {
+// returning the filtered list. It also detects --version / -v requests,
+// whether -dM (dump predefined macros) was present, and any -include files.
+func filterArgs(args []string) (filtered []string, versionRequested bool, dumpMacros bool, forceIncludes []string) {
 	// ignoredValueFlags are flags that should be silently consumed along with
 	// their value token (both the flag and its argument are dropped).
 	ignoredValueFlags := map[string]bool{
 		"MQ": true, "MF": true, "MT": true, // dependency file target/file (ignored)
-		"include": true,                     // force-include file (gaston doesn't support; meson uses picolibc.h)
 		"isystem": true,                     // add system include path (treat as -I via valueFlags below)
 	}
 
@@ -203,7 +218,21 @@ func filterArgs(args []string) (filtered []string, versionRequested bool, dumpMa
 		if isIgnoredFlag(arg) {
 			continue
 		}
-		// Handle long-form ignored value flags: -MQ <val>, -MF <val>, -include <file>, etc.
+		// -include <file>: force-include a file before the main source.
+		// Collect the file path; the preprocessor will prepend it.
+		if arg == "-include" {
+			if i+1 < len(args) {
+				i++
+				forceIncludes = append(forceIncludes, args[i])
+			}
+			continue
+		}
+		if strings.HasPrefix(arg, "-include=") {
+			forceIncludes = append(forceIncludes, arg[len("-include="):])
+			continue
+		}
+
+		// Handle long-form ignored value flags: -MQ <val>, -MF <val>, etc.
 		// These consume the next token as their value and both are dropped.
 		{
 			bare2 := strings.TrimLeft(arg, "-")
@@ -265,7 +294,7 @@ func filterArgs(args []string) (filtered []string, versionRequested bool, dumpMa
 
 func main() {
 	// Pre-filter os.Args to strip unknown flags before flag.Parse sees them.
-	filtered, versionRequested, dumpMacros := filterArgs(os.Args[1:])
+	filtered, versionRequested, dumpMacros, forceIncludes := filterArgs(os.Args[1:])
 
 	// Handle GCC-compatible introspection flags before flag.Parse.
 	// Build systems (meson, cmake, autoconf) probe compilers with these.
@@ -450,7 +479,7 @@ func main() {
 			}
 		}
 		pp := newPreprocessor([]string(includePaths), []string(defines))
-		src, err := pp.Preprocess(string(rawSrc), filename)
+		src, err := pp.Preprocess(forceIncludePrefix(forceIncludes)+string(rawSrc), filename)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
 			os.Exit(1)
@@ -502,7 +531,7 @@ func main() {
 			os.Exit(1)
 		}
 		pp := newPreprocessor([]string(includePaths), []string(defines))
-		src, err := pp.Preprocess(string(rawSrc), infile)
+		src, err := pp.Preprocess(forceIncludePrefix(forceIncludes)+string(rawSrc), infile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
 			os.Exit(1)
@@ -590,7 +619,7 @@ func main() {
 				os.Exit(1)
 			}
 			pp := newPreprocessor([]string(includePaths), []string(defines))
-			src, err := pp.Preprocess(string(rawSrc), arg)
+			src, err := pp.Preprocess(forceIncludePrefix(forceIncludes)+string(rawSrc), arg)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
 				os.Exit(1)
