@@ -35,6 +35,7 @@ import "fmt"
 %token SWITCH CASE DEFAULT
 %token ATTR_PACKED
 %token ATTR_WEAK ATTR_SECTION ATTR_ALIGNED
+%token <sval> ATTR_ALIAS
 %token ALIGNOF GENERIC
 %token STATIC_ASSERT
 %token ASM_KW
@@ -188,6 +189,11 @@ declaration
 		{ $$ = buildDeclNodes($2, $3, yylex.(*lexer)) }
 	| declaration_specifiers ATTR_ALIGNED gd_init_declarator_list ';'
 		{ $$ = buildDeclNodes($1, $3, yylex.(*lexer)) }
+	/* ── __attribute__((alias("target"))) — function and variable aliases ── */
+	| declaration_specifiers gd_fun_declarator ATTR_ALIAS ';'
+		{ n := applyDeclToFunNode($1, $2.Name, $2.PtrChain, $2.Params, nil); n.AliasTarget = $3; $$ = []*Node{n} }
+	| declaration_specifiers gd_init_declarator_list ATTR_ALIAS ';'
+		{ nodes := buildDeclNodes($1, $2, yylex.(*lexer)); for _, n := range nodes { n.AliasTarget = $3 }; $$ = nodes }
 	;
 
 /* extern_declaration removed — forward declarations handled inline in declaration/block_item_list,

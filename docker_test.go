@@ -1,6 +1,7 @@
 package main
 
 import (
+	"debug/elf"
 	"fmt"
 	"os"
 	"os/exec"
@@ -480,6 +481,16 @@ var featureTests = []dockerTest{
 	{name: "attr_section", want: "77\n"},
 	// attr_aligned: __attribute__((aligned)) on struct parsed and ignored
 	{name: "attr_aligned", want: "10\n8\n"},
+
+	// ── GCC compatibility TODO items ──────────────────────────────────────
+	// attr_alias: __attribute__((alias)) creates a link-time alias; both names
+	//   call the same function / refer to the same variable.
+	{name: "attr_alias", want: "42\n42\n1\n7\n7\n99\n"},
+	// builtin_fpclassify: __builtin_isnan, __builtin_isinf, __builtin_copysign
+	{name: "builtin_fpclassify", want: "1\n0\n0\n1\n1\n0\n0\n-3\n5\n4\n-4\n"},
+	// alignas_enforce: _Alignas(N) must make the variable's address a multiple of N;
+	//   also widens struct layout when applied to a member.
+	{name: "alignas_enforce", want: "0\n0\n0\n16\n8\n0\n"},
 }
 
 // sepTest describes a separate-compilation test: compile multiple .cm files
@@ -1710,5 +1721,170 @@ func TestPicolibcRun(t *testing.T) {
 				t.Errorf("output mismatch:\n  got  %q\n  want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+// TestAttrSectionELF compiles attr_section_verify.c and inspects the produced
+// ELF object file to confirm that each function/variable landed in the section
+// named by its __attribute__((section("..."))) rather than the default .text.
+// This test does not require Docker; it runs entirely on the host.
+func TestAttrSectionELF(t *testing.T) {
+	obj := "/tmp/gaston-test-attr-section-verify.o"
+	t.Cleanup(func() { os.Remove(obj) })
+
+	if err := compileObj("attr_section_verify", obj); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+
+	ef, err := elf.Open(obj)
+	if err != nil {
+		t.Fatalf("open ELF: %v", err)
+	}
+	defer ef.Close()
+
+	syms, err := ef.Symbols()
+	if err != nil {
+		t.Fatalf("read symbol table: %v", err)
+	}
+
+	// Map symbol name → expected section name.
+	want := map[string]string{
+		"hot_fn":    ".text.hot",
+		"cold_fn":   ".text.cold",
+		"cfg_val":   ".rodata.cfg",
+		"normal_fn": ".text",
+	}
+
+	found := map[string]bool{}
+	for _, sym := range syms {
+		expected, ok := want[sym.Name]
+		if !ok {
+			continue
+		}
+		found[sym.Name] = true
+		if int(sym.Section) >= len(ef.Sections) {
+			t.Errorf("symbol %q: section index %d out of range", sym.Name, sym.Section)
+			continue
+		}
+		got := ef.Sections[sym.Section].Name
+		if got != expected {
+			t.Errorf("symbol %q: in section %q, want %q", sym.Name, got, expected)
+		}
+	}
+
+	for name := range want {
+		if !found[name] {
+			t.Errorf("symbol %q not found in object file", name)
+		}
+	}
+}
+
+// TestAttrAliasELF compiles attr_alias.c and checks the object file's symbol
+// table to verify that alias symbols:
+//   - exist as defined (not SHN_UNDEF) symbols
+//   - share the same section and value (offset) as the originals
+//
+// Currently fails: the alias attribute is silently dropped, so "aliased" and
+// "aliased_val" appear as undefined external references rather than aliases.
+func TestAttrAliasELF(t *testing.T) {
+	obj := "/tmp/gaston-test-attr-alias.o"
+	t.Cleanup(func() { os.Remove(obj) })
+
+	if err := compileObj("attr_alias", obj); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+
+	ef, err := elf.Open(obj)
+	if err != nil {
+		t.Fatalf("open ELF: %v", err)
+	}
+	defer ef.Close()
+
+	syms, err := ef.Symbols()
+	if err != nil {
+		t.Fatalf("read symbol table: %v", err)
+	}
+
+	symMap := map[string]elf.Symbol{}
+	for _, s := range syms {
+		symMap[s.Name] = s
+	}
+
+	checkAlias := func(aliasName, origName string) {
+		t.Helper()
+		orig, ok := symMap[origName]
+		if !ok {
+			t.Errorf("original symbol %q not found in object", origName)
+			return
+		}
+		alias, ok := symMap[aliasName]
+		if !ok {
+			t.Errorf("alias symbol %q not found in object", aliasName)
+			return
+		}
+		if alias.Section == elf.SHN_UNDEF {
+			t.Errorf("alias %q is SHN_UNDEF; should be defined at same location as %q",
+				aliasName, origName)
+			return
+		}
+		if alias.Value != orig.Value {
+			t.Errorf("alias %q value 0x%x != original %q value 0x%x",
+				aliasName, alias.Value, origName, orig.Value)
+		}
+		if alias.Section != orig.Section {
+			origSect := ef.Sections[orig.Section].Name
+			aliasSect := ef.Sections[alias.Section].Name
+			t.Errorf("alias %q in section %q; original %q in section %q — must be the same",
+				aliasName, aliasSect, origName, origSect)
+		}
+	}
+
+	checkAlias("aliased", "original")         // function alias
+	checkAlias("aliased_val", "original_val") // variable alias
+}
+
+// TestBuiltinFpclassifyELF compiles builtin_fpclassify.c and verifies that
+// __builtin_isnan, __builtin_isinf, and __builtin_copysign are emitted as
+// inline code rather than calls to undefined external symbols.
+//
+// Currently fails: gaston treats these as ordinary function calls, so the
+// object file contains SHN_UNDEF references to "__builtin_isnan" etc.
+// Once implemented as intrinsics, those undefined symbols must not appear.
+func TestBuiltinFpclassifyELF(t *testing.T) {
+	obj := "/tmp/gaston-test-builtin-fpclassify.o"
+	t.Cleanup(func() { os.Remove(obj) })
+
+	if err := compileObj("builtin_fpclassify", obj); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+
+	ef, err := elf.Open(obj)
+	if err != nil {
+		t.Fatalf("open ELF: %v", err)
+	}
+	defer ef.Close()
+
+	syms, err := ef.Symbols()
+	if err != nil {
+		t.Fatalf("read symbol table: %v", err)
+	}
+
+	// Any of these appearing as SHN_UNDEF means gaston emitted a call
+	// instruction to an external function instead of inlining the operation.
+	mustBeInlined := []string{
+		"__builtin_isnan",
+		"__builtin_isinf",
+		"__builtin_copysign",
+	}
+
+	for _, sym := range syms {
+		if sym.Section != elf.SHN_UNDEF {
+			continue
+		}
+		for _, name := range mustBeInlined {
+			if sym.Name == name {
+				t.Errorf("builtin %q emitted as undefined external call — must be inlined as an intrinsic", name)
+			}
+		}
 	}
 }

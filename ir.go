@@ -300,9 +300,19 @@ type IRFConst struct {
 }
 
 // IRProgram is the complete IR for a program.
+// IRAlias records one __attribute__((alias("target"))) declaration.
+// The alias symbol will be emitted in the ELF object with the same value
+// and section as the target, rather than as an undefined (SHN_UNDEF) reference.
+type IRAlias struct {
+	Name   string // the alias symbol name
+	Target string // the target symbol name (must be defined in the same translation unit)
+	IsFunc bool   // true for function aliases, false for variable aliases
+}
+
 type IRProgram struct {
 	Globals    []IRGlobal
 	Funcs      []*IRFunc
+	Aliases    []IRAlias  // __attribute__((alias(...))) declarations
 	StrLits    []IRStrLit // string literals (rodata)
 	FConsts    []IRFConst // floating-point constants (literal pool entries)
 	FuncRefs   []string   // names of user functions whose addresses are taken (IRFuncAddr)

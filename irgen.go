@@ -111,6 +111,20 @@ func genIR(prog *Node) *IRProgram {
 	// Second pass: register global variable declarations.
 	for _, decl := range prog.Children {
 		if decl.Kind == KindVarDecl && !decl.IsConst {
+			// Variable alias: register as extern for codegen but record the alias target
+			// so objgen can emit a defined symbol instead of an SHN_UNDEF reference.
+			if decl.AliasTarget != "" {
+				g.prog.Aliases = append(g.prog.Aliases, IRAlias{
+					Name:   decl.Name,
+					Target: decl.AliasTarget,
+					IsFunc: false,
+				})
+				// Register as extern so code can reference it via pool/reloc.
+				gbl := &IRGlobal{Name: decl.Name, IsExtern: true, Size: 1}
+				g.prog.Globals = append(g.prog.Globals, *gbl)
+				g.globals[decl.Name] = gbl
+				continue
+			}
 			isArr := decl.Type == TypeIntArray
 			isPtr := isPtrType(decl.Type)
 			isStruct := decl.Type == TypeStruct
@@ -224,6 +238,14 @@ func genIR(prog *Node) *IRProgram {
 			// Track struct-returning functions (including extern) for call-site codegen.
 			if decl.Type == TypeStruct {
 				g.structRetFuncs[decl.Name] = decl.StructTag
+			}
+			// Function alias: record for ELF symbol emission.
+			if decl.AliasTarget != "" {
+				g.prog.Aliases = append(g.prog.Aliases, IRAlias{
+					Name:   decl.Name,
+					Target: decl.AliasTarget,
+					IsFunc: true,
+				})
 			}
 		}
 	}

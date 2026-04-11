@@ -25,6 +25,7 @@ type lexer struct {
 	typeofExpr      *Node              // scratch: holds typeof(expr) expression until declaration picks it up
 	prevTok         int                // previous token returned (for struct/union tag disambiguation)
 	pendingToks     []int              // tokens queued by scanAttrParens for multi-attr blocks
+	pendingTokSvals []string           // parallel svals for pendingToks (empty string for tokens without string values)
 	pendingStructDefs []*Node          // anonymous struct defs created in cast expressions, injected into AST after parse
 }
 
@@ -304,6 +305,10 @@ func (l *lexer) Lex(lval *yySymType) int {
 	if len(l.pendingToks) > 0 {
 		tok := l.pendingToks[0]
 		l.pendingToks = l.pendingToks[1:]
+		if len(l.pendingTokSvals) > 0 {
+			lval.sval = l.pendingTokSvals[0]
+			l.pendingTokSvals = l.pendingTokSvals[1:]
+		}
 		l.prevTok = tok
 		return tok
 	}
@@ -748,8 +753,9 @@ scan:
 		// GCC __attribute__((...)) — scan and consume the ((...)) block.
 		// Returns first recognized attribute token (ATTR_PACKED, ATTR_WEAK, etc.); otherwise skip.
 		if word == "__attribute__" || word == "__attribute" {
-			tok := l.scanAttrParens()
+			tok, sval := l.scanAttrParens()
 			if tok != 0 {
+				lval.sval = sval
 				return tok
 			}
 			return l.Lex(lval)
@@ -947,10 +953,10 @@ func (l *lexer) Error(s string) {
 }
 
 // scanAttrParens scans a GCC __attribute__((...)) argument list.
-// It consumes the ((...)) block, detects named attributes (packed, weak, section, aligned),
+// It consumes the ((...)) block, detects named attributes (packed, weak, section, aligned, alias),
 // pushes any additional attribute tokens into l.pendingToks, and returns the first attribute
-// token (or 0 if none recognized).
-func (l *lexer) scanAttrParens() int {
+// token (or 0 if none recognized) along with its string value (non-empty for alias).
+func (l *lexer) scanAttrParens() (int, string) {
 	// skip whitespace
 	for l.pos < len(l.src) && (l.src[l.pos] == ' ' || l.src[l.pos] == '\t' ||
 		l.src[l.pos] == '\r' || l.src[l.pos] == '\n') {
@@ -960,7 +966,7 @@ func (l *lexer) scanAttrParens() int {
 		l.pos++
 	}
 	if l.pos >= len(l.src) || l.src[l.pos] != '(' {
-		return 0
+		return 0, ""
 	}
 	// Scan entire balanced-paren block, collecting the text inside.
 	depth := 0
@@ -981,8 +987,9 @@ func (l *lexer) scanAttrParens() int {
 		l.pos++
 	}
 	body := l.src[start:l.pos]
-	// Collect all recognized attribute names.
+	// Collect all recognized attribute names and their string values.
 	var found []int
+	var foundSvals []string
 	for i := 0; i < len(body); i++ {
 		if isLetter(body[i]) {
 			j := i
@@ -993,23 +1000,60 @@ func (l *lexer) scanAttrParens() int {
 			switch word {
 			case "packed":
 				found = append(found, ATTR_PACKED)
+				foundSvals = append(foundSvals, "")
 			case "weak":
 				found = append(found, ATTR_WEAK)
+				foundSvals = append(foundSvals, "")
 			case "section":
 				found = append(found, ATTR_SECTION)
+				foundSvals = append(foundSvals, "")
 			case "aligned":
 				found = append(found, ATTR_ALIGNED)
+				foundSvals = append(foundSvals, "")
+			case "alias", "__alias__":
+				// Extract the quoted target name from the attribute argument: alias("target")
+				target := attrExtractStringArg(body[j:])
+				found = append(found, ATTR_ALIAS)
+				foundSvals = append(foundSvals, target)
 			}
 			i = j - 1
 		}
 	}
 	if len(found) == 0 {
-		return 0
+		return 0, ""
 	}
 	if len(found) > 1 {
 		l.pendingToks = append(l.pendingToks, found[1:]...)
+		l.pendingTokSvals = append(l.pendingTokSvals, foundSvals[1:]...)
 	}
-	return found[0]
+	return found[0], foundSvals[0]
+}
+
+// attrExtractStringArg extracts the quoted string from an attribute argument like ("target").
+// It scans past optional whitespace and parens to find the opening '"', then reads until the
+// closing '"', returning the content. Returns "" if the format is not recognized.
+func attrExtractStringArg(s string) string {
+	i := 0
+	// Skip whitespace and opening paren.
+	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+		i++
+	}
+	if i >= len(s) || s[i] != '(' {
+		return ""
+	}
+	i++ // consume '('
+	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+		i++
+	}
+	if i >= len(s) || s[i] != '"' {
+		return ""
+	}
+	i++ // consume '"'
+	start := i
+	for i < len(s) && s[i] != '"' {
+		i++
+	}
+	return s[start:i]
 }
 
 func isLetter(c byte) bool {

@@ -334,12 +334,21 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 		}
 	}
 
+	// Build alias name set for fast lookup — aliases must NOT appear as SHN_UNDEF.
+	aliasTargets := make(map[string]string) // alias name → target name
+	for _, a := range irp.Aliases {
+		aliasTargets[a.Name] = a.Target
+	}
+
 	// Collect all extern symbol names referenced by pool entries or extern BLs.
 	externSymNames := make(map[string]int) // sym name → symtab index
 
 	// Pool entries for extern globals.
 	for _, gbl := range irp.Globals {
 		if gbl.IsExtern {
+			if _, isAlias := aliasTargets[gbl.Name]; isAlias {
+				continue // will be emitted as a defined alias symbol below
+			}
 			if _, ok := externSymNames[gbl.Name]; !ok {
 				idx := len(syms)
 				externSymNames[gbl.Name] = idx
@@ -355,6 +364,9 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 
 	// Extern BL targets.
 	for _, xbl := range cb.externBLs {
+		if _, isAlias := aliasTargets[xbl.sym]; isAlias {
+			continue // will be emitted as a defined alias symbol below
+		}
 		if _, ok := externSymNames[xbl.sym]; !ok {
 			idx := len(syms)
 			externSymNames[xbl.sym] = idx
@@ -392,6 +404,44 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 		})
 	}
 
+	// Emit alias symbols: defined symbols with the same value+section as their target.
+	// These are emitted after all regular symbols so funcSymIdx/globalSymIdx are complete.
+	// aliasSymIdx is consulted by the pool relocation builder below.
+	aliasSymIdx := make(map[string]int) // alias name → symtab index
+	for _, a := range irp.Aliases {
+		idx := len(syms)
+		aliasSymIdx[a.Name] = idx
+		nameIdx := strtab.add(a.Name)
+		if a.IsFunc {
+			// Function alias: look up the target's code offset in .text.
+			targetLabel := funcLabel(a.Target)
+			wordIdx, ok := cb.labels[targetLabel]
+			if !ok {
+				return fmt.Errorf("alias %q: target function %q not found in object", a.Name, a.Target)
+			}
+			syms = append(syms, symRec{
+				nameIdx: nameIdx,
+				info:    (1 << 4) | 2, // STB_GLOBAL | STT_FUNC
+				shndx:   objSecText,
+				value:   uint64(wordIdx) * 4,
+			})
+		} else {
+			// Variable alias: copy the target symbol's section and value.
+			targetIdx, ok := globalSymIdx[a.Target]
+			if !ok {
+				return fmt.Errorf("alias %q: target variable %q not found in object", a.Name, a.Target)
+			}
+			target := syms[targetIdx]
+			syms = append(syms, symRec{
+				nameIdx: nameIdx,
+				info:    (1 << 4) | 1, // STB_GLOBAL | STT_OBJECT
+				shndx:   target.shndx,
+				value:   target.value,
+				size:    target.size,
+			})
+		}
+	}
+
 	// ── build .rela.text ──────────────────────────────────────────────────
 	type relaRec struct {
 		off    uint64
@@ -421,6 +471,8 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 			if i, ok := globalSymIdx[name]; ok {
 				symIdx = i
 			} else if i, ok := externSymNames[name]; ok {
+				symIdx = i
+			} else if i, ok := aliasSymIdx[name]; ok {
 				symIdx = i
 			} else {
 				return fmt.Errorf("genObjectFile: no symbol for pool global %q", name)
