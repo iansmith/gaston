@@ -26,6 +26,7 @@ type lexer struct {
 	prevTok         int                // previous token returned (for struct/union tag disambiguation)
 	pendingToks     []int              // tokens queued by scanAttrParens for multi-attr blocks
 	pendingTokSvals []string           // parallel svals for pendingToks (empty string for tokens without string values)
+	pendingTokIvals []int              // parallel ivals for pendingToks (0 for tokens without integer values)
 	pendingStructDefs []*Node          // anonymous struct defs created in cast expressions, injected into AST after parse
 }
 
@@ -306,6 +307,10 @@ func (l *lexer) Lex(lval *yySymType) int {
 		if len(l.pendingTokSvals) > 0 {
 			lval.sval = l.pendingTokSvals[0]
 			l.pendingTokSvals = l.pendingTokSvals[1:]
+		}
+		if len(l.pendingTokIvals) > 0 {
+			lval.ival = l.pendingTokIvals[0]
+			l.pendingTokIvals = l.pendingTokIvals[1:]
 		}
 		l.prevTok = tok
 		return tok
@@ -756,8 +761,9 @@ scan:
 		// GCC __attribute__((...)) — scan and consume the ((...)) block.
 		// Returns first recognized attribute token (ATTR_PACKED, ATTR_WEAK, etc.); otherwise skip.
 		if word == "__attribute__" || word == "__attribute" {
-			tok, sval := l.scanAttrParens()
+			tok, ival, sval := l.scanAttrParens()
 			if tok != 0 {
+				lval.ival = ival
 				lval.sval = sval
 				return tok
 			}
@@ -958,8 +964,9 @@ func (l *lexer) Error(s string) {
 // scanAttrParens scans a GCC __attribute__((...)) argument list.
 // It consumes the ((...)) block, detects named attributes (packed, weak, section, aligned, alias),
 // pushes any additional attribute tokens into l.pendingToks, and returns the first attribute
-// token (or 0 if none recognized) along with its string value (non-empty for alias).
-func (l *lexer) scanAttrParens() (int, string) {
+// token (or 0 if none recognized), its integer value (non-zero for aligned(N)), and its string
+// value (non-empty for section/alias).
+func (l *lexer) scanAttrParens() (int, int, string) {
 	// skip whitespace
 	for l.pos < len(l.src) && (l.src[l.pos] == ' ' || l.src[l.pos] == '\t' ||
 		l.src[l.pos] == '\r' || l.src[l.pos] == '\n') {
@@ -969,7 +976,7 @@ func (l *lexer) scanAttrParens() (int, string) {
 		l.pos++
 	}
 	if l.pos >= len(l.src) || l.src[l.pos] != '(' {
-		return 0, ""
+		return 0, 0, ""
 	}
 	// Scan entire balanced-paren block, collecting the text inside.
 	depth := 0
@@ -990,8 +997,9 @@ func (l *lexer) scanAttrParens() (int, string) {
 		l.pos++
 	}
 	body := l.src[start:l.pos]
-	// Collect all recognized attribute names and their string values.
+	// Collect all recognized attribute names, integer values, and string values.
 	var found []int
+	var foundIvals []int
 	var foundSvals []string
 	for i := 0; i < len(body); i++ {
 		if isLetter(body[i]) {
@@ -1003,35 +1011,43 @@ func (l *lexer) scanAttrParens() (int, string) {
 			switch word {
 			case "packed":
 				found = append(found, ATTR_PACKED)
+				foundIvals = append(foundIvals, 0)
 				foundSvals = append(foundSvals, "")
 			case "weak":
 				found = append(found, ATTR_WEAK)
+				foundIvals = append(foundIvals, 0)
 				foundSvals = append(foundSvals, "")
 			case "section", "__section__":
 				// Extract the quoted section name from the attribute argument: section("name")
 				secName := attrExtractStringArg(body[j:])
 				found = append(found, ATTR_SECTION)
+				foundIvals = append(foundIvals, 0)
 				foundSvals = append(foundSvals, secName)
 			case "aligned":
+				// Extract the integer argument: aligned(N) — 0 means "natural alignment" (no-op).
+				n := attrExtractIntArg(body[j:])
 				found = append(found, ATTR_ALIGNED)
+				foundIvals = append(foundIvals, n)
 				foundSvals = append(foundSvals, "")
 			case "alias", "__alias__":
 				// Extract the quoted target name from the attribute argument: alias("target")
 				target := attrExtractStringArg(body[j:])
 				found = append(found, ATTR_ALIAS)
+				foundIvals = append(foundIvals, 0)
 				foundSvals = append(foundSvals, target)
 			}
 			i = j - 1
 		}
 	}
 	if len(found) == 0 {
-		return 0, ""
+		return 0, 0, ""
 	}
 	if len(found) > 1 {
 		l.pendingToks = append(l.pendingToks, found[1:]...)
+		l.pendingTokIvals = append(l.pendingTokIvals, foundIvals[1:]...)
 		l.pendingTokSvals = append(l.pendingTokSvals, foundSvals[1:]...)
 	}
-	return found[0], foundSvals[0]
+	return found[0], foundIvals[0], foundSvals[0]
 }
 
 // scanAlignasArg scans the (N) from _Alignas(N) / alignas(N), consuming
@@ -1094,6 +1110,32 @@ func attrExtractStringArg(s string) string {
 		i++
 	}
 	return s[start:i]
+}
+
+// attrExtractIntArg extracts the decimal integer from an attribute argument like (16).
+// It scans past optional whitespace and parens to find the digits, returning the value.
+// Returns 0 if the format is not recognized (e.g. aligned without an argument).
+func attrExtractIntArg(s string) int {
+	i := 0
+	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+		i++
+	}
+	if i >= len(s) || s[i] != '(' {
+		return 0
+	}
+	i++ // consume '('
+	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+		i++
+	}
+	if i >= len(s) || !isDigit(s[i]) {
+		return 0
+	}
+	val := 0
+	for i < len(s) && isDigit(s[i]) {
+		val = val*10 + int(s[i]-'0')
+		i++
+	}
+	return val
 }
 
 func isLetter(c byte) bool {

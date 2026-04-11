@@ -155,10 +155,10 @@ typedef unsigned char uint8_t;
 /* gaston built-in <stdalign.h> */
 #ifndef _STDALIGN_H
 #define _STDALIGN_H
-/* On ARM64/x86_64, alignment equals size for all basic types */
-#define alignof(x) sizeof(x)
-#define __alignof__(x) sizeof(x)
-#define _Alignof(x) sizeof(x)
+/* alignof/alignas: delegate to gaston's native _Alignof/_Alignas keywords */
+#define alignof(x)     _Alignof(x)
+#define __alignof__(x) _Alignof(x)
+#define alignas(n)     _Alignas(n)
 #endif
 `,
 	"stdbool.h": `
@@ -170,6 +170,104 @@ typedef unsigned char uint8_t;
 #define true  1
 #define false 0
 #endif
+`,
+	"stdatomic.h": `
+/* gaston built-in <stdatomic.h> — bare-metal single-core stub.
+   On a single-core bare-metal target there is no preemption and no
+   cache-coherency concern, so all atomic operations reduce to plain
+   loads and stores.  This is correct for picolibc / MicroPython
+   targets that never enable the MMU or run a second hart/CPU.        */
+#ifndef _STDATOMIC_H
+#define _STDATOMIC_H
+
+/* _Atomic qualifier: treated as a no-op storage qualifier. */
+#define _Atomic volatile
+
+/* Atomic integer types */
+typedef volatile int               atomic_int;
+typedef volatile unsigned int      atomic_uint;
+typedef volatile long              atomic_long;
+typedef volatile unsigned long     atomic_ulong;
+typedef volatile long              atomic_llong;
+typedef volatile unsigned long     atomic_ullong;
+typedef volatile char              atomic_char;
+typedef volatile signed char       atomic_schar;
+typedef volatile unsigned char     atomic_uchar;
+typedef volatile short             atomic_short;
+typedef volatile unsigned short    atomic_ushort;
+typedef volatile int               atomic_bool;
+typedef volatile long              atomic_intptr_t;
+typedef volatile unsigned long     atomic_uintptr_t;
+typedef volatile long              atomic_size_t;
+typedef volatile long              atomic_ptrdiff_t;
+typedef volatile long              atomic_intmax_t;
+typedef volatile unsigned long     atomic_uintmax_t;
+
+/* Memory order constants (ignored on single-core) */
+#define memory_order_relaxed 0
+#define memory_order_consume 1
+#define memory_order_acquire 2
+#define memory_order_release 3
+#define memory_order_acq_rel 4
+#define memory_order_seq_cst 5
+typedef int memory_order;
+
+/* Atomic operations — all reduce to plain read/write on single-core */
+#define atomic_init(obj, val)          (*(obj) = (val))
+#define atomic_load(obj)               (*(obj))
+#define atomic_load_explicit(obj, mo)  (*(obj))
+#define atomic_store(obj, val)         (*(obj) = (val))
+#define atomic_store_explicit(obj, val, mo) (*(obj) = (val))
+
+#define atomic_exchange(obj, val)             ({ __typeof__(*(obj)) _old = *(obj); *(obj) = (val); _old; })
+#define atomic_exchange_explicit(obj, val, mo) atomic_exchange(obj, val)
+
+#define atomic_compare_exchange_strong(obj, exp, des) \
+    ({ int _r = (*(obj) == *(exp)); if (_r) *(obj) = (des); else *(exp) = *(obj); _r; })
+#define atomic_compare_exchange_weak(obj, exp, des) \
+    atomic_compare_exchange_strong(obj, exp, des)
+#define atomic_compare_exchange_strong_explicit(obj, exp, des, smo, fmo) \
+    atomic_compare_exchange_strong(obj, exp, des)
+#define atomic_compare_exchange_weak_explicit(obj, exp, des, smo, fmo) \
+    atomic_compare_exchange_strong(obj, exp, des)
+
+#define atomic_fetch_add(obj, val)  ({ __typeof__(*(obj)) _old = *(obj); *(obj) += (val); _old; })
+#define atomic_fetch_sub(obj, val)  ({ __typeof__(*(obj)) _old = *(obj); *(obj) -= (val); _old; })
+#define atomic_fetch_and(obj, val)  ({ __typeof__(*(obj)) _old = *(obj); *(obj) &= (val); _old; })
+#define atomic_fetch_or(obj, val)   ({ __typeof__(*(obj)) _old = *(obj); *(obj) |= (val); _old; })
+#define atomic_fetch_xor(obj, val)  ({ __typeof__(*(obj)) _old = *(obj); *(obj) ^= (val); _old; })
+#define atomic_fetch_add_explicit(obj, val, mo) atomic_fetch_add(obj, val)
+#define atomic_fetch_sub_explicit(obj, val, mo) atomic_fetch_sub(obj, val)
+#define atomic_fetch_and_explicit(obj, val, mo) atomic_fetch_and(obj, val)
+#define atomic_fetch_or_explicit(obj, val, mo)  atomic_fetch_or(obj, val)
+#define atomic_fetch_xor_explicit(obj, val, mo) atomic_fetch_xor(obj, val)
+
+/* Fences: no-ops on single-core */
+#define atomic_thread_fence(mo)  ((void)(mo))
+#define atomic_signal_fence(mo)  ((void)(mo))
+
+/* Flag type */
+typedef volatile int atomic_flag;
+#define ATOMIC_FLAG_INIT 0
+#define atomic_flag_test_and_set(obj) \
+    ({ int _old = *(obj); *(obj) = 1; _old; })
+#define atomic_flag_test_and_set_explicit(obj, mo) atomic_flag_test_and_set(obj)
+#define atomic_flag_clear(obj)              (*(obj) = 0)
+#define atomic_flag_clear_explicit(obj, mo) (*(obj) = 0)
+
+/* ATOMIC_VAR_INIT (deprecated in C17 but still used) */
+#define ATOMIC_VAR_INIT(val) (val)
+
+/* Lock-free query macros */
+#define ATOMIC_BOOL_LOCK_FREE     2
+#define ATOMIC_CHAR_LOCK_FREE     2
+#define ATOMIC_SHORT_LOCK_FREE    2
+#define ATOMIC_INT_LOCK_FREE      2
+#define ATOMIC_LONG_LOCK_FREE     2
+#define ATOMIC_LLONG_LOCK_FREE    2
+#define ATOMIC_POINTER_LOCK_FREE  2
+
+#endif /* _STDATOMIC_H */
 `,
 	"assert.h": `
 /* gaston built-in <assert.h> */

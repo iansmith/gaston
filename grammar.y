@@ -34,7 +34,8 @@ import "fmt"
 %token LONG UNSIGNED SHORT FLOAT DOUBLE STRUCT SIZEOF ENUM UNION TYPEDEF STATIC VA_ARG TYPEOF INT128 SIGNED
 %token SWITCH CASE DEFAULT
 %token ATTR_PACKED
-%token ATTR_WEAK ATTR_ALIGNED
+%token ATTR_WEAK
+%token <ival> ATTR_ALIGNED
 %token <sval> ATTR_SECTION ATTR_ALIAS
 %token <ival> ALIGNAS_SPEC
 %token ALIGNOF GENERIC
@@ -170,7 +171,7 @@ declaration
 	| declaration_specifiers gd_fun_declarator ATTR_SECTION ';'
 		{ n := applyDeclToFunNode($1, $2.Name, $2.PtrChain, $2.Params, nil); n.SectionName = $3; $$ = []*Node{n} }
 	| declaration_specifiers gd_fun_declarator ATTR_ALIGNED ';'
-		{ $$ = []*Node{applyDeclToFunNode($1, $2.Name, $2.PtrChain, $2.Params, nil)} }
+		{ n := applyDeclToFunNode($1, $2.Name, $2.PtrChain, $2.Params, nil); n.Align = $3; $$ = []*Node{n} }
 	/* ── __attribute__((section("name"))) — propagate section name into AST ── */
 	| ATTR_SECTION declaration_specifiers gd_fun_declarator compound_stmt
 		{ n := applyDeclToFunNode($2, $3.Name, $3.PtrChain, $3.Params, $4); n.SectionName = $1; $$ = []*Node{n} }
@@ -184,15 +185,15 @@ declaration
 		{ n := applyDeclToFunNode($1, $3.Name, $3.PtrChain, $3.Params, $4); n.SectionName = $2; $$ = []*Node{n} }
 	| declaration_specifiers ATTR_SECTION gd_fun_declarator ';'
 		{ n := applyDeclToFunNode($1, $3.Name, $3.PtrChain, $3.Params, nil); n.SectionName = $2; $$ = []*Node{n} }
-	/* ── __attribute__((aligned)) — parse and ignore ── */
+	/* ── __attribute__((aligned(N))) — propagate alignment into AST ── */
 	| ATTR_ALIGNED declaration_specifiers gd_fun_declarator compound_stmt
-		{ $$ = []*Node{applyDeclToFunNode($2, $3.Name, $3.PtrChain, $3.Params, $4)} }
+		{ n := applyDeclToFunNode($2, $3.Name, $3.PtrChain, $3.Params, $4); n.Align = $1; $$ = []*Node{n} }
 	| ATTR_ALIGNED declaration_specifiers gd_fun_declarator ';'
-		{ $$ = []*Node{applyDeclToFunNode($2, $3.Name, $3.PtrChain, $3.Params, nil)} }
+		{ n := applyDeclToFunNode($2, $3.Name, $3.PtrChain, $3.Params, nil); n.Align = $1; $$ = []*Node{n} }
 	| ATTR_ALIGNED declaration_specifiers gd_init_declarator_list ';'
-		{ $$ = buildDeclNodes($2, $3, yylex.(*lexer)) }
+		{ nodes := buildDeclNodes($2, $3, yylex.(*lexer)); for _, n := range nodes { n.Align = $1 }; $$ = nodes }
 	| declaration_specifiers ATTR_ALIGNED gd_init_declarator_list ';'
-		{ $$ = buildDeclNodes($1, $3, yylex.(*lexer)) }
+		{ nodes := buildDeclNodes($1, $3, yylex.(*lexer)); for _, n := range nodes { n.Align = $2 }; $$ = nodes }
 	/* ── __attribute__((alias("target"))) — function and variable aliases ── */
 	| declaration_specifiers gd_fun_declarator ATTR_ALIAS ';'
 		{ n := applyDeclToFunNode($1, $2.Name, $2.PtrChain, $2.Params, nil); n.AliasTarget = $3; $$ = []*Node{n} }
@@ -491,6 +492,9 @@ block_item_list
 		{ $$ = append($1, $2...) }
 	/* _Alignas(N) local variable declaration */
 	| block_item_list ALIGNAS_SPEC var_declaration
+		{ for _, n := range $3 { n.Align = $2 }; $$ = append($1, $3...) }
+	/* __attribute__((aligned(N))) local variable declaration */
+	| block_item_list ATTR_ALIGNED var_declaration
 		{ for _, n := range $3 { n.Align = $2 }; $$ = append($1, $3...) }
 	/* const_declaration merged into var_declaration */
 	| block_item_list declaration_specifiers local_fun_proto ';'
