@@ -285,10 +285,15 @@ var skipWords = map[string]bool{
 	"__volatile__":  true,
 	"__const__":     true,
 	"__signed__":    true,
-	"__inline__":    true,
-	"__inline":      true,
-	"__noreturn__":  true,
-	"__extension__": true,
+	"__inline__":         true,
+	"__inline":           true,
+	"__noreturn__":       true,
+	"__noreturn":         true,  // GCC single-underscore form
+	"__always_inline__":  true,  // __attribute__((always_inline)) spelled as keyword
+	"__always_inline":    true,
+	"__noinline__":       true,
+	"__noinline":         true,
+	"__extension__":      true,
 	// Thread-local storage specifier (GCC __thread / C11 _Thread_local)
 	"__thread":       true,
 	"_Thread_local":  true,
@@ -918,6 +923,26 @@ scan:
 		return int('!')
 	case '?':
 		return QUESTION
+	case '[':
+		// C23 [[attribute]] syntax: scan and discard the entire [[...]] block.
+		// This handles [[fallthrough]], [[noreturn]], [[nodiscard]], etc.
+		if l.pos < len(l.src) && l.src[l.pos] == '[' {
+			l.pos++ // consume second '['
+			depth := 2
+			for l.pos < len(l.src) && depth > 0 {
+				switch l.src[l.pos] {
+				case '[':
+					depth++
+				case ']':
+					depth--
+				case '\n':
+					l.line++
+				}
+				l.pos++
+			}
+			return l.Lex(lval) // re-enter to get the next real token
+		}
+		return int(c)
 	default:
 		return int(c)
 	}
