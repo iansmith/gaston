@@ -1151,8 +1151,12 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 #define __DBL_HAS_QUIET_NAN__   1
 #define __DBL_DECIMAL_DIG__     17
 /* gaston treats long double as double (64-bit IEEE 754).
-   LDBL_MANT_DIG == 53 is the signal picolibc/fdlibm use to detect this. */
+   LDBL_MANT_DIG == 53 is the signal picolibc/fdlibm use to detect this.
+   _LDBL_EQ_DBL is picolibc's internal signal that long double == double;
+   normally set in ieeefp.h but we define it here so the patch hunk is
+   not needed. */
 #define __LDBL_MANT_DIG__       53
+#define _LDBL_EQ_DBL            1
 #define __LDBL_DIG__            15
 #define __LDBL_MIN_EXP__        (-1021)
 #define __LDBL_MAX_EXP__        1024
