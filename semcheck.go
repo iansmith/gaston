@@ -1092,12 +1092,7 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 						arrayDecayLostTag := (lTag != "" && rhsPtee != nil && rhsPtee.Kind == TypeStruct && rTag == "") ||
 							(rTag != "" && lhsPtee != nil && lhsPtee.Kind == TypeStruct && lTag == "")
 						if !bothStruct && !arrayDecayLostTag {
-							// Demote to warning: incompatible pointer assignment is a
-							// constraint violation but GCC only warns by default.
-							// Gaston's pointee-type tracking through union fields and
-							// complex address-of chains is incomplete, so this check
-							// produces false positives for correct C code (e.g. Lua).
-							fmt.Fprintf(os.Stderr, "gaston: assignment of incompatible pointer types\n")
+							*errs = append(*errs, "assignment of incompatible pointer types")
 						}
 					}
 				}
