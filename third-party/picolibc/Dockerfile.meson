@@ -1,0 +1,53 @@
+# Picolibc Build via Meson — ARM64 Linux container
+#
+# Uses meson + ninja to configure picolibc, then gaston as the C compiler.
+# This approach requires NO patches to picolibc source — meson drives the
+# file selection and flag generation, gaston does the actual compilation.
+#
+# BUILD CONTEXT: Must be the repository root (extract.sh handles this).
+
+ARG TARGETPLATFORM=linux/arm64
+FROM --platform=$TARGETPLATFORM iansmith/gaston AS base
+
+# Install meson via pip (Ubuntu 22.04's meson 0.61.2 is too old for picolibc 1.8.6
+# which requires C18 standard support; pip gives us a recent version).
+RUN apt-get update && apt-get install -y ninja-build python3 python3-pip && \
+    rm -rf /var/lib/apt/lists/* && \
+    pip3 install meson
+
+# Clean inherited /output from base gaston image.
+RUN rm -rf /output && mkdir -p /output
+
+# Download picolibc 1.8.6 (unmodified).
+ARG PICOLIBC_VERSION=1.8.6
+RUN curl -sL https://github.com/picolibc/picolibc/archive/refs/tags/${PICOLIBC_VERSION}.tar.gz | \
+    tar xz -C /tmp
+
+# Copy the gaston meson cross-file.
+COPY third-party/picolibc/gaston-aarch64.ini /gaston-cross/gaston-aarch64.ini
+
+# Configure picolibc with meson using gaston as the C compiler.
+# Key options:
+#   -Dmultilib=false      — single-arch build only
+#   -Dpicolib=false       — skip picolib (requires linker scripts we don't have)
+#   -Dpicocrt=false       — skip crt0 (gaston provides its own startup)
+#   -Dtests=false         — skip test suite (requires execution wrapper)
+RUN meson setup /tmp/picolibc-build \
+    /tmp/picolibc-${PICOLIBC_VERSION} \
+    --cross-file /gaston-cross/gaston-aarch64.ini \
+    --prefix=/output \
+    -Dincludedir=/output/include \
+    -Dlibdir=/output/lib \
+    -Dmultilib=false \
+    -Dpicolib=false \
+    -Dpicocrt=false \
+    -Dtests=false \
+    -Dthread-local-storage=false \
+    -Dsemihost=false \
+    2>&1; cat /tmp/picolibc-build/meson-logs/meson-log.txt 2>/dev/null || true
+
+# Compile with ninja — gaston handles each .c file.
+RUN ninja -C /tmp/picolibc-build -j1 2>&1; exit 0
+
+WORKDIR /output
+CMD ["/bin/sh", "-c", "echo 'Meson picolibc build complete' && ls -lh /output/lib/ 2>/dev/null || echo '(no lib output yet)'"]

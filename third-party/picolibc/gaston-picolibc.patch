@@ -774,15 +774,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/exp2.c picolibc-patched/cmd/g
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/fabsl.c picolibc-patched/cmd/gaston/libm/common/fabsl.c
 --- picolibc-pristine/cmd/gaston/libm/common/fabsl.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/fabsl.c	2026-04-08 22:31:48
-@@ -34,7 +34,7 @@
- #ifdef _NEED_FLOAT_HUGE
- 
- long double
--fabsl (long double x)
-+fabsl(long double x)
- {
-     if (x == 0.0l)
-         return 0.0l;
 @@ -44,4 +44,3 @@
  }
  
@@ -4924,21 +4915,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_denorml.c picolibc-patch
      return __math_with_errnol(x, ERANGE);
  }
  
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_err_check_oflow.c picolibc-patched/cmd/gaston/libm/common/math_err_check_oflow.c
---- picolibc-pristine/cmd/gaston/libm/common/math_err_check_oflow.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/math_err_check_oflow.c	2026-04-08 22:31:48
-@@ -33,9 +33,9 @@
- /* Check result and set errno if necessary.  */
- 
- HIDDEN __float64
--__math_check_oflow (__float64 y)
-+__math_check_oflow(__float64 y)
- {
--    return isinf (y) ? __math_with_errno (y, ERANGE) : y;
-+    return isinf(y) ? __math_with_errno(y, ERANGE) : y;
- }
- 
- #endif /* _NEED_FLOAT64 */
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_err_check_uflow.c picolibc-patched/cmd/gaston/libm/common/math_err_check_uflow.c
 --- picolibc-pristine/cmd/gaston/libm/common/math_err_check_uflow.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/math_err_check_uflow.c	2026-04-08 22:31:48
@@ -4951,99 +4927,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_err_check_uflow.c picoli
  {
 -  return y == 0.0 ? __math_with_errno (y, ERANGE) : y;
 +    return y == 0.0 ? __math_with_errno(y, ERANGE) : y;
- }
- 
- #endif /* _NEED_FLOAT64 */
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_err_divzero.c picolibc-patched/cmd/gaston/libm/common/math_err_divzero.c
---- picolibc-pristine/cmd/gaston/libm/common/math_err_divzero.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/math_err_divzero.c	2026-04-08 22:31:48
-@@ -30,13 +30,13 @@
- 
- #ifdef _NEED_FLOAT64
- 
--static CONST_FORCE_FLOAT64 VAL = pick_float64_except(_F_64(0.0), (__float64) INFINITY);
-+static CONST_FORCE_FLOAT64 VAL = pick_float64_except(_F_64(0.0), (__float64)INFINITY);
- 
- HIDDEN __float64
--__math_divzero (uint32_t sign)
-+__math_divzero(uint32_t sign)
- {
-     __float64 y = pick_float64_except((sign ? _F_64(-1.0) : _F_64(1.0)) / VAL, sign ? (-VAL) : VAL);
--    return __math_with_errno (y, ERANGE);
-+    return __math_with_errno(y, ERANGE);
- }
- 
- #endif
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_err_invalid.c picolibc-patched/cmd/gaston/libm/common/math_err_invalid.c
---- picolibc-pristine/cmd/gaston/libm/common/math_err_invalid.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/math_err_invalid.c	2026-04-08 22:31:48
-@@ -30,15 +30,15 @@
- 
- #ifdef _NEED_FLOAT64
- 
--static CONST_FORCE_FLOAT64 VAL = pick_float64_except(_F_64(0.0), (__float64) NAN);
-+static CONST_FORCE_FLOAT64 VAL = pick_float64_except(_F_64(0.0), (__float64)NAN);
- 
- HIDDEN __float64
--__math_invalid (__float64 x)
-+__math_invalid(__float64 x)
- {
-     if (isnan(x))
-         return pick_float64_except(x + x, VAL);
-     x = pick_float64_except(VAL / VAL, VAL);
--    return __math_with_errno (x, EDOM);
-+    return __math_with_errno(x, EDOM);
- }
- 
- #ifndef __math_set_invalid
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_err_may_uflow.c picolibc-patched/cmd/gaston/libm/common/math_err_may_uflow.c
---- picolibc-pristine/cmd/gaston/libm/common/math_err_may_uflow.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/math_err_may_uflow.c	2026-04-08 22:31:48
-@@ -35,9 +35,9 @@
- /* Underflows to zero in some non-nearest rounding mode, setting errno
-    is valid even if the result is non-zero, but in the subnormal range.  */
- HIDDEN __float64
--__math_may_uflow (uint32_t sign)
-+__math_may_uflow(uint32_t sign)
- {
-     __float64 y = pick_float64_except((sign ? -VAL : VAL) * VAL, sign ? -VAL : VAL);
--    return __math_with_errno (y, ERANGE);
-+    return __math_with_errno(y, ERANGE);
- }
- #endif
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_err_oflow.c picolibc-patched/cmd/gaston/libm/common/math_err_oflow.c
---- picolibc-pristine/cmd/gaston/libm/common/math_err_oflow.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/math_err_oflow.c	2026-04-08 22:31:48
-@@ -30,13 +30,13 @@
- 
- #ifdef _NEED_FLOAT64
- 
--static CONST_FORCE_FLOAT64 VAL = pick_float64_except(_FLOAT64_MAX, (__float64) INFINITY);
-+static CONST_FORCE_FLOAT64 VAL = pick_float64_except(_FLOAT64_MAX, (__float64)INFINITY);
- 
- HIDDEN __float64
--__math_oflow (uint32_t sign)
-+__math_oflow(uint32_t sign)
- {
-     __float64 y = pick_float64_except((sign ? -VAL : VAL) * VAL, sign ? -VAL : VAL);
--    return __math_with_errno (y, ERANGE);
-+    return __math_with_errno(y, ERANGE);
- }
- 
- #endif
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_err_uflow.c picolibc-patched/cmd/gaston/libm/common/math_err_uflow.c
---- picolibc-pristine/cmd/gaston/libm/common/math_err_uflow.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/math_err_uflow.c	2026-04-08 22:31:48
-@@ -33,10 +33,10 @@
- static CONST_FORCE_FLOAT64 VAL = pick_float64_except(_FLOAT64_MIN, _F_64(0.0));
- 
- HIDDEN __float64
--__math_uflow (uint32_t sign)
-+__math_uflow(uint32_t sign)
- {
-     __float64 y = pick_float64_except((sign ? -VAL : VAL) * VAL, sign ? -VAL : VAL);
--    return __math_with_errno (y, ERANGE);
-+    return __math_with_errno(y, ERANGE);
  }
  
  #endif /* _NEED_FLOAT64 */
@@ -5094,95 +4977,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_errf_check_uflowf.c pico
  {
 -  return y == 0.0f ? __math_with_errnof (y, ERANGE) : y;
 +    return y == 0.0f ? __math_with_errnof(y, ERANGE) : y;
- }
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_errf_divzerof.c picolibc-patched/cmd/gaston/libm/common/math_errf_divzerof.c
---- picolibc-pristine/cmd/gaston/libm/common/math_errf_divzerof.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/math_errf_divzerof.c	2026-04-08 22:31:48
-@@ -29,11 +29,11 @@
- #include "fdlibm.h"
- #include "math_config.h"
- 
--static CONST_FORCE_FLOAT VAL = pick_float_except(0.0f, (float) INFINITY);
-+static CONST_FORCE_FLOAT VAL = pick_float_except(0.0f, (float)INFINITY);
- 
- HIDDEN float
--__math_divzerof (uint32_t sign)
-+__math_divzerof(uint32_t sign)
- {
-     float y = pick_float_except((sign ? -1.0f : 1.0f) / VAL, (sign ? -(VAL) : VAL));
--    return __math_with_errnof (y, ERANGE);
-+    return __math_with_errnof(y, ERANGE);
- }
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_errf_invalidf.c picolibc-patched/cmd/gaston/libm/common/math_errf_invalidf.c
---- picolibc-pristine/cmd/gaston/libm/common/math_errf_invalidf.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/math_errf_invalidf.c	2026-04-08 22:31:48
-@@ -29,15 +29,15 @@
- #include "fdlibm.h"
- #include "math_config.h"
- 
--static CONST_FORCE_FLOAT VAL = pick_float_except(0.0f, (float) NAN);
-+static CONST_FORCE_FLOAT VAL = pick_float_except(0.0f, (float)NAN);
- 
- HIDDEN float
--__math_invalidf (float x)
-+__math_invalidf(float x)
- {
-     if (isnan(x))
--        return pick_float_except(x + x, (float) NAN);
-+        return pick_float_except(x + x, (float)NAN);
-     x = pick_float_except(VAL / VAL, VAL);
--    return __math_with_errnof (x, EDOM);
-+    return __math_with_errnof(x, EDOM);
- }
- 
- #ifndef __math_set_invalidf
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_errf_may_uflowf.c picolibc-patched/cmd/gaston/libm/common/math_errf_may_uflowf.c
---- picolibc-pristine/cmd/gaston/libm/common/math_errf_may_uflowf.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/math_errf_may_uflowf.c	2026-04-08 22:31:48
-@@ -36,10 +36,10 @@
- /* Underflows to zero in some non-nearest rounding mode, setting errno
-    is valid even if the result is non-zero, but in the subnormal range.  */
- HIDDEN float
--__math_may_uflowf (uint32_t sign)
-+__math_may_uflowf(uint32_t sign)
- {
-     float y = pick_float_except((sign ? -VAL : VAL) * VAL, sign ? -VAL : VAL);
--    return __math_with_errnof (y, ERANGE);
-+    return __math_with_errnof(y, ERANGE);
- }
- 
- #endif
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_errf_oflowf.c picolibc-patched/cmd/gaston/libm/common/math_errf_oflowf.c
---- picolibc-pristine/cmd/gaston/libm/common/math_errf_oflowf.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/math_errf_oflowf.c	2026-04-08 22:31:48
-@@ -29,11 +29,11 @@
- #include "fdlibm.h"
- #include "math_config.h"
- 
--static CONST_FORCE_FLOAT VAL = pick_float_except(FLT_MAX, (float) INFINITY);
-+static CONST_FORCE_FLOAT VAL = pick_float_except(FLT_MAX, (float)INFINITY);
- 
- HIDDEN float
--__math_oflowf (uint32_t sign)
-+__math_oflowf(uint32_t sign)
- {
-     float y = pick_float_except((sign ? -VAL : VAL) * VAL, sign ? -VAL : VAL);
--    return __math_with_errnof (y, ERANGE);
-+    return __math_with_errnof(y, ERANGE);
- }
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_errf_uflowf.c picolibc-patched/cmd/gaston/libm/common/math_errf_uflowf.c
---- picolibc-pristine/cmd/gaston/libm/common/math_errf_uflowf.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/math_errf_uflowf.c	2026-04-08 22:31:48
-@@ -32,8 +32,8 @@
- static CONST_FORCE_FLOAT VAL = pick_float_except(FLT_MIN, 0.0f);
- 
- HIDDEN float
--__math_uflowf (uint32_t sign)
-+__math_uflowf(uint32_t sign)
- {
-     float y = pick_float_except((sign ? -VAL : VAL) * VAL, sign ? -VAL : VAL);
--    return __math_with_errnof (y, ERANGE);
-+    return __math_with_errnof(y, ERANGE);
  }
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_errf_with_errnof.c picolibc-patched/cmd/gaston/libm/common/math_errf_with_errnof.c
 --- picolibc-pristine/cmd/gaston/libm/common/math_errf_with_errnof.c	2026-04-08 22:31:47
@@ -33283,17 +33077,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_ceil.c picolibc-patched/cmd/g
      __uint32_t i;
      EXTRACT_WORDS(i0, i1, x);
      j0 = ((i0 >> 20) & 0x7ff) - 0x3ff;
-@@ -62,8 +62,8 @@
-             if (j0 == 20)
-                 i0 += 1;
-             else {
--                j = i1 + ((__uint32_t) 1 << (52 - j0));
--                if ((__uint32_t) j < (__uint32_t) i1)
-+                j = i1 + ((__uint32_t)1 << (52 - j0));
-+                if ((__uint32_t)j < (__uint32_t)i1)
-                     i0 += 1; /* got a carry */
-                 i1 = j;
-             }
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_cos.c picolibc-patched/cmd/gaston/libm/math/s_cos.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_cos.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_cos.c	2026-04-08 22:31:48
@@ -33860,17 +33643,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_floor.c picolibc-patched/cmd/
      __uint32_t i;
      EXTRACT_WORDS(i0, i1, x);
      j0 = ((i0 >> 20) & 0x7ff) - 0x3ff;
-@@ -103,8 +103,8 @@
-             if (j0 == 20)
-                 i0 += 1;
-             else {
--                j = i1 + ((__uint32_t) 1 << (52 - j0));
--                if ((__uint32_t) j < (__uint32_t) i1)
-+                j = i1 + ((__uint32_t)1 << (52 - j0));
-+                if ((__uint32_t)j < (__uint32_t)i1)
-                     i0 += 1; /* got a carry */
-                 i1 = j;
-             }
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_fmod.c picolibc-patched/cmd/gaston/libm/math/s_fmod.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_fmod.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_fmod.c	2026-04-08 22:31:48
@@ -37355,18 +37127,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_log10.c picolibc-patched/cmd
      __int32_t i, k, hx;
  
      GET_FLOAT_WORD(hx, x);
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_log2.c picolibc-patched/cmd/gaston/libm/math/sf_log2.c
---- picolibc-pristine/cmd/gaston/libm/math/sf_log2.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/sf_log2.c	2026-04-08 22:31:48
-@@ -24,7 +24,7 @@
- #undef log2
- #undef log2f
- 
--static const float log2_inv = 1.0f / (float) M_LN2;
-+static const float log2_inv = 1.0f / (float)M_LN2;
- 
- float
- log2f(float x) /* wrapper log2f */
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_pow.c picolibc-patched/cmd/gaston/libm/math/sf_pow.c
 --- picolibc-pristine/cmd/gaston/libm/math/sf_pow.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/sf_pow.c	2026-04-08 22:31:48
@@ -42728,19 +42488,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/include/ssp/unistd.h picoli
 diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/include/stdlib.h picolibc-patched/cmd/gaston/picolibc/libc/include/stdlib.h
 --- picolibc-pristine/cmd/gaston/picolibc/libc/include/stdlib.h	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/picolibc/libc/include/stdlib.h	2026-04-08 22:31:47
-@@ -118,11 +118,11 @@
- 		       size_t __nmemb,
- 		       size_t __size,
- 		       __compar_fn_t _compar);
--void	free (void *) _NOTHROW;
- void	*calloc(size_t, size_t) __malloc_like __result_use_check
- 	     __alloc_size2(1, 2) _NOTHROW;
- div_t	div (int __numer, int __denom);
- void	exit (int __status) _ATTRIBUTE ((__noreturn__));
-+void	free (void *) _NOTHROW;
- char *  getenv (const char *__string);
- #if __GNU_VISIBLE
- char *  secure_getenv (const char *__string);
 @@ -155,7 +155,7 @@
  int	mkstemps (char *, int);
  #endif
@@ -48808,16 +48555,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/mprec.c picolibc-pat
    int k;
    union double_union d;
  #ifdef VAX
-@@ -745,8 +742,8 @@
-   if (k < Ebits)
-     {
-       d0 = Exp_1 | y >> (Ebits - k);
--#ifndef _DOUBLE_IS_32BITS
-       w = xa > xa0 ? *--xa : 0;
-+#ifndef _DOUBLE_IS_32BITS
-       d1 = y << ((32 - Ebits) + k) | w >> (Ebits - k);
- #endif
-       goto ret_d;
 @@ -805,10 +802,7 @@
    union double_union d;
    _Bigint *b;
@@ -58683,19 +58420,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/tinystdio/strtod.c picolibc
  /**  The strtod() function converts the initial portion of the string pointed
       to by \a nptr to double representation.
  
-@@ -57,10 +65,10 @@
-      returned and \c ERANGE is stored in \c errno.
-  */
- 
--#define STRTOD
--
- #include "stdio_private.h"
- 
-+#define STRTOD
-+
- #include "conv_flt.c"
- 
- double
 @@ -70,7 +78,7 @@
      double flt;
      unsigned char ret;
@@ -58748,19 +58472,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/tinystdio/strtof.c picolibc
  /**  The strtof() function converts the initial portion of the string pointed
       to by \a nptr to float representation.
  
-@@ -56,10 +64,10 @@
-      returned and \c ERANGE is stored in \c errno.
-  */
- 
--#define STRTOF
--
- #include "stdio_private.h"
- 
-+#define STRTOF
-+
- #include "conv_flt.c"
- 
- float
 @@ -69,7 +77,7 @@
      float flt;
      unsigned char ret;
