@@ -1295,12 +1295,34 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 /* ── Prevent picolibc's limits.h from clobbering gaston's values ─────── */
 /* picolibc/limits.h has two problematic blocks outside _LIBC_LIMITS_H_ guard:
    - #include_next <limits.h>  (gaston does not support include_next)
-   These guards tell picolibc that GCC's limits.h has already been processed. */
+   These guards tell picolibc that GCC's limits.h has already been processed.
+   We also provide the macros that GCC's limits.h normally supplies. */
 #define _LIBC_LIMITS_H_ 1
 #define _GCC_LIMITS_H_  1
-/* Provide LONG_MAX/ULONG_MAX directly so code using them without limits.h works */
-#define LONG_MAX   9223372036854775807L
-#define ULONG_MAX  18446744073709551615UL
+#define _LIMITS_H       1
+/* char limits (AArch64: char is signed by default) */
+#define CHAR_BIT    8
+#define SCHAR_MIN   (-128)
+#define SCHAR_MAX   127
+#define UCHAR_MAX   255
+#define CHAR_MIN    (-128)
+#define CHAR_MAX    127
+/* short limits */
+#define SHRT_MIN    (-32767-1)
+#define SHRT_MAX    32767
+#define USHRT_MAX   65535
+/* int limits */
+#define INT_MIN     (-2147483647-1)
+#define INT_MAX     2147483647
+#define UINT_MAX    4294967295U
+/* long limits (AArch64 LP64: long = 64-bit) */
+#define LONG_MIN    (-9223372036854775807L-1)
+#define LONG_MAX    9223372036854775807L
+#define ULONG_MAX   18446744073709551615UL
+/* long long limits */
+#define LLONG_MIN   (-9223372036854775807LL-1)
+#define LLONG_MAX   9223372036854775807LL
+#define ULLONG_MAX  18446744073709551615ULL
 
 /* GCC/C99 predefined identifiers — approximate as empty string literals */
 #define __FUNCTION__ ""
