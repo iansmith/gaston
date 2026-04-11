@@ -1866,6 +1866,20 @@ field
 		{
 			$$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: $6, StructTag: $2, Children: $4}}
 		}
+	/* Named struct with pointer field: struct Tag { ... } *name; (e.g. XDR's x_ops) */
+	| STRUCT ID '{' field_list '}' '*' ID ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $2, Children: $4}
+			n  := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $7}; n.Pointee = structCType($2)
+			$$ = []*Node{sd, n}
+		}
+	/* const struct Tag { ... } *name; */
+	| CONST STRUCT ID '{' field_list '}' '*' ID ';'
+		{
+			sd := &Node{Kind: KindStructDef, Name: $3, Children: $5}
+			n  := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $8}; n.Pointee = structCType($3)
+			$$ = []*Node{sd, n}
+		}
 	| UNION ID '{' field_list '}' ID ';'
 		{
 			$$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeStruct, Name: $6, StructTag: $2, Children: $4, IsUnion: true}}
