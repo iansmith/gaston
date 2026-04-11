@@ -288,8 +288,6 @@ var skipWords = map[string]bool{
 	"__inline":      true,
 	"__noreturn__":  true,
 	"__extension__": true,
-	// _Alignas is silently dropped (we don't enforce alignment)
-	"_Alignas":   true,
 	// Thread-local storage specifier (GCC __thread / C11 _Thread_local)
 	"__thread":       true,
 	"_Thread_local":  true,
@@ -750,6 +748,11 @@ scan:
 		if skipWords[word] {
 			return l.Lex(lval) // re-enter to skip whitespace and get next token
 		}
+		// _Alignas(N) / alignas(N) — scan and consume the (N), return ALIGNAS_SPEC.
+		if word == "_Alignas" || word == "alignas" {
+			lval.ival = l.scanAlignasArg()
+			return ALIGNAS_SPEC
+		}
 		// GCC __attribute__((...)) — scan and consume the ((...)) block.
 		// Returns first recognized attribute token (ATTR_PACKED, ATTR_WEAK, etc.); otherwise skip.
 		if word == "__attribute__" || word == "__attribute" {
@@ -1029,6 +1032,41 @@ func (l *lexer) scanAttrParens() (int, string) {
 		l.pendingTokSvals = append(l.pendingTokSvals, foundSvals[1:]...)
 	}
 	return found[0], foundSvals[0]
+}
+
+// scanAlignasArg scans the (N) from _Alignas(N) / alignas(N), consuming
+// the parentheses and integer, and returns N.  Returns 0 if the format is
+// not recognized (no-op — silently ignored).
+func (l *lexer) scanAlignasArg() int {
+	// Skip whitespace before '('
+	for l.pos < len(l.src) && (l.src[l.pos] == ' ' || l.src[l.pos] == '\t') {
+		l.pos++
+	}
+	if l.pos >= len(l.src) || l.src[l.pos] != '(' {
+		return 0
+	}
+	l.pos++ // consume '('
+	// Skip whitespace before the integer
+	for l.pos < len(l.src) && (l.src[l.pos] == ' ' || l.src[l.pos] == '\t') {
+		l.pos++
+	}
+	// Read the integer.
+	if l.pos >= len(l.src) || !isDigit(l.src[l.pos]) {
+		return 0
+	}
+	val := 0
+	for l.pos < len(l.src) && isDigit(l.src[l.pos]) {
+		val = val*10 + int(l.src[l.pos]-'0')
+		l.pos++
+	}
+	// Skip whitespace before ')'
+	for l.pos < len(l.src) && (l.src[l.pos] == ' ' || l.src[l.pos] == '\t') {
+		l.pos++
+	}
+	if l.pos < len(l.src) && l.src[l.pos] == ')' {
+		l.pos++ // consume ')'
+	}
+	return val
 }
 
 // attrExtractStringArg extracts the quoted string from an attribute argument like ("target").

@@ -1843,6 +1843,55 @@ func TestAttrAliasELF(t *testing.T) {
 	checkAlias("aliased_val", "original_val") // variable alias
 }
 
+// TestAlignasGlobalELF compiles alignas_global.c and verifies that global
+// variables declared with _Alignas(N) have symbol values (byte offsets within
+// their section) that are multiples of N.  The test does not require Docker.
+//
+// Currently fails: _Alignas is silently dropped, so aligned16/aligned32/bss_aligned
+// land at whatever offset the default layout assigns.
+func TestAlignasGlobalELF(t *testing.T) {
+	obj := "/tmp/gaston-test-alignas-global.o"
+	t.Cleanup(func() { os.Remove(obj) })
+
+	if err := compileObj("alignas_global", obj); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+
+	ef, err := elf.Open(obj)
+	if err != nil {
+		t.Fatalf("open ELF: %v", err)
+	}
+	defer ef.Close()
+
+	syms, err := ef.Symbols()
+	if err != nil {
+		t.Fatalf("read symbol table: %v", err)
+	}
+
+	want := map[string]int{
+		"aligned16":   16,
+		"aligned32":   32,
+		"bss_aligned": 16,
+	}
+
+	found := map[string]bool{}
+	for _, sym := range syms {
+		align, ok := want[sym.Name]
+		if !ok {
+			continue
+		}
+		found[sym.Name] = true
+		if sym.Value%uint64(align) != 0 {
+			t.Errorf("symbol %q: value 0x%x is not %d-byte aligned", sym.Name, sym.Value, align)
+		}
+	}
+	for name := range want {
+		if !found[name] {
+			t.Errorf("symbol %q not found in object file", name)
+		}
+	}
+}
+
 // TestBuiltinFpclassifyELF compiles builtin_fpclassify.c and verifies that
 // __builtin_isnan, __builtin_isinf, and __builtin_copysign are emitted as
 // inline code rather than calls to undefined external symbols.

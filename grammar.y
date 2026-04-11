@@ -36,6 +36,7 @@ import "fmt"
 %token ATTR_PACKED
 %token ATTR_WEAK ATTR_ALIGNED
 %token <sval> ATTR_SECTION ATTR_ALIAS
+%token <ival> ALIGNAS_SPEC
 %token ALIGNOF GENERIC
 %token STATIC_ASSERT
 %token ASM_KW
@@ -109,6 +110,9 @@ declaration_list
 
 declaration
 	: var_declaration    { $$ = $1 }
+	/* _Alignas(N) on global variable declarations */
+	| ALIGNAS_SPEC var_declaration
+		{ for _, n := range $2 { n.Align = $1 }; $$ = $2 }
 	/* Forward struct/union/enum declarations: struct Foo; */
 	| STRUCT ID ';'    { $$ = nil }
 	| UNION ID ';'     { $$ = nil }
@@ -485,6 +489,9 @@ block_item_list
 		{ $$ = append($1, $2) }
 	| block_item_list var_declaration
 		{ $$ = append($1, $2...) }
+	/* _Alignas(N) local variable declaration */
+	| block_item_list ALIGNAS_SPEC var_declaration
+		{ for _, n := range $3 { n.Align = $2 }; $$ = append($1, $3...) }
 	/* const_declaration merged into var_declaration */
 	| block_item_list declaration_specifiers local_fun_proto ';'
 		{ fn := applyDeclToFunNode($2, $3, nil, nil, nil); $$ = append($1, fn) }
@@ -1743,6 +1750,12 @@ field_list
 field
 	: type_specifier ID ';'
 		{ $$ = []*Node{ctNode(KindVarDecl, $1, $2)} }
+	/* _Alignas(N) struct field — scalar */
+	| ALIGNAS_SPEC type_specifier ID ';'
+		{ n := ctNode(KindVarDecl, $2, $3); n.Align = $1; $$ = []*Node{n} }
+	/* _Alignas(N) struct field — scalar array */
+	| ALIGNAS_SPEC type_specifier ID '[' const_int_expr ']' ';'
+		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $3, Val: $5, ElemType: $2.Kind, ElemPointee: arrayElemPtee($2), StructTag: $2.Tag, Align: $1}} }
 	| type_specifier id_list ';'
 		{ $$ = makeMultiDecl($1, $2) }
 	| type_specifier ID ':' const_int_expr ';'

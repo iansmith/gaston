@@ -252,6 +252,7 @@ type IRGlobal struct {
 	IsExtern    bool   // true for extern-declared globals (no storage allocated)
 	IsWeak      bool   // true for __attribute__((weak)) globals
 	SectionName string // non-empty for __attribute__((section("name")))
+	Align       int    // non-zero for _Alignas(N): required alignment in bytes
 	Size       int     // 1 for scalar, N for array[N] or struct (N = numFields)
 	InnerDim   int     // inner dimension for 2D arrays (0 for 1D or non-array)
 	HasInitVal bool
@@ -280,6 +281,7 @@ type IRLocal struct {
 	StructTag string  // struct type name (when IsStruct)
 	ArrSize   int      // 1 for scalar, N for int x[N]; for struct: number of fields; 0 for VLA
 	ElemType  TypeKind // element type for arrays (TypeChar → 1 byte, TypeInt → 4 bytes, etc.; 0 → 8 bytes)
+	Align     int      // non-zero for _Alignas(N): required alignment in bytes
 }
 
 // IRFunc is the IR for one function.

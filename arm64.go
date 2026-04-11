@@ -160,6 +160,9 @@ func buildFrame(fn *IRFunc, structDefs map[string]*StructDef) *frame {
 
 	// Local variables (declared in function body).
 	for _, loc := range fn.Locals {
+		if loc.Align > 0 {
+			offset = (offset + loc.Align - 1) &^ (loc.Align - 1)
+		}
 		f.offsets[loc.Name] = offset
 		if loc.IsVLA {
 			// VLA: the frame slot holds the runtime base pointer (8 bytes).

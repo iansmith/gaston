@@ -447,6 +447,7 @@ type Node struct {
 	IsWeak         bool     // true for __attribute__((weak)) functions/globals
 	AliasTarget    string   // non-empty for __attribute__((alias("target"))): the target symbol name
 	SectionName    string   // non-empty for __attribute__((section("name"))): the target ELF section
+	Align          int      // non-zero for _Alignas(N): required alignment in bytes
 	ElemType       TypeKind // for TypeIntArray: element type; TypePtr when array-of-pointers
 	ElemPointee    *CType   // for TypeIntArray with ElemType==TypePtr: the pointer's pointee CType
 	Dim2           int      // inner dimension for 2D arrays (e.g. for int a[M][N]: Dim2=N)

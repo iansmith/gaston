@@ -149,6 +149,7 @@ func genIR(prog *Node) *IRProgram {
 				IsExtern:    decl.IsExtern,
 				IsWeak:      decl.IsWeak,
 				SectionName: decl.SectionName,
+				Align:       decl.Align,
 				Size:        sz,
 				InnerDim:  decl.Dim2,
 			}
@@ -522,6 +523,7 @@ func (g *irGen) genCompound(n *Node) {
 					StructTag: child.StructTag,
 					ArrSize:   sz,
 					ElemType:  child.ElemType,
+					Align:     child.Align,
 				})
 				if len(child.Children) > 0 {
 					if child.Children[0].Kind == KindInitList {

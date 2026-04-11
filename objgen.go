@@ -184,19 +184,32 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 		}
 		if gbl.HasInitVal && !gbl.IsArr {
 			sl.inData = true
+			if gbl.Align > 0 {
+				dataTotal = (dataTotal + uint64(gbl.Align) - 1) &^ (uint64(gbl.Align) - 1)
+			}
 			sl.dataOff = dataTotal
 			dataTotal += 8
 		} else if len(gbl.InitData) > 0 {
 			// Struct/array with init data → .data section.
 			sz := uint64(len(gbl.InitData))
-			// Align to 8 bytes.
-			if sz%8 != 0 {
-				sz = (sz + 7) &^ 7
+			// Align to 8 bytes (or requested alignment if larger).
+			alignTo := uint64(8)
+			if gbl.Align > 0 && uint64(gbl.Align) > alignTo {
+				alignTo = uint64(gbl.Align)
+			}
+			if sz%alignTo != 0 {
+				sz = (sz + alignTo - 1) &^ (alignTo - 1)
 			}
 			sl.inData = true
+			if gbl.Align > 0 {
+				dataTotal = (dataTotal + uint64(gbl.Align) - 1) &^ (uint64(gbl.Align) - 1)
+			}
 			sl.dataOff = dataTotal
 			dataTotal += sz
 		} else {
+			if gbl.Align > 0 {
+				bssTotal = (bssTotal + uint64(gbl.Align) - 1) &^ (uint64(gbl.Align) - 1)
+			}
 			sl.bssOff = bssTotal
 			bssTotal += uint64(gbl.Size) * 8
 		}
