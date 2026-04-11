@@ -1789,6 +1789,8 @@ field
 		{ $$ = []*Node{ctNode(KindVarDecl, $2, $3)} }
 	| CONST type_specifier '*' ID ';'
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4}; n.Pointee = $2; $$ = []*Node{n} }
+	| CONST type_specifier '*' '*' ID ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $5}; n.Pointee = ptrCType($2); $$ = []*Node{n} }
 	| CONST type_specifier '*' ID '[' const_int_expr ']' ';'
 		{ $$ = []*Node{{Kind: KindVarDecl, Type: TypeIntArray, Name: $4, Val: $6, ElemType: TypePtr, ElemPointee: $2}} }
 	| CONST type_specifier '*' ID '[' ']' ';'
