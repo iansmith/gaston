@@ -539,6 +539,10 @@ func arrayParamToPtr(p *Node) (TypeKind, *CType) {
 		// Array of pointers (e.g. char *argv[]) decays to pointer-to-pointer (char **).
 		return TypePtr, ptrCType(p.ElemPointee)
 	}
+	if p.ElemType == TypeStruct && p.StructTag != "" {
+		// Array of structs (e.g. regmatch_t pmatch[]) — preserve the struct tag.
+		return TypePtr, structCType(p.StructTag)
+	}
 	if p.ElemType != 0 {
 		return TypePtr, leafCType(p.ElemType)
 	}
