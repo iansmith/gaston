@@ -1292,14 +1292,17 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 /* Map it to long* (same as gaston's va_list = long* in stdarg.h).       */
 #define __builtin_va_list long*
 
-/* ── Prevent picolibc's limits.h from clobbering gaston's values ─────── */
-/* picolibc/limits.h has two problematic blocks outside _LIBC_LIMITS_H_ guard:
-   - #include_next <limits.h>  (gaston does not support include_next)
-   These guards tell picolibc that GCC's limits.h has already been processed.
-   We also provide the macros that GCC's limits.h normally supplies. */
-#define _LIBC_LIMITS_H_ 1
+/* ── Suppress picolibc's #include_next <limits.h> ─────────────────────── */
+/* picolibc/limits.h ends with:
+     #if defined __GNUC__ && !defined _GCC_LIMITS_H_
+     # include_next <limits.h>
+     #endif
+   gaston does not support include_next. Predefine _GCC_LIMITS_H_ so that
+   block is skipped. picolibc's own _LIBC_LIMITS_H_ guard is left alone so
+   the file processes normally (defining MB_LEN_MAX, NL_ARGMAX, etc.).
+   We also predefine the GCC built-in limit macros that the include_next
+   normally supplies (from GCC's compiler-specific limits.h): */
 #define _GCC_LIMITS_H_  1
-#define _LIMITS_H       1
 /* char limits (AArch64: char is signed by default) */
 #define CHAR_BIT    8
 #define SCHAR_MIN   (-128)
@@ -1323,6 +1326,8 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 #define LLONG_MIN   (-9223372036854775807LL-1)
 #define LLONG_MAX   9223372036854775807LL
 #define ULLONG_MAX  18446744073709551615ULL
+/* MB_LEN_MAX — max bytes in a multibyte char; 1 for single-byte embedded */
+#define MB_LEN_MAX  1
 
 /* GCC/C99 predefined identifiers — approximate as empty string literals */
 #define __FUNCTION__ ""
