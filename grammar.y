@@ -200,6 +200,13 @@ declaration
 		{ n := applyDeclToFunNode($1, $2.Name, $2.PtrChain, $2.Params, nil); n.AliasTarget = $3; $$ = []*Node{n} }
 	| declaration_specifiers gd_init_declarator_list ATTR_ALIAS ';'
 		{ nodes := buildDeclNodes($1, $2, yylex.(*lexer)); for _, n := range nodes { n.AliasTarget = $3 }; $$ = nodes }
+	/* ── Array of function pointers: extern T (*name[])(...); — e.g. __fini_array_start ── */
+	| declaration_specifiers '(' '*' ID '[' ']' ')' '(' fp_param_types ')' ';'
+		{ n := &Node{Kind: KindVarDecl, Name: $4, Type: TypePtr, IsExtern: true}
+		  n.Pointee = &CType{Kind: TypeFuncPtr}; $$ = []*Node{n} }
+	| declaration_specifiers '(' '*' ID '[' ']' ')' '(' fp_param_types ')' ATTR_WEAK ';'
+		{ n := &Node{Kind: KindVarDecl, Name: $4, Type: TypePtr, IsExtern: true, IsWeak: true}
+		  n.Pointee = &CType{Kind: TypeFuncPtr}; $$ = []*Node{n} }
 	;
 
 /* extern_declaration removed — forward declarations handled inline in declaration/block_item_list,
@@ -794,6 +801,9 @@ postfix_expr
 		{ $$ = $1 }
 	| call
 		{ $$ = $1 }
+	/* Indirect call through var (covers arr[i]() where arr[i] reduces to var first) */
+	| var '(' args ')'
+		{ $$ = &Node{Kind: KindIndirectCall, Children: append([]*Node{$1}, $3...)} }
 	| postfix_expr ARROW ID
 		{ $$ = &Node{Kind: KindFieldAccess, Op: "->", Name: $3, Children: []*Node{$1}} }
 	| postfix_expr '.' ID
@@ -804,6 +814,10 @@ postfix_expr
 		{ $$ = &Node{Kind: KindPostDec, Children: []*Node{$1}} }
 	| postfix_expr '[' expression ']'
 		{ $$ = &Node{Kind: KindIndexExpr, Children: []*Node{$1, $3}} }
+	/* Indirect call through array subscript: fp_array[i](args) */
+	| postfix_expr '[' expression ']' '(' args ')'
+		{ callee := &Node{Kind: KindIndexExpr, Children: []*Node{$1, $3}}
+		  $$ = &Node{Kind: KindIndirectCall, Children: append([]*Node{callee}, $6...)} }
 	/* Indirect call through struct field: stream->put(args) */
 	| postfix_expr ARROW ID '(' args ')'
 		{ callee := &Node{Kind: KindFieldAccess, Op: "->", Name: $3, Children: []*Node{$1}}
@@ -2165,6 +2179,9 @@ gd_declarator
 		{ $$ = &Declarator{Name: $3, PtrChain: $1, IsConstPtr: true, IsArray: true, ArraySize: -1} }
 	| '(' '*' ID ')' '(' fp_param_types ')'
 		{ $$ = &Declarator{Name: $3, IsFuncPtr: true} }
+	/* Double pointer to function: (**p)(void) */
+	| '(' '*' '*' ID ')' '(' fp_param_types ')'
+		{ $$ = &Declarator{Name: $4, IsFuncPtr: true} }
 	| '(' '*' ID '[' const_int_expr ']' ')' '(' fp_param_types ')'
 		{ $$ = &Declarator{Name: $3, IsFuncPtr: true} }
 	| '(' '*' '(' ID '[' const_int_expr ']' ')' ')' '(' fp_param_types ')'

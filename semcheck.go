@@ -1187,12 +1187,16 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 		case "<", "<=", ">", ">=", "==", "!=":
 			// Pointer comparison type checking.
 			if isPtrType(lt) && isPtrType(rt) {
-				lPtee := n.Children[0].Pointee
-				rPtee := n.Children[1].Pointee
-				isLVoid := lt == TypePtr && ctypeIsVoidPtr(lPtee)
-				isRVoid := rt == TypePtr && ctypeIsVoidPtr(rPtee)
-				if !isLVoid && !isRVoid && !ctypeEq(lPtee, rPtee) {
-					*errs = append(*errs, "comparison of incompatible pointer types")
+				// If either side is a raw function pointer (TypeFuncPtr), we don't
+				// track the full signature, so skip the pointee compatibility check.
+				if lt != TypeFuncPtr && rt != TypeFuncPtr {
+					lPtee := n.Children[0].Pointee
+					rPtee := n.Children[1].Pointee
+					isLVoid := lt == TypePtr && ctypeIsVoidPtr(lPtee)
+					isRVoid := rt == TypePtr && ctypeIsVoidPtr(rPtee)
+					if !isLVoid && !isRVoid && !ctypeEq(lPtee, rPtee) {
+						*errs = append(*errs, "comparison of incompatible pointer types")
+					}
 				}
 			}
 			n.Type = TypeInt
