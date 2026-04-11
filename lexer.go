@@ -140,14 +140,22 @@ func (l *lexer) skipAsmBody() {
 			}
 		}
 	}
-	// Skip to '('.
-	for l.pos < len(l.src) && l.src[l.pos] != '(' {
+	// If the next non-whitespace character is not '(', this is a bare
+	// __asm__; or __asm__ __volatile__; with no body — skip nothing so the
+	// ';' remains in the input for the grammar rule to consume.
+	// Skip only whitespace to peek at the next character.
+	saved := l.pos
+	savedLine := l.line
+	for l.pos < len(l.src) && (l.src[l.pos] == ' ' || l.src[l.pos] == '\t' || l.src[l.pos] == '\n' || l.src[l.pos] == '\r') {
 		if l.src[l.pos] == '\n' {
 			l.line++
 		}
 		l.pos++
 	}
-	if l.pos >= len(l.src) {
+	if l.pos >= len(l.src) || l.src[l.pos] != '(' {
+		// No '(' — restore position so ';' is still available.
+		l.pos = saved
+		l.line = savedLine
 		return
 	}
 	// Consume balanced parens.

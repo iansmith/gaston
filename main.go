@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -469,6 +470,32 @@ func main() {
 		base := strings.TrimSuffix(filepath.Base(infile), ext)
 		dir := filepath.Dir(infile)
 
+		// Assembly files (.S / .s) are preprocessed by the C preprocessor and
+		// then assembled. Delegate to gcc since gaston has no assembler backend.
+		if *compOnly && (ext == ".S" || ext == ".s") {
+			outFile := *outFlag
+			if outFile == "" {
+				outFile = filepath.Join(dir, base+".o")
+			}
+			gccArgs := []string{"-c", "-o", outFile}
+			for _, p := range includePaths {
+				gccArgs = append(gccArgs, "-I", p)
+			}
+			for _, d := range defines {
+				gccArgs = append(gccArgs, "-D", d)
+			}
+			gccArgs = append(gccArgs, infile)
+			cmd := exec.Command("gcc", gccArgs...)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				fmt.Fprintf(os.Stderr, "gaston: assembler failed: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Fprintf(os.Stderr, "gaston: wrote %s\n", outFile)
+			return
+		}
+
 		rawSrc, err := os.ReadFile(infile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
@@ -589,6 +616,35 @@ func main() {
 				os.Exit(1)
 			}
 			obj, err := loadObjFromBytes(arg, objData)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
+				os.Exit(1)
+			}
+			objs = append(objs, obj)
+		case ".S", ".s":
+			// Delegate assembly to gcc; write a temp .o and load it.
+			tmpObj, err := os.CreateTemp("", "gaston-asm-*.o")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
+				os.Exit(1)
+			}
+			tmpObj.Close()
+			gccArgs := []string{"-c", "-o", tmpObj.Name()}
+			for _, p := range includePaths {
+				gccArgs = append(gccArgs, "-I", p)
+			}
+			for _, d := range defines {
+				gccArgs = append(gccArgs, "-D", d)
+			}
+			gccArgs = append(gccArgs, arg)
+			cmd := exec.Command("gcc", gccArgs...)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				fmt.Fprintf(os.Stderr, "gaston: assembler failed for %s: %v\n", arg, err)
+				os.Exit(1)
+			}
+			obj, err := loadObjFile(tmpObj.Name())
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "gaston: %v\n", err)
 				os.Exit(1)

@@ -766,17 +766,48 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 		} else {
 			// Variable alias: copy the target symbol's section and value.
 			targetIdx, ok := globalSymIdx[a.Target]
-			if !ok {
-				return fmt.Errorf("alias %q: target variable %q not found in object", a.Name, a.Target)
+			if ok {
+				target := syms[targetIdx]
+				syms = append(syms, symRec{
+					nameIdx: nameIdx,
+					info:    (1 << 4) | 1, // STB_GLOBAL | STT_OBJECT
+					shndx:   target.shndx,
+					value:   target.value,
+					size:    target.size,
+				})
+			} else {
+				// Fallback: the alias may point to a function whose type was not
+				// resolved (e.g. __typeof(fn) aliases where TypeTypeof was not
+				// resolved to TypeFuncPtr). Try the function code-label lookup.
+				targetLabel := funcLabel(a.Target)
+				var wordIdx int
+				var shndx uint16
+				var found bool
+				if wi, ok2 := cb.labels[targetLabel]; ok2 {
+					wordIdx = wi
+					shndx = objSecText
+					found = true
+				}
+				if !found {
+					for _, ces := range customExecList {
+						if wi, ok2 := ces.cb.labels[targetLabel]; ok2 {
+							wordIdx = wi
+							shndx = ces.secIdx
+							found = true
+							break
+						}
+					}
+				}
+				if !found {
+					return fmt.Errorf("alias %q: target %q not found in object (tried variable and function)", a.Name, a.Target)
+				}
+				syms = append(syms, symRec{
+					nameIdx: nameIdx,
+					info:    (1 << 4) | 2, // STB_GLOBAL | STT_FUNC
+					shndx:   shndx,
+					value:   uint64(wordIdx) * 4,
+				})
 			}
-			target := syms[targetIdx]
-			syms = append(syms, symRec{
-				nameIdx: nameIdx,
-				info:    (1 << 4) | 1, // STB_GLOBAL | STT_OBJECT
-				shndx:   target.shndx,
-				value:   target.value,
-				size:    target.size,
-			})
 		}
 	}
 

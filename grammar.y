@@ -122,8 +122,9 @@ declaration
 	| union_declaration  { $$ = $1 }
 	| enum_declaration   { $$ = $1 }
 	| typedef_declaration { $$ = $1 }
-	/* GCC global inline assembly: __asm(...); — parse and discard */
+	/* GCC global inline assembly: __asm(...); or bare __asm__; — parse and discard */
 	| ASM_KW '(' args ')' ';'  { $$ = nil }
+	| ASM_KW ';'               { $$ = nil }
 	| STATIC_ASSERT '(' const_int_expr ',' STRING_LIT ')' ';'
 		{
 			if $3 == 0 {
@@ -524,8 +525,10 @@ block_item_list
 	/* Local typedef declaration */
 	| block_item_list typedef_declaration
 		{ $$ = $1 }
-	/* GCC inline assembly: __asm(...); — parse and discard */
+	/* GCC inline assembly: __asm(...); or bare __asm__; — parse and discard */
 	| block_item_list ASM_KW '(' args ')' ';'
+		{ $$ = $1 }
+	| block_item_list ASM_KW ';'
 		{ $$ = $1 }
 	| block_item_list STATIC_ASSERT '(' const_int_expr ',' STRING_LIT ')' ';'
 		{

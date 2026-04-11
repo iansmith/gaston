@@ -113,11 +113,12 @@ func genIR(prog *Node) *IRProgram {
 		if decl.Kind == KindVarDecl && !decl.IsConst {
 			// Variable alias: register as extern for codegen but record the alias target
 			// so objgen can emit a defined symbol instead of an SHN_UNDEF reference.
+			// TypeFuncPtr means the alias target is a function (e.g. __typeof(free)).
 			if decl.AliasTarget != "" {
 				g.prog.Aliases = append(g.prog.Aliases, IRAlias{
 					Name:   decl.Name,
 					Target: decl.AliasTarget,
-					IsFunc: false,
+					IsFunc: decl.Type == TypeFuncPtr,
 				})
 				// Register as extern so code can reference it via pool/reloc.
 				gbl := &IRGlobal{Name: decl.Name, IsExtern: true, Size: 1}
