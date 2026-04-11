@@ -790,6 +790,17 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 			g.cb.emit(encUMOVb0(regX0, 0))      // UMOV W0, V0.B[0]
 			g.store(regX0, q.Dst)
 
+		case IRFfs:
+			// ffs(x) = 0 if x==0, else ctz(x)+1.
+			// ARM64: CMP X0,#0; RBIT X1,X0; CLZ X1,X1; ADD X1,X1,#1; CSEL X0,XZR,X1,EQ
+			g.load(q.Src1, regX0)
+			g.cb.emit(encCMPimm0(regX0))                      // CMP X0, #0  (Z=1 if x==0)
+			g.cb.emit(encRBIT(regX1, regX0))                  // RBIT X1, X0
+			g.cb.emit(encCLZ(regX1, regX1))                   // CLZ  X1, X1  (= ctz(x))
+			g.cb.emit(encADDimm(regX1, regX1, 1))             // ADD  X1, X1, #1
+			g.cb.emit(encCSEL(regX0, regXZR, regX1, condEQ)) // CSEL X0, XZR, X1, EQ
+			g.store(regX0, q.Dst)
+
 		case IR128Copy:
 			g.load128(q.Src1, regX0, regX1)
 			g.store128(regX0, regX1, q.Dst)

@@ -1937,3 +1937,52 @@ func TestBuiltinFpclassifyELF(t *testing.T) {
 		}
 	}
 }
+
+// TestBuiltinExtrasELF verifies that the additional GCC builtins added to
+// support picolibc are handled as intrinsics (no SHN_UNDEF references):
+//   - __builtin_ffs / __builtin_ffsl: find-first-set (IRFfs inline)
+//   - __builtin_signbit / __builtin_isfinite / __builtin_isnormal: FP
+//     classification macros that expand to __builtin_copysign/__builtin_isnan/
+//     __builtin_isinf intrinsics — none should appear as external calls.
+func TestBuiltinExtrasELF(t *testing.T) {
+	obj := "/tmp/gaston-test-builtin-extras.o"
+	t.Cleanup(func() { os.Remove(obj) })
+
+	if err := compileObj("builtin_extras", obj); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+
+	ef, err := elf.Open(obj)
+	if err != nil {
+		t.Fatalf("open ELF: %v", err)
+	}
+	defer ef.Close()
+
+	syms, err := ef.Symbols()
+	if err != nil {
+		t.Fatalf("read symbol table: %v", err)
+	}
+
+	// These must never appear as undefined externals — they must be inlined.
+	mustBeInlined := []string{
+		"__builtin_ffs",
+		"__builtin_ffsl",
+		"__builtin_signbit",
+		"__builtin_isfinite",
+		"__builtin_isnormal",
+		"__builtin_isnan",
+		"__builtin_isinf",
+		"__builtin_copysign",
+	}
+
+	for _, sym := range syms {
+		if sym.Section != elf.SHN_UNDEF {
+			continue
+		}
+		for _, name := range mustBeInlined {
+			if sym.Name == name {
+				t.Errorf("builtin %q emitted as undefined external call — must be inlined", name)
+			}
+		}
+	}
+}

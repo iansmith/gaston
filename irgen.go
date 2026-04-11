@@ -2226,7 +2226,8 @@ func (g *irGen) genCall(n *Node) IRAddr {
 	switch n.Name {
 	case "__builtin_clz", "__builtin_clzl", "__builtin_clzll",
 		"__builtin_ctz", "__builtin_ctzl", "__builtin_ctzll",
-		"__builtin_popcount", "__builtin_popcountl", "__builtin_popcountll":
+		"__builtin_popcount", "__builtin_popcountl", "__builtin_popcountll",
+		"__builtin_ffs", "__builtin_ffsl", "__builtin_ffsll":
 		return g.genBuiltinBitop(n)
 	case "__builtin_expect":
 		// __builtin_expect(expr, hint) — just return expr, ignore hint.
@@ -2257,7 +2258,7 @@ func (g *irGen) genCall(n *Node) IRAddr {
 		dst := g.newTemp()
 		g.emit(Quad{Op: IRBswap, Dst: dst, Src1: arg, TypeHint: TypeUnsignedLong})
 		return dst
-	case "alloca":
+	case "alloca", "__builtin_alloca":
 		// alloca(size): allocate size bytes on the stack.
 		arg := g.genExpr(n.Children[0])
 		slotName := fmt.Sprintf("#alloca%d", g.tempN)
@@ -2334,11 +2335,14 @@ func (g *irGen) genBuiltinBitop(n *Node) IRAddr {
 		op = IRCLZ
 	case strings.HasPrefix(n.Name, "__builtin_ctz"):
 		op = IRCTZ
+	case strings.HasPrefix(n.Name, "__builtin_ffs"):
+		op = IRFfs
 	default:
 		op = IRPopcount
 	}
 	hint := TypeUnsignedLong
-	if n.Name == "__builtin_clz" || n.Name == "__builtin_popcount" || n.Name == "__builtin_ctz" {
+	if n.Name == "__builtin_clz" || n.Name == "__builtin_popcount" || n.Name == "__builtin_ctz" ||
+		n.Name == "__builtin_ffs" {
 		hint = TypeUnsignedInt // 32-bit variant: zero-extend before operating
 	}
 	g.emit(Quad{Op: op, Dst: dst, Src1: arg, TypeHint: hint})

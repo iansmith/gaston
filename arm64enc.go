@@ -561,3 +561,10 @@ func encCCMP(rn, rm, nzcv, cond int) uint32 {
 func encSBCS(rd, rn, rm int) uint32 {
 	return 0xFA000000 | uint32(rm)<<16 | uint32(rn)<<5 | uint32(rd)
 }
+
+// encCSEL encodes CSEL Xd, Xn, Xm, cond (conditional select, 64-bit).
+// If cond is true: Xd = Xn; else Xd = Xm.
+// Encoding: 1001 1010 100 Rm cond 00 Rn Rd = 0x9A800000 | rm<<16 | cond<<12 | rn<<5 | rd
+func encCSEL(rd, rn, rm, cond int) uint32 {
+	return 0x9A800000 | uint32(rm)<<16 | uint32(cond)<<12 | uint32(rn)<<5 | uint32(rd)
+}

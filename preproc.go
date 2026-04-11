@@ -674,6 +674,39 @@ int tolower(int c);
 #define noreturn __attribute__((noreturn))
 #endif
 `,
+	"fenv.h": `
+/* gaston built-in <fenv.h> — bare-metal stub.
+   On bare-metal AArch64, floating-point exception control is rarely used.
+   All functions are declared so that picolibc headers parse cleanly;
+   actual rounding-mode and exception state changes are no-ops.          */
+#ifndef _FENV_H
+#define _FENV_H
+typedef int fenv_t;
+typedef int fexcept_t;
+#define FE_DIVBYZERO  0x08
+#define FE_INEXACT    0x10
+#define FE_INVALID    0x01
+#define FE_OVERFLOW   0x04
+#define FE_UNDERFLOW  0x02
+#define FE_ALL_EXCEPT (FE_DIVBYZERO|FE_INEXACT|FE_INVALID|FE_OVERFLOW|FE_UNDERFLOW)
+#define FE_DOWNWARD   0x400
+#define FE_TONEAREST  0
+#define FE_TOWARDZERO 0xC00
+#define FE_UPWARD     0x800
+#define FE_DFL_ENV    ((const fenv_t *)0)
+int feclearexcept(int excepts);
+int feraiseexcept(int excepts);
+int fetestexcept(int excepts);
+int fegetround(void);
+int fesetround(int round);
+int fegetenv(fenv_t *envp);
+int fesetenv(const fenv_t *envp);
+int feholdexcept(fenv_t *envp);
+int feupdateenv(const fenv_t *envp);
+int fegetexceptflag(fexcept_t *flagp, int excepts);
+int fesetexceptflag(const fexcept_t *flagp, int excepts);
+#endif
+`,
 	"signal.h": `
 /* gaston built-in <signal.h> */
 #ifndef _SIGNAL_H
@@ -1196,23 +1229,64 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 /* ── GCC NaN / Inf constructors ─────────────────────────────────────── */
 /* 0.0/0.0 produces a quiet NaN at runtime on IEEE 754 hardware.         */
 /* 1.0/0.0 produces +Inf.                                                */
-#define __builtin_nanf(s)   (0.0/0.0)
-#define __builtin_nan(s)    (0.0/0.0)
-#define __builtin_nanl(s)   (0.0/0.0)
-#define __builtin_nansf(s)  (0.0/0.0)
-#define __builtin_inff()    (1.0/0.0)
-#define __builtin_inf()     (1.0/0.0)
+#define __builtin_nanf(s)     (0.0/0.0)
+#define __builtin_nan(s)      (0.0/0.0)
+#define __builtin_nanl(s)     (0.0/0.0)
+#define __builtin_nansf(s)    (0.0/0.0)
+#define __builtin_inff()      (1.0/0.0)
+#define __builtin_inf()       (1.0/0.0)
 #define __builtin_huge_valf() (1.0/0.0)
 #define __builtin_huge_val()  (1.0/0.0)
+#define __builtin_huge_vall() (1.0/0.0)
+
+/* ── long double == double aliases ──────────────────────────────────── */
+#define __builtin_copysignl(x,y)  __builtin_copysign((double)(x),(double)(y))
+#define __builtin_isnanl(x)       __builtin_isnan((double)(x))
+#define __builtin_isinfl(x)       __builtin_isinf((double)(x))
+#define __builtin_finitel(x)      (!__builtin_isnan((double)(x)) && !__builtin_isinf((double)(x)))
+#define __builtin_issignalingl(x) 0
+
+/* ── GCC signbit ─────────────────────────────────────────────────────── */
+/* copysign(1.0, x) < 0 iff sign bit is set (handles -0.0 correctly).   */
+#define __builtin_signbit(x)  (__builtin_copysign(1.0,(double)(x)) < 0.0)
+#define __builtin_signbitf(x) (__builtin_copysign(1.0,(double)(x)) < 0.0)
+#define __builtin_signbitl(x) (__builtin_copysign(1.0,(double)(x)) < 0.0)
+
+/* ── GCC floating-point classification predicates ───────────────────── */
+/* DBL_MIN = 2.2250738585072014e-308 is the smallest normal double.      */
+#define __builtin_isfinite(x) (!__builtin_isnan(x) && !__builtin_isinf(x))
+#define __builtin_iszero(x)   ((x) == 0.0)
+#define __builtin_issubnormal(x) \
+    (!__builtin_iszero(x) && __builtin_isfinite(x) && \
+     __builtin_copysign((double)(x),1.0) < 2.2250738585072014e-308)
+#define __builtin_isnormal(x) \
+    (__builtin_isfinite(x) && !__builtin_iszero(x) && \
+     __builtin_copysign((double)(x),1.0) >= 2.2250738585072014e-308)
+#define __builtin_isinf_sign(x) \
+    (__builtin_isinf(x) ? (__builtin_signbit(x) ? -1 : 1) : 0)
+#define __builtin_fpclassify(nan_,inf_,norm_,sub_,zero_,x) \
+    (__builtin_isnan(x) ? (nan_) : \
+     __builtin_isinf(x) ? (inf_) : \
+     __builtin_iszero(x) ? (zero_) : \
+     __builtin_isnormal(x) ? (norm_) : (sub_))
 
 /* ── GCC floating-point comparison predicates ────────────────────────── */
-#define __builtin_isless(x,y)        ((x) < (y))
-#define __builtin_isgreater(x,y)     ((x) > (y))
-#define __builtin_islessequal(x,y)   ((x) <= (y))
+#define __builtin_isless(x,y)         ((x) < (y))
+#define __builtin_isgreater(x,y)      ((x) > (y))
+#define __builtin_islessequal(x,y)    ((x) <= (y))
 #define __builtin_isgreaterequal(x,y) ((x) >= (y))
-#define __builtin_islessgreater(x,y) ((x) < (y) || (x) > (y))
-#define __builtin_isunordered(x,y)   ((x) != (x) || (y) != (y))
+#define __builtin_islessgreater(x,y)  ((x) < (y) || (x) > (y))
+#define __builtin_isunordered(x,y)    ((x) != (x) || (y) != (y))
 #define __builtin_offsetof(type,member) ((size_t)(&((type*)0)->member))
+
+/* ── GCC object/bounds-checking builtins — always return unknown ─────── */
+#define __builtin_object_size(p,t)         ((long)-1)
+#define __builtin_dynamic_object_size(p,t) ((long)-1)
+
+/* ── __builtin_va_list as a type ─────────────────────────────────────── */
+/* GCC injects __builtin_va_list as a compiler-internal typedef.         */
+/* Map it to long* (same as gaston's va_list = long* in stdarg.h).       */
+#define __builtin_va_list long*
 
 /* ── Prevent picolibc's limits.h from clobbering gaston's values ─────── */
 /* picolibc/limits.h has two problematic blocks outside _LIBC_LIMITS_H_ guard:

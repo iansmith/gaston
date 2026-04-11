@@ -128,6 +128,7 @@ const (
 	IRCLZ      // count leading zeros  — ARM64: CLZ Xd, Xn (or Wd, Wn for 32-bit)
 	IRCTZ      // count trailing zeros — ARM64: RBIT Xd, Xn; CLZ Xd, Xd
 	IRPopcount // population count     — ARM64: FMOV D0,X0; CNT V0.8B,V0.8B; ADDV B0,V0.8B; UMOV X0,V0.B[0]
+	IRFfs      // find first set bit   — ARM64: CMP X0,#0; RBIT X1,X0; CLZ X1,X1; ADD X1,X1,#1; CSEL X0,XZR,X1,EQ
 
 	// ── 128-bit integer arithmetic ─────────────────────────────────────────────
 	// All Dst, Src1, Src2 refer to the lo-half IRAddr of a 128-bit local.
