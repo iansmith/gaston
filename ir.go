@@ -184,6 +184,17 @@ const (
 	IRAddOverflow
 	IRSubOverflow
 	IRMulOverflow
+
+	// Floating-point classification and manipulation intrinsics.
+	// IRFIsNaN:    Dst(int) = 1 if Src1(double) is NaN, else 0.
+	//              ARM64: FCMP Dn,Dn; CSET Xd,VS
+	// IRFIsInf:    Dst(int) = 1 if |Src1(double)| == +inf, else 0.
+	//              ARM64: FABS Dm,Dn; MOVZ Xt,0x7FF0,LSL#48; FMOV Dk,Xt; FCMP Dm,Dk; CSET Xd,EQ
+	// IRFCopySign: Dst(double) = magnitude of Src1 with sign of Src2.
+	//              ARM64: bit-level sign-bit splice via FMOV(to GP), AND/ORR masks, FMOV(from GP)
+	IRFIsNaN
+	IRFIsInf
+	IRFCopySign
 )
 
 // AddrKind identifies what an IR address refers to.

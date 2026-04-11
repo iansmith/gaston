@@ -2268,6 +2268,22 @@ func (g *irGen) genCall(n *Node) IRAddr {
 		result := g.newTemp()
 		g.emit(Quad{Op: IRCopy, Dst: result, Src1: slotAddr})
 		return result
+	case "__builtin_isnan":
+		arg := g.genExpr(n.Children[0])
+		dst := g.newTemp()
+		g.emit(Quad{Op: IRFIsNaN, Dst: dst, Src1: arg})
+		return dst
+	case "__builtin_isinf":
+		arg := g.genExpr(n.Children[0])
+		dst := g.newTemp()
+		g.emit(Quad{Op: IRFIsInf, Dst: dst, Src1: arg})
+		return dst
+	case "__builtin_copysign":
+		mag := g.genExpr(n.Children[0])
+		sgn := g.genExpr(n.Children[1])
+		dst := g.newTemp()
+		g.emit(Quad{Op: IRFCopySign, Dst: dst, Src1: mag, Src2: sgn})
+		return dst
 	case "__builtin_add_overflow", "__builtin_sub_overflow", "__builtin_mul_overflow":
 		aAddr := g.genExpr(n.Children[0])
 		bAddr := g.genExpr(n.Children[1])

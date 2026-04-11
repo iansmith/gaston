@@ -1264,6 +1264,40 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 			overflowAddr := IRAddr{Kind: AddrTemp, Name: q.Extra}
 			g.store(regX0, overflowAddr)                    // overflow → Extra temp
 
+		case IRFIsNaN:
+			// __builtin_isnan(x): 1 if x is NaN, else 0.
+			// FCMP Dn, Dn sets V=1 (unordered) when x is NaN.
+			g.fpLoad(q.Src1, 0)                       // D0 = x
+			g.cb.emit(encFCMPD(0, 0))                 // FCMP D0, D0
+			g.cb.emit(encCSET(regX0, condVS))         // CSET X0, VS (1 if NaN)
+			g.store(regX0, q.Dst)
+
+		case IRFIsInf:
+			// __builtin_isinf(x): 1 if |x| == +inf, else 0.
+			// FABS, then compare with +inf constant loaded from GP register.
+			g.fpLoad(q.Src1, 0)                               // D0 = x
+			g.cb.emit(encFABSD(0, 0))                         // FABS D0, D0  → |x|
+			g.cb.emit(encMOVZ(regX0, 0x7FF0, 48))            // X0 = 0x7FF0000000000000 (+inf bits)
+			g.cb.emit(encFMOVfromGP(1, regX0))               // FMOV D1, X0
+			g.cb.emit(encFCMPD(0, 1))                         // FCMP D0, D1
+			g.cb.emit(encCSET(regX0, condEQ))                 // CSET X0, EQ (1 if |x|==+inf)
+			g.store(regX0, q.Dst)
+
+		case IRFCopySign:
+			// __builtin_copysign(mag, sgn): magnitude of Src1, sign of Src2.
+			// Splice the sign bit of Src2 onto the magnitude of Src1 via integer ops.
+			g.fpLoad(q.Src1, 0)                               // D0 = mag
+			g.fpLoad(q.Src2, 1)                               // D1 = sgn
+			g.cb.emit(encFMOVtoGP(regX0, 0))                 // X0 = bits(D0)
+			g.cb.emit(encFMOVtoGP(regX1, 1))                 // X1 = bits(D1)
+			g.cb.emit(encMOVZ(regX2, 0x8000, 48))            // X2 = sign bit mask (1<<63)
+			g.cb.emit(encAND(regX1, regX1, regX2))           // X1 &= sign mask
+			g.cb.emit(encMOVN(regX2, 0x8000, 48))            // X2 = ~(1<<63) = 0x7FFF...FFFF
+			g.cb.emit(encAND(regX0, regX0, regX2))           // X0 &= ~sign (clear sign of mag)
+			g.cb.emit(encORR(regX0, regX0, regX1))           // X0 = mag|sign
+			g.cb.emit(encFMOVfromGP(0, regX0))               // FMOV D0, X0
+			g.fpStore(0, q.Dst)
+
 		case IRFuncAddr:
 			// Load the virtual address of a named function from the literal pool into X0.
 			// The pool entry holds the function's VA (patched in Phase 4).
