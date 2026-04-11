@@ -433,6 +433,8 @@ param
 	| STRUCT ID '*' '*' '*'
 		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: ""}; n.Pointee = ptrCType(ptrCType(structCType($2))); $$ = n }
 	/* Nameless scalar parameters — use specific tokens to avoid VOID conflict */
+	| ENUM ID     { $$ = &Node{Kind: KindParam, Type: TypeInt,         Name: ""} }
+	| ENUM ID ID  { $$ = &Node{Kind: KindParam, Type: TypeInt,         Name: $3} }
 	| INT         { $$ = &Node{Kind: KindParam, Type: TypeInt,         Name: ""} }
 	| CHAR        { $$ = &Node{Kind: KindParam, Type: TypeChar,        Name: ""} }
 	| LONG        { $$ = &Node{Kind: KindParam, Type: TypeLong,        Name: ""} }
@@ -1735,6 +1737,9 @@ fp_param_type
 	| CONST type_specifier '*' CONST '*' ID { n := &Node{Kind: KindParam, Type: TypePtr, Name: $6}; n.Pointee = ptrCType($2); $$ = n }
 	| type_specifier '*' CONST '*'          { n := &Node{Kind: KindParam, Type: TypePtr}; n.Pointee = ptrCType($1); $$ = n }
 	| type_specifier '*' CONST '*' ID       { n := &Node{Kind: KindParam, Type: TypePtr, Name: $5}; n.Pointee = ptrCType($1); $$ = n }
+	/* enum parameter types: enum xdr_op or enum xdr_op name */
+	| ENUM ID      { $$ = &Node{Kind: KindParam, Type: TypeInt, Name: ""} }
+	| ENUM ID ID   { $$ = &Node{Kind: KindParam, Type: TypeInt, Name: $3} }
 	/* unregistered-typedef fallbacks: handles types not yet seen by the lexer */
 	| ID '*'       { n := &Node{Kind: KindParam, Type: TypePtr, Name: ""}; n.Pointee = leafCType(TypeVoid); $$ = n }
 	| ID '*' ID    { n := &Node{Kind: KindParam, Type: TypePtr, Name: $3}; n.Pointee = leafCType(TypeVoid); $$ = n }
