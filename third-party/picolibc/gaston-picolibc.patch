@@ -183,89 +183,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/copysignl.c picolibc-patched/
  }
  
  #endif
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/cosf.c picolibc-patched/cmd/gaston/libm/common/cosf.c
---- picolibc-pristine/cmd/gaston/libm/common/cosf.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/cosf.c	2026-04-08 22:31:48
-@@ -39,51 +39,45 @@
-    small values.  Large inputs have their range reduced using fast integer
-    arithmetic.  */
- float
--cosf (float y)
-+cosf(float y)
- {
--  double x = (double) y;
--  double s;
--  int n;
--  const sincos_t *p = &__sincosf_table[0];
-+    double          x = (double)y;
-+    double          s;
-+    int             n;
-+    const sincos_t *p = &__sincosf_table[0];
- 
--  if (abstop12 (y) < abstop12 (pio4))
--    {
--      double x2 = x * x;
-+    if (abstop12(y) < abstop12(pio4)) {
-+        double x2 = x * x;
- 
--      if (unlikely (abstop12 (y) < abstop12 (0x1p-12f)))
--	return 1.0f;
-+        if (unlikely(abstop12(y) < abstop12(0x1p-12f)))
-+            return 1.0f;
- 
--      return sinf_poly (x, x2, p, 1);
--    }
--  else if (likely (abstop12 (y) < abstop12 (120.0f)))
--    {
--      x = reduce_fast (x, p, &n);
-+        return sinf_poly(x, x2, p, 1);
-+    } else if (likely(abstop12(y) < abstop12(120.0f))) {
-+        x = reduce_fast(x, p, &n);
- 
--      /* Setup the signs for sin and cos.  */
--      s = p->sign[n & 3];
-+        /* Setup the signs for sin and cos.  */
-+        s = p->sign[n & 3];
- 
--      if (n & 2)
--	p = &__sincosf_table[1];
-+        if (n & 2)
-+            p = &__sincosf_table[1];
- 
--      return sinf_poly (x * s, x * x, p, n ^ 1);
--    }
--  else if (abstop12 (y) < abstop12 (INFINITY))
--    {
--      uint32_t xi = asuint (y);
--      int sign = xi >> 31;
-+        return sinf_poly(x * s, x * x, p, n ^ 1);
-+    } else if (abstop12(y) < abstop12(INFINITY)) {
-+        uint32_t xi = asuint(y);
-+        int      sign = xi >> 31;
- 
--      x = reduce_large (xi, &n);
-+        x = reduce_large(xi, &n);
- 
--      /* Setup signs for sin and cos - include original sign.  */
--      s = p->sign[(n + sign) & 3];
-+        /* Setup signs for sin and cos - include original sign.  */
-+        s = p->sign[(n + sign) & 3];
- 
--      if ((n + sign) & 2)
--	p = &__sincosf_table[1];
-+        if ((n + sign) & 2)
-+            p = &__sincosf_table[1];
- 
--      return sinf_poly (x * s, x * x, p, n ^ 1);
--    }
--  else
--    return __math_invalidf (y);
-+        return sinf_poly(x * s, x * x, p, n ^ 1);
-+    } else
-+        return __math_invalidf(y);
- }
- 
- #endif
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/exp.c picolibc-patched/cmd/gaston/libm/common/exp.c
 --- picolibc-pristine/cmd/gaston/libm/common/exp.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/exp.c	2026-04-08 22:31:48
@@ -723,98 +640,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/exp2.c picolibc-patched/cmd/g
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/fdlibm.h picolibc-patched/cmd/gaston/libm/common/fdlibm.h
 --- picolibc-pristine/cmd/gaston/libm/common/fdlibm.h	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/fdlibm.h	2026-04-08 22:31:48
-@@ -31,59 +31,59 @@
-    macros below wrap up that kind of information:
- 
-    FLT_UWORD_IS_FINITE(X)
--	True if a positive float with bitmask X is finite.
-+        True if a positive float with bitmask X is finite.
- 
-    FLT_UWORD_IS_NAN(X)
--	True if a positive float with bitmask X is not a number.
-+        True if a positive float with bitmask X is not a number.
- 
-    FLT_UWORD_IS_INFINITE(X)
--	True if a positive float with bitmask X is +infinity.
-+        True if a positive float with bitmask X is +infinity.
- 
-    FLT_UWORD_MAX
--	The bitmask of FLT_MAX.
-+        The bitmask of FLT_MAX.
- 
-    FLT_UWORD_HALF_MAX
--	The bitmask of FLT_MAX/2.
-+        The bitmask of FLT_MAX/2.
- 
-    FLT_UWORD_EXP_MAX
--	The bitmask of the largest finite exponent (129 if the largest
--	exponent is used for finite numbers, 128 otherwise).
-+        The bitmask of the largest finite exponent (129 if the largest
-+        exponent is used for finite numbers, 128 otherwise).
- 
-    FLT_UWORD_LOG_MAX
--	The bitmask of log(FLT_MAX), rounded down.  This value is the largest
--	input that can be passed to exp() without producing overflow.
-+        The bitmask of log(FLT_MAX), rounded down.  This value is the largest
-+        input that can be passed to exp() without producing overflow.
- 
-    FLT_UWORD_LOG_2MAX
--	The bitmask of log(2*FLT_MAX), rounded down.  This value is the
--	largest input than can be passed to cosh() without producing
--	overflow.
-+        The bitmask of log(2*FLT_MAX), rounded down.  This value is the
-+        largest input than can be passed to cosh() without producing
-+        overflow.
- 
-    FLT_LARGEST_EXP
--	The largest biased exponent that can be used for finite numbers
--	(255 if the largest exponent is used for finite numbers, 254
--	otherwise) */
-+        The largest biased exponent that can be used for finite numbers
-+        (255 if the largest exponent is used for finite numbers, 254
-+        otherwise) */
- 
- #ifdef _FLT_LARGEST_EXPONENT_IS_NORMAL
--#define FLT_UWORD_IS_FINITE(x) 1
--#define FLT_UWORD_IS_NAN(x) 0
-+#define FLT_UWORD_IS_FINITE(x)   1
-+#define FLT_UWORD_IS_NAN(x)      0
- #define FLT_UWORD_IS_INFINITE(x) 0
--#define FLT_UWORD_MAX 0x7fffffff
--#define FLT_UWORD_EXP_MAX 0x43010000
--#define FLT_UWORD_LOG_MAX 0x42b2d4fc
--#define FLT_UWORD_LOG_2MAX 0x42b437e0
--#define HUGE ((float)0X1.FFFFFEP128)
-+#define FLT_UWORD_MAX            0x7fffffff
-+#define FLT_UWORD_EXP_MAX        0x43010000
-+#define FLT_UWORD_LOG_MAX        0x42b2d4fc
-+#define FLT_UWORD_LOG_2MAX       0x42b437e0
-+#define HUGE                     ((float)0X1.FFFFFEP128)
- #else
--#define FLT_UWORD_IS_FINITE(x) ((x)<0x7f800000L)
--#define FLT_UWORD_IS_NAN(x) ((x)>0x7f800000L)
--#define FLT_UWORD_IS_INFINITE(x) ((x)==0x7f800000L)
--#define FLT_UWORD_MAX 0x7f7fffffL
--#define FLT_UWORD_EXP_MAX 0x43000000
--#define FLT_UWORD_LOG_MAX 0x42b17217
--#define FLT_UWORD_LOG_2MAX 0x42b2d4fc
--#define HUGE ((float)3.40282346638528860e+38)
-+#define FLT_UWORD_IS_FINITE(x)   ((x) < 0x7f800000L)
-+#define FLT_UWORD_IS_NAN(x)      ((x) > 0x7f800000L)
-+#define FLT_UWORD_IS_INFINITE(x) ((x) == 0x7f800000L)
-+#define FLT_UWORD_MAX            0x7f7fffffL
-+#define FLT_UWORD_EXP_MAX        0x43000000
-+#define FLT_UWORD_LOG_MAX        0x42b17217
-+#define FLT_UWORD_LOG_2MAX       0x42b2d4fc
-+#define HUGE                     ((float)3.40282346638528860e+38)
- #endif
--#define FLT_UWORD_HALF_MAX (FLT_UWORD_MAX-(1L<<23))
--#define FLT_LARGEST_EXP (FLT_UWORD_MAX>>23)
-+#define FLT_UWORD_HALF_MAX (FLT_UWORD_MAX - (1L << 23))
-+#define FLT_LARGEST_EXP    (FLT_UWORD_MAX >> 23)
- 
- /* rounding mode tests; nearest if not set. Assumes hardware
-  * without rounding mode support uses nearest
 @@ -93,103 +93,102 @@
   * add code to check which is active
   */
@@ -1298,220 +1123,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/fma_inc.h picolibc-patched/cm
  #endif
  
  #ifdef __clang__
-@@ -183,123 +181,123 @@
- FLOAT_T
- FMA(FLOAT_T x, FLOAT_T y, FLOAT_T z)
- {
--	FLOAT_T xs, ys, zs, adj;
--	struct dd xy, r;
--	int ex, ey, ez;
--	int spread;
-+    FLOAT_T   xs, ys, zs, adj;
-+    struct dd xy, r;
-+    int       ex, ey, ez;
-+    int       spread;
- 
--	/*
--	 * Handle special cases. The order of operations and the particular
--	 * return values here are crucial in handling special cases involving
--	 * infinities, NaNs, overflows, and signed zeroes correctly.
--	 */
--        if (!isfinite(z) && isfinite(x) && isfinite(y))
--                return z + z;
--	if (!isfinite(x) || !isfinite(y) || !isfinite(z))
--		return (x * y + z);
--	if (x == (FLOAT_T) 0.0 || y == (FLOAT_T) 0.0)
--		return (x * y + z);
--	if (z == (FLOAT_T) 0.0)
--		return (x * y);
-+    /*
-+     * Handle special cases. The order of operations and the particular
-+     * return values here are crucial in handling special cases involving
-+     * infinities, NaNs, overflows, and signed zeroes correctly.
-+     */
-+    if (!isfinite(z) && isfinite(x) && isfinite(y))
-+        return z + z;
-+    if (!isfinite(x) || !isfinite(y) || !isfinite(z))
-+        return (x * y + z);
-+    if (x == (FLOAT_T)0.0 || y == (FLOAT_T)0.0)
-+        return (x * y + z);
-+    if (z == (FLOAT_T)0.0)
-+        return (x * y);
- 
--	xs = FREXP(x, &ex);
--	ys = FREXP(y, &ey);
--	zs = FREXP(z, &ez);
-+    xs = FREXP(x, &ex);
-+    ys = FREXP(y, &ey);
-+    zs = FREXP(z, &ez);
- #ifdef HAS_ROUNDING
--	int oround = fegetround();
-+    int oround = fegetround();
- #endif
--	spread = ex + ey - ez;
-+    spread = ex + ey - ez;
- 
--	/*
--	 * If x * y and z are many orders of magnitude apart, the scaling
--	 * will overflow, so we handle these cases specially.  Rounding
--	 * modes other than FE_TONEAREST are painful.
--	 */
--	if (spread < -FLOAT_MANT_DIG) {
-+    /*
-+     * If x * y and z are many orders of magnitude apart, the scaling
-+     * will overflow, so we handle these cases specially.  Rounding
-+     * modes other than FE_TONEAREST are painful.
-+     */
-+    if (spread < -FLOAT_MANT_DIG) {
- #ifdef FE_INEXACT
--		feraiseexcept(FE_INEXACT);
-+        feraiseexcept(FE_INEXACT);
- #endif
- #ifdef FE_UNDERFLOW
--		if (!isnormal(z))
--			feraiseexcept(FE_UNDERFLOW);
-+        if (!isnormal(z))
-+            feraiseexcept(FE_UNDERFLOW);
- #endif
- #ifdef HAS_ROUNDING
--		switch (oround) {
--		default:
--                        break;
-+        switch (oround) {
-+        default:
-+            break;
- #ifdef FE_TOWARDZERO
--		case FE_TOWARDZERO:
--			if ((x > (FLOAT_T) 0.0) ^ (y < (FLOAT_T) 0.0) ^ (z < (FLOAT_T) 0.0))
--				break;
--			else
--				return (NEXTAFTER(z, 0));
-+        case FE_TOWARDZERO:
-+            if ((x > (FLOAT_T)0.0) ^ (y < (FLOAT_T)0.0) ^ (z < (FLOAT_T)0.0))
-+                break;
-+            else
-+                return (NEXTAFTER(z, 0));
- #endif
- #ifdef FE_DOWNWARD
--		case FE_DOWNWARD:
--			if ((x > (FLOAT_T) 0.0) ^ (y < (FLOAT_T) 0.0))
--				break;
--			else
--				return (NEXTAFTER(z, -(FLOAT_T)INFINITY));
-+        case FE_DOWNWARD:
-+            if ((x > (FLOAT_T)0.0) ^ (y < (FLOAT_T)0.0))
-+                break;
-+            else
-+                return (NEXTAFTER(z, -(FLOAT_T)INFINITY));
- #endif
- #ifdef FE_UPWARD
--                case FE_UPWARD:
--			if ((x > (FLOAT_T) 0.0) ^ (y < (FLOAT_T) 0.0))
--				return (NEXTAFTER(z, (FLOAT_T)INFINITY));
--                        break;
-+        case FE_UPWARD:
-+            if ((x > (FLOAT_T)0.0) ^ (y < (FLOAT_T)0.0))
-+                return (NEXTAFTER(z, (FLOAT_T)INFINITY));
-+            break;
- #endif
--		}
-+        }
- #endif
--                return (z);
--	}
--	if (spread <= FLOAT_MANT_DIG * 2)
--		zs = _scalbn_no_errno(zs, -spread);
--	else
--		zs = COPYSIGN(FLOAT_MIN, zs);
-+        return (z);
-+    }
-+    if (spread <= FLOAT_MANT_DIG * 2)
-+        zs = _scalbn_no_errno(zs, -spread);
-+    else
-+        zs = COPYSIGN(FLOAT_MIN, zs);
- 
- #ifdef HAS_ROUNDING
--	fesetround(FE_TONEAREST);
-+    fesetround(FE_TONEAREST);
- #endif
- 
--	/*
--	 * Basic approach for round-to-nearest:
--	 *
--	 *     (xy.hi, xy.lo) = x * y		(exact)
--	 *     (r.hi, r.lo)   = xy.hi + z	(exact)
--	 *     adj = xy.lo + r.lo		(inexact; low bit is sticky)
--	 *     result = r.hi + adj		(correctly rounded)
--	 */
--	xy = dd_mul(xs, ys);
--	r = dd_add(xy.hi, zs);
-+    /*
-+     * Basic approach for round-to-nearest:
-+     *
-+     *     (xy.hi, xy.lo) = x * y		(exact)
-+     *     (r.hi, r.lo)   = xy.hi + z	(exact)
-+     *     adj = xy.lo + r.lo		(inexact; low bit is sticky)
-+     *     result = r.hi + adj		(correctly rounded)
-+     */
-+    xy = dd_mul(xs, ys);
-+    r = dd_add(xy.hi, zs);
- 
--	spread = ex + ey;
-+    spread = ex + ey;
- 
--	if (r.hi == (FLOAT_T) 0.0) {
--		/*
--		 * When the addends cancel to 0, ensure that the result has
--		 * the correct sign.
--		 */
-+    if (r.hi == (FLOAT_T)0.0) {
-+        /*
-+         * When the addends cancel to 0, ensure that the result has
-+         * the correct sign.
-+         */
- #ifdef HAS_ROUNDING
--		fesetround(oround);
-+        fesetround(oround);
- #endif
--		volatile FLOAT_T vzs = zs; /* XXX gcc CSE bug workaround */
--		return (xy.hi + vzs + _scalbn_no_errno(xy.lo, spread));
--	}
-+        volatile FLOAT_T vzs = zs; /* XXX gcc CSE bug workaround */
-+        return (xy.hi + vzs + _scalbn_no_errno(xy.lo, spread));
-+    }
- 
- #ifdef HAS_ROUNDING
--	if (oround != FE_TONEAREST) {
--		/*
--		 * There is no need to worry about double rounding in directed
--		 * rounding modes.
--		 */
--		fesetround(oround);
--		adj = r.lo + xy.lo;
--		return (_scalbn_no_errno(r.hi + adj, spread));
--	}
-+    if (oround != FE_TONEAREST) {
-+        /*
-+         * There is no need to worry about double rounding in directed
-+         * rounding modes.
-+         */
-+        fesetround(oround);
-+        adj = r.lo + xy.lo;
-+        return (_scalbn_no_errno(r.hi + adj, spread));
-+    }
- #endif
- 
--	adj = add_adjusted(r.lo, xy.lo);
--	if (spread + ILOGB(r.hi) > -(FLOAT_MAX_EXP - FLOAT_DENORM_BIAS))
--		return (_scalbn_no_errno(r.hi + adj, spread));
--	else
--		return (add_and_denormalize(r.hi, adj, spread));
-+    adj = add_adjusted(r.lo, xy.lo);
-+    if (spread + ILOGB(r.hi) > -(FLOAT_MAX_EXP - FLOAT_DENORM_BIAS))
-+        return (_scalbn_no_errno(r.hi + adj, spread));
-+    else
-+        return (add_and_denormalize(r.hi, adj, spread));
- }
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/frexpl.c picolibc-patched/cmd/gaston/libm/common/frexpl.c
 --- picolibc-pristine/cmd/gaston/libm/common/frexpl.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/frexpl.c	2026-04-08 22:31:48
@@ -2416,17 +2027,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/log2_data.c picolibc-patched/
  {0x1.6200012b90a8ep-1, 0x1.904ab0644b605p-55},
  {0x1.66000045734a6p-1, 0x1.1ff9bea62f7a9p-57},
  {0x1.69fffc325f2c5p-1, 0x1.27ecfcb3c90bap-55},
-@@ -227,8 +227,8 @@
- {0x1.55ffffd87b36fp+0, -0x1.709e731d02807p-55},
- {0x1.59ffff21df7bap+0, 0x1.7f79f68727b02p-55},
- {0x1.5dfffebfc3481p+0, -0x1.180902e30e93ep-54},
--# endif
-+#endif
- },
--#endif /* !_HAVE_FAST_FMA */
-+#endif /* !__HAVE_FAST_FMA */
- };
- #endif /* __OBSOLETE_MATH_DOUBLE */
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/log_data.c picolibc-patched/cmd/gaston/libm/common/log_data.c
 --- picolibc-pristine/cmd/gaston/libm/common/log_data.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/log_data.c	2026-04-08 22:31:48
@@ -2442,15 +2042,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/log_data.c picolibc-patched/c
  {0x1.61ffff94c4fecp-1, -0x1.9fe4fc998f325p-56},
  {0x1.66000020377ddp-1, 0x1.e804c7a9519f2p-55},
  {0x1.6a00004c41678p-1, 0x1.902c675d9ecfep-55},
-@@ -400,7 +400,7 @@
- {0x1.560000e342455p+0, 0x1.3fb7fac8ac151p-55},
- {0x1.59ffffc39676fp+0, 0x1.4fe7dd6659cc2p-55},
- {0x1.5dfffff10ef42p+0, -0x1.48154cb592bcbp-54},
--# elif N == 128
-+#elif N == 128
- {0x1.61000014fb66bp-1, 0x1.e026c91425b3cp-56},
- {0x1.63000034db495p-1, 0x1.dbfea48005d41p-55},
- {0x1.650000d94d478p-1, 0x1.e7fa786d6a5b7p-55},
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_config.h picolibc-patched/cmd/gaston/libm/common/math_config.h
 --- picolibc-pristine/cmd/gaston/libm/common/math_config.h	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/math_config.h	2026-04-08 22:31:48
@@ -2939,108 +2530,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_config.h picolibc-patche
  }
  #endif
  
-@@ -375,68 +355,68 @@
-  */
- #ifdef __clang__
- #define clang_barrier_long_double(x) opt_barrier_long_double(x)
--#define clang_barrier_double(x) opt_barrier_double(x)
--#define clang_barrier_float(x) opt_barrier_float(x)
--#define clang_force_double(x) force_eval_double(x)
--#define clang_force_float(x) force_eval_float(x)
-+#define clang_barrier_double(x)      opt_barrier_double(x)
-+#define clang_barrier_float(x)       opt_barrier_float(x)
-+#define clang_force_double(x)        force_eval_double(x)
-+#define clang_force_float(x)         force_eval_float(x)
- #else
- #define clang_barrier_long_double(x) (x)
--#define clang_barrier_double(x) (x)
--#define clang_barrier_float(x) (x)
--#define clang_force_double(x) (x)
--#define clang_force_float(x) (x)
-+#define clang_barrier_double(x)      (x)
-+#define clang_barrier_float(x)       (x)
-+#define clang_force_double(x)        (x)
-+#define clang_force_float(x)         (x)
- #endif
- 
- #ifdef _ADD_UNDER_R_TO_FUNCS
- 
--#define __FLOAT_NAME(x) x ## f_r
--#define _FLOAT_NAME(x) __FLOAT_NAME(x)
--#define _FLOAT_ALIAS(x) # x "f_r"
-+#define __FLOAT_NAME(x) x##f_r
-+#define _FLOAT_NAME(x)  __FLOAT_NAME(x)
-+#define _FLOAT_ALIAS(x) #x "f_r"
- 
--#define __LD_NAME(x) x ## l_r
--#define _LD_NAME(x) __LD_NAME(x)
--#define _LD_ALIAS(x) # x "l_r"
-+#define __LD_NAME(x)    x##l_r
-+#define _LD_NAME(x)     __LD_NAME(x)
-+#define _LD_ALIAS(x)    #x "l_r"
- 
- #else
- 
--#define __FLOAT_NAME(x) x ## f
--#define _FLOAT_NAME(x) __FLOAT_NAME(x)
--#define _FLOAT_ALIAS(x) # x "f"
-+#define __FLOAT_NAME(x) x##f
-+#define _FLOAT_NAME(x)  __FLOAT_NAME(x)
-+#define _FLOAT_ALIAS(x) #x "f"
- 
--#define __LD_NAME(x) x ## l
--#define _LD_NAME(x) __LD_NAME(x)
--#define _LD_ALIAS(x) # x "l"
-+#define __LD_NAME(x)    x##l
-+#define _LD_NAME(x)     __LD_NAME(x)
-+#define _LD_ALIAS(x)    #x "l"
- 
- #endif
- 
--#define __FLOAT_NAME_REG(x) x ## f
--#define _FLOAT_NAME_REG(x) __FLOAT_NAME_REG(x)
-+#define __FLOAT_NAME_REG(x) x##f
-+#define _FLOAT_NAME_REG(x)  __FLOAT_NAME_REG(x)
- 
--#define __LD_NAME_REG(x) x ## l
--#define _LD_NAME_REG(x) __LD_NAME_REG(x)
-+#define __LD_NAME_REG(x)    x##l
-+#define _LD_NAME_REG(x)     __LD_NAME_REG(x)
- 
- #ifdef _ADD_D_TO_DOUBLE_FUNCS
- 
--#define __D_NAME(x) x ## d
--#define _D_NAME(x) __D_NAME(x)
--#define _D_ALIAS(x) # x "d"
-+#define __D_NAME(x) x##d
-+#define _D_NAME(x)  __D_NAME(x)
-+#define _D_ALIAS(x) #x "d"
- 
- #elif defined(_ADD_UNDER_R_TO_FUNCS)
- 
--#define __D_NAME(x) x ## _r
--#define _D_NAME(x) __D_NAME(x)
--#define _D_ALIAS(x) # x "_r"
-+#define __D_NAME(x) x##_r
-+#define _D_NAME(x)  __D_NAME(x)
-+#define _D_ALIAS(x) #x "_r"
- 
- #else
- 
- #define __D_NAME(x) x
--#define _D_NAME(x) __D_NAME(x)
--#define _D_ALIAS(x) # x
-+#define _D_NAME(x)  __D_NAME(x)
-+#define _D_ALIAS(x) #x
- 
- #endif
- 
- #define __D_NAME_REG(x) x
--#define _D_NAME_REG(x) __D_NAME_REG(x)
-+#define _D_NAME_REG(x)  __D_NAME_REG(x)
- 
- /*
-  * Figure out how to map the 32- and 64- bit functions to
 @@ -459,7 +439,7 @@
   * There is limited support for long double greater than 64 bits
   */
@@ -4688,21 +4177,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_denorml.c picolibc-patch
      return __math_with_errnol(x, ERANGE);
  }
  
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_err_check_uflow.c picolibc-patched/cmd/gaston/libm/common/math_err_check_uflow.c
---- picolibc-pristine/cmd/gaston/libm/common/math_err_check_uflow.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/math_err_check_uflow.c	2026-04-08 22:31:48
-@@ -33,9 +33,9 @@
- /* Check result and set errno if necessary.  */
- 
- HIDDEN __float64
--__math_check_uflow (__float64 y)
-+__math_check_uflow(__float64 y)
- {
--  return y == 0.0 ? __math_with_errno (y, ERANGE) : y;
-+    return y == 0.0 ? __math_with_errno(y, ERANGE) : y;
- }
- 
- #endif /* _NEED_FLOAT64 */
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_err_with_errno.c picolibc-patched/cmd/gaston/libm/common/math_err_with_errno.c
 --- picolibc-pristine/cmd/gaston/libm/common/math_err_with_errno.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/math_err_with_errno.c	2026-04-08 22:31:48
@@ -4725,49 +4199,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_err_with_errno.c picolib
  }
  #endif
  
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_errf_check_oflowf.c picolibc-patched/cmd/gaston/libm/common/math_errf_check_oflowf.c
---- picolibc-pristine/cmd/gaston/libm/common/math_errf_check_oflowf.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/math_errf_check_oflowf.c	2026-04-08 22:31:48
-@@ -31,7 +31,7 @@
- /* Check result and set errno if necessary.  */
- 
- HIDDEN float
--__math_check_oflowf (float y)
-+__math_check_oflowf(float y)
- {
--  return isinf (y) ? __math_with_errnof (y, ERANGE) : y;
-+    return isinf(y) ? __math_with_errnof(y, ERANGE) : y;
- }
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_errf_check_uflowf.c picolibc-patched/cmd/gaston/libm/common/math_errf_check_uflowf.c
---- picolibc-pristine/cmd/gaston/libm/common/math_errf_check_uflowf.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/math_errf_check_uflowf.c	2026-04-08 22:31:48
-@@ -31,7 +31,7 @@
- /* Check result and set errno if necessary.  */
- 
- HIDDEN float
--__math_check_uflowf (float y)
-+__math_check_uflowf(float y)
- {
--  return y == 0.0f ? __math_with_errnof (y, ERANGE) : y;
-+    return y == 0.0f ? __math_with_errnof(y, ERANGE) : y;
- }
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_errf_with_errnof.c picolibc-patched/cmd/gaston/libm/common/math_errf_with_errnof.c
---- picolibc-pristine/cmd/gaston/libm/common/math_errf_with_errnof.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/math_errf_with_errnof.c	2026-04-08 22:31:48
-@@ -32,10 +32,9 @@
- #if WANT_ERRNO
- #include <errno.h>
- HIDDEN float
--__math_with_errnof (float y, int e)
-+__math_with_errnof(float y, int e)
- {
--  errno = e;
--  return y;
-+    errno = e;
-+    return y;
- }
- #endif
--
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_inexact.c picolibc-patched/cmd/gaston/libm/common/math_inexact.c
 --- picolibc-pristine/cmd/gaston/libm/common/math_inexact.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/math_inexact.c	2026-04-08 22:31:48
@@ -5138,21 +4569,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/nexttowardf.c picolibc-patche
  }
  
  _MATH_ALIAS_f_fl(nexttoward)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/nexttowardl.c picolibc-patched/cmd/gaston/libm/common/nexttowardl.c
---- picolibc-pristine/cmd/gaston/libm/common/nexttowardl.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/nexttowardl.c	2026-04-08 22:31:48
-@@ -30,9 +30,8 @@
- 
- #ifdef _LDBL_EQ_DBL
- long double
--nexttowardl (long double x, long double y)
-+nexttowardl(long double x, long double y)
- {
--  return nextafter(x, y);
-+    return nextafter(x, y);
- }
- #endif
--
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/pow.c picolibc-patched/cmd/gaston/libm/common/pow.c
 --- picolibc-pristine/cmd/gaston/libm/common/pow.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/pow.c	2026-04-08 22:31:48
@@ -5781,150 +5197,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/pow.c picolibc-patched/cmd/ga
  #pragma GCC diagnostic ignored "-Wmissing-attributes"
  #endif
  __strong_reference(pow, _pow);
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/pow_log_data.c picolibc-patched/cmd/gaston/libm/common/pow_log_data.c
---- picolibc-pristine/cmd/gaston/libm/common/pow_log_data.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/pow_log_data.c	2026-04-08 22:31:48
-@@ -74,7 +74,7 @@
- is tiny, large cancellation error is avoided in logc + poly(z/c - 1).  */
- .tab = {
- #if N == 128
--#define A(a,b,c) {a,0,b,c},
-+#define A(a, b, c) { a, 0, b, c },
- A(0x1.6a00000000000p+0, -0x1.62c82f2b9c800p-2, 0x1.ab42428375680p-48)
- A(0x1.6800000000000p+0, -0x1.5d1bdbf580800p-2, -0x1.ca508d8e0f720p-46)
- A(0x1.6600000000000p+0, -0x1.5767717455800p-2, -0x1.362a4d5b6506dp-45)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_cbrt.c picolibc-patched/cmd/gaston/libm/common/s_cbrt.c
---- picolibc-pristine/cmd/gaston/libm/common/s_cbrt.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/s_cbrt.c	2026-04-08 22:31:48
-@@ -43,64 +43,64 @@
- /* cbrt(x)
-  * Return cube root of x
-  */
--static const __uint32_t 
--    B1 = 715094163, /* B1 = (682-0.03306235651)*2**20 */
--    B2 = 696219795; /* B2 = (664-0.03306235651)*2**20 */
-+static const __uint32_t B1 = 715094163, /* B1 = (682-0.03306235651)*2**20 */
-+    B2 = 696219795;                     /* B2 = (664-0.03306235651)*2**20 */
- 
--static const __float64
--    C =  _F_64(5.42857142857142815906e-01), /* 19/35     = 0x3FE15F15, 0xF15F15F1 */
-+static const __float64 C
-+    = _F_64(5.42857142857142815906e-01),    /* 19/35     = 0x3FE15F15, 0xF15F15F1 */
-     D = _F_64(-7.05306122448979611050e-01), /* -864/1225 = 0xBFE691DE, 0x2532C834 */
--    E =  _F_64(1.41428571428571436819e+00), /* 99/70     = 0x3FF6A0EA, 0x0EA0EA0F */
--    F =  _F_64(1.60714285714285720630e+00), /* 45/28     = 0x3FF9B6DB, 0x6DB6DB6E */
--    G =  _F_64(3.57142857142857150787e-01); /* 5/14      = 0x3FD6DB6D, 0xB6DB6DB7 */
-+    E = _F_64(1.41428571428571436819e+00),  /* 99/70     = 0x3FF6A0EA, 0x0EA0EA0F */
-+    F = _F_64(1.60714285714285720630e+00),  /* 45/28     = 0x3FF9B6DB, 0x6DB6DB6E */
-+    G = _F_64(3.57142857142857150787e-01);  /* 5/14      = 0x3FD6DB6D, 0xB6DB6DB7 */
- 
- __float64
--cbrt64(__float64 x) 
-+cbrt64(__float64 x)
- {
--	__int32_t	hx;
--	__float64 r,s,t=_F_64(0.0),w;
--	__uint32_t sign;
--	__uint32_t high,low;
-+    __int32_t  hx;
-+    __float64  r, s, t = _F_64(0.0), w;
-+    __uint32_t sign;
-+    __uint32_t high, low;
- 
--	GET_HIGH_WORD(hx,x);
--	sign=hx&0x80000000; 		/* sign= sign(x) */
--	hx  ^=sign;
--	if(hx>=0x7ff00000) return(x+x); /* cbrt(NaN,INF) is itself */
--	GET_LOW_WORD(low,x);
--	if((hx|low)==0) 
--	    return(x);		/* cbrt(0) is itself */
-+    GET_HIGH_WORD(hx, x);
-+    sign = hx & 0x80000000; /* sign= sign(x) */
-+    hx ^= sign;
-+    if (hx >= 0x7ff00000)
-+        return (x + x); /* cbrt(NaN,INF) is itself */
-+    GET_LOW_WORD(low, x);
-+    if ((hx | low) == 0)
-+        return (x); /* cbrt(0) is itself */
- 
--	SET_HIGH_WORD(x,hx);	/* x <- |x| */
--    /* rough cbrt to 5 bits */
--	if(hx<0x00100000) 		/* subnormal number */
--	  {SET_HIGH_WORD(t,0x43500000);	/* set t= 2**54 */
--	   t*=x; GET_HIGH_WORD(high,t); SET_HIGH_WORD(t,high/3+B2);
--	  }
--	else
--	  SET_HIGH_WORD(t,hx/3+B1);
-+    SET_HIGH_WORD(x, hx); /* x <- |x| */
-+                          /* rough cbrt to 5 bits */
-+    if (hx < 0x00100000)  /* subnormal number */
-+    {
-+        SET_HIGH_WORD(t, 0x43500000); /* set t= 2**54 */
-+        t *= x;
-+        GET_HIGH_WORD(high, t);
-+        SET_HIGH_WORD(t, high / 3 + B2);
-+    } else
-+        SET_HIGH_WORD(t, hx / 3 + B1);
- 
--
-     /* new cbrt to 23 bits, may be implemented in single precision */
--	r=t*t/x;
--	s=C+r*t;
--	t*=G+F/(s+E+D/s);	
-+    r = t * t / x;
-+    s = C + r * t;
-+    t *= G + F / (s + E + D / s);
- 
--    /* chopped to 20 bits and make it larger than cbrt(x) */ 
--	GET_HIGH_WORD(high,t);
--	INSERT_WORDS(t,high+0x00000001,0);
-+    /* chopped to 20 bits and make it larger than cbrt(x) */
-+    GET_HIGH_WORD(high, t);
-+    INSERT_WORDS(t, high + 0x00000001, 0);
- 
--
-     /* one step newton iteration to 53 bits with error less than 0.667 ulps */
--	s=t*t;		/* t*t is exact */
--	r=x/s;
--	w=t+t;
--	r=(r-t)/(w+r);	/* r-s is exact */
--	t=t+t*r;
-+    s = t * t; /* t*t is exact */
-+    r = x / s;
-+    w = t + t;
-+    r = (r - t) / (w + r); /* r-s is exact */
-+    t = t + t * r;
- 
-     /* retore the sign bit */
--	GET_HIGH_WORD(high,t);
--	SET_HIGH_WORD(t,high|sign);
--	return(t);
-+    GET_HIGH_WORD(high, t);
-+    SET_HIGH_WORD(t, high | sign);
-+    return (t);
- }
- 
- _MATH_ALIAS_d_d(cbrt)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_copysign.c picolibc-patched/cmd/gaston/libm/common/s_copysign.c
---- picolibc-pristine/cmd/gaston/libm/common/s_copysign.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/s_copysign.c	2026-04-08 22:31:48
-@@ -58,11 +58,11 @@
- __float64
- copysign64(__float64 x, __float64 y)
- {
--	__uint32_t hx,hy;
--	GET_HIGH_WORD(hx,x);
--	GET_HIGH_WORD(hy,y);
--	SET_HIGH_WORD(x,(hx&0x7fffffff)|(hy&0x80000000));
--        return x;
-+    __uint32_t hx, hy;
-+    GET_HIGH_WORD(hx, x);
-+    GET_HIGH_WORD(hy, y);
-+    SET_HIGH_WORD(x, (hx & 0x7fffffff) | (hy & 0x80000000));
-+    return x;
- }
- 
- _MATH_ALIAS_d_dd(copysign)
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_exp10.c picolibc-patched/cmd/gaston/libm/common/s_exp10.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_exp10.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_exp10.c	2026-04-08 22:31:48
@@ -6154,28 +5426,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_expm1.c picolibc-patched/cm
  }
  
  _MATH_ALIAS_d_d(expm1)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_fdim.c picolibc-patched/cmd/gaston/libm/common/s_fdim.c
---- picolibc-pristine/cmd/gaston/libm/common/s_fdim.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/s_fdim.c	2026-04-08 22:31:48
-@@ -44,12 +44,13 @@
- __float64
- fdim64(__float64 x, __float64 y)
- {
--  if (isnan(x) || isnan(y)) return(x+y);
-+    if (isnan(x) || isnan(y))
-+        return (x + y);
- 
--  __float64 z = x > y ? x - y : _F_64(0.0);
--  if (!isinf(x) && !isinf(y))
--    z = check_oflow(z);
--  return z;
-+    __float64 z = x > y ? x - y : _F_64(0.0);
-+    if (!isinf(x) && !isinf(y))
-+        z = check_oflow(z);
-+    return z;
- }
- 
- _MATH_ALIAS_d_dd(fdim)
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_finite.c picolibc-patched/cmd/gaston/libm/common/s_finite.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_finite.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_finite.c	2026-04-08 22:31:48
@@ -6277,66 +5527,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_fma.c picolibc-patched/cmd/
  #endif
  
  #include "fma_inc.h"
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_fpclassify.c picolibc-patched/cmd/gaston/libm/common/s_fpclassify.c
---- picolibc-pristine/cmd/gaston/libm/common/s_fpclassify.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/s_fpclassify.c	2026-04-08 22:31:48
-@@ -11,24 +11,24 @@
- #ifdef _NEED_FLOAT64
- 
- int
--__fpclassify64 (__float64 x)
-+__fpclassify64(__float64 x)
- {
--  __uint32_t msw, lsw;
-+    __uint32_t msw, lsw;
- 
--  EXTRACT_WORDS(msw,lsw,x);
-+    EXTRACT_WORDS(msw, lsw, x);
- 
--  msw &= 0x7fffffff;
--  if (msw == 0x00000000 && lsw == 0x00000000)
--    return FP_ZERO;
--  else if (msw <= 0x000fffff)
--    /* zero is already handled above */
--    return FP_SUBNORMAL;
--  else if (msw <= 0x7fefffff)
--    return FP_NORMAL;
--  else if (msw == 0x7ff00000 && lsw == 0x00000000)
--    return FP_INFINITE;
--  else
--    return FP_NAN;
-+    msw &= 0x7fffffff;
-+    if (msw == 0x00000000 && lsw == 0x00000000)
-+        return FP_ZERO;
-+    else if (msw <= 0x000fffff)
-+        /* zero is already handled above */
-+        return FP_SUBNORMAL;
-+    else if (msw <= 0x7fefffff)
-+        return FP_NORMAL;
-+    else if (msw == 0x7ff00000 && lsw == 0x00000000)
-+        return FP_INFINITE;
-+    else
-+        return FP_NAN;
- }
- 
- _MATH_ALIAS_i_d(__fpclassify)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_getpayload.c picolibc-patched/cmd/gaston/libm/common/s_getpayload.c
---- picolibc-pristine/cmd/gaston/libm/common/s_getpayload.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/s_getpayload.c	2026-04-08 22:31:48
-@@ -43,11 +43,10 @@
-     __int32_t hx, lx;
-     EXTRACT_WORDS(hx, lx, *x);
- 
--    if ((hx & 0x7ff00000) != 0x7ff00000 ||
--        ((hx & 0xfffff) | lx) == 0)
-+    if ((hx & 0x7ff00000) != 0x7ff00000 || ((hx & 0xfffff) | lx) == 0)
-         return -1;
-     hx &= 0x7ffff;
--    return (__float64) ((((int64_t) hx) << 32) | (uint32_t) lx);
-+    return (__float64)((((int64_t)hx) << 32) | (uint32_t)lx);
- }
- 
- _MATH_ALIAS_d_D(getpayload)
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_ilogb.c picolibc-patched/cmd/gaston/libm/common/s_ilogb.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_ilogb.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_ilogb.c	2026-04-08 22:31:48
@@ -6400,23 +5590,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_ilogb.c picolibc-patched/cm
  }
  
  _MATH_ALIAS_i_d(ilogb)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_infinity.c picolibc-patched/cmd/gaston/libm/common/s_infinity.c
---- picolibc-pristine/cmd/gaston/libm/common/s_infinity.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/s_infinity.c	2026-04-08 22:31:48
-@@ -49,10 +49,10 @@
- __float64
- infinity64(void)
- {
--	__float64 x;
-+    __float64 x;
- 
--	INSERT_WORDS(x,0x7ff00000,0);
--	return x;
-+    INSERT_WORDS(x, 0x7ff00000, 0);
-+    return x;
- }
- 
- _MATH_ALIAS_d(infinity)
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_isinf.c picolibc-patched/cmd/gaston/libm/common/s_isinf.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_isinf.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_isinf.c	2026-04-08 22:31:48
@@ -6507,6 +5680,76 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_isinfd.c picolibc-patched/c
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_isnan.c picolibc-patched/cmd/gaston/libm/common/s_isnan.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_isnan.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_isnan.c	2026-04-08 22:31:48
+@@ -111,40 +113,40 @@
+ (<<fpclassify>>(<[x]>) == FP_NORMAL).)
+ o-
+ 
+-	The archaic SUSv2 functions provide information on the floating-point
+-	argument supplied.
++        The archaic SUSv2 functions provide information on the floating-point
++        argument supplied.
+ 
+-	There are five major number formats ("exponent" referring to the
+-	biased exponent in the binary-encoded number):
+-	o+
+-	o zero
+-	  A number which contains all zero bits, excluding the sign bit.
+-	o subnormal
+-	  A number with a zero exponent but a nonzero fraction.
+-	o normal
+-	  A number with an exponent and a fraction.
+-     	o infinity
+-	  A number with an all 1's exponent and a zero fraction.
+-	o NAN
+-	  A number with an all 1's exponent and a nonzero fraction.
++        There are five major number formats ("exponent" referring to the
++        biased exponent in the binary-encoded number):
++        o+
++        o zero
++          A number which contains all zero bits, excluding the sign bit.
++        o subnormal
++          A number with a zero exponent but a nonzero fraction.
++        o normal
++          A number with an exponent and a fraction.
++        o infinity
++          A number with an all 1's exponent and a zero fraction.
++        o NAN
++          A number with an all 1's exponent and a nonzero fraction.
+ 
+-	o-
++        o-
+ 
+-	<<isnan>> returns 1 if the argument is a nan. <<isinf>>
+-	returns 1 if the argument is infinity.  <<finite>> returns 1 if the
+-	argument is zero, subnormal or normal.
+-	
+-	The <<isnanf>>, <<isinff>> and <<finitef>> functions perform the same
+-	operations as their <<isnan>>, <<isinf>> and <<finite>>
+-	counterparts, but on single-precision floating-point numbers.
++        <<isnan>> returns 1 if the argument is a nan. <<isinf>>
++        returns 1 if the argument is infinity.  <<finite>> returns 1 if the
++        argument is zero, subnormal or normal.
+ 
+-	It should be noted that the C99 standard dictates that <<isnan>>
+-	and <<isinf>> are macros that operate on multiple types of
+-	floating-point.  The SUSv2 standard declares <<isnan>> as
+-	a function taking double.  Newlib has decided to declare
+-	them both as functions and as macros in math.h to
+-	maintain backward compatibility.
++        The <<isnanf>>, <<isinff>> and <<finitef>> functions perform the same
++        operations as their <<isnan>>, <<isinf>> and <<finite>>
++        counterparts, but on single-precision floating-point numbers.
+ 
++        It should be noted that the C99 standard dictates that <<isnan>>
++        and <<isinf>> are macros that operate on multiple types of
++        floating-point.  The SUSv2 standard declares <<isnan>> as
++        a function taking double.  Newlib has decided to declare
++        them both as functions and as macros in math.h to
++        maintain backward compatibility.
++
+ RETURNS
+ @comment Formatting note:  "$@" forces a new line
+ The fpclassify macro returns the value corresponding to the appropriate FP_ macro.@*
 @@ -185,24 +187,37 @@
   * <math.h> for compatibility.
   */
@@ -7533,112 +6776,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_lround.c picolibc-patched/c
  }
  
  _MATH_ALIAS_j_d(lround)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_modf.c picolibc-patched/cmd/gaston/libm/common/s_modf.c
---- picolibc-pristine/cmd/gaston/libm/common/s_modf.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/s_modf.c	2026-04-08 22:31:48
-@@ -66,41 +66,42 @@
- __float64
- modf64(__float64 x, __float64 *iptr)
- {
--	__int32_t i0,i1,j0;
--	__uint32_t i;
--	EXTRACT_WORDS(i0,i1,x);
--	j0 = ((i0>>20)&0x7ff)-0x3ff;	/* exponent of x */
--	if(j0<20) {			/* integer part in high x */
--	    if(j0<0) {			/* |x|<1 */
--	        INSERT_WORDS(*iptr,i0&0x80000000,0);	/* *iptr = +-0 */
--		return x;
--	    } else {
--		i = (0x000fffff)>>j0;
--		if(((i0&i)|i1)==0) {		/* x is integral */
--		    *iptr = x;
--		    INSERT_WORDS(x,i0&0x80000000,0);	/* return +-0 */
--		    return x;
--		} else {
--		    INSERT_WORDS(*iptr,i0&(~i),0);
--		    return x - *iptr;
--		}
--	    }
--	} else if (j0>51) {		/* no fraction part */
--	    *iptr = x;
--	    if (__fpclassifyd(x) == FP_NAN) return *iptr = x+x; /* x is NaN, return NaN */
--	    INSERT_WORDS(x,i0&0x80000000,0);	/* return +-0 */
--	    return x;
--	} else {			/* fraction part in low x */
--	    i = ((__uint32_t)(0xffffffff))>>(j0-20);
--	    if((i1&i)==0) { 		/* x is integral */
--		*iptr = x;
--		INSERT_WORDS(x,i0&0x80000000,0);	/* return +-0 */
--		return x;
--	    } else {
--	        INSERT_WORDS(*iptr,i0,i1&(~i));
--		return x - *iptr;
--	    }
--	}
-+    __int32_t  i0, i1, j0;
-+    __uint32_t i;
-+    EXTRACT_WORDS(i0, i1, x);
-+    j0 = ((i0 >> 20) & 0x7ff) - 0x3ff;               /* exponent of x */
-+    if (j0 < 20) {                                   /* integer part in high x */
-+        if (j0 < 0) {                                /* |x|<1 */
-+            INSERT_WORDS(*iptr, i0 & 0x80000000, 0); /* *iptr = +-0 */
-+            return x;
-+        } else {
-+            i = (0x000fffff) >> j0;
-+            if (((i0 & i) | i1) == 0) { /* x is integral */
-+                *iptr = x;
-+                INSERT_WORDS(x, i0 & 0x80000000, 0); /* return +-0 */
-+                return x;
-+            } else {
-+                INSERT_WORDS(*iptr, i0 & (~i), 0);
-+                return x - *iptr;
-+            }
-+        }
-+    } else if (j0 > 51) { /* no fraction part */
-+        *iptr = x;
-+        if (__fpclassifyd(x) == FP_NAN)
-+            return *iptr = x + x;            /* x is NaN, return NaN */
-+        INSERT_WORDS(x, i0 & 0x80000000, 0); /* return +-0 */
-+        return x;
-+    } else { /* fraction part in low x */
-+        i = ((__uint32_t)(0xffffffff)) >> (j0 - 20);
-+        if ((i1 & i) == 0) { /* x is integral */
-+            *iptr = x;
-+            INSERT_WORDS(x, i0 & 0x80000000, 0); /* return +-0 */
-+            return x;
-+        } else {
-+            INSERT_WORDS(*iptr, i0, i1 & (~i));
-+            return x - *iptr;
-+        }
-+    }
- }
- 
- _MATH_ALIAS_d_dD(modf)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_nan.c picolibc-patched/cmd/gaston/libm/common/s_nan.c
---- picolibc-pristine/cmd/gaston/libm/common/s_nan.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/s_nan.c	2026-04-08 22:31:48
-@@ -43,15 +43,15 @@
- __float64
- nan64(const char *unused)
- {
--	__float64 x;
-+    __float64 x;
- 
--        (void) unused;
--#if __GNUC_PREREQ (3, 3)
--	x = __builtin_nan("");
-+    (void)unused;
-+#if __GNUC_PREREQ(3, 3)
-+    x = __builtin_nan("");
- #else
--	INSERT_WORDS(x,0x7ff80000,0);
-+    INSERT_WORDS(x, 0x7ff80000, 0);
- #endif
--	return x;
-+    return x;
- }
- 
- _MATH_ALIAS_d_s(nan)
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_nearbyint.c picolibc-patched/cmd/gaston/libm/common/s_nearbyint.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_nearbyint.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_nearbyint.c	2026-04-08 22:31:48
@@ -7669,101 +6806,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_nearbyint.c picolibc-patche
      fesetenv(&env);
  #endif
      return x;
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_nextafter.c picolibc-patched/cmd/gaston/libm/common/s_nextafter.c
---- picolibc-pristine/cmd/gaston/libm/common/s_nextafter.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/s_nextafter.c	2026-04-08 22:31:48
-@@ -55,47 +55,52 @@
- __float64
- nextafter64(__float64 x, __float64 y)
- {
--	__int32_t	hx,hy,ix,iy;
--	__uint32_t lx,ly;
-+    __int32_t  hx, hy, ix, iy;
-+    __uint32_t lx, ly;
- 
--	EXTRACT_WORDS(hx,lx,x);
--	EXTRACT_WORDS(hy,ly,y);
--	ix = hx&0x7fffffff;		/* |x| */
--	iy = hy&0x7fffffff;		/* |y| */
-+    EXTRACT_WORDS(hx, lx, x);
-+    EXTRACT_WORDS(hy, ly, y);
-+    ix = hx & 0x7fffffff; /* |x| */
-+    iy = hy & 0x7fffffff; /* |y| */
- 
--	if(((ix>=0x7ff00000)&&((ix-0x7ff00000)|lx)!=0) ||   /* x is nan */ 
--	   ((iy>=0x7ff00000)&&((iy-0x7ff00000)|ly)!=0))     /* y is nan */ 
--	   return x+y;				
--	if(x==y) return y;		/* x=y, return y (follow y sign for 0) */
--	if((ix|lx)==0) {			/* x == 0 */
--	    INSERT_WORDS(x,hy&0x80000000,1);	/* return +-minsubnormal */
--            force_eval_float64(opt_barrier_float64(x)*x);
--            return x;
--	} 
--	if(hx>=0) {				/* x > 0 */
--	    if(hx>hy||((hx==hy)&&(lx>ly))) {	/* x > y, x -= ulp */
--		if(lx==0) hx -= 1;
--		lx -= 1;
--	    } else {				/* x < y, x += ulp */
--		lx += 1;
--		if(lx==0) hx += 1;
--	    }
--	} else {				/* x < 0 */
--	    if(hy>=0||hx>hy||((hx==hy)&&(lx>ly))){/* x < y, x -= ulp */
--		if(lx==0) hx -= 1;
--		lx -= 1;
--	    } else {				/* x > y, x += ulp */
--		lx += 1;
--		if(lx==0) hx += 1;
--	    }
--	}
--	hy = hx&0x7ff00000;
--	if(hy>=0x7ff00000)
--            return __math_oflow(hx<0);	/* overflow  */
--	INSERT_WORDS(x,hx,lx);
--	if(hy<0x00100000)		/* underflow */
--            return __math_denorm(x);
--	return (x);
-+    if (((ix >= 0x7ff00000) && ((ix - 0x7ff00000) | lx) != 0) || /* x is nan */
-+        ((iy >= 0x7ff00000) && ((iy - 0x7ff00000) | ly) != 0))   /* y is nan */
-+        return x + y;
-+    if (x == y)
-+        return y;                            /* x=y, return y */
-+    if ((ix | lx) == 0) {                    /* x == 0 */
-+        INSERT_WORDS(x, hy & 0x80000000, 1); /* return +-minsubnormal */
-+        force_eval_float64(opt_barrier_float64(x) * x);
-+        return x;
-+    }
-+    if (hx >= 0) {                                  /* x > 0 */
-+        if (hx > hy || ((hx == hy) && (lx > ly))) { /* x > y, x -= ulp */
-+            if (lx == 0)
-+                hx -= 1;
-+            lx -= 1;
-+        } else { /* x < y, x += ulp */
-+            lx += 1;
-+            if (lx == 0)
-+                hx += 1;
-+        }
-+    } else {                                                   /* x < 0 */
-+        if (hy >= 0 || hx > hy || ((hx == hy) && (lx > ly))) { /* x < y, x -= ulp */
-+            if (lx == 0)
-+                hx -= 1;
-+            lx -= 1;
-+        } else { /* x > y, x += ulp */
-+            lx += 1;
-+            if (lx == 0)
-+                hx += 1;
-+        }
-+    }
-+    hy = hx & 0x7ff00000;
-+    if (hy >= 0x7ff00000)
-+        return __math_oflow(hx < 0); /* overflow  */
-+    INSERT_WORDS(x, hx, lx);
-+    if (hy < 0x00100000) /* underflow */
-+        return __math_denorm(x);
-+    return (x);
- }
- 
- _MATH_ALIAS_d_dd(nextafter)
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_pow10.c picolibc-patched/cmd/gaston/libm/common/s_pow10.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_pow10.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_pow10.c	2026-04-08 22:31:48
@@ -7830,26 +6872,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_pow10.c picolibc-patched/cm
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_remquo.c picolibc-patched/cmd/gaston/libm/common/s_remquo.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_remquo.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_remquo.c	2026-04-08 22:31:48
-@@ -67,12 +67,15 @@
- /* For quotient, return either all 31 bits that can from calculation (using
-  * int32_t), or as many as can fit into an int that is smaller than 32 bits.  */
- #if INT_MAX > 0x7FFFFFFFL
--  #define QUO_MASK 0x7FFFFFFF
--# else
--  #define QUO_MASK INT_MAX
-+#define QUO_MASK 0x7FFFFFFF
-+#else
-+#define QUO_MASK INT_MAX
- #endif
- 
--static const __float64 Zero[] = {_F_64(0.0), _F_64(-0.0),};
-+static const __float64 Zero[] = {
-+    _F_64(0.0),
-+    _F_64(-0.0),
-+};
- 
- /*
-  * Return the IEEE remainder and set *quo to the last n bits of the
 @@ -85,129 +88,154 @@
  __float64
  remquo64(__float64 x, __float64 y, int *quo)
@@ -8534,21 +7556,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_signbit.c picolibc-patched/
  }
  
  _MATH_ALIAS_i_d(__signbit)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/scalbnl.c picolibc-patched/cmd/gaston/libm/common/scalbnl.c
---- picolibc-pristine/cmd/gaston/libm/common/scalbnl.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/scalbnl.c	2026-04-08 22:31:48
-@@ -34,9 +34,8 @@
- /* On platforms where long double is as wide as double.  */
- #ifdef _LDBL_EQ_DBL
- long double
--scalbnl (long double x, int n)
-+scalbnl(long double x, int n)
- {
--  return scalbn(x, n);
-+    return scalbn(x, n);
- }
- #endif
--
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_cbrt.c picolibc-patched/cmd/gaston/libm/common/sf_cbrt.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_cbrt.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_cbrt.c	2026-04-08 22:31:48
@@ -8694,228 +7701,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_copysign.c picolibc-patche
  }
  
  _MATH_ALIAS_f_ff(copysign)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_exp.c picolibc-patched/cmd/gaston/libm/common/sf_exp.c
---- picolibc-pristine/cmd/gaston/libm/common/sf_exp.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sf_exp.c	2026-04-08 22:31:48
-@@ -43,70 +43,69 @@
- Non-nearest ULP error: 1 (rounded ULP error)
- */
- 
--#define N (1 << EXP2F_TABLE_BITS)
-+#define N       (1 << EXP2F_TABLE_BITS)
- #define InvLn2N __exp2f_data.invln2_scaled
--#define T __exp2f_data.tab
--#define C __exp2f_data.poly_scaled
-+#define T       __exp2f_data.tab
-+#define C       __exp2f_data.poly_scaled
- 
- static inline uint32_t
--top12 (float x)
-+top12(float x)
- {
--  return asuint (x) >> 20;
-+    return asuint(x) >> 20;
- }
- 
- float
--expf (float x)
-+expf(float x)
- {
--  uint32_t abstop;
--  uint64_t ki, t;
--  /* double_t for better performance on targets with FLT_EVAL_METHOD==2.  */
--  double_t kd, xd, z, r, r2, y, s;
-+    uint32_t abstop;
-+    uint64_t ki, t;
-+    /* double_t for better performance on targets with FLT_EVAL_METHOD==2.  */
-+    double_t kd, xd, z, r, r2, y, s;
- 
--  xd = (double_t) x;
--  abstop = top12 (x) & 0x7ff;
--  if (__builtin_expect (abstop >= top12 (88.0f), 0))
--    {
--      /* |x| >= 88 or x is nan.  */
--      if (asuint (x) == asuint (-INFINITY))
--	return 0.0f;
--      if (abstop >= top12 (INFINITY))
--	return x + x;
--      if (x > 0x1.62e42ep6f) /* x > log(0x1p128) ~= 88.72 */
--	return __math_oflowf (0);
--      if (x < -0x1.9fe368p6f) /* x < log(0x1p-150) ~= -103.97 */
--	return __math_uflowf (0);
-+    xd = (double_t)x;
-+    abstop = top12(x) & 0x7ff;
-+    if (__builtin_expect(abstop >= top12(88.0f), 0)) {
-+        /* |x| >= 88 or x is nan.  */
-+        if (asuint(x) == asuint(-INFINITY))
-+            return 0.0f;
-+        if (abstop >= top12(INFINITY))
-+            return x + x;
-+        if (x > 0x1.62e42ep6f) /* x > log(0x1p128) ~= 88.72 */
-+            return __math_oflowf(0);
-+        if (x < -0x1.9fe368p6f) /* x < log(0x1p-150) ~= -103.97 */
-+            return __math_uflowf(0);
- #if WANT_ERRNO_UFLOW
--      if (x < -0x1.9d1d9ep6f) /* x < log(0x1p-149) ~= -103.28 */
--	return __math_may_uflowf (0);
-+        if (x < -0x1.9d1d9ep6f) /* x < log(0x1p-149) ~= -103.28 */
-+            return __math_may_uflowf(0);
- #endif
-     }
- 
--  /* x*N/Ln2 = k + r with r in [-1/2, 1/2] and int k.  */
--  z = InvLn2N * xd;
-+    /* x*N/Ln2 = k + r with r in [-1/2, 1/2] and int k.  */
-+    z = InvLn2N * xd;
- 
--  /* Round and convert z to int, the result is in [-150*N, 128*N] and
--     ideally ties-to-even rule is used, otherwise the magnitude of r
--     can be bigger which gives larger approximation error.  */
-+    /* Round and convert z to int, the result is in [-150*N, 128*N] and
-+       ideally ties-to-even rule is used, otherwise the magnitude of r
-+       can be bigger which gives larger approximation error.  */
- #if TOINT_INTRINSICS
--  kd = roundtoint (z);
--  ki = converttoint (z);
-+    kd = roundtoint(z);
-+    ki = converttoint(z);
- #else
--# define SHIFT __exp2f_data.shift
--  kd = (double) (z + SHIFT); /* Rounding to double precision is required.  */
--  ki = asuint64 (kd);
--  kd -= SHIFT;
-+#define SHIFT __exp2f_data.shift
-+    kd = (double)(z + SHIFT); /* Rounding to double precision is required.  */
-+    ki = asuint64(kd);
-+    kd -= SHIFT;
- #endif
--  r = z - kd;
-+    r = z - kd;
- 
--  /* exp(x) = 2^(k/N) * 2^(r/N) ~= s * (C0*r^3 + C1*r^2 + C2*r + 1) */
--  t = T[ki % N];
--  t += ki << (52 - EXP2F_TABLE_BITS);
--  s = asfloat64 (t);
--  z = C[0] * r + C[1];
--  r2 = r * r;
--  y = C[2] * r + 1;
--  y = z * r2 + y;
--  y = y * s;
--  return (float) y;
-+    /* exp(x) = 2^(k/N) * 2^(r/N) ~= s * (C0*r^3 + C1*r^2 + C2*r + 1) */
-+    t = T[ki % N];
-+    t += ki << (52 - EXP2F_TABLE_BITS);
-+    s = asfloat64(t);
-+    z = C[0] * r + C[1];
-+    r2 = r * r;
-+    y = C[2] * r + 1;
-+    y = z * r2 + y;
-+    y = y * s;
-+    return (float)y;
- }
- #endif /* !__OBSOLETE_MATH_FLOAT */
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_exp2.c picolibc-patched/cmd/gaston/libm/common/sf_exp2.c
---- picolibc-pristine/cmd/gaston/libm/common/sf_exp2.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sf_exp2.c	2026-04-08 22:31:48
-@@ -43,59 +43,58 @@
- Non-nearest ULP error: 1 (rounded ULP error)
- */
- 
--#define N (1 << EXP2F_TABLE_BITS)
--#define T __exp2f_data.tab
--#define C __exp2f_data.poly
-+#define N     (1 << EXP2F_TABLE_BITS)
-+#define T     __exp2f_data.tab
-+#define C     __exp2f_data.poly
- #define SHIFT __exp2f_data.shift_scaled
- 
- static inline uint32_t
--top12 (float x)
-+top12(float x)
- {
--  return asuint (x) >> 20;
-+    return asuint(x) >> 20;
- }
- 
- float
--exp2f (float x)
-+exp2f(float x)
- {
--  uint32_t abstop;
--  uint64_t ki, t;
--  /* double_t for better performance on targets with FLT_EVAL_METHOD==2.  */
--  double_t kd, xd, z, r, r2, y, s;
-+    uint32_t abstop;
-+    uint64_t ki, t;
-+    /* double_t for better performance on targets with FLT_EVAL_METHOD==2.  */
-+    double_t kd, xd, z, r, r2, y, s;
- 
--  xd = (double_t) x;
--  abstop = top12 (x) & 0x7ff;
--  if (__builtin_expect (abstop >= top12 (128.0f), 0))
--    {
--      /* |x| >= 128 or x is nan.  */
--      if (asuint (x) == asuint (-INFINITY))
--	return 0.0f;
--      if (abstop >= top12 (INFINITY))
--	return x + x;
--      if (x > 0.0f)
--	return __math_oflowf (0);
--      if (x <= -150.0f)
--	return __math_uflowf (0);
-+    xd = (double_t)x;
-+    abstop = top12(x) & 0x7ff;
-+    if (__builtin_expect(abstop >= top12(128.0f), 0)) {
-+        /* |x| >= 128 or x is nan.  */
-+        if (asuint(x) == asuint(-INFINITY))
-+            return 0.0f;
-+        if (abstop >= top12(INFINITY))
-+            return x + x;
-+        if (x > 0.0f)
-+            return __math_oflowf(0);
-+        if (x <= -150.0f)
-+            return __math_uflowf(0);
- #if WANT_ERRNO_UFLOW
--      if (x < -149.0f)
--	return __math_may_uflowf (0);
-+        if (x < -149.0f)
-+            return __math_may_uflowf(0);
- #endif
-     }
- 
--  /* x = k/N + r with r in [-1/(2N), 1/(2N)] and int k.  */
--  kd = (double) (xd + SHIFT); /* Rounding to double precision is required.  */
--  ki = asuint64 (kd);
--  kd -= SHIFT; /* k/N for int k.  */
--  r = xd - kd;
-+    /* x = k/N + r with r in [-1/(2N), 1/(2N)] and int k.  */
-+    kd = (double)(xd + SHIFT); /* Rounding to double precision is required.  */
-+    ki = asuint64(kd);
-+    kd -= SHIFT; /* k/N for int k.  */
-+    r = xd - kd;
- 
--  /* exp2(x) = 2^(k/N) * 2^r ~= s * (C0*r^3 + C1*r^2 + C2*r + 1) */
--  t = T[ki % N];
--  t += ki << (52 - EXP2F_TABLE_BITS);
--  s = asfloat64 (t);
--  z = C[0] * r + C[1];
--  r2 = r * r;
--  y = C[2] * r + 1;
--  y = z * r2 + y;
--  y = y * s;
--  return (float) y;
-+    /* exp2(x) = 2^(k/N) * 2^r ~= s * (C0*r^3 + C1*r^2 + C2*r + 1) */
-+    t = T[ki % N];
-+    t += ki << (52 - EXP2F_TABLE_BITS);
-+    s = asfloat64(t);
-+    z = C[0] * r + C[1];
-+    r2 = r * r;
-+    y = C[2] * r + 1;
-+    y = z * r2 + y;
-+    y = y * s;
-+    return (float)y;
- }
- #endif /* !__OBSOLETE_MATH_FLOAT */
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_expm1.c picolibc-patched/cmd/gaston/libm/common/sf_expm1.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_expm1.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_expm1.c	2026-04-08 22:31:48
@@ -9124,32 +7909,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_expm1.c picolibc-patched/c
  }
  
  _MATH_ALIAS_f_f(expm1)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_fdim.c picolibc-patched/cmd/gaston/libm/common/sf_fdim.c
---- picolibc-pristine/cmd/gaston/libm/common/sf_fdim.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sf_fdim.c	2026-04-08 22:31:48
-@@ -6,14 +6,16 @@
- 
- #include "fdlibm.h"
- 
--float fdimf(float x, float y)
-+float
-+fdimf(float x, float y)
- {
--  if (isnanf(x) || isnanf(y)) return(x+y);
-+    if (isnanf(x) || isnanf(y))
-+        return (x + y);
- 
--  float z = x > y ? x - y : 0.0f;
--  if (!isinf(x) && !isinf(y))
--    z = check_oflowf(z);
--  return z;
-+    float z = x > y ? x - y : 0.0f;
-+    if (!isinf(x) && !isinf(y))
-+        z = check_oflowf(z);
-+    return z;
- }
- 
- _MATH_ALIAS_f_ff(fdim)
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_finite.c picolibc-patched/cmd/gaston/libm/common/sf_finite.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_finite.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_finite.c	2026-04-08 22:31:48
@@ -9231,72 +7990,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_fma.c picolibc-patched/cmd
  
  static inline int
  odd_mant(FLOAT_T x)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_fpclassify.c picolibc-patched/cmd/gaston/libm/common/sf_fpclassify.c
---- picolibc-pristine/cmd/gaston/libm/common/sf_fpclassify.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sf_fpclassify.c	2026-04-08 22:31:48
-@@ -9,24 +9,22 @@
- #include "fdlibm.h"
- 
- int
--__fpclassifyf (float x)
-+__fpclassifyf(float x)
- {
--  __uint32_t w;
-+    __uint32_t w;
- 
--  GET_FLOAT_WORD(w,x);
--  
--  if (w == 0x00000000 || w == 0x80000000)
--    return FP_ZERO;
--  else if ((w >= 0x00800000 && w <= 0x7f7fffff) ||
--           (w >= 0x80800000 && w <= 0xff7fffff))
--    return FP_NORMAL;
--  else if ((w >= 0x00000001 && w <= 0x007fffff) ||
--           (w >= 0x80000001 && w <= 0x807fffff))
--    return FP_SUBNORMAL;
--  else if (w == 0x7f800000 || w == 0xff800000)
--    return FP_INFINITE;
--  else
--    return FP_NAN;
-+    GET_FLOAT_WORD(w, x);
-+
-+    if (w == 0x00000000 || w == 0x80000000)
-+        return FP_ZERO;
-+    else if ((w >= 0x00800000 && w <= 0x7f7fffff) || (w >= 0x80800000 && w <= 0xff7fffff))
-+        return FP_NORMAL;
-+    else if ((w >= 0x00000001 && w <= 0x007fffff) || (w >= 0x80000001 && w <= 0x807fffff))
-+        return FP_SUBNORMAL;
-+    else if (w == 0x7f800000 || w == 0xff800000)
-+        return FP_INFINITE;
-+    else
-+        return FP_NAN;
- }
- 
- _MATH_ALIAS_i_f(__fpclassify)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_getpayload.c picolibc-patched/cmd/gaston/libm/common/sf_getpayload.c
---- picolibc-pristine/cmd/gaston/libm/common/sf_getpayload.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sf_getpayload.c	2026-04-08 22:31:48
-@@ -35,16 +35,16 @@
- 
- #include "fdlibm.h"
- 
--float getpayloadf(const float *x)
-+float
-+getpayloadf(const float *x)
- {
-     __int32_t ix;
-     GET_FLOAT_WORD(ix, *x);
- 
--    if ((ix & 0x7f800000) != 0x7f800000 ||
--        ((ix & 0x7fffff) == 0))
-+    if ((ix & 0x7f800000) != 0x7f800000 || ((ix & 0x7fffff) == 0))
-         return -1;
-     ix &= 0x3fffff;
--    return (float) ix;
-+    return (float)ix;
- }
- 
- _MATH_ALIAS_f_F(getpayload)
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_ilogb.c picolibc-patched/cmd/gaston/libm/common/sf_ilogb.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_ilogb.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_ilogb.c	2026-04-08 22:31:48
@@ -9355,27 +8048,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_ilogb.c picolibc-patched/c
  }
  
  _MATH_ALIAS_i_f(ilogb)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_infinity.c picolibc-patched/cmd/gaston/libm/common/sf_infinity.c
---- picolibc-pristine/cmd/gaston/libm/common/sf_infinity.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sf_infinity.c	2026-04-08 22:31:48
-@@ -13,12 +13,13 @@
- 
- #include "fdlibm.h"
- 
--float infinityf(void)
-+float
-+infinityf(void)
- {
--	float x;
-+    float x;
- 
--	SET_FLOAT_WORD(x,0x7f800000);
--	return x;
-+    SET_FLOAT_WORD(x, 0x7f800000);
-+    return x;
- }
- 
- _MATH_ALIAS_f(infinity)
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_isinf.c picolibc-patched/cmd/gaston/libm/common/sf_isinf.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_isinf.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_isinf.c	2026-04-08 22:31:48
@@ -9703,112 +8375,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_llround.c picolibc-patched
  }
  
  _MATH_ALIAS_k_f(llround)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_log.c picolibc-patched/cmd/gaston/libm/common/sf_log.c
---- picolibc-pristine/cmd/gaston/libm/common/sf_log.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sf_log.c	2026-04-08 22:31:48
-@@ -41,60 +41,59 @@
- Relative error: 1.957 * 2^-26 (before rounding.)
- */
- 
--#define T __logf_data.tab
--#define A __logf_data.poly
-+#define T   __logf_data.tab
-+#define A   __logf_data.poly
- #define Ln2 __logf_data.ln2
--#define N (1 << LOGF_TABLE_BITS)
-+#define N   (1 << LOGF_TABLE_BITS)
- #define OFF 0x3f330000
- 
- float
--logf (float x)
-+logf(float x)
- {
--  /* double_t for better performance on targets with FLT_EVAL_METHOD==2.  */
--  double_t z, r, r2, y, y0, invc, logc;
--  uint32_t ix, iz, tmp;
--  int k, i;
-+    /* double_t for better performance on targets with FLT_EVAL_METHOD==2.  */
-+    double_t z, r, r2, y, y0, invc, logc;
-+    uint32_t ix, iz, tmp;
-+    int      k, i;
- 
--  ix = asuint (x);
-+    ix = asuint(x);
- #if WANT_ROUNDING
--  /* Fix sign of zero with downward rounding when x==1.  */
--  if (__builtin_expect (ix == 0x3f800000, 0))
--    return 0;
-+    /* Fix sign of zero with downward rounding when x==1.  */
-+    if (__builtin_expect(ix == 0x3f800000, 0))
-+        return 0;
- #endif
--  if (__builtin_expect (ix - 0x00800000 >= 0x7f800000 - 0x00800000, 0))
--    {
--      /* x < 0x1p-126 or inf or nan.  */
--      if (ix * 2 == 0)
--	return __math_divzerof (1);
--      if (ix == 0x7f800000) /* log(inf) == inf.  */
--	return x;
--      if ((ix & 0x80000000) || ix * 2 >= 0xff000000)
--	return __math_invalidf (x);
--      /* x is subnormal, normalize it.  */
--      ix = asuint (x * 0x1p23f);
--      ix -= (int32_t) 23 << 23;
-+    if (__builtin_expect(ix - 0x00800000 >= 0x7f800000 - 0x00800000, 0)) {
-+        /* x < 0x1p-126 or inf or nan.  */
-+        if (ix * 2 == 0)
-+            return __math_divzerof(1);
-+        if (ix == 0x7f800000) /* log(inf) == inf.  */
-+            return x;
-+        if ((ix & 0x80000000) || ix * 2 >= 0xff000000)
-+            return __math_invalidf(x);
-+        /* x is subnormal, normalize it.  */
-+        ix = asuint(x * 0x1p23f);
-+        ix -= (int32_t)23 << 23;
-     }
- 
--  /* x = 2^k z; where z is in range [OFF,2*OFF] and exact.
--     The range is split into N subintervals.
--     The ith subinterval contains z and c is near its center.  */
--  tmp = ix - OFF;
--  i = (tmp >> (23 - LOGF_TABLE_BITS)) % N;
--  k = (int32_t) tmp >> 23; /* arithmetic shift */
--  iz = ix - (tmp & (uint32_t) 0x1ff << 23);
--  invc = T[i].invc;
--  logc = T[i].logc;
--  z = (double_t) asfloat (iz);
-+    /* x = 2^k z; where z is in range [OFF,2*OFF] and exact.
-+       The range is split into N subintervals.
-+       The ith subinterval contains z and c is near its center.  */
-+    tmp = ix - OFF;
-+    i = (tmp >> (23 - LOGF_TABLE_BITS)) % N;
-+    k = (int32_t)tmp >> 23; /* arithmetic shift */
-+    iz = ix - (tmp & (uint32_t)0x1ff << 23);
-+    invc = T[i].invc;
-+    logc = T[i].logc;
-+    z = (double_t)asfloat(iz);
- 
--  /* log(x) = log1p(z/c-1) + log(c) + k*Ln2 */
--  r = z * invc - 1;
--  y0 = logc + (double_t) k * Ln2;
-+    /* log(x) = log1p(z/c-1) + log(c) + k*Ln2 */
-+    r = z * invc - 1;
-+    y0 = logc + (double_t)k * Ln2;
- 
--  /* Pipelined polynomial evaluation to approximate log1p(r).  */
--  r2 = r * r;
--  y = A[1] * r + A[2];
--  y = A[0] * r2 + y;
--  y = y * r2 + (y0 + r);
--  return (float) y;
-+    /* Pipelined polynomial evaluation to approximate log1p(r).  */
-+    r2 = r * r;
-+    y = A[1] * r + A[2];
-+    y = A[0] * r2 + y;
-+    y = y * r2 + (y0 + r);
-+    return (float)y;
- }
- #endif /* !__OBSOLETE_MATH_FLOAT */
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_log1p.c picolibc-patched/cmd/gaston/libm/common/sf_log1p.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_log1p.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_log1p.c	2026-04-08 22:31:48
@@ -9980,115 +8546,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_log1p.c picolibc-patched/c
  }
  
  _MATH_ALIAS_f_f(log1p)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_log2.c picolibc-patched/cmd/gaston/libm/common/sf_log2.c
---- picolibc-pristine/cmd/gaston/libm/common/sf_log2.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sf_log2.c	2026-04-08 22:31:48
-@@ -41,61 +41,60 @@
- Relative error: 1.9 * 2^-26 (before rounding.)
- */
- 
--#define N (1 << LOG2F_TABLE_BITS)
--#define T __log2f_data.tab
--#define A __log2f_data.poly
-+#define N   (1 << LOG2F_TABLE_BITS)
-+#define T   __log2f_data.tab
-+#define A   __log2f_data.poly
- #define OFF 0x3f330000
- 
- float
--log2f (float x)
-+log2f(float x)
- {
--  /* double_t for better performance on targets with FLT_EVAL_METHOD==2.  */
--  double_t z, r, r2, p, y, y0, invc, logc;
--  uint32_t ix, iz, top, tmp;
--  int k, i;
-+    /* double_t for better performance on targets with FLT_EVAL_METHOD==2.  */
-+    double_t z, r, r2, p, y, y0, invc, logc;
-+    uint32_t ix, iz, top, tmp;
-+    int      k, i;
- 
--  ix = asuint (x);
-+    ix = asuint(x);
- #if WANT_ROUNDING
--  /* Fix sign of zero with downward rounding when x==1.  */
--  if (__builtin_expect (ix == 0x3f800000, 0))
--    return 0;
-+    /* Fix sign of zero with downward rounding when x==1.  */
-+    if (__builtin_expect(ix == 0x3f800000, 0))
-+        return 0;
- #endif
--  if (__builtin_expect (ix - 0x00800000 >= 0x7f800000 - 0x00800000, 0))
--    {
--      /* x < 0x1p-126 or inf or nan.  */
--      if (ix * 2 == 0)
--	return __math_divzerof (1);
--      if (ix == 0x7f800000) /* log2(inf) == inf.  */
--	return x;
--      if ((ix & 0x80000000) || ix * 2 >= 0xff000000)
--	return __math_invalidf (x);
--      /* x is subnormal, normalize it.  */
--      ix = asuint (x * 0x1p23f);
--      ix -= (uint32_t) 23 << 23;
-+    if (__builtin_expect(ix - 0x00800000 >= 0x7f800000 - 0x00800000, 0)) {
-+        /* x < 0x1p-126 or inf or nan.  */
-+        if (ix * 2 == 0)
-+            return __math_divzerof(1);
-+        if (ix == 0x7f800000) /* log2(inf) == inf.  */
-+            return x;
-+        if ((ix & 0x80000000) || ix * 2 >= 0xff000000)
-+            return __math_invalidf(x);
-+        /* x is subnormal, normalize it.  */
-+        ix = asuint(x * 0x1p23f);
-+        ix -= (uint32_t)23 << 23;
-     }
- 
--  /* x = 2^k z; where z is in range [OFF,2*OFF] and exact.
--     The range is split into N subintervals.
--     The ith subinterval contains z and c is near its center.  */
--  tmp = ix - OFF;
--  i = (tmp >> (23 - LOG2F_TABLE_BITS)) % N;
--  top = tmp & 0xff800000;
--  iz = ix - top;
--  k = (int32_t) tmp >> 23; /* arithmetic shift */
--  invc = T[i].invc;
--  logc = T[i].logc;
--  z = (double_t) asfloat (iz);
-+    /* x = 2^k z; where z is in range [OFF,2*OFF] and exact.
-+       The range is split into N subintervals.
-+       The ith subinterval contains z and c is near its center.  */
-+    tmp = ix - OFF;
-+    i = (tmp >> (23 - LOG2F_TABLE_BITS)) % N;
-+    top = tmp & 0xff800000;
-+    iz = ix - top;
-+    k = (int32_t)tmp >> 23; /* arithmetic shift */
-+    invc = T[i].invc;
-+    logc = T[i].logc;
-+    z = (double_t)asfloat(iz);
- 
--  /* log2(x) = log1p(z/c-1)/ln2 + log2(c) + k */
--  r = z * invc - 1;
--  y0 = logc + (double_t) k;
-+    /* log2(x) = log1p(z/c-1)/ln2 + log2(c) + k */
-+    r = z * invc - 1;
-+    y0 = logc + (double_t)k;
- 
--  /* Pipelined polynomial evaluation to approximate log1p(r)/ln2.  */
--  r2 = r * r;
--  y = A[1] * r + A[2];
--  y = A[0] * r2 + y;
--  p = A[3] * r + y0;
--  y = y * r2 + p;
--  return (float) y;
-+    /* Pipelined polynomial evaluation to approximate log1p(r)/ln2.  */
-+    r2 = r * r;
-+    y = A[1] * r + A[2];
-+    y = A[0] * r2 + y;
-+    p = A[3] * r + y0;
-+    y = y * r2 + p;
-+    return (float)y;
- }
- #endif /* !__OBSOLETE_MATH_FLOAT */
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_logb.c picolibc-patched/cmd/gaston/libm/common/sf_logb.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_logb.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_logb.c	2026-04-08 22:31:48
@@ -10309,96 +8766,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_lround.c picolibc-patched/
  }
  
  _MATH_ALIAS_j_f(lround)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_modf.c picolibc-patched/cmd/gaston/libm/common/sf_modf.c
---- picolibc-pristine/cmd/gaston/libm/common/sf_modf.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sf_modf.c	2026-04-08 22:31:48
-@@ -18,31 +18,32 @@
- float
- modff(float x, float *iptr)
- {
--	__int32_t i0,j0;
--	__uint32_t i;
--	GET_FLOAT_WORD(i0,x);
--	j0 = ((i0>>23)&0xff)-0x7f;	/* exponent of x */
--	if(j0<23) {			/* integer part in x */
--	    if(j0<0) {			/* |x|<1 */
--	        SET_FLOAT_WORD(*iptr,i0&0x80000000);	/* *iptr = +-0 */
--		return x;
--	    } else {
--		i = (0x007fffff)>>j0;
--		if((i0&i)==0) {			/* x is integral */
--		    *iptr = x;
--		    SET_FLOAT_WORD(x,i0&0x80000000);	/* return +-0 */
--		    return x;
--		} else {
--		    SET_FLOAT_WORD(*iptr,i0&(~i));
--		    return x - *iptr;
--		}
--	    }
--	} else {			/* no fraction part */
--	    *iptr = x;
--	    if (__fpclassifyf(x) == FP_NAN) return *iptr = x+x; /* x is NaN, return NaN */
--	    SET_FLOAT_WORD(x,i0&0x80000000);	/* return +-0 */
--	    return x;
--	}
-+    __int32_t  i0, j0;
-+    __uint32_t i;
-+    GET_FLOAT_WORD(i0, x);
-+    j0 = ((i0 >> 23) & 0xff) - 0x7f;                /* exponent of x */
-+    if (j0 < 23) {                                  /* integer part in x */
-+        if (j0 < 0) {                               /* |x|<1 */
-+            SET_FLOAT_WORD(*iptr, i0 & 0x80000000); /* *iptr = +-0 */
-+            return x;
-+        } else {
-+            i = (0x007fffff) >> j0;
-+            if ((i0 & i) == 0) { /* x is integral */
-+                *iptr = x;
-+                SET_FLOAT_WORD(x, i0 & 0x80000000); /* return +-0 */
-+                return x;
-+            } else {
-+                SET_FLOAT_WORD(*iptr, i0 & (~i));
-+                return x - *iptr;
-+            }
-+        }
-+    } else { /* no fraction part */
-+        *iptr = x;
-+        if (__fpclassifyf(x) == FP_NAN)
-+            return *iptr = x + x;           /* x is NaN, return NaN */
-+        SET_FLOAT_WORD(x, i0 & 0x80000000); /* return +-0 */
-+        return x;
-+    }
- }
- 
- _MATH_ALIAS_f_fF(modf)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_nan.c picolibc-patched/cmd/gaston/libm/common/sf_nan.c
---- picolibc-pristine/cmd/gaston/libm/common/sf_nan.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sf_nan.c	2026-04-08 22:31:48
-@@ -13,17 +13,18 @@
- 
- #include "fdlibm.h"
- 
--	float nanf(const char *unused)
-+float
-+nanf(const char *unused)
- {
--	float x;
-+    float x;
- 
--        (void) unused;
--#if __GNUC_PREREQ (3, 3)
--	x = __builtin_nanf("");
-+    (void)unused;
-+#if __GNUC_PREREQ(3, 3)
-+    x = __builtin_nanf("");
- #else
--	SET_FLOAT_WORD(x,0x7fc00000);
-+    SET_FLOAT_WORD(x, 0x7fc00000);
- #endif
--	return x;
-+    return x;
- }
- 
- _MATH_ALIAS_f_s(nan)
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_nearbyint.c picolibc-patched/cmd/gaston/libm/common/sf_nearbyint.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_nearbyint.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_nearbyint.c	2026-04-08 22:31:48
@@ -10430,97 +8797,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_nearbyint.c picolibc-patch
      fesetenv(&env);
  #endif
      return x;
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_nextafter.c picolibc-patched/cmd/gaston/libm/common/sf_nextafter.c
---- picolibc-pristine/cmd/gaston/libm/common/sf_nextafter.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sf_nextafter.c	2026-04-08 22:31:48
-@@ -8,50 +8,52 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
- 
- #include "fdlibm.h"
- 
--float nextafterf(float x, float y)
-+float
-+nextafterf(float x, float y)
- {
--	__int32_t	hx,hy,ix,iy;
-+    __int32_t hx, hy, ix, iy;
- 
--	GET_FLOAT_WORD(hx,x);
--	GET_FLOAT_WORD(hy,y);
--	ix = hx&0x7fffffff;		/* |x| */
--	iy = hy&0x7fffffff;		/* |y| */
-+    GET_FLOAT_WORD(hx, x);
-+    GET_FLOAT_WORD(hy, y);
-+    ix = hx & 0x7fffffff; /* |x| */
-+    iy = hy & 0x7fffffff; /* |y| */
- 
--	if(FLT_UWORD_IS_NAN(ix) ||
--	   FLT_UWORD_IS_NAN(iy))
--	   return x+y;
--	if(x==y) return y;		/* x=y, return y */
--	if(FLT_UWORD_IS_ZERO(ix)) {		/* x == 0 */
--	    SET_FLOAT_WORD(x,(hy&0x80000000)|FLT_UWORD_MIN);
--            force_eval_float(opt_barrier_float(x)*x);
--            return x;
--	}
--	if(hx>=0) {				/* x > 0 */
--	    if(hx>hy) {				/* x > y, x -= ulp */
--		hx -= 1;
--	    } else {				/* x < y, x += ulp */
--		hx += 1;
--	    }
--	} else {				/* x < 0 */
--	    if(hy>=0||hx>hy){			/* x < y, x -= ulp */
--		hx -= 1;
--	    } else {				/* x > y, x += ulp */
--		hx += 1;
--	    }
--	}
--	hy = hx&0x7f800000;
--	if(hy>FLT_UWORD_MAX) return check_oflowf(x+x);	/* overflow  */
--	SET_FLOAT_WORD(x,hx);
--	if(hy<0x00800000)		/* underflow */
--            return __math_denormf(x);
--	return x;
-+    if (FLT_UWORD_IS_NAN(ix) || FLT_UWORD_IS_NAN(iy))
-+        return x + y;
-+    if (x == y)
-+        return y;                /* x=y, return y */
-+    if (FLT_UWORD_IS_ZERO(ix)) { /* x == 0 */
-+        SET_FLOAT_WORD(x, (hy & 0x80000000) | FLT_UWORD_MIN);
-+        force_eval_float(opt_barrier_float(x) * x);
-+        return x;
-+    }
-+    if (hx >= 0) {     /* x > 0 */
-+        if (hx > hy) { /* x > y, x -= ulp */
-+            hx -= 1;
-+        } else { /* x < y, x += ulp */
-+            hx += 1;
-+        }
-+    } else {                      /* x < 0 */
-+        if (hy >= 0 || hx > hy) { /* x < y, x -= ulp */
-+            hx -= 1;
-+        } else { /* x > y, x += ulp */
-+            hx += 1;
-+        }
-+    }
-+    hy = hx & 0x7f800000;
-+    if (hy > FLT_UWORD_MAX)
-+        return check_oflowf(x + x); /* overflow  */
-+    SET_FLOAT_WORD(x, hx);
-+    if (hy < 0x00800000) /* underflow */
-+        return __math_denormf(x);
-+    return x;
- }
- 
- _MATH_ALIAS_f_ff(nextafter)
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_pow.c picolibc-patched/cmd/gaston/libm/common/sf_pow.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_pow.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_pow.c	2026-04-08 22:31:48
@@ -11506,404 +9782,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_signbit.c picolibc-patched
 +}
 +
 +_MATH_ALIAS_i_f(__signbit)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_trunc.c picolibc-patched/cmd/gaston/libm/common/sf_trunc.c
---- picolibc-pristine/cmd/gaston/libm/common/sf_trunc.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sf_trunc.c	2026-04-08 22:31:48
-@@ -14,9 +14,9 @@
- float
- truncf(float x)
- {
--    int32_t ix = _asint32 (x);
-+    int32_t ix = _asint32(x);
-     int32_t mask;
--    int exp;
-+    int     exp;
- 
-     exp = _exponent32(ix) - 127;
- 
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sincosf.c picolibc-patched/cmd/gaston/libm/common/sincosf.c
---- picolibc-pristine/cmd/gaston/libm/common/sincosf.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sincosf.c	2026-04-08 22:31:48
-@@ -39,65 +39,57 @@
-    small values.  Large inputs have their range reduced using fast integer
-    arithmetic.  */
- void
--sincosf (float y, float *sinp, float *cosp)
-+sincosf(float y, float *sinp, float *cosp)
- {
--  double x = (double) y;
--  double s;
--  int n;
--  const sincos_t *p = &__sincosf_table[0];
-+    double          x = (double)y;
-+    double          s;
-+    int             n;
-+    const sincos_t *p = &__sincosf_table[0];
- 
--  if (abstop12 (y) < abstop12 (pio4))
--    {
--      double x2 = x * x;
-+    if (abstop12(y) < abstop12(pio4)) {
-+        double x2 = x * x;
- 
--      if (unlikely (abstop12 (y) < abstop12 (0x1p-12f)))
--	{
--	  if (unlikely (abstop12 (y) < abstop12 (0x1p-126f)))
--	    /* Force underflow for tiny y.  */
--	    force_eval_float (x2);
--	  *sinp = y;
--	  *cosp = 1.0f;
--	  return;
--	}
-+        if (unlikely(abstop12(y) < abstop12(0x1p-12f))) {
-+            if (unlikely(abstop12(y) < abstop12(0x1p-126f)))
-+                /* Force underflow for tiny y.  */
-+                force_eval_float(x2);
-+            *sinp = y;
-+            *cosp = 1.0f;
-+            return;
-+        }
- 
--      sincosf_poly (x, x2, p, 0, sinp, cosp);
--    }
--  else if (abstop12 (y) < abstop12 (120.0f))
--    {
--      x = reduce_fast (x, p, &n);
-+        sincosf_poly(x, x2, p, 0, sinp, cosp);
-+    } else if (abstop12(y) < abstop12(120.0f)) {
-+        x = reduce_fast(x, p, &n);
- 
--      /* Setup the signs for sin and cos.  */
--      s = p->sign[n & 3];
-+        /* Setup the signs for sin and cos.  */
-+        s = p->sign[n & 3];
- 
--      if (n & 2)
--	p = &__sincosf_table[1];
-+        if (n & 2)
-+            p = &__sincosf_table[1];
- 
--      sincosf_poly (x * s, x * x, p, n, sinp, cosp);
--    }
--  else if (likely (abstop12 (y) < abstop12 (INFINITY)))
--    {
--      uint32_t xi = asuint (y);
--      int sign = xi >> 31;
-+        sincosf_poly(x * s, x * x, p, n, sinp, cosp);
-+    } else if (likely(abstop12(y) < abstop12(INFINITY))) {
-+        uint32_t xi = asuint(y);
-+        int      sign = xi >> 31;
- 
--      x = reduce_large (xi, &n);
-+        x = reduce_large(xi, &n);
- 
--      /* Setup signs for sin and cos - include original sign.  */
--      s = p->sign[(n + sign) & 3];
-+        /* Setup signs for sin and cos - include original sign.  */
-+        s = p->sign[(n + sign) & 3];
- 
--      if ((n + sign) & 2)
--	p = &__sincosf_table[1];
-+        if ((n + sign) & 2)
-+            p = &__sincosf_table[1];
- 
--      sincosf_poly (x * s, x * x, p, n, sinp, cosp);
--    }
--  else
--    {
--      /* Return NaN if Inf or NaN for both sin and cos.  */
--      *sinp = *cosp = y - y;
-+        sincosf_poly(x * s, x * x, p, n, sinp, cosp);
-+    } else {
-+        /* Return NaN if Inf or NaN for both sin and cos.  */
-+        *sinp = *cosp = y - y;
- #if WANT_ERRNO
--      /* Needed to set errno for +-Inf, the add is a hack to work
--	 around a gcc register allocation issue: just passing y
--	 affects code generation in the fast path.  */
--      __math_invalidf (y + y);
-+        /* Needed to set errno for +-Inf, the add is a hack to work
-+           around a gcc register allocation issue: just passing y
-+           affects code generation in the fast path.  */
-+        __math_invalidf(y + y);
- #endif
-     }
- }
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sincosf.h picolibc-patched/cmd/gaston/libm/common/sincosf.h
---- picolibc-pristine/cmd/gaston/libm/common/sincosf.h	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sincosf.h	2026-04-08 22:31:48
-@@ -53,68 +52,64 @@
- 
- /* Top 12 bits of the float representation with the sign bit cleared.  */
- static inline uint32_t
--abstop12 (float x)
-+abstop12(float x)
- {
--  return (asuint (x) >> 20) & 0x7ff;
-+    return (asuint(x) >> 20) & 0x7ff;
- }
- 
- /* Compute the sine and cosine of inputs X and X2 (X squared), using the
-    polynomial P and store the results in SINP and COSP.  N is the quadrant,
-    if odd the cosine and sine polynomials are swapped.  */
- static inline void
--sincosf_poly (double x, double x2, const sincos_t *p, int n, float *sinp,
--	      float *cosp)
-+sincosf_poly(double x, double x2, const sincos_t *p, int n, float *sinp, float *cosp)
- {
--  double x3, x4, x5, x6, s, c, c1, c2, s1;
-+    double x3, x4, x5, x6, s, c, c1, c2, s1;
- 
--  x4 = x2 * x2;
--  x3 = x2 * x;
--  c2 = p->c3 + x2 * p->c4;
--  s1 = p->s2 + x2 * p->s3;
-+    x4 = x2 * x2;
-+    x3 = x2 * x;
-+    c2 = p->c3 + x2 * p->c4;
-+    s1 = p->s2 + x2 * p->s3;
- 
--  /* Swap sin/cos result based on quadrant.  */
--  float *tmp = (n & 1 ? cosp : sinp);
--  cosp = (n & 1 ? sinp : cosp);
--  sinp = tmp;
-+    /* Swap sin/cos result based on quadrant.  */
-+    float *tmp = (n & 1 ? cosp : sinp);
-+    cosp = (n & 1 ? sinp : cosp);
-+    sinp = tmp;
- 
--  c1 = p->c0 + x2 * p->c1;
--  x5 = x3 * x2;
--  x6 = x4 * x2;
-+    c1 = p->c0 + x2 * p->c1;
-+    x5 = x3 * x2;
-+    x6 = x4 * x2;
- 
--  s = x + x3 * p->s1;
--  c = c1 + x4 * p->c2;
-+    s = x + x3 * p->s1;
-+    c = c1 + x4 * p->c2;
- 
--  *sinp = s + x5 * s1;
--  *cosp = c + x6 * c2;
-+    *sinp = s + x5 * s1;
-+    *cosp = c + x6 * c2;
- }
- 
- /* Return the sine of inputs X and X2 (X squared) using the polynomial P.
-    N is the quadrant, and if odd the cosine polynomial is used.  */
- static inline float
--sinf_poly (double x, double x2, const sincos_t *p, int n)
-+sinf_poly(double x, double x2, const sincos_t *p, int n)
- {
--  double x3, x4, x6, x7, s, c, c1, c2, s1;
-+    double x3, x4, x6, x7, s, c, c1, c2, s1;
- 
--  if ((n & 1) == 0)
--    {
--      x3 = x * x2;
--      s1 = p->s2 + x2 * p->s3;
-+    if ((n & 1) == 0) {
-+        x3 = x * x2;
-+        s1 = p->s2 + x2 * p->s3;
- 
--      x7 = x3 * x2;
--      s = x + x3 * p->s1;
-+        x7 = x3 * x2;
-+        s = x + x3 * p->s1;
- 
--      return s + x7 * s1;
--    }
--  else
--    {
--      x4 = x2 * x2;
--      c2 = p->c3 + x2 * p->c4;
--      c1 = p->c0 + x2 * p->c1;
-+        return s + x7 * s1;
-+    } else {
-+        x4 = x2 * x2;
-+        c2 = p->c3 + x2 * p->c4;
-+        c1 = p->c0 + x2 * p->c1;
- 
--      x6 = x4 * x2;
--      c = c1 + x4 * p->c2;
-+        x6 = x4 * x2;
-+        c = c1 + x4 * p->c2;
- 
--      return c + x6 * c2;
-+        return c + x6 * c2;
-     }
- }
- 
-@@ -124,22 +119,22 @@
-    is accurate to 55 bits and the worst-case cancellation happens at 6 * PI/4,
-    the result is accurate for |X| <= 120.0.  */
- static inline double
--reduce_fast (double x, const sincos_t *p, int *np)
-+reduce_fast(double x, const sincos_t *p, int *np)
- {
--  double r;
-+    double r;
- #if TOINT_INTRINSICS
--  /* Use fast round and lround instructions when available.  */
--  r = x * p->hpi_inv;
--  *np = converttoint (r);
--  return x - roundtoint (r) * p->hpi;
-+    /* Use fast round and lround instructions when available.  */
-+    r = x * p->hpi_inv;
-+    *np = converttoint(r);
-+    return x - roundtoint(r) * p->hpi;
- #else
--  /* Use scaled float to int conversion with explicit rounding.
--     hpi_inv is prescaled by 2^24 so the quadrant ends up in bits 24..31.
--     This avoids inaccuracies introduced by truncating negative values.  */
--  r = x * p->hpi_inv;
--  int n = ((int32_t)r + 0x800000) >> 24;
--  *np = n;
--  return x - n * p->hpi;
-+    /* Use scaled float to int conversion with explicit rounding.
-+       hpi_inv is prescaled by 2^24 so the quadrant ends up in bits 24..31.
-+       This avoids inaccuracies introduced by truncating negative values.  */
-+    r = x * p->hpi_inv;
-+    int n = ((int32_t)r + 0x800000) >> 24;
-+    *np = n;
-+    return x - n * p->hpi;
- #endif
- }
- 
-@@ -151,24 +146,24 @@
-    can have at most 29 leading zeros after the binary point, the double
-    precision result is accurate to 33 bits.  */
- static inline double
--reduce_large (uint32_t xi, int *np)
-+reduce_large(uint32_t xi, int *np)
- {
--  const uint32_t *arr = &__inv_pio4[(xi >> 26) & 15];
--  int shift = (xi >> 23) & 7;
--  uint64_t n, res0, res1, res2;
-+    const uint32_t *arr = &__inv_pio4[(xi >> 26) & 15];
-+    int             shift = (xi >> 23) & 7;
-+    uint64_t        n, res0, res1, res2;
- 
--  xi = (xi & 0xffffff) | 0x800000;
--  xi <<= shift;
-+    xi = (xi & 0xffffff) | 0x800000;
-+    xi <<= shift;
- 
--  res0 = xi * arr[0];
--  res1 = (uint64_t)xi * arr[4];
--  res2 = (uint64_t)xi * arr[8];
--  res0 = (res2 >> 32) | (res0 << 32);
--  res0 += res1;
-+    res0 = xi * arr[0];
-+    res1 = (uint64_t)xi * arr[4];
-+    res2 = (uint64_t)xi * arr[8];
-+    res0 = (res2 >> 32) | (res0 << 32);
-+    res0 += res1;
- 
--  n = (res0 + (1ULL << 61)) >> 62;
--  res0 -= n << 62;
--  double x = (int64_t)res0;
--  *np = n;
--  return x * pi63;
-+    n = (res0 + (1ULL << 61)) >> 62;
-+    res0 -= n << 62;
-+    double x = (int64_t)res0;
-+    *np = n;
-+    return x * pi63;
- }
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sinf.c picolibc-patched/cmd/gaston/libm/common/sinf.c
---- picolibc-pristine/cmd/gaston/libm/common/sinf.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sinf.c	2026-04-08 22:31:48
-@@ -38,56 +38,49 @@
-    small values.  Large inputs have their range reduced using fast integer
-    arithmetic.  */
- float
--sinf (float y)
-+sinf(float y)
- {
--  double x = (double) y;
--  double s;
--  int n;
--  const sincos_t *p = &__sincosf_table[0];
-+    double          x = (double)y;
-+    double          s;
-+    int             n;
-+    const sincos_t *p = &__sincosf_table[0];
- 
--  if (abstop12 (y) < abstop12 (pio4))
--    {
--      s = x * x;
-+    if (abstop12(y) < abstop12(pio4)) {
-+        s = x * x;
- 
--      if (unlikely (abstop12 (y) < abstop12 (0x1p-12f)))
--	{
--	  if (unlikely (abstop12 (y) < abstop12 (0x1p-126f)))
--	    /* Force underflow for tiny y.  */
--	    force_eval_float (s);
--	  return y;
--	}
-+        if (unlikely(abstop12(y) < abstop12(0x1p-12f))) {
-+            if (unlikely(abstop12(y) < abstop12(0x1p-126f)))
-+                /* Force underflow for tiny y.  */
-+                force_eval_float(s);
-+            return y;
-+        }
- 
--      return sinf_poly (x, s, p, 0);
--    }
--  else if (likely (abstop12 (y) < abstop12 (120.0f)))
--    {
--      x = reduce_fast (x, p, &n);
-+        return sinf_poly(x, s, p, 0);
-+    } else if (likely(abstop12(y) < abstop12(120.0f))) {
-+        x = reduce_fast(x, p, &n);
- 
--      /* Setup the signs for sin and cos.  */
--      s = p->sign[n & 3];
-+        /* Setup the signs for sin and cos.  */
-+        s = p->sign[n & 3];
- 
--      if (n & 2)
--	p = &__sincosf_table[1];
-+        if (n & 2)
-+            p = &__sincosf_table[1];
- 
--      return sinf_poly (x * s, x * x, p, n);
--    }
--  else if (abstop12 (y) < abstop12 (INFINITY))
--    {
--      uint32_t xi = asuint (y);
--      int sign = xi >> 31;
-+        return sinf_poly(x * s, x * x, p, n);
-+    } else if (abstop12(y) < abstop12(INFINITY)) {
-+        uint32_t xi = asuint(y);
-+        int      sign = xi >> 31;
- 
--      x = reduce_large (xi, &n);
-+        x = reduce_large(xi, &n);
- 
--      /* Setup signs for sin and cos - include original sign.  */
--      s = p->sign[(n + sign) & 3];
-+        /* Setup signs for sin and cos - include original sign.  */
-+        s = p->sign[(n + sign) & 3];
- 
--      if ((n + sign) & 2)
--	p = &__sincosf_table[1];
-+        if ((n + sign) & 2)
-+            p = &__sincosf_table[1];
- 
--      return sinf_poly (x * s, x * x, p, n);
--    }
--  else
--    return __math_invalidf (y);
-+        return sinf_poly(x * s, x * x, p, n);
-+    } else
-+        return __math_invalidf(y);
- }
- 
- #endif
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sl_issignaling.c picolibc-patched/cmd/gaston/libm/common/sl_issignaling.c
 --- picolibc-pristine/cmd/gaston/libm/common/sl_issignaling.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sl_issignaling.c	2026-04-08 22:31:48
@@ -31088,25 +28966,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_pow.c picolibc-patched/cmd/ga
                      return __math_invalid(x); /* (-1)**non-int is NaN */
                  } else if (yisint == 1)
                      z = -z; /* (x<0)**odd = -(|x|**odd) */
-@@ -216,15 +216,15 @@
-         }
-         /* over/underflow if x is not close to one */
-         if (ix < 0x3fefffff) {
--            int sign = yisint & ((__uint32_t)hx>>31);
-+            int sign = yisint & ((__uint32_t)hx >> 31);
-             return (hy < 0) ? __math_oflow(sign) : __math_uflow(sign);
-         }
-         if (ix > 0x3ff00000) {
--            int sign = yisint & ((__uint32_t)hx>>31);
-+            int sign = yisint & ((__uint32_t)hx >> 31);
-             return (hy > 0) ? __math_oflow(sign) : __math_uflow(sign);
-         }
-         /* now |1-x| is tiny <= 2**-20, suffice to compute
--	   log(x) by x-x^2/2+x^3/3-x^4/4 */
-+           log(x) by x-x^2/2+x^3/3-x^4/4 */
-         t = ax - 1; /* t has 20 trailing zeros */
-         w = (t * t) * (_F_64(0.5) - t * (_F_64(0.3333333333333333333333) - t * _F_64(0.25)));
-         u = ivln2_h * t; /* ivln2_h has 21 sig. bits */
 @@ -345,16 +344,16 @@
      r = (z * t1) / (t1 - two) - (w + z * w);
      z = one - (r - z);
@@ -31153,21 +29012,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_remainder.c picolibc-patched/
  
      if (((hx - hp) | (lx - lp)) == 0)
          return zero * x;
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_scalb.c picolibc-patched/cmd/gaston/libm/math/s_scalb.c
---- picolibc-pristine/cmd/gaston/libm/math/s_scalb.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/s_scalb.c	2026-04-08 22:31:48
-@@ -31,9 +31,9 @@
-         if ((x == 0.0 && fn > 0.0) || (isinf(x) && fn < 0.0))
-             return __math_invalid(fn);
-         if (fn > 0.0)
--            return fn*x;
-+            return fn * x;
-         else
--            return x/(-fn);
-+            return x / (-fn);
-     }
- 
-     if (rint64(fn) != fn)
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_sin.c picolibc-patched/cmd/gaston/libm/math/s_sin.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_sin.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_sin.c	2026-04-08 22:31:48
@@ -31718,15 +29562,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_j1.c picolibc-patched/cmd/ga
          ss = -s - c;
          cc = s - c;
          if (ix <= FLT_UWORD_HALF_MAX) { /* make sure y+y not overflow */
-@@ -117,7 +115,7 @@
-         return __math_divzerof(1);
- 
-     if (ix > 0x7f800000)
--        return x+x;
-+        return x + x;
- 
-     if (hx < 0)
-         return __math_invalidf(x);
 @@ -126,8 +124,7 @@
          return zero;
  
@@ -31737,18 +29572,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_j1.c picolibc-patched/cmd/ga
          ss = -s - c;
          cc = s - c;
          if (ix <= FLT_UWORD_HALF_MAX) { /* make sure x+x not overflow */
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_jn.c picolibc-patched/cmd/gaston/libm/math/sf_jn.c
---- picolibc-pristine/cmd/gaston/libm/math/sf_jn.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/sf_jn.c	2026-04-08 22:31:48
-@@ -181,7 +181,7 @@
-         return __math_divzerof(1);
- 
-     if (ix > 0x7f800000)
--        return x+x;
-+        return x + x;
- 
-     if (hx < 0)
-         return __math_invalidf(x);
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_lgamma.c picolibc-patched/cmd/gaston/libm/math/sf_lgamma.c
 --- picolibc-pristine/cmd/gaston/libm/math/sf_lgamma.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/sf_lgamma.c	2026-04-08 22:31:48
@@ -32171,21 +29994,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_rem_pio2.c picolibc-patched/
 +    y[1] = y1 * 0x1p-61f;
 +    return n & 3;
  }
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_scalb.c picolibc-patched/cmd/gaston/libm/math/sf_scalb.c
---- picolibc-pristine/cmd/gaston/libm/math/sf_scalb.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/sf_scalb.c	2026-04-08 22:31:48
-@@ -26,9 +26,9 @@
-         if ((x == 0.0f && fn > 0.0f) || (isinf(x) && fn < 0.0f))
-             return __math_invalidf(fn);
-         if (fn > 0.0f)
--            return fn*x;
-+            return fn * x;
-         else
--            return x/(-fn);
-+            return x / (-fn);
-     }
- 
-     if (rintf(fn) != fn)
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_sin.c picolibc-patched/cmd/gaston/libm/math/sf_sin.c
 --- picolibc-pristine/cmd/gaston/libm/math/sf_sin.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/sf_sin.c	2026-04-08 22:31:48
@@ -32551,15 +30359,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sr_lgamma.c picolibc-patched/cm
      __int32_t i, hx, lx, ix;
  
      EXTRACT_WORDS(hx, lx, x);
-@@ -225,7 +224,7 @@
-     *signgamp = 1;
-     ix = hx & 0x7fffffff;
-     if (ix >= 0x7ff00000)
--        return fabs64(x+x);
-+        return fabs64(x + x);
-     if ((ix | lx) == 0) {
-         if (hx < 0)
-             *signgamp = -1;
 @@ -256,7 +255,7 @@
      }
  
