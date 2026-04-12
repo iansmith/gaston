@@ -269,33 +269,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/cosf.c picolibc-patched/cmd/g
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/exp.c picolibc-patched/cmd/gaston/libm/common/exp.c
 --- picolibc-pristine/cmd/gaston/libm/common/exp.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/exp.c	2026-04-08 22:31:48
-@@ -33,17 +33,17 @@
- #include <stdint.h>
- #include "math_config.h"
- 
--#define N (1 << EXP_TABLE_BITS)
--#define InvLn2N __exp_data.invln2N
-+#define N         (1 << EXP_TABLE_BITS)
-+#define InvLn2N   __exp_data.invln2N
- #define NegLn2hiN __exp_data.negln2hiN
- #define NegLn2loN __exp_data.negln2loN
--#define Shift __exp_data.shift
--#define T __exp_data.tab
--#define C2 __exp_data.poly[5 - EXP_POLY_ORDER]
--#define C3 __exp_data.poly[6 - EXP_POLY_ORDER]
--#define C4 __exp_data.poly[7 - EXP_POLY_ORDER]
--#define C5 __exp_data.poly[8 - EXP_POLY_ORDER]
--#define C6 __exp_data.poly[9 - EXP_POLY_ORDER]
-+#define Shift     __exp_data.shift
-+#define T         __exp_data.tab
-+#define C2        __exp_data.poly[5 - EXP_POLY_ORDER]
-+#define C3        __exp_data.poly[6 - EXP_POLY_ORDER]
-+#define C4        __exp_data.poly[7 - EXP_POLY_ORDER]
-+#define C5        __exp_data.poly[8 - EXP_POLY_ORDER]
-+#define C6        __exp_data.poly[9 - EXP_POLY_ORDER]
- 
- /* Handle cases that may overflow or underflow when computing the result that
-    is scale*(1+TMP) without intermediate rounding.  The bit representation of
 @@ -53,122 +53,124 @@
     adjustment of scale, positive k here means the result may overflow and
     negative k means the result may underflow.  */
@@ -548,30 +521,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/exp10l.c picolibc-patched/cmd
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/exp2.c picolibc-patched/cmd/gaston/libm/common/exp2.c
 --- picolibc-pristine/cmd/gaston/libm/common/exp2.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/exp2.c	2026-04-08 22:31:48
-@@ -33,15 +33,15 @@
- #include <stdint.h>
- #include "math_config.h"
- 
--#define N (1 << EXP_TABLE_BITS)
-+#define N     (1 << EXP_TABLE_BITS)
- #define Shift __exp_data.exp2_shift
--#define T __exp_data.tab
--#define C1 __exp_data.exp2_poly[0]
--#define C2 __exp_data.exp2_poly[1]
--#define C3 __exp_data.exp2_poly[2]
--#define C4 __exp_data.exp2_poly[3]
--#define C5 __exp_data.exp2_poly[4]
--#define C6 __exp_data.exp2_poly[5]
-+#define T     __exp_data.tab
-+#define C1    __exp_data.exp2_poly[0]
-+#define C2    __exp_data.exp2_poly[1]
-+#define C3    __exp_data.exp2_poly[2]
-+#define C4    __exp_data.exp2_poly[3]
-+#define C5    __exp_data.exp2_poly[4]
-+#define C6    __exp_data.exp2_poly[5]
- 
- /* Handle cases that may overflow or underflow when computing the result that
-    is scale*(1+TMP) without intermediate rounding.  The bit representation of
 @@ -51,111 +51,113 @@
     adjustment of scale, positive k here means the result may overflow and
     negative k means the result may underflow.  */
@@ -1287,82 +1236,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/fma_inc.h picolibc-patched/cm
  /*
   * Denorms usually have an exponent biased by 1 so that they flow
   * smoothly into the smallest normal value with an exponent of
-@@ -35,7 +33,7 @@
-  */
- 
- #ifndef FLOAT_DENORM_BIAS
--#define FLOAT_DENORM_BIAS   1
-+#define FLOAT_DENORM_BIAS 1
- #endif
- 
- /*
-@@ -56,13 +54,13 @@
- static inline struct dd
- dd_add(FLOAT_T a, FLOAT_T b)
- {
--	struct dd ret;
--	FLOAT_T s;
-+    struct dd ret;
-+    FLOAT_T   s;
- 
--	ret.hi = a + b;
--	s = ret.hi - a;
--	ret.lo = (a - (ret.hi - s)) + (b - s);
--	return (ret);
-+    ret.hi = a + b;
-+    s = ret.hi - a;
-+    ret.lo = (a - (ret.hi - s)) + (b - s);
-+    return (ret);
- }
- 
- /*
-@@ -97,27 +95,27 @@
- static inline FLOAT_T
- add_and_denormalize(FLOAT_T a, FLOAT_T b, int scale)
- {
--	struct dd sum;
--	int bits_lost;
-+    struct dd sum;
-+    int       bits_lost;
- 
--	sum = dd_add(a, b);
-+    sum = dd_add(a, b);
- 
--	/*
--	 * If we are losing at least two bits of accuracy to denormalization,
--	 * then the first lost bit becomes a round bit, and we adjust the
--	 * lowest bit of sum.hi to make it a sticky bit summarizing all the
--	 * bits in sum.lo. With the sticky bit adjusted, the hardware will
--	 * break any ties in the correct direction.
--	 *
--	 * If we are losing only one bit to denormalization, however, we must
--	 * break the ties manually.
--	 */
--	if (sum.lo != 0) {
--		bits_lost = -EXPONENT(sum.hi) - scale + FLOAT_DENORM_BIAS;
--		if ((bits_lost != 1) ^ (int)odd_mant(sum.hi))
--                        sum.hi = NEXTAFTER(sum.hi, (FLOAT_T)INFINITY * sum.lo);
--	}
--	return (LDEXP(sum.hi, scale));
-+    /*
-+     * If we are losing at least two bits of accuracy to denormalization,
-+     * then the first lost bit becomes a round bit, and we adjust the
-+     * lowest bit of sum.hi to make it a sticky bit summarizing all the
-+     * bits in sum.lo. With the sticky bit adjusted, the hardware will
-+     * break any ties in the correct direction.
-+     *
-+     * If we are losing only one bit to denormalization, however, we must
-+     * break the ties manually.
-+     */
-+    if (sum.lo != 0) {
-+        bits_lost = -EXPONENT(sum.hi) - scale + FLOAT_DENORM_BIAS;
-+        if ((bits_lost != 1) ^ (int)odd_mant(sum.hi))
-+            sum.hi = NEXTAFTER(sum.hi, (FLOAT_T)INFINITY * sum.lo);
-+    }
-+    return (LDEXP(sum.hi, scale));
- }
- 
- /*
 @@ -128,39 +126,39 @@
  static inline struct dd
  dd_mul(FLOAT_T a, FLOAT_T b)
@@ -6063,18 +5936,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_exp10.c picolibc-patched/cm
  #undef exp10
  #include "fdlibm.h"
  #include <errno.h>
-@@ -57,9 +58,9 @@
- #ifdef _NEED_FLOAT64
- 
- __float64
--exp1064(__float64 x)		/* wrapper exp10 */
-+exp1064(__float64 x) /* wrapper exp10 */
- {
--  return _pow64(_F_64(10.0), x);
-+    return _pow64(_F_64(10.0), x);
- }
- 
- _MATH_ALIAS_d_d(exp10);
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_expm1.c picolibc-patched/cmd/gaston/libm/common/s_expm1.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_expm1.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_expm1.c	2026-04-08 22:31:48
@@ -6646,189 +6507,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_isinfd.c picolibc-patched/c
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_isnan.c picolibc-patched/cmd/gaston/libm/common/s_isnan.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_isnan.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_isnan.c	2026-04-08 22:31:48
-@@ -6,60 +6,62 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
- 
- /*
- FUNCTION
--<<fpclassify>>, <<isfinite>>, <<isinf>>, <<isnan>>, and <<isnormal>>---floating-point classification macros; <<finite>>, <<finitef>>, <<isinf>>, <<isinff>>, <<isnan>>, <<isnanf>>---test for exceptional numbers
-+<<fpclassify>>, <<isfinite>>, <<isinf>>, <<isnan>>, and <<isnormal>>---floating-point classification
-+macros; <<finite>>, <<finitef>>, <<isinf>>, <<isinff>>, <<isnan>>, <<isnanf>>---test for exceptional
-+numbers
- 
- @c C99 (start
- INDEX
--	fpclassify
-+        fpclassify
- INDEX
--	isfinite
-+        isfinite
- INDEX
--	isinf
-+        isinf
- INDEX
--	isnan
-+        isnan
- INDEX
--	isnormal
-+        isnormal
- @c C99 end)
- @c SUSv2 (start
- INDEX
--	isnan
-+        isnan
- INDEX
--	isinf
-+        isinf
- INDEX
--	finite
-+        finite
- 
- INDEX
--	isnanf
-+        isnanf
- INDEX
--	isinff
-+        isinff
- INDEX
--	finitef
-+        finitef
- @c SUSv2 end)
- 
- SYNOPSIS
--	[C99 standard macros:]
--	#include <math.h>
--	int fpclassify(real-floating <[x]>);
--	int isfinite(real-floating <[x]>);
--	int isinf(real-floating <[x]>);
--	int isnan(real-floating <[x]>);
--	int isnormal(real-floating <[x]>);
-+        [C99 standard macros:]
-+        #include <math.h>
-+        int fpclassify(real-floating <[x]>);
-+        int isfinite(real-floating <[x]>);
-+        int isinf(real-floating <[x]>);
-+        int isnan(real-floating <[x]>);
-+        int isnormal(real-floating <[x]>);
- 
--	[Archaic SUSv2 functions:]
--	#include <math.h>
--	int isnan(double <[arg]>);
--	int isinf(double <[arg]>);
--	int finite(double <[arg]>);
--	int isnanf(float <[arg]>);
--	int isinff(float <[arg]>);
--	int finitef(float <[arg]>);
-+        [Archaic SUSv2 functions:]
-+        #include <math.h>
-+        int isnan(double <[arg]>);
-+        int isinf(double <[arg]>);
-+        int finite(double <[arg]>);
-+        int isnanf(float <[arg]>);
-+        int isinff(float <[arg]>);
-+        int finitef(float <[arg]>);
- 
- DESCRIPTION
- <<fpclassify>>, <<isfinite>>, <<isinf>>, <<isnan>>, and <<isnormal>> are macros
-@@ -78,15 +80,15 @@
- 
- o+
- o FP_INFINITE
--	<[x]> is either plus or minus infinity;
-+        <[x]> is either plus or minus infinity;
- o FP_NAN
--	<[x]> is "Not A Number" (plus or minus);
-+        <[x]> is "Not A Number" (plus or minus);
- o FP_NORMAL
--	<[x]> is a "normal" number (i.e. is none of the other special forms);
-+        <[x]> is a "normal" number (i.e. is none of the other special forms);
- o FP_SUBNORMAL
--	<[x]> is too small be stored as a regular normalized number (i.e. loss of precision is likely); or
--o FP_ZERO
--	<[x]> is 0 (either plus or minus).
-+        <[x]> is too small be stored as a regular normalized number (i.e. loss of precision is
-+likely); or o FP_ZERO
-+        <[x]> is 0 (either plus or minus).
- o-
- 
- The "<<is>>" set of macros provide a useful set of shorthand ways for
-@@ -111,40 +113,40 @@
- (<<fpclassify>>(<[x]>) == FP_NORMAL).)
- o-
- 
--	The archaic SUSv2 functions provide information on the floating-point
--	argument supplied.
-+        The archaic SUSv2 functions provide information on the floating-point
-+        argument supplied.
- 
--	There are five major number formats ("exponent" referring to the
--	biased exponent in the binary-encoded number):
--	o+
--	o zero
--	  A number which contains all zero bits, excluding the sign bit.
--	o subnormal
--	  A number with a zero exponent but a nonzero fraction.
--	o normal
--	  A number with an exponent and a fraction.
--     	o infinity
--	  A number with an all 1's exponent and a zero fraction.
--	o NAN
--	  A number with an all 1's exponent and a nonzero fraction.
-+        There are five major number formats ("exponent" referring to the
-+        biased exponent in the binary-encoded number):
-+        o+
-+        o zero
-+          A number which contains all zero bits, excluding the sign bit.
-+        o subnormal
-+          A number with a zero exponent but a nonzero fraction.
-+        o normal
-+          A number with an exponent and a fraction.
-+        o infinity
-+          A number with an all 1's exponent and a zero fraction.
-+        o NAN
-+          A number with an all 1's exponent and a nonzero fraction.
- 
--	o-
-+        o-
- 
--	<<isnan>> returns 1 if the argument is a nan. <<isinf>>
--	returns 1 if the argument is infinity.  <<finite>> returns 1 if the
--	argument is zero, subnormal or normal.
--	
--	The <<isnanf>>, <<isinff>> and <<finitef>> functions perform the same
--	operations as their <<isnan>>, <<isinf>> and <<finite>>
--	counterparts, but on single-precision floating-point numbers.
-+        <<isnan>> returns 1 if the argument is a nan. <<isinf>>
-+        returns 1 if the argument is infinity.  <<finite>> returns 1 if the
-+        argument is zero, subnormal or normal.
- 
--	It should be noted that the C99 standard dictates that <<isnan>>
--	and <<isinf>> are macros that operate on multiple types of
--	floating-point.  The SUSv2 standard declares <<isnan>> as
--	a function taking double.  Newlib has decided to declare
--	them both as functions and as macros in math.h to
--	maintain backward compatibility.
-+        The <<isnanf>>, <<isinff>> and <<finitef>> functions perform the same
-+        operations as their <<isnan>>, <<isinf>> and <<finite>>
-+        counterparts, but on single-precision floating-point numbers.
- 
-+        It should be noted that the C99 standard dictates that <<isnan>>
-+        and <<isinf>> are macros that operate on multiple types of
-+        floating-point.  The SUSv2 standard declares <<isnan>> as
-+        a function taking double.  Newlib has decided to declare
-+        them both as functions and as macros in math.h to
-+        maintain backward compatibility.
-+
- RETURNS
- @comment Formatting note:  "$@" forces a new line
- The fpclassify macro returns the value corresponding to the appropriate FP_ macro.@*
 @@ -185,24 +187,37 @@
   * <math.h> for compatibility.
   */
@@ -7460,18 +7138,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_log1p.c picolibc-patched/cm
  }
  
  _MATH_ALIAS_d_d(log1p)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_log2.c picolibc-patched/cmd/gaston/libm/common/s_log2.c
---- picolibc-pristine/cmd/gaston/libm/common/s_log2.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/s_log2.c	2026-04-08 22:31:48
-@@ -69,7 +69,7 @@
- #ifdef _NEED_FLOAT64
- 
- __float64
--log264(__float64 x)		/* wrapper log2 */
-+log264(__float64 x) /* wrapper log2 */
- {
-     return (log64(x) / _F_64(_M_LN2));
- }
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_logb.c picolibc-patched/cmd/gaston/libm/common/s_logb.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_logb.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_logb.c	2026-04-08 22:31:48
@@ -8161,19 +7827,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_pow10.c picolibc-patched/cm
  #undef pow10
  #include "fdlibm.h"
  #include <errno.h>
-@@ -55,9 +56,10 @@
- 
- #ifdef _NEED_FLOAT64
- 
--__float64 pow1064(__float64 x)		/* wrapper pow10 */
-+__float64
-+pow1064(__float64 x) /* wrapper pow10 */
- {
--  return _pow64(_F_64(10.0), x);
-+    return _pow64(_F_64(10.0), x);
- }
- 
- _MATH_ALIAS_d_d(pow10)
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_remquo.c picolibc-patched/cmd/gaston/libm/common/s_remquo.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_remquo.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_remquo.c	2026-04-08 22:31:48
@@ -8847,15 +8500,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_scalbn.c picolibc-patched/c
  #pragma GCC diagnostic ignored "-Wmissing-attributes"
  #endif
  __strong_reference(scalbn64, ldexp64);
-@@ -115,7 +121,6 @@
- 
- #endif
- 
--_MATH_ALIAS_d_di(scalbn)
--_MATH_ALIAS_d_di(ldexp)
-+_MATH_ALIAS_d_di(scalbn) _MATH_ALIAS_d_di(ldexp)
- 
- #endif /* _NEED_FLOAT64 */
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_signbit.c picolibc-patched/cmd/gaston/libm/common/s_signbit.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_signbit.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_signbit.c	2026-04-08 22:31:48
@@ -8890,18 +8534,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_signbit.c picolibc-patched/
  }
  
  _MATH_ALIAS_i_d(__signbit)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_trunc.c picolibc-patched/cmd/gaston/libm/common/s_trunc.c
---- picolibc-pristine/cmd/gaston/libm/common/s_trunc.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/s_trunc.c	2026-04-08 22:31:48
-@@ -47,7 +47,7 @@
- {
-     int64_t ix = _asint64(x);
-     int64_t mask;
--    int exp;
-+    int     exp;
- 
-     /* Un-biased exponent */
-     exp = _exponent64(ix) - 1023;
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/scalbnl.c picolibc-patched/cmd/gaston/libm/common/scalbnl.c
 --- picolibc-pristine/cmd/gaston/libm/common/scalbnl.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/scalbnl.c	2026-04-08 22:31:48
@@ -9182,39 +8814,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_exp.c picolibc-patched/cmd
 +    return (float)y;
  }
  #endif /* !__OBSOLETE_MATH_FLOAT */
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_exp10.c picolibc-patched/cmd/gaston/libm/common/sf_exp10.c
---- picolibc-pristine/cmd/gaston/libm/common/sf_exp10.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sf_exp10.c	2026-04-08 22:31:48
-@@ -8,23 +8,25 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
- 
--/* 
-+/*
-  * wrapper exp10f(x)
-  */
- 
-+#define _GNU_SOURCE
- #undef exp10f
- #include "fdlibm.h"
- #include <errno.h>
- #include <math.h>
- 
--float exp10f(float x)		/* wrapper exp10f */
-+float
-+exp10f(float x) /* wrapper exp10f */
- {
--  return _powf(10.0, x);
-+    return _powf(10.0, x);
- }
- 
- _MATH_ALIAS_f_f(exp10)
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_exp2.c picolibc-patched/cmd/gaston/libm/common/sf_exp2.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_exp2.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_exp2.c	2026-04-08 22:31:48
@@ -9583,13 +9182,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_finite.c picolibc-patched/
  int
  __finitef(float x)
  {
-@@ -42,5 +39,4 @@
- }
- #endif
- 
--_MATH_ALIAS_i_f(finite)
--_MATH_ALIAS_i_f(__finite)
-+_MATH_ALIAS_i_f(finite) _MATH_ALIAS_i_f(__finite)
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_fma.c picolibc-patched/cmd/gaston/libm/common/sf_fma.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_fma.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_fma.c	2026-04-08 22:31:48
@@ -9639,32 +9231,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_fma.c picolibc-patched/cmd
  
  static inline int
  odd_mant(FLOAT_T x)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_fmax.c picolibc-patched/cmd/gaston/libm/common/sf_fmax.c
---- picolibc-pristine/cmd/gaston/libm/common/sf_fmax.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sf_fmax.c	2026-04-08 22:31:48
-@@ -6,7 +6,8 @@
- 
- #include "fdlibm.h"
- 
--float fmaxf(float x, float y)
-+float
-+fmaxf(float x, float y)
- {
-     if (issignaling(x) || issignaling(y))
-         return x + y;
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_fmin.c picolibc-patched/cmd/gaston/libm/common/sf_fmin.c
---- picolibc-pristine/cmd/gaston/libm/common/sf_fmin.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sf_fmin.c	2026-04-08 22:31:48
-@@ -6,7 +6,8 @@
- 
- #include "fdlibm.h"
- 
--float fminf(float x, float y)
-+float
-+fminf(float x, float y)
- {
-     if (issignaling(x) || issignaling(y))
-         return x + y;
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_fpclassify.c picolibc-patched/cmd/gaston/libm/common/sf_fpclassify.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_fpclassify.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_fpclassify.c	2026-04-08 22:31:48
@@ -11309,39 +10875,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_pow.c picolibc-patched/cmd
  #pragma GCC diagnostic ignored "-Wmissing-attributes"
  #endif
  __strong_reference(powf, _powf);
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_pow10.c picolibc-patched/cmd/gaston/libm/common/sf_pow10.c
---- picolibc-pristine/cmd/gaston/libm/common/sf_pow10.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sf_pow10.c	2026-04-08 22:31:48
-@@ -8,24 +8,25 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
- 
--/* 
-+/*
-  * wrapper pow10f(x)
-  */
- 
-+#define _GNU_SOURCE
- #undef pow10f
- #include "fdlibm.h"
- #include <errno.h>
- #include <math.h>
- 
- float
--pow10f(float x)		/* wrapper pow10f */
-+pow10f(float x) /* wrapper pow10f */
- {
--  return _powf(10.0, x);
-+    return _powf(10.0, x);
- }
- 
- #undef pow10
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_remquo.c picolibc-patched/cmd/gaston/libm/common/sf_remquo.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_remquo.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_remquo.c	2026-04-08 22:31:48
@@ -11919,13 +11452,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_scalbn.c picolibc-patched/
  #pragma GCC diagnostic ignored "-Wmissing-attributes"
  #endif
  __strong_reference(scalbnf, ldexpf);
-@@ -75,5 +80,4 @@
- 
- #endif
- 
--_MATH_ALIAS_f_fi(scalbn)
--_MATH_ALIAS_f_fi(ldexp)
-+_MATH_ALIAS_f_fi(scalbn) _MATH_ALIAS_f_fi(ldexp)
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_signbit.c picolibc-patched/cmd/gaston/libm/common/sf_signbit.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_signbit.c	1969-12-31 19:00:00
 +++ picolibc-patched/cmd/gaston/libm/common/sf_signbit.c	2026-04-08 22:31:48
@@ -12106,26 +11632,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sincosf.c picolibc-patched/cm
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sincosf.h picolibc-patched/cmd/gaston/libm/common/sincosf.h
 --- picolibc-pristine/cmd/gaston/libm/common/sincosf.h	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sincosf.h	2026-04-08 22:31:48
-@@ -36,13 +36,12 @@
- static const double pio4 = 0x1.921FB54442D18p-1;
- 
- /* The constants and polynomials for sine and cosine.  */
--typedef struct
--{
--  double sign[4];		/* Sign of sine in quadrants 0..3.  */
--  double hpi_inv;		/* 2 / PI ( * 2^24 if !TOINT_INTRINSICS).  */
--  double hpi;			/* PI / 2.  */
--  double c0, c1, c2, c3, c4;	/* Cosine polynomial.  */
--  double s1, s2, s3;		/* Sine polynomial.  */
-+typedef struct {
-+    double sign[4];            /* Sign of sine in quadrants 0..3.  */
-+    double hpi_inv;            /* 2 / PI ( * 2^24 if !TOINT_INTRINSICS).  */
-+    double hpi;                /* PI / 2.  */
-+    double c0, c1, c2, c3, c4; /* Cosine polynomial.  */
-+    double s1, s2, s3;         /* Sine polynomial.  */
- } sincos_t;
- 
- /* Polynomial data (the cosine polynomial is negated in the 2nd entry).  */
 @@ -53,68 +52,64 @@
  
  /* Top 12 bits of the float representation with the sign bit cleared.  */
@@ -12306,86 +11812,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sincosf.h picolibc-patched/cm
 +    *np = n;
 +    return x * pi63;
  }
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sincosf_data.c picolibc-patched/cmd/gaston/libm/common/sincosf_data.c
---- picolibc-pristine/cmd/gaston/libm/common/sincosf_data.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sincosf_data.c	2026-04-08 22:31:48
-@@ -36,54 +36,37 @@
- 
- /* The constants and polynomials for sine and cosine.  The 2nd entry
-    computes -cos (x) rather than cos (x) to get negation for free.  */
--const sincos_t __sincosf_table[2] =
--{
--  {
--    { 1.0, -1.0, -1.0, 1.0 },
-+const sincos_t __sincosf_table[2] = {
-+    { { 1.0, -1.0, -1.0, 1.0 },
- #if TOINT_INTRINSICS
--    0x1.45F306DC9C883p-1,
-+     0x1.45F306DC9C883p-1,
- #else
--    0x1.45F306DC9C883p+23,
-+      0x1.45F306DC9C883p+23,
- #endif
--    0x1.921FB54442D18p0,
--    0x1p0,
--    -0x1.ffffffd0c621cp-2,
--    0x1.55553e1068f19p-5,
--    -0x1.6c087e89a359dp-10,
--    0x1.99343027bf8c3p-16,
--    -0x1.555545995a603p-3,
--    0x1.1107605230bc4p-7,
--    -0x1.994eb3774cf24p-13
--  },
--  {
--    { 1.0, -1.0, -1.0, 1.0 },
-+     0x1.921FB54442D18p0, 0x1p0,
-+     -0x1.ffffffd0c621cp-2,
-+     0x1.55553e1068f19p-5,                         -0x1.6c087e89a359dp-10,
-+     0x1.99343027bf8c3p-16,                                                                        -0x1.555545995a603p-3,
-+     0x1.1107605230bc4p-7, -0x1.994eb3774cf24p-13 },
-+    { { 1.0, -1.0, -1.0, 1.0 },
- #if TOINT_INTRINSICS
--    0x1.45F306DC9C883p-1,
-+     0x1.45F306DC9C883p-1,
- #else
--    0x1.45F306DC9C883p+23,
-+      0x1.45F306DC9C883p+23,
- #endif
--    0x1.921FB54442D18p0,
--    -0x1p0,
--    0x1.ffffffd0c621cp-2,
--    -0x1.55553e1068f19p-5,
--    0x1.6c087e89a359dp-10,
--    -0x1.99343027bf8c3p-16,
--    -0x1.555545995a603p-3,
--    0x1.1107605230bc4p-7,
--    -0x1.994eb3774cf24p-13
--  }
-+     0x1.921FB54442D18p0, -0x1p0,
-+     0x1.ffffffd0c621cp-2,  -0x1.55553e1068f19p-5,
-+     0x1.6c087e89a359dp-10,                                                -0x1.99343027bf8c3p-16,
-+     -0x1.555545995a603p-3,
-+     0x1.1107605230bc4p-7, -0x1.994eb3774cf24p-13 }
- };
- 
- /* Table with 4/PI to 192 bit precision.  To avoid unaligned accesses
-    only 8 new bits are added per entry, making the table 4 times larger.  */
--const uint32_t __inv_pio4[24] =
--{
--  0xa2,       0xa2f9,	  0xa2f983,   0xa2f9836e,
--  0xf9836e4e, 0x836e4e44, 0x6e4e4415, 0x4e441529,
--  0x441529fc, 0x1529fc27, 0x29fc2757, 0xfc2757d1,
--  0x2757d1f5, 0x57d1f534, 0xd1f534dd, 0xf534ddc0,
--  0x34ddc0db, 0xddc0db62, 0xc0db6295, 0xdb629599,
--  0x6295993c, 0x95993c43, 0x993c4390, 0x3c439041
--};
-+const uint32_t __inv_pio4[24]
-+    = { 0xa2,       0xa2f9,     0xa2f983,   0xa2f9836e, 0xf9836e4e, 0x836e4e44,
-+        0x6e4e4415, 0x4e441529, 0x441529fc, 0x1529fc27, 0x29fc2757, 0xfc2757d1,
-+        0x2757d1f5, 0x57d1f534, 0xd1f534dd, 0xf534ddc0, 0x34ddc0db, 0xddc0db62,
-+        0xc0db6295, 0xdb629599, 0x6295993c, 0x95993c43, 0x993c4390, 0x3c439041 };
- 
- #endif
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sinf.c picolibc-patched/cmd/gaston/libm/common/sinf.c
 --- picolibc-pristine/cmd/gaston/libm/common/sinf.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sinf.c	2026-04-08 22:31:48
@@ -30213,52 +29639,9 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/CMakeLists.txt picolibc-patched
 -    sl_hypot.c
 -    )
 -endif()
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/k_cos.c picolibc-patched/cmd/gaston/libm/math/k_cos.c
---- picolibc-pristine/cmd/gaston/libm/math/k_cos.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/k_cos.c	2026-04-08 22:31:48
-@@ -50,14 +50,13 @@
- 
- #ifdef _NEED_FLOAT64
- 
--static const __float64
--    one = _F_64(1.00000000000000000000e+00), /* 0x3FF00000, 0x00000000 */
--    C1 = _F_64(4.16666666666666019037e-02), /* 0x3FA55555, 0x5555554C */
--    C2 = _F_64(-1.38888888888741095749e-03), /* 0xBF56C16C, 0x16C15177 */
--    C3 = _F_64(2.48015872894767294178e-05), /* 0x3EFA01A0, 0x19CB1590 */
--    C4 = _F_64(-2.75573143513906633035e-07), /* 0xBE927E4F, 0x809C52AD */
--    C5 = _F_64(2.08757232129817482790e-09), /* 0x3E21EE9E, 0xBDB4B1C4 */
--    C6 = _F_64(-1.13596475577881948265e-11); /* 0xBDA8FAE9, 0xBE8838D4 */
-+static const __float64 one = _F_64(1.00000000000000000000e+00), /* 0x3FF00000, 0x00000000 */
-+    C1 = _F_64(4.16666666666666019037e-02),                     /* 0x3FA55555, 0x5555554C */
-+    C2 = _F_64(-1.38888888888741095749e-03),                    /* 0xBF56C16C, 0x16C15177 */
-+    C3 = _F_64(2.48015872894767294178e-05),                     /* 0x3EFA01A0, 0x19CB1590 */
-+    C4 = _F_64(-2.75573143513906633035e-07),                    /* 0xBE927E4F, 0x809C52AD */
-+    C5 = _F_64(2.08757232129817482790e-09),                     /* 0x3E21EE9E, 0xBDB4B1C4 */
-+    C6 = _F_64(-1.13596475577881948265e-11);                    /* 0xBDA8FAE9, 0xBE8838D4 */
- 
- __float64
- __kernel_cos(__float64 x, __float64 y)
-@@ -65,7 +64,7 @@
-     __float64 a, hz, z, r, qx;
-     __int32_t ix;
-     GET_HIGH_WORD(ix, x);
--    ix &= 0x7fffffff; /* ix = |x|'s high word*/
-+    ix &= 0x7fffffff;    /* ix = |x|'s high word*/
-     if (ix < 0x3e400000) /* if x < 2**27 */
-         return one;
-     z = x * x;
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/k_rem_pio2.c picolibc-patched/cmd/gaston/libm/math/k_rem_pio2.c
 --- picolibc-pristine/cmd/gaston/libm/math/k_rem_pio2.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/k_rem_pio2.c	2026-04-08 22:31:48
-@@ -130,7 +130,7 @@
- 
- #ifdef _NEED_FLOAT64
- 
--static const int init_jk[] = { 2, 3, 4, 6 }; /* initial value for jk */
-+static const int       init_jk[] = { 2, 3, 4, 6 }; /* initial value for jk */
- 
- static const __float64 PIo2[] = {
-     _F_64(1.57079625129699707031e+00), /* 0x3FF921FB, 0x40000000 */
 @@ -143,12 +143,11 @@
      _F_64(2.16741683877804819444e-51), /* 0x3569F31D, 0x00000000 */
  };
@@ -30276,16 +29659,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/k_rem_pio2.c picolibc-patched/c
  #pragma GCC diagnostic ignored "-Wpragmas"
  #pragma GCC diagnostic ignored "-Wunknown-warning-option"
  #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-@@ -157,8 +156,7 @@
- #endif
- 
- int
--__kernel_rem_pio2(__float64 *x, __float64 *y, int e0, int nx, int prec,
--                  const __int32_t *ipio2)
-+__kernel_rem_pio2(__float64 *x, __float64 *y, int e0, int nx, int prec, const __int32_t *ipio2)
- {
-     __int32_t jz, jx, jv, jp, jk, carry, n, iq[20], i, j, k, m, q0, ih;
-     __float64 z, fw, f[20], fq[20], q[20];
 @@ -197,8 +195,8 @@
      }
  
@@ -30324,159 +29697,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/k_rem_pio2.c picolibc-patched/c
      for (i = jz; i >= 0; i--) {
          q[i] = fw * (__float64)iq[i];
          fw *= twon24;
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/k_sin.c picolibc-patched/cmd/gaston/libm/math/k_sin.c
---- picolibc-pristine/cmd/gaston/libm/math/k_sin.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/k_sin.c	2026-04-08 22:31:48
-@@ -43,14 +43,13 @@
- 
- #ifdef _NEED_FLOAT64
- 
--static const __float64
--    half = _F_64(5.00000000000000000000e-01), /* 0x3FE00000, 0x00000000 */
--    S1 = _F_64(-1.66666666666666324348e-01), /* 0xBFC55555, 0x55555549 */
--    S2 = _F_64(8.33333333332248946124e-03), /* 0x3F811111, 0x1110F8A6 */
--    S3 = _F_64(-1.98412698298579493134e-04), /* 0xBF2A01A0, 0x19C161D5 */
--    S4 = _F_64(2.75573137070700676789e-06), /* 0x3EC71DE3, 0x57B1FE7D */
--    S5 = _F_64(-2.50507602534068634195e-08), /* 0xBE5AE5E6, 0x8A2B9CEB */
--    S6 = _F_64(1.58969099521155010221e-10); /* 0x3DE5D93A, 0x5ACFD57C */
-+static const __float64 half = _F_64(5.00000000000000000000e-01), /* 0x3FE00000, 0x00000000 */
-+    S1 = _F_64(-1.66666666666666324348e-01),                     /* 0xBFC55555, 0x55555549 */
-+    S2 = _F_64(8.33333333332248946124e-03),                      /* 0x3F811111, 0x1110F8A6 */
-+    S3 = _F_64(-1.98412698298579493134e-04),                     /* 0xBF2A01A0, 0x19C161D5 */
-+    S4 = _F_64(2.75573137070700676789e-06),                      /* 0x3EC71DE3, 0x57B1FE7D */
-+    S5 = _F_64(-2.50507602534068634195e-08),                     /* 0xBE5AE5E6, 0x8A2B9CEB */
-+    S6 = _F_64(1.58969099521155010221e-10);                      /* 0x3DE5D93A, 0x5ACFD57C */
- 
- __float64
- __kernel_sin(__float64 x, __float64 y, int iy)
-@@ -58,9 +57,9 @@
-     __float64 z, r, v;
-     __int32_t ix;
-     GET_HIGH_WORD(ix, x);
--    ix &= 0x7fffffff; /* high word of x */
--    if (ix < 0x3e400000) /* |x| < 2**-27 */
--        return __math_inexact64(x);       /* generate inexact */
-+    ix &= 0x7fffffff;               /* high word of x */
-+    if (ix < 0x3e400000)            /* |x| < 2**-27 */
-+        return __math_inexact64(x); /* generate inexact */
-     z = x * x;
-     v = z * x;
-     r = S2 + z * (S3 + z * (S4 + z * (S5 + z * S6)));
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/k_tan.c picolibc-patched/cmd/gaston/libm/math/k_tan.c
---- picolibc-pristine/cmd/gaston/libm/math/k_tan.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/k_tan.c	2026-04-08 22:31:48
-@@ -49,24 +49,23 @@
- 
- #ifdef _NEED_FLOAT64
- 
--static const __float64
--    one = _F_64(1.00000000000000000000e+00), /* 0x3FF00000, 0x00000000 */
--    pio4 = _F_64(7.85398163397448278999e-01), /* 0x3FE921FB, 0x54442D18 */
--    pio4lo = _F_64(3.06161699786838301793e-17), /* 0x3C81A626, 0x33145C07 */
-+static const __float64 one = _F_64(1.00000000000000000000e+00), /* 0x3FF00000, 0x00000000 */
-+    pio4 = _F_64(7.85398163397448278999e-01),                   /* 0x3FE921FB, 0x54442D18 */
-+    pio4lo = _F_64(3.06161699786838301793e-17),                 /* 0x3C81A626, 0x33145C07 */
-     T[] = {
--        _F_64(3.33333333333334091986e-01), /* 0x3FD55555, 0x55555563 */
--        _F_64(1.33333333333201242699e-01), /* 0x3FC11111, 0x1110FE7A */
--        _F_64(5.39682539762260521377e-02), /* 0x3FABA1BA, 0x1BB341FE */
--        _F_64(2.18694882948595424599e-02), /* 0x3F9664F4, 0x8406D637 */
--        _F_64(8.86323982359930005737e-03), /* 0x3F8226E3, 0xE96E8493 */
--        _F_64(3.59207910759131235356e-03), /* 0x3F6D6D22, 0xC9560328 */
--        _F_64(1.45620945432529025516e-03), /* 0x3F57DBC8, 0xFEE08315 */
--        _F_64(5.88041240820264096874e-04), /* 0x3F4344D8, 0xF2F26501 */
--        _F_64(2.46463134818469906812e-04), /* 0x3F3026F7, 0x1A8D1068 */
--        _F_64(7.81794442939557092300e-05), /* 0x3F147E88, 0xA03792A6 */
--        _F_64(7.14072491382608190305e-05), /* 0x3F12B80F, 0x32F0A7E9 */
-+        _F_64(3.33333333333334091986e-01),  /* 0x3FD55555, 0x55555563 */
-+        _F_64(1.33333333333201242699e-01),  /* 0x3FC11111, 0x1110FE7A */
-+        _F_64(5.39682539762260521377e-02),  /* 0x3FABA1BA, 0x1BB341FE */
-+        _F_64(2.18694882948595424599e-02),  /* 0x3F9664F4, 0x8406D637 */
-+        _F_64(8.86323982359930005737e-03),  /* 0x3F8226E3, 0xE96E8493 */
-+        _F_64(3.59207910759131235356e-03),  /* 0x3F6D6D22, 0xC9560328 */
-+        _F_64(1.45620945432529025516e-03),  /* 0x3F57DBC8, 0xFEE08315 */
-+        _F_64(5.88041240820264096874e-04),  /* 0x3F4344D8, 0xF2F26501 */
-+        _F_64(2.46463134818469906812e-04),  /* 0x3F3026F7, 0x1A8D1068 */
-+        _F_64(7.81794442939557092300e-05),  /* 0x3F147E88, 0xA03792A6 */
-+        _F_64(7.14072491382608190305e-05),  /* 0x3F12B80F, 0x32F0A7E9 */
-         _F_64(-1.85586374855275456654e-05), /* 0xBEF375CB, 0xDB605373 */
--        _F_64(2.59073051863633712884e-05), /* 0x3EFB2A70, 0x74BF7AD4 */
-+        _F_64(2.59073051863633712884e-05),  /* 0x3EFB2A70, 0x74BF7AD4 */
-     };
- 
- __float64
-@@ -75,7 +74,7 @@
-     __float64 z, r, v, w, s;
-     __int32_t ix, hx;
-     GET_HIGH_WORD(hx, x);
--    ix = hx & 0x7fffffff; /* high word of |x| */
-+    ix = hx & 0x7fffffff;  /* high word of |x| */
-     if (ix < 0x3e300000) { /* x < 2**-28 */
-         if ((int)x == 0) { /* generate inexact */
-             __uint32_t low;
-@@ -115,26 +114,24 @@
-      *	  x^5(x^2*(T[2]+x^4*T[4]+...+x^22*[T12]))
-      */
-     r = T[1] + w * (T[3] + w * (T[5] + w * (T[7] + w * (T[9] + w * T[11]))));
--    v = z *
--        (T[2] + w * (T[4] + w * (T[6] + w * (T[8] + w * (T[10] + w * T[12])))));
-+    v = z * (T[2] + w * (T[4] + w * (T[6] + w * (T[8] + w * (T[10] + w * T[12])))));
-     s = z * x;
-     r = y + z * (s * (r + v) + y);
-     r += T[0] * s;
-     w = x + r;
-     if (ix >= 0x3FE59428) {
-         v = (__float64)iy;
--        return (__float64)(1 - ((hx >> 30) & 2)) *
--               (v - _F_64(2.0) * (x - (w * w / (w + v) - r)));
-+        return (__float64)(1 - ((hx >> 30) & 2)) * (v - _F_64(2.0) * (x - (w * w / (w + v) - r)));
-     }
-     if (iy == 1)
-         return w;
-     else { /* if allow error up to 2 ulp,
--			   simply return -1.0/(x+r) here */
-+                           simply return -1.0/(x+r) here */
-         /*  compute -1.0/(x+r) accurately */
-         __float64 a, t;
-         z = w;
-         SET_LOW_WORD(z, 0);
--        v = r - (z - x); /* z+v = r+x */
-+        v = r - (z - x);         /* z+v = r+x */
-         t = a = _F_64(-1.0) / w; /* a = _F_64(-1.0)/w */
-         SET_LOW_WORD(t, 0);
-         s = _F_64(1.0) + t * z;
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/kf_cos.c picolibc-patched/cmd/gaston/libm/math/kf_cos.c
---- picolibc-pristine/cmd/gaston/libm/math/kf_cos.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/kf_cos.c	2026-04-08 22:31:48
-@@ -16,20 +16,20 @@
- #include "fdlibm.h"
- 
- static const float one = 1.0000000000e+00, /* 0x3f800000 */
--    C1 = 4.1666667908e-02, /* 0x3d2aaaab */
--    C2 = -1.3888889225e-03, /* 0xbab60b61 */
--    C3 = 2.4801587642e-05, /* 0x37d00d01 */
--    C4 = -2.7557314297e-07, /* 0xb493f27c */
--    C5 = 2.0875723372e-09, /* 0x310f74f6 */
--    C6 = -1.1359647598e-11; /* 0xad47d74e */
-+    C1 = 4.1666667908e-02,                 /* 0x3d2aaaab */
-+    C2 = -1.3888889225e-03,                /* 0xbab60b61 */
-+    C3 = 2.4801587642e-05,                 /* 0x37d00d01 */
-+    C4 = -2.7557314297e-07,                /* 0xb493f27c */
-+    C5 = 2.0875723372e-09,                 /* 0x310f74f6 */
-+    C6 = -1.1359647598e-11;                /* 0xad47d74e */
- 
- float
- __kernel_cosf(float x, float y)
- {
--    float a, hz, z, r, qx;
-+    float     a, hz, z, r, qx;
-     __int32_t ix;
-     GET_FLOAT_WORD(ix, x);
--    ix &= 0x7fffffff; /* ix = |x|'s high word*/
-+    ix &= 0x7fffffff;    /* ix = |x|'s high word*/
-     if (ix < 0x32000000) /* if x < 2**27 */
-         return one;
-     z = x * x;
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/kf_rem_pio2.c picolibc-patched/cmd/gaston/libm/math/kf_rem_pio2.c
 --- picolibc-pristine/cmd/gaston/libm/math/kf_rem_pio2.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/kf_rem_pio2.c	1969-12-31 19:00:00
@@ -30747,92 +29967,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/kf_sin.c picolibc-patched/cmd/g
          return __math_inexactf(x); /* generate inexact */
      z = x * x;
      v = z * x;
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/kf_tan.c picolibc-patched/cmd/gaston/libm/math/kf_tan.c
---- picolibc-pristine/cmd/gaston/libm/math/kf_tan.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/kf_tan.c	2026-04-08 22:31:48
-@@ -15,32 +15,32 @@
- 
- #include "fdlibm.h"
- static const float one = 1.0000000000e+00, /* 0x3f800000 */
--    pio4 = 7.8539812565e-01, /* 0x3f490fda */
--    pio4lo = 3.7748947079e-08, /* 0x33222168 */
-+    pio4 = 7.8539812565e-01,               /* 0x3f490fda */
-+    pio4lo = 3.7748947079e-08,             /* 0x33222168 */
-     T[] = {
--        3.3333334327e-01, /* 0x3eaaaaab */
--        1.3333334029e-01, /* 0x3e088889 */
--        5.3968254477e-02, /* 0x3d5d0dd1 */
--        2.1869488060e-02, /* 0x3cb327a4 */
--        8.8632395491e-03, /* 0x3c11371f */
--        3.5920790397e-03, /* 0x3b6b6916 */
--        1.4562094584e-03, /* 0x3abede48 */
--        5.8804126456e-04, /* 0x3a1a26c8 */
--        2.4646313977e-04, /* 0x398137b9 */
--        7.8179444245e-05, /* 0x38a3f445 */
--        7.1407252108e-05, /* 0x3895c07a */
-+        3.3333334327e-01,  /* 0x3eaaaaab */
-+        1.3333334029e-01,  /* 0x3e088889 */
-+        5.3968254477e-02,  /* 0x3d5d0dd1 */
-+        2.1869488060e-02,  /* 0x3cb327a4 */
-+        8.8632395491e-03,  /* 0x3c11371f */
-+        3.5920790397e-03,  /* 0x3b6b6916 */
-+        1.4562094584e-03,  /* 0x3abede48 */
-+        5.8804126456e-04,  /* 0x3a1a26c8 */
-+        2.4646313977e-04,  /* 0x398137b9 */
-+        7.8179444245e-05,  /* 0x38a3f445 */
-+        7.1407252108e-05,  /* 0x3895c07a */
-         -1.8558637748e-05, /* 0xb79bae5f */
--        2.5907305826e-05, /* 0x37d95384 */
-+        2.5907305826e-05,  /* 0x37d95384 */
-     };
- 
- float
- __kernel_tanf(float x, float y, int iy)
- {
--    float z, r, v, w, s;
-+    float     z, r, v, w, s;
-     __int32_t ix, hx;
-     GET_FLOAT_WORD(hx, x);
-     ix = hx & 0x7fffffff; /* high word of |x| */
--    if (ix < 0x31800000) /* x < 2**-28 */
-+    if (ix < 0x31800000)  /* x < 2**-28 */
-     {
-         if ((int)x == 0) { /* generate inexact */
-             if ((ix | (iy + 1)) == 0)
-@@ -66,28 +66,26 @@
-      *	  x^5(x^2*(T[2]+x^4*T[4]+...+x^22*[T12]))
-      */
-     r = T[1] + w * (T[3] + w * (T[5] + w * (T[7] + w * (T[9] + w * T[11]))));
--    v = z *
--        (T[2] + w * (T[4] + w * (T[6] + w * (T[8] + w * (T[10] + w * T[12])))));
-+    v = z * (T[2] + w * (T[4] + w * (T[6] + w * (T[8] + w * (T[10] + w * T[12])))));
-     s = z * x;
-     r = y + z * (s * (r + v) + y);
-     r += T[0] * s;
-     w = x + r;
-     if (ix >= 0x3f2ca140) {
-         v = (float)iy;
--        return (float)(1 - ((hx >> 30) & 2)) *
--               (v - (float)2.0 * (x - (w * w / (w + v) - r)));
-+        return (float)(1 - ((hx >> 30) & 2)) * (v - (float)2.0 * (x - (w * w / (w + v) - r)));
-     }
-     if (iy == 1)
-         return w;
-     else { /* if allow error up to 2 ulp,
--			   simply return -1.0/(x+r) here */
-+                           simply return -1.0/(x+r) here */
-         /*  compute -1.0/(x+r) accurately */
--        float a, t;
-+        float     a, t;
-         __int32_t i;
-         z = w;
-         GET_FLOAT_WORD(i, z);
-         SET_FLOAT_WORD(z, i & 0xfffff000);
--        v = r - (z - x); /* z+v = r+x */
-+        v = r - (z - x);         /* z+v = r+x */
-         t = a = -(float)1.0 / w; /* a = -1.0/w */
-         GET_FLOAT_WORD(i, t);
-         SET_FLOAT_WORD(t, i & 0xfffff000);
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/math.tex picolibc-patched/cmd/gaston/libm/math/math.tex
 --- picolibc-pristine/cmd/gaston/libm/math/math.tex	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/math.tex	1969-12-31 19:00:00
@@ -31237,42 +30371,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/meson.build picolibc-patched/cm
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_acos.c picolibc-patched/cmd/gaston/libm/math/s_acos.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_acos.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_acos.c	2026-04-08 22:31:48
-@@ -39,21 +39,20 @@
- 
- #ifdef _NEED_FLOAT64
- 
--static const __float64
--    one = _F_64(1.00000000000000000000e+00), /* 0x3FF00000, 0x00000000 */
--    pi = _F_64(3.14159265358979311600e+00), /* 0x400921FB, 0x54442D18 */
--    pio2_hi = _F_64(1.57079632679489655800e+00), /* 0x3FF921FB, 0x54442D18 */
--    pio2_lo = _F_64(6.12323399573676603587e-17), /* 0x3C91A626, 0x33145C07 */
--    pS0 = _F_64(1.66666666666666657415e-01), /* 0x3FC55555, 0x55555555 */
--    pS1 = _F_64(-3.25565818622400915405e-01), /* 0xBFD4D612, 0x03EB6F7D */
--    pS2 = _F_64(2.01212532134862925881e-01), /* 0x3FC9C155, 0x0E884455 */
--    pS3 = _F_64(-4.00555345006794114027e-02), /* 0xBFA48228, 0xB5688F3B */
--    pS4 = _F_64(7.91534994289814532176e-04), /* 0x3F49EFE0, 0x7501B288 */
--    pS5 = _F_64(3.47933107596021167570e-05), /* 0x3F023DE1, 0x0DFDF709 */
--    qS1 = _F_64(-2.40339491173441421878e+00), /* 0xC0033A27, 0x1C8A2D4B */
--    qS2 = _F_64(2.02094576023350569471e+00), /* 0x40002AE5, 0x9C598AC8 */
--    qS3 = _F_64(-6.88283971605453293030e-01), /* 0xBFE6066C, 0x1B8D0159 */
--    qS4 = _F_64(7.70381505559019352791e-02); /* 0x3FB3B8C5, 0xB12E9282 */
-+static const __float64 one = _F_64(1.00000000000000000000e+00), /* 0x3FF00000, 0x00000000 */
-+    pi = _F_64(3.14159265358979311600e+00),                     /* 0x400921FB, 0x54442D18 */
-+    pio2_hi = _F_64(1.57079632679489655800e+00),                /* 0x3FF921FB, 0x54442D18 */
-+    pio2_lo = _F_64(6.12323399573676603587e-17),                /* 0x3C91A626, 0x33145C07 */
-+    pS0 = _F_64(1.66666666666666657415e-01),                    /* 0x3FC55555, 0x55555555 */
-+    pS1 = _F_64(-3.25565818622400915405e-01),                   /* 0xBFD4D612, 0x03EB6F7D */
-+    pS2 = _F_64(2.01212532134862925881e-01),                    /* 0x3FC9C155, 0x0E884455 */
-+    pS3 = _F_64(-4.00555345006794114027e-02),                   /* 0xBFA48228, 0xB5688F3B */
-+    pS4 = _F_64(7.91534994289814532176e-04),                    /* 0x3F49EFE0, 0x7501B288 */
-+    pS5 = _F_64(3.47933107596021167570e-05),                    /* 0x3F023DE1, 0x0DFDF709 */
-+    qS1 = _F_64(-2.40339491173441421878e+00),                   /* 0xC0033A27, 0x1C8A2D4B */
-+    qS2 = _F_64(2.02094576023350569471e+00),                    /* 0x40002AE5, 0x9C598AC8 */
-+    qS3 = _F_64(-6.88283971605453293030e-01),                   /* 0xBFE6066C, 0x1B8D0159 */
-+    qS4 = _F_64(7.70381505559019352791e-02);                    /* 0x3FB3B8C5, 0xB12E9282 */
- 
- __float64
- acos64(__float64 x)
 @@ -65,7 +64,7 @@
      if (ix >= 0x3ff00000) { /* |x| >= 1 */
          __uint32_t lx;
@@ -31322,40 +30420,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_acosh.c picolibc-patched/cmd/
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_asin.c picolibc-patched/cmd/gaston/libm/math/s_asin.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_asin.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_asin.c	2026-04-08 22:31:48
-@@ -45,23 +45,22 @@
- 
- #ifdef _NEED_FLOAT64
- 
--static const __float64
--    one = _F_64(1.00000000000000000000e+00), /* 0x3FF00000, 0x00000000 */
-+static const __float64 one = _F_64(1.00000000000000000000e+00), /* 0x3FF00000, 0x00000000 */
-     huge = _F_64(1.000e+300),
--    pio2_hi = _F_64(1.57079632679489655800e+00), /* 0x3FF921FB, 0x54442D18 */
--    pio2_lo = _F_64(6.12323399573676603587e-17), /* 0x3C91A626, 0x33145C07 */
--    pio4_hi = _F_64(7.85398163397448278999e-01), /* 0x3FE921FB, 0x54442D18 */
-+                       pio2_hi = _F_64(1.57079632679489655800e+00), /* 0x3FF921FB, 0x54442D18 */
-+    pio2_lo = _F_64(6.12323399573676603587e-17),                    /* 0x3C91A626, 0x33145C07 */
-+    pio4_hi = _F_64(7.85398163397448278999e-01),                    /* 0x3FE921FB, 0x54442D18 */
-     /* coefficient for R(x^2) */
--    pS0 = _F_64(1.66666666666666657415e-01), /* 0x3FC55555, 0x55555555 */
-+    pS0 = _F_64(1.66666666666666657415e-01),  /* 0x3FC55555, 0x55555555 */
-     pS1 = _F_64(-3.25565818622400915405e-01), /* 0xBFD4D612, 0x03EB6F7D */
--    pS2 = _F_64(2.01212532134862925881e-01), /* 0x3FC9C155, 0x0E884455 */
-+    pS2 = _F_64(2.01212532134862925881e-01),  /* 0x3FC9C155, 0x0E884455 */
-     pS3 = _F_64(-4.00555345006794114027e-02), /* 0xBFA48228, 0xB5688F3B */
--    pS4 = _F_64(7.91534994289814532176e-04), /* 0x3F49EFE0, 0x7501B288 */
--    pS5 = _F_64(3.47933107596021167570e-05), /* 0x3F023DE1, 0x0DFDF709 */
-+    pS4 = _F_64(7.91534994289814532176e-04),  /* 0x3F49EFE0, 0x7501B288 */
-+    pS5 = _F_64(3.47933107596021167570e-05),  /* 0x3F023DE1, 0x0DFDF709 */
-     qS1 = _F_64(-2.40339491173441421878e+00), /* 0xC0033A27, 0x1C8A2D4B */
--    qS2 = _F_64(2.02094576023350569471e+00), /* 0x40002AE5, 0x9C598AC8 */
-+    qS2 = _F_64(2.02094576023350569471e+00),  /* 0x40002AE5, 0x9C598AC8 */
-     qS3 = _F_64(-6.88283971605453293030e-01), /* 0xBFE6066C, 0x1B8D0159 */
--    qS4 = _F_64(7.70381505559019352791e-02); /* 0x3FB3B8C5, 0xB12E9282 */
-+    qS4 = _F_64(7.70381505559019352791e-02);  /* 0x3FB3B8C5, 0xB12E9282 */
- 
- __float64
- asin64(__float64 x)
 @@ -73,18 +72,17 @@
      if (ix >= 0x3ff00000) { /* |x|>= 1 */
          __uint32_t lx;
@@ -31387,30 +30451,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_asin.c picolibc-patched/cmd/g
      if (ix >= 0x3FEF3333) { /* if |x| > 0.975 */
          w = p / q;
          t = pio2_hi - (_F_64(2.0) * (s + s * w) - pio2_lo);
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_asinh.c picolibc-patched/cmd/gaston/libm/math/s_asinh.c
---- picolibc-pristine/cmd/gaston/libm/math/s_asinh.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/s_asinh.c	2026-04-08 22:31:48
-@@ -60,9 +60,8 @@
- 
- #ifdef _NEED_FLOAT64
- 
--static const __float64
--    one = _F_64(1.00000000000000000000e+00), /* 0x3FF00000, 0x00000000 */
--    ln2 = _F_64(6.93147180559945286227e-01), /* 0x3FE62E42, 0xFEFA39EF */
-+static const __float64 one = _F_64(1.00000000000000000000e+00), /* 0x3FF00000, 0x00000000 */
-+    ln2 = _F_64(6.93147180559945286227e-01),                    /* 0x3FE62E42, 0xFEFA39EF */
-     huge = _F_64(1.00000000000000000000e+300);
- 
- __float64
-@@ -73,7 +72,7 @@
-     GET_HIGH_WORD(hx, x);
-     ix = hx & 0x7fffffff;
-     if (ix >= 0x7ff00000)
--        return x + x; /* x is inf or NaN */
-+        return x + x;      /* x is inf or NaN */
-     if (ix < 0x3e300000) { /* |x|<2**-28 */
-         if (huge + x > one)
-             return x; /* return x inexact except 0 */
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_atan.c picolibc-patched/cmd/gaston/libm/math/s_atan.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_atan.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_atan.c	2026-04-08 22:31:48
@@ -31462,17 +30502,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_atan.c picolibc-patched/cmd/g
              if (ix < 0x3fe60000) { /* 7/16 <=|x|<11/16 */
                  id = 0;
                  x = (_F_64(2.0) * x - one) / (_F_64(2.0) + x);
-@@ -147,9 +145,7 @@
-     z = x * x;
-     w = z * z;
-     /* break sum from i=0 to 10 aT[i]z**(i+1) into odd and even poly */
--    s1 = z *
--         (aT[0] +
--          w * (aT[2] + w * (aT[4] + w * (aT[6] + w * (aT[8] + w * aT[10])))));
-+    s1 = z * (aT[0] + w * (aT[2] + w * (aT[4] + w * (aT[6] + w * (aT[8] + w * aT[10])))));
-     s2 = w * (aT[1] + w * (aT[3] + w * (aT[5] + w * (aT[7] + w * aT[9]))));
-     if (id < 0)
-         return x - x * (s1 + s2);
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_atan2.c picolibc-patched/cmd/gaston/libm/math/s_atan2.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_atan2.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_atan2.c	2026-04-08 22:31:48
@@ -31517,15 +30546,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_atan2.c picolibc-patched/cmd/
      m = ((hy >> 31) & 1) | ((hx >> 30) & 2); /* 2*sign(x)+sign(y) */
  
      /* when y = 0 */
-@@ -133,7 +132,7 @@
-         return z; /* atan(-,+) */
-     case 2:
-         return pi - (z - pi_lo); /* atan(+,-) */
--    default: /* case 3 */
-+    default:                     /* case 3 */
-         return (z - pi_lo) - pi; /* atan(-,-) */
-     }
- }
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_atanh.c picolibc-patched/cmd/gaston/libm/math/s_atanh.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_atanh.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_atanh.c	2026-04-08 22:31:48
@@ -31559,18 +30579,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_atanh.c picolibc-patched/cmd/
      SET_HIGH_WORD(x, ix);
      if (ix < 0x3fe00000) { /* x < 0.5 */
          t = x + x;
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_ceil.c picolibc-patched/cmd/gaston/libm/math/s_ceil.c
---- picolibc-pristine/cmd/gaston/libm/math/s_ceil.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/s_ceil.c	2026-04-08 22:31:48
-@@ -27,7 +27,7 @@
- __float64
- ceil64(__float64 x)
- {
--    __int32_t i0, i1, j0, j;
-+    __int32_t  i0, i1, j0, j;
-     __uint32_t i;
-     EXTRACT_WORDS(i0, i1, x);
-     j0 = ((i0 >> 20) & 0x7ff) - 0x3ff;
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_cos.c picolibc-patched/cmd/gaston/libm/math/s_cos.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_cos.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_cos.c	2026-04-08 22:31:48
@@ -31597,17 +30605,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_cos.c picolibc-patched/cmd/ga
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_cosh.c picolibc-patched/cmd/gaston/libm/math/s_cosh.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_cosh.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_cosh.c	2026-04-08 22:31:48
-@@ -41,8 +41,8 @@
- __float64
- cosh64(__float64 x)
- {
--    __float64 t, w;
--    __int32_t ix;
-+    __float64  t, w;
-+    __int32_t  ix;
-     __uint32_t lx;
- 
-     x = fabs64(x);
 @@ -57,7 +57,7 @@
  
      /* |x| in [0,0.5*ln2], return 1+expm1(|x|)^2/(2*exp(|x|)) */
@@ -31642,147 +30639,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_cosh.c picolibc-patched/cmd/g
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_erf.c picolibc-patched/cmd/gaston/libm/math/s_erf.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_erf.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_erf.c	2026-04-08 22:31:48
-@@ -154,47 +154,46 @@
- 
- #ifdef _NEED_FLOAT64
- 
--static const __float64
--    tiny = _F_64(1e-300),
--    half = _F_64(5.00000000000000000000e-01), /* 0x3FE00000, 0x00000000 */
--    one = _F_64(1.00000000000000000000e+00), /* 0x3FF00000, 0x00000000 */
--    two = _F_64(2.00000000000000000000e+00), /* 0x40000000, 0x00000000 */
-+static const __float64 tiny = _F_64(1e-300),
-+                       half = _F_64(5.00000000000000000000e-01), /* 0x3FE00000, 0x00000000 */
-+    one = _F_64(1.00000000000000000000e+00),                     /* 0x3FF00000, 0x00000000 */
-+    two = _F_64(2.00000000000000000000e+00),                     /* 0x40000000, 0x00000000 */
-     /* c = (float)0.84506291151 */
-     erx = _F_64(8.45062911510467529297e-01), /* 0x3FEB0AC1, 0x60000000 */
-     /*
-- * Coefficients for approximation to  erf on [0,0.84375]
-- */
--    efx = _F_64(1.28379167095512586316e-01), /* 0x3FC06EBA, 0x8214DB69 */
-+     * Coefficients for approximation to  erf on [0,0.84375]
-+     */
-+    efx = _F_64(1.28379167095512586316e-01),  /* 0x3FC06EBA, 0x8214DB69 */
-     efx8 = _F_64(1.02703333676410069053e+00), /* 0x3FF06EBA, 0x8214DB69 */
--    pp0 = _F_64(1.28379167095512558561e-01), /* 0x3FC06EBA, 0x8214DB68 */
-+    pp0 = _F_64(1.28379167095512558561e-01),  /* 0x3FC06EBA, 0x8214DB68 */
-     pp1 = _F_64(-3.25042107247001499370e-01), /* 0xBFD4CD7D, 0x691CB913 */
-     pp2 = _F_64(-2.84817495755985104766e-02), /* 0xBF9D2A51, 0xDBD7194F */
-     pp3 = _F_64(-5.77027029648944159157e-03), /* 0xBF77A291, 0x236668E4 */
-     pp4 = _F_64(-2.37630166566501626084e-05), /* 0xBEF8EAD6, 0x120016AC */
--    qq1 = _F_64(3.97917223959155352819e-01), /* 0x3FD97779, 0xCDDADC09 */
--    qq2 = _F_64(6.50222499887672944485e-02), /* 0x3FB0A54C, 0x5536CEBA */
--    qq3 = _F_64(5.08130628187576562776e-03), /* 0x3F74D022, 0xC4D36B0F */
--    qq4 = _F_64(1.32494738004321644526e-04), /* 0x3F215DC9, 0x221C1A10 */
-+    qq1 = _F_64(3.97917223959155352819e-01),  /* 0x3FD97779, 0xCDDADC09 */
-+    qq2 = _F_64(6.50222499887672944485e-02),  /* 0x3FB0A54C, 0x5536CEBA */
-+    qq3 = _F_64(5.08130628187576562776e-03),  /* 0x3F74D022, 0xC4D36B0F */
-+    qq4 = _F_64(1.32494738004321644526e-04),  /* 0x3F215DC9, 0x221C1A10 */
-     qq5 = _F_64(-3.96022827877536812320e-06), /* 0xBED09C43, 0x42A26120 */
-     /*
-- * Coefficients for approximation to  erf  in [0.84375,1.25]
-- */
-+     * Coefficients for approximation to  erf  in [0.84375,1.25]
-+     */
-     pa0 = _F_64(-2.36211856075265944077e-03), /* 0xBF6359B8, 0xBEF77538 */
--    pa1 = _F_64(4.14856118683748331666e-01), /* 0x3FDA8D00, 0xAD92B34D */
-+    pa1 = _F_64(4.14856118683748331666e-01),  /* 0x3FDA8D00, 0xAD92B34D */
-     pa2 = _F_64(-3.72207876035701323847e-01), /* 0xBFD7D240, 0xFBB8C3F1 */
--    pa3 = _F_64(3.18346619901161753674e-01), /* 0x3FD45FCA, 0x805120E4 */
-+    pa3 = _F_64(3.18346619901161753674e-01),  /* 0x3FD45FCA, 0x805120E4 */
-     pa4 = _F_64(-1.10894694282396677476e-01), /* 0xBFBC6398, 0x3D3E28EC */
--    pa5 = _F_64(3.54783043256182359371e-02), /* 0x3FA22A36, 0x599795EB */
-+    pa5 = _F_64(3.54783043256182359371e-02),  /* 0x3FA22A36, 0x599795EB */
-     pa6 = _F_64(-2.16637559486879084300e-03), /* 0xBF61BF38, 0x0A96073F */
--    qa1 = _F_64(1.06420880400844228286e-01), /* 0x3FBB3E66, 0x18EEE323 */
--    qa2 = _F_64(5.40397917702171048937e-01), /* 0x3FE14AF0, 0x92EB6F33 */
--    qa3 = _F_64(7.18286544141962662868e-02), /* 0x3FB2635C, 0xD99FE9A7 */
--    qa4 = _F_64(1.26171219808761642112e-01), /* 0x3FC02660, 0xE763351F */
--    qa5 = _F_64(1.36370839120290507362e-02), /* 0x3F8BEDC2, 0x6B51DD1C */
--    qa6 = _F_64(1.19844998467991074170e-02), /* 0x3F888B54, 0x5735151D */
-+    qa1 = _F_64(1.06420880400844228286e-01),  /* 0x3FBB3E66, 0x18EEE323 */
-+    qa2 = _F_64(5.40397917702171048937e-01),  /* 0x3FE14AF0, 0x92EB6F33 */
-+    qa3 = _F_64(7.18286544141962662868e-02),  /* 0x3FB2635C, 0xD99FE9A7 */
-+    qa4 = _F_64(1.26171219808761642112e-01),  /* 0x3FC02660, 0xE763351F */
-+    qa5 = _F_64(1.36370839120290507362e-02),  /* 0x3F8BEDC2, 0x6B51DD1C */
-+    qa6 = _F_64(1.19844998467991074170e-02),  /* 0x3F888B54, 0x5735151D */
-     /*
-- * Coefficients for approximation to  erfc in [1.25,1/0.35]
-- */
-+     * Coefficients for approximation to  erfc in [1.25,1/0.35]
-+     */
-     ra0 = _F_64(-9.86494403484714822705e-03), /* 0xBF843412, 0x600D6435 */
-     ra1 = _F_64(-6.93858572707181764372e-01), /* 0xBFE63416, 0xE4BA7360 */
-     ra2 = _F_64(-1.05586262253232909814e+01), /* 0xC0251E04, 0x41B0E726 */
-@@ -203,17 +202,17 @@
-     ra5 = _F_64(-1.84605092906711035994e+02), /* 0xC067135C, 0xEBCCABB2 */
-     ra6 = _F_64(-8.12874355063065934246e+01), /* 0xC0545265, 0x57E4D2F2 */
-     ra7 = _F_64(-9.81432934416914548592e+00), /* 0xC023A0EF, 0xC69AC25C */
--    sa1 = _F_64(1.96512716674392571292e+01), /* 0x4033A6B9, 0xBD707687 */
--    sa2 = _F_64(1.37657754143519042600e+02), /* 0x4061350C, 0x526AE721 */
--    sa3 = _F_64(4.34565877475229228821e+02), /* 0x407B290D, 0xD58A1A71 */
--    sa4 = _F_64(6.45387271733267880336e+02), /* 0x40842B19, 0x21EC2868 */
--    sa5 = _F_64(4.29008140027567833386e+02), /* 0x407AD021, 0x57700314 */
--    sa6 = _F_64(1.08635005541779435134e+02), /* 0x405B28A3, 0xEE48AE2C */
--    sa7 = _F_64(6.57024977031928170135e+00), /* 0x401A47EF, 0x8E484A93 */
-+    sa1 = _F_64(1.96512716674392571292e+01),  /* 0x4033A6B9, 0xBD707687 */
-+    sa2 = _F_64(1.37657754143519042600e+02),  /* 0x4061350C, 0x526AE721 */
-+    sa3 = _F_64(4.34565877475229228821e+02),  /* 0x407B290D, 0xD58A1A71 */
-+    sa4 = _F_64(6.45387271733267880336e+02),  /* 0x40842B19, 0x21EC2868 */
-+    sa5 = _F_64(4.29008140027567833386e+02),  /* 0x407AD021, 0x57700314 */
-+    sa6 = _F_64(1.08635005541779435134e+02),  /* 0x405B28A3, 0xEE48AE2C */
-+    sa7 = _F_64(6.57024977031928170135e+00),  /* 0x401A47EF, 0x8E484A93 */
-     sa8 = _F_64(-6.04244152148580987438e-02), /* 0xBFAEEFF2, 0xEE749A62 */
-     /*
-- * Coefficients for approximation to  erfc in [1/.35,28]
-- */
-+     * Coefficients for approximation to  erfc in [1/.35,28]
-+     */
-     rb0 = _F_64(-9.86494292470009928597e-03), /* 0xBF843412, 0x39E86F4A */
-     rb1 = _F_64(-7.99283237680523006574e-01), /* 0xBFE993BA, 0x70C285DE */
-     rb2 = _F_64(-1.77579549177547519889e+01), /* 0xC031C209, 0x555F995A */
-@@ -221,12 +220,12 @@
-     rb4 = _F_64(-6.37566443368389627722e+02), /* 0xC083EC88, 0x1375F228 */
-     rb5 = _F_64(-1.02509513161107724954e+03), /* 0xC0900461, 0x6A2E5992 */
-     rb6 = _F_64(-4.83519191608651397019e+02), /* 0xC07E384E, 0x9BDC383F */
--    sb1 = _F_64(3.03380607434824582924e+01), /* 0x403E568B, 0x261D5190 */
--    sb2 = _F_64(3.25792512996573918826e+02), /* 0x40745CAE, 0x221B9F0A */
--    sb3 = _F_64(1.53672958608443695994e+03), /* 0x409802EB, 0x189D5118 */
--    sb4 = _F_64(3.19985821950859553908e+03), /* 0x40A8FFB7, 0x688C246A */
--    sb5 = _F_64(2.55305040643316442583e+03), /* 0x40A3F219, 0xCEDF3BE6 */
--    sb6 = _F_64(4.74528541206955367215e+02), /* 0x407DA874, 0xE79FE763 */
-+    sb1 = _F_64(3.03380607434824582924e+01),  /* 0x403E568B, 0x261D5190 */
-+    sb2 = _F_64(3.25792512996573918826e+02),  /* 0x40745CAE, 0x221B9F0A */
-+    sb3 = _F_64(1.53672958608443695994e+03),  /* 0x409802EB, 0x189D5118 */
-+    sb4 = _F_64(3.19985821950859553908e+03),  /* 0x40A8FFB7, 0x688C246A */
-+    sb5 = _F_64(2.55305040643316442583e+03),  /* 0x40A3F219, 0xCEDF3BE6 */
-+    sb6 = _F_64(4.74528541206955367215e+02),  /* 0x407DA874, 0xE79FE763 */
-     sb7 = _F_64(-2.24409524465858183362e+01); /* 0xC03670E2, 0x42712D62 */
- 
- __float64
-@@ -241,7 +240,7 @@
-         return (__float64)(1 - i) + one / x; /* erf(+-inf)=+-1 */
-     }
- 
--    if (ix < 0x3feb0000) { /* |x|<0.84375 */
-+    if (ix < 0x3feb0000) {     /* |x|<0.84375 */
-         if (ix < 0x3e300000) { /* |x|<2**-28 */
-             if (ix < 0x00800000)
-                 return _F_64(0.125) * (_F_64(8.0) * x + efx8 * x); /*avoid underflow */
-@@ -255,10 +254,8 @@
-     }
-     if (ix < 0x3ff40000) { /* 0.84375 <= |x| < 1.25 */
-         s = fabs64(x) - one;
--        P = pa0 +
--            s * (pa1 + s * (pa2 + s * (pa3 + s * (pa4 + s * (pa5 + s * pa6)))));
--        Q = one +
--            s * (qa1 + s * (qa2 + s * (qa3 + s * (qa4 + s * (qa5 + s * qa6)))));
-+        P = pa0 + s * (pa1 + s * (pa2 + s * (pa3 + s * (pa4 + s * (pa5 + s * pa6)))));
-+        Q = one + s * (qa1 + s * (qa2 + s * (qa3 + s * (qa4 + s * (qa5 + s * qa6)))));
-         if (hx >= 0)
-             return erx + P / Q;
-         else
 @@ -273,27 +270,20 @@
      x = fabs64(x);
      s = one / (x * x);
@@ -31821,38 +30677,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_erf.c picolibc-patched/cmd/ga
      if (hx >= 0)
          return one - r / x;
      else
-@@ -302,8 +292,7 @@
- 
- _MATH_ALIAS_d_d(erf)
- 
--__float64
--erfc64(__float64 x)
-+    __float64 erfc64(__float64 x)
- {
-     __int32_t hx, ix;
-     __float64 R, S, P, Q, s, y, z, r;
-@@ -314,7 +303,7 @@
-         return (__float64)(((__uint32_t)hx >> 31) << 1) + one / x;
-     }
- 
--    if (ix < 0x3feb0000) { /* |x|<0.84375 */
-+    if (ix < 0x3feb0000) {   /* |x|<0.84375 */
-         if (ix < 0x3c700000) /* |x|<2**-56 */
-             return one - x;
-         z = x * x;
-@@ -331,10 +320,8 @@
-     }
-     if (ix < 0x3ff40000) { /* 0.84375 <= |x| < 1.25 */
-         s = fabs64(x) - one;
--        P = pa0 +
--            s * (pa1 + s * (pa2 + s * (pa3 + s * (pa4 + s * (pa5 + s * pa6)))));
--        Q = one +
--            s * (qa1 + s * (qa2 + s * (qa3 + s * (qa4 + s * (qa5 + s * qa6)))));
-+        P = pa0 + s * (pa1 + s * (pa2 + s * (pa3 + s * (pa4 + s * (pa5 + s * pa6)))));
-+        Q = one + s * (qa1 + s * (qa2 + s * (qa3 + s * (qa4 + s * (qa5 + s * qa6)))));
-         if (hx >= 0) {
-             z = one - erx;
-             return z - P / Q;
 @@ -347,33 +334,26 @@
          x = fabs64(x);
          s = one / (x * x);
@@ -31904,32 +30728,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_erf.c picolibc-patched/cmd/ga
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_exp.c picolibc-patched/cmd/gaston/libm/math/s_exp.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_exp.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_exp.c	2026-04-08 22:31:48
-@@ -101,13 +101,13 @@
- __float64
- exp64(__float64 x) /* default IEEE double exp */
- {
--    __float64 y, hi, lo, c, t;
--    __int32_t k = 0, xsb;
-+    __float64  y, hi, lo, c, t;
-+    __int32_t  k = 0, xsb;
-     __uint32_t hx;
- 
-     GET_HIGH_WORD(hx, x);
-     xsb = (hx >> 31) & 1; /* sign bit of x */
--    hx &= 0x7fffffff; /* high word of |x| */
-+    hx &= 0x7fffffff;     /* high word of |x| */
- 
-     /* filter out non-finite argument */
-     if (hx >= 0x40862E42) { /* if |x|>=709.78... */
-@@ -126,7 +126,7 @@
-     }
- 
-     /* argument reduction */
--    if (hx > 0x3fd62e42) { /* if  |x| > 0.5 ln2 */
-+    if (hx > 0x3fd62e42) {     /* if  |x| > 0.5 ln2 */
-         if (hx < 0x3FF0A2B2) { /* and |x| < 1.5 ln2 */
-             hi = x - ln2HI[xsb];
-             lo = ln2LO[xsb];
 @@ -153,12 +153,12 @@
      if (k >= -1021) {
          __uint32_t hy;
@@ -31957,47 +30755,9 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_exp2.c picolibc-patched/cmd/g
  exp264(__float64 x) /* wrapper exp2 */
  {
      return _pow64(2.0, x);
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_floor.c picolibc-patched/cmd/gaston/libm/math/s_floor.c
---- picolibc-pristine/cmd/gaston/libm/math/s_floor.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/s_floor.c	2026-04-08 22:31:48
-@@ -69,7 +69,7 @@
- __float64
- floor64(__float64 x)
- {
--    __int32_t i0, i1, j0, j;
-+    __int32_t  i0, i1, j0, j;
-     __uint32_t i;
-     EXTRACT_WORDS(i0, i1, x);
-     j0 = ((i0 >> 20) & 0x7ff) - 0x3ff;
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_fmod.c picolibc-patched/cmd/gaston/libm/math/s_fmod.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_fmod.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_fmod.c	2026-04-08 22:31:48
-@@ -21,21 +21,19 @@
- 
- #ifdef _NEED_FLOAT64
- 
--static const __float64
--    one = _F_64(1.0),
--    Zero[] = { _F_64(0.0), _F_64(-0.0) };
-+static const __float64 one = _F_64(1.0), Zero[] = { _F_64(0.0), _F_64(-0.0) };
- 
- __float64
- fmod64(__float64 x, __float64 y)
- {
--    __int32_t n, hx, hy, hz, ix, iy, sx, i;
-+    __int32_t  n, hx, hy, hz, ix, iy, sx, i;
-     __uint32_t lx, ly, lz;
- 
-     EXTRACT_WORDS(hx, lx, x);
-     EXTRACT_WORDS(hy, ly, y);
-     sx = hx & 0x80000000; /* sign of x */
--    hx ^= sx; /* |x| */
--    hy &= 0x7fffffff; /* |y| */
-+    hx ^= sx;             /* |x| */
-+    hy &= 0x7fffffff;     /* |y| */
- 
-     /* purge off exception values */
-     if (isnan(x) || isnan(y)) /* x or y nan, return nan */
 @@ -57,10 +55,10 @@
      /* determine ix = ilogb(x) */
      if (hx < 0x00100000) { /* subnormal x */
@@ -32024,71 +30784,9 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_fmod.c picolibc-patched/cmd/g
                  iy -= 1;
          }
      } else
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_frexp.c picolibc-patched/cmd/gaston/libm/math/s_frexp.c
---- picolibc-pristine/cmd/gaston/libm/math/s_frexp.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/s_frexp.c	2026-04-08 22:31:48
-@@ -69,8 +69,7 @@
- 
- #ifdef _NEED_FLOAT64
- 
--static const double two54 =
--    _F_64(1.80143985094819840000e+16); /* 0x43500000, 0x00000000 */
-+static const double two54 = _F_64(1.80143985094819840000e+16); /* 0x43500000, 0x00000000 */
- 
- __float64
- frexp64(__float64 x, int *eptr)
-@@ -80,7 +79,7 @@
-     ix = 0x7fffffff & hx;
-     *eptr = 0;
-     if (ix >= 0x7ff00000 || ((ix | lx) == 0))
--        return x + x; /* 0,inf,nan */
-+        return x + x;      /* 0,inf,nan */
-     if (ix < 0x00100000) { /* subnormal */
-         x *= two54;
-         GET_HIGH_WORD(hx, x);
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_gamma.c picolibc-patched/cmd/gaston/libm/math/s_gamma.c
---- picolibc-pristine/cmd/gaston/libm/math/s_gamma.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/s_gamma.c	2026-04-08 22:31:48
-@@ -24,7 +24,8 @@
- matching a newer, better definition.  */
- /*
- FUNCTION
--        <<gamma>>, <<gammaf>>, <<lgamma>>, <<lgammaf>>, <<gamma_r>>, <<gammaf_r>>, <<lgamma_r>>, <<lgammaf_r>>, <<tgamma>>, and <<tgammaf>>---logarithmic and plain gamma functions
-+        <<gamma>>, <<gammaf>>, <<lgamma>>, <<lgammaf>>, <<gamma_r>>, <<gammaf_r>>, <<lgamma_r>>,
-+<<lgammaf_r>>, <<tgamma>>, and <<tgammaf>>---logarithmic and plain gamma functions
- 
- INDEX
- gamma
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_hypot.c picolibc-patched/cmd/gaston/libm/math/s_hypot.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_hypot.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_hypot.c	2026-04-08 22:31:48
-@@ -73,7 +73,7 @@
-         return a + b;
-     } /* x/y > 2**60 */
-     k = 0;
--    if (ha > 0x5f300000) { /* a>2**500 */
-+    if (ha > 0x5f300000) {      /* a>2**500 */
-         if (ha >= 0x7ff00000) { /* Inf or NaN */
-             __uint32_t low;
-             w = a + b; /* for sNaN */
-@@ -92,7 +92,7 @@
-         SET_HIGH_WORD(a, ha);
-         SET_HIGH_WORD(b, hb);
-     }
--    if (hb < 0x20b00000) { /* b < 2**-500 */
-+    if (hb < 0x20b00000) {      /* b < 2**-500 */
-         if (hb <= 0x000fffff) { /* subnormal b or 0 */
-             __uint32_t low;
-             GET_LOW_WORD(low, b);
-@@ -103,7 +103,7 @@
-             b *= t1;
-             a *= t1;
-             k -= 1022;
--        } else { /* scale a and b by 2^600 */
-+        } else {              /* scale a and b by 2^600 */
-             ha += 0x25800000; /* a *= 2^600 */
-             hb += 0x25800000; /* b *= 2^600 */
-             k -= 600;
 @@ -132,7 +132,7 @@
          __uint32_t high;
          t1 = _F_64(1.0);
@@ -32150,43 +30848,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_j0.c picolibc-patched/cmd/gas
          ss = s - c;
          cc = s + c;
          if (ix < 0x7fe00000) { /* make sure x+x not overflow */
-@@ -119,7 +118,7 @@
-         }
-         return z;
-     }
--    if (ix < 0x3f200000) { /* |x| < 2**-13 */
-+    if (ix < 0x3f200000) {    /* |x| < 2**-13 */
-         if (huge + x > one) { /* raise inexact if x != 0 */
-             if (ix < 0x3e400000)
-                 return one; /* |x|<2**-27 */
-@@ -140,18 +139,18 @@
- 
- _MATH_ALIAS_d_d(j0)
- 
--static const __float64 u00 =
--                        _F_64(-7.38042951086872317523e-02), /* 0xBFB2E4D6, 0x99CBD01F */
--    u01 = _F_64(1.76666452509181115538e-01), /* 0x3FC69D01, 0x9DE9E3FC */
-+    static const __float64 u00
-+    = _F_64(-7.38042951086872317523e-02),     /* 0xBFB2E4D6, 0x99CBD01F */
-+    u01 = _F_64(1.76666452509181115538e-01),  /* 0x3FC69D01, 0x9DE9E3FC */
-     u02 = _F_64(-1.38185671945596898896e-02), /* 0xBF8C4CE8, 0xB16CFA97 */
--    u03 = _F_64(3.47453432093683650238e-04), /* 0x3F36C54D, 0x20B29B6B */
-+    u03 = _F_64(3.47453432093683650238e-04),  /* 0x3F36C54D, 0x20B29B6B */
-     u04 = _F_64(-3.81407053724364161125e-06), /* 0xBECFFEA7, 0x73D25CAD */
--    u05 = _F_64(1.95590137035022920206e-08), /* 0x3E550057, 0x3B4EABD4 */
-+    u05 = _F_64(1.95590137035022920206e-08),  /* 0x3E550057, 0x3B4EABD4 */
-     u06 = _F_64(-3.98205194132103398453e-11), /* 0xBDC5E43D, 0x693FB3C8 */
--    v01 = _F_64(1.27304834834123699328e-02), /* 0x3F8A1270, 0x91C9C71A */
--    v02 = _F_64(7.60068627350353253702e-05), /* 0x3F13ECBB, 0xF578C6C1 */
--    v03 = _F_64(2.59150851840457805467e-07), /* 0x3E91642D, 0x7FF202FD */
--    v04 = _F_64(4.41110311332675467403e-10); /* 0x3DFE5018, 0x3BD6D9EF */
-+    v01 = _F_64(1.27304834834123699328e-02),  /* 0x3F8A1270, 0x91C9C71A */
-+    v02 = _F_64(7.60068627350353253702e-05),  /* 0x3F13ECBB, 0xF578C6C1 */
-+    v03 = _F_64(2.59150851840457805467e-07),  /* 0x3E91642D, 0x7FF202FD */
-+    v04 = _F_64(4.41110311332675467403e-10);  /* 0x3DFE5018, 0x3BD6D9EF */
- 
- __float64
- y064(__float64 x)
 @@ -186,14 +185,13 @@
           *              sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
           * to compute the worse one.
@@ -32206,160 +30867,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_j0.c picolibc-patched/cmd/gas
          if (ix < 0x7fe00000) { /* make sure x+x not overflow */
              z = -cos64(x + x);
              if ((s * c) < zero)
-@@ -214,32 +212,32 @@
-         return (u00 + tpi * log64(x));
-     }
-     z = x * x;
--    u = u00 +
--        z * (u01 + z * (u02 + z * (u03 + z * (u04 + z * (u05 + z * u06)))));
-+    u = u00 + z * (u01 + z * (u02 + z * (u03 + z * (u04 + z * (u05 + z * u06)))));
-     v = one + z * (v01 + z * (v02 + z * (v03 + z * v04)));
-     return (u / v + tpi * (j064(x) * log64(x)));
- }
- 
- _MATH_ALIAS_d_d(y0)
- 
--/* The asymptotic expansions of pzero is
-- *	1 - 9/128 s^2 + 11025/98304 s^4 - ...,	where s = 1/x.
-- * For x >= 2, We approximate pzero by
-- * 	pzero(x) = 1 + (R/S)
-- * where  R = pR0 + pR1*s^2 + pR2*s^4 + ... + pR5*s^10
-- * 	  S = 1 + pS0*s^2 + ... + pS4*s^10
-- * and
-- *	| pzero(x)-1-R/S | <= 2  ** ( -60.26)
-- */
--static const __float64 pR8[6] = {
--    /* for x in [inf, 8]=1/[0,0.125] */
--    _F_64(0.00000000000000000000e+00), /* 0x00000000, 0x00000000 */
--    _F_64(-7.03124999999900357484e-02), /* 0xBFB1FFFF, 0xFFFFFD32 */
--    _F_64(-8.08167041275349795626e+00), /* 0xC02029D0, 0xB44FA779 */
--    _F_64(-2.57063105679704847262e+02), /* 0xC0701102, 0x7B19E863 */
--    _F_64(-2.48521641009428822144e+03), /* 0xC0A36A6E, 0xCD4DCAFC */
--    _F_64(-5.25304380490729545272e+03), /* 0xC0B4850B, 0x36CC643D */
--};
-+    /* The asymptotic expansions of pzero is
-+     *	1 - 9/128 s^2 + 11025/98304 s^4 - ...,	where s = 1/x.
-+     * For x >= 2, We approximate pzero by
-+     * 	pzero(x) = 1 + (R/S)
-+     * where  R = pR0 + pR1*s^2 + pR2*s^4 + ... + pR5*s^10
-+     * 	  S = 1 + pS0*s^2 + ... + pS4*s^10
-+     * and
-+     *	| pzero(x)-1-R/S | <= 2  ** ( -60.26)
-+     */
-+    static const __float64 pR8[6]
-+    = {
-+          /* for x in [inf, 8]=1/[0,0.125] */
-+          _F_64(0.00000000000000000000e+00),  /* 0x00000000, 0x00000000 */
-+          _F_64(-7.03124999999900357484e-02), /* 0xBFB1FFFF, 0xFFFFFD32 */
-+          _F_64(-8.08167041275349795626e+00), /* 0xC02029D0, 0xB44FA779 */
-+          _F_64(-2.57063105679704847262e+02), /* 0xC0701102, 0x7B19E863 */
-+          _F_64(-2.48521641009428822144e+03), /* 0xC0A36A6E, 0xCD4DCAFC */
-+          _F_64(-5.25304380490729545272e+03), /* 0xC0B4850B, 0x36CC643D */
-+      };
- static const __float64 pS8[5] = {
-     _F_64(1.16534364619668181717e+02), /* 0x405D2233, 0x07A96751 */
-     _F_64(3.83374475364121826715e+03), /* 0x40ADF37D, 0x50596938 */
-@@ -303,8 +301,8 @@
- pzero(__float64 x)
- {
-     const __float64 *p, *q;
--    __float64 z, r, s;
--    __int32_t ix;
-+    __float64        z, r, s;
-+    __int32_t        ix;
-     GET_HIGH_WORD(ix, x);
-     ix &= 0x7fffffff;
-     if (ix >= 0x41b00000) {
-@@ -347,11 +345,11 @@
-     _F_64(3.70146267776887834771e+04), /* 0x40E212D4, 0x0E901566 */
- };
- static const __float64 qS8[6] = {
--    _F_64(1.63776026895689824414e+02), /* 0x406478D5, 0x365B39BC */
--    _F_64(8.09834494656449805916e+03), /* 0x40BFA258, 0x4E6B0563 */
--    _F_64(1.42538291419120476348e+05), /* 0x41016652, 0x54D38C3F */
--    _F_64(8.03309257119514397345e+05), /* 0x412883DA, 0x83A52B43 */
--    _F_64(8.40501579819060512818e+05), /* 0x4129A66B, 0x28DE0B3D */
-+    _F_64(1.63776026895689824414e+02),  /* 0x406478D5, 0x365B39BC */
-+    _F_64(8.09834494656449805916e+03),  /* 0x40BFA258, 0x4E6B0563 */
-+    _F_64(1.42538291419120476348e+05),  /* 0x41016652, 0x54D38C3F */
-+    _F_64(8.03309257119514397345e+05),  /* 0x412883DA, 0x83A52B43 */
-+    _F_64(8.40501579819060512818e+05),  /* 0x4129A66B, 0x28DE0B3D */
-     _F_64(-3.43899293537866615225e+05), /* 0xC114FD6D, 0x2C9530C5 */
- };
- 
-@@ -365,11 +363,11 @@
-     _F_64(1.98997785864605384631e+03), /* 0x409F17E9, 0x53C6E3A6 */
- };
- static const __float64 qS5[6] = {
--    _F_64(8.27766102236537761883e+01), /* 0x4054B1B3, 0xFB5E1543 */
--    _F_64(2.07781416421392987104e+03), /* 0x40A03BA0, 0xDA21C0CE */
--    _F_64(1.88472887785718085070e+04), /* 0x40D267D2, 0x7B591E6D */
--    _F_64(5.67511122894947329769e+04), /* 0x40EBB5E3, 0x97E02372 */
--    _F_64(3.59767538425114471465e+04), /* 0x40E19118, 0x1F7A54A0 */
-+    _F_64(8.27766102236537761883e+01),  /* 0x4054B1B3, 0xFB5E1543 */
-+    _F_64(2.07781416421392987104e+03),  /* 0x40A03BA0, 0xDA21C0CE */
-+    _F_64(1.88472887785718085070e+04),  /* 0x40D267D2, 0x7B591E6D */
-+    _F_64(5.67511122894947329769e+04),  /* 0x40EBB5E3, 0x97E02372 */
-+    _F_64(3.59767538425114471465e+04),  /* 0x40E19118, 0x1F7A54A0 */
-     _F_64(-5.35434275601944773371e+03), /* 0xC0B4EA57, 0xBEDBC609 */
- };
- 
-@@ -383,11 +381,11 @@
-     _F_64(1.66733948696651168575e+02), /* 0x4064D77C, 0x81FA21E0 */
- };
- static const __float64 qS3[6] = {
--    _F_64(4.87588729724587182091e+01), /* 0x40486122, 0xBFE343A6 */
--    _F_64(7.09689221056606015736e+02), /* 0x40862D83, 0x86544EB3 */
--    _F_64(3.70414822620111362994e+03), /* 0x40ACF04B, 0xE44DFC63 */
--    _F_64(6.46042516752568917582e+03), /* 0x40B93C6C, 0xD7C76A28 */
--    _F_64(2.51633368920368957333e+03), /* 0x40A3A8AA, 0xD94FB1C0 */
-+    _F_64(4.87588729724587182091e+01),  /* 0x40486122, 0xBFE343A6 */
-+    _F_64(7.09689221056606015736e+02),  /* 0x40862D83, 0x86544EB3 */
-+    _F_64(3.70414822620111362994e+03),  /* 0x40ACF04B, 0xE44DFC63 */
-+    _F_64(6.46042516752568917582e+03),  /* 0x40B93C6C, 0xD7C76A28 */
-+    _F_64(2.51633368920368957333e+03),  /* 0x40A3A8AA, 0xD94FB1C0 */
-     _F_64(-1.49247451836156386662e+02), /* 0xC062A7EB, 0x201CF40F */
- };
- 
-@@ -401,11 +399,11 @@
-     _F_64(1.62527075710929267416e+01), /* 0x403040B1, 0x71814BB4 */
- };
- static const __float64 qS2[6] = {
--    _F_64(3.03655848355219184498e+01), /* 0x403E5D96, 0xF7C07AED */
--    _F_64(2.69348118608049844624e+02), /* 0x4070D591, 0xE4D14B40 */
--    _F_64(8.44783757595320139444e+02), /* 0x408A6645, 0x22B3BF22 */
--    _F_64(8.82935845112488550512e+02), /* 0x408B977C, 0x9C5CC214 */
--    _F_64(2.12666388511798828631e+02), /* 0x406A9553, 0x0E001365 */
-+    _F_64(3.03655848355219184498e+01),  /* 0x403E5D96, 0xF7C07AED */
-+    _F_64(2.69348118608049844624e+02),  /* 0x4070D591, 0xE4D14B40 */
-+    _F_64(8.44783757595320139444e+02),  /* 0x408A6645, 0x22B3BF22 */
-+    _F_64(8.82935845112488550512e+02),  /* 0x408B977C, 0x9C5CC214 */
-+    _F_64(2.12666388511798828631e+02),  /* 0x406A9553, 0x0E001365 */
-     _F_64(-5.31095493882666946917e+00), /* 0xC0153E6A, 0xF8B32931 */
- };
- 
-@@ -413,8 +411,8 @@
- qzero(__float64 x)
- {
-     const __float64 *p, *q;
--    __float64 s, r, z;
--    __int32_t ix;
-+    __float64        s, r, z;
-+    __int32_t        ix;
-     GET_HIGH_WORD(ix, x);
-     ix &= 0x7fffffff;
-     if (ix >= 0x41b00000) {
-@@ -434,9 +432,7 @@
-     }
-     z = one / (x * x);
-     r = p[0] + z * (p[1] + z * (p[2] + z * (p[3] + z * (p[4] + z * p[5]))));
--    s = one +
--        z * (q[0] +
--             z * (q[1] + z * (q[2] + z * (q[3] + z * (q[4] + z * q[5])))));
-+    s = one + z * (q[0] + z * (q[1] + z * (q[2] + z * (q[3] + z * (q[4] + z * q[5])))));
-     return (_F_64(-.125) + r / s) / x;
- }
- 
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_j1.c picolibc-patched/cmd/gaston/libm/math/s_j1.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_j1.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_j1.c	2026-04-08 22:31:48
@@ -32416,28 +30923,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_j1.c picolibc-patched/cmd/gas
          ss = -s - c;
          cc = s - c;
          if (ix < 0x7fe00000) { /* make sure y+y not overflow */
-@@ -139,13 +136,14 @@
- 
- _MATH_ALIAS_d_d(j1)
- 
--static const __float64 U0[5] = {
--    _F_64(-1.96057090646238940668e-01), /* 0xBFC91866, 0x143CBC8A */
--    _F_64(5.04438716639811282616e-02), /* 0x3FA9D3C7, 0x76292CD1 */
--    _F_64(-1.91256895875763547298e-03), /* 0xBF5F55E5, 0x4844F50F */
--    _F_64(2.35252600561610495928e-05), /* 0x3EF8AB03, 0x8FA6B88E */
--    _F_64(-9.19099158039878874504e-08), /* 0xBE78AC00, 0x569105B8 */
--};
-+    static const __float64 U0[5]
-+    = {
-+          _F_64(-1.96057090646238940668e-01), /* 0xBFC91866, 0x143CBC8A */
-+          _F_64(5.04438716639811282616e-02),  /* 0x3FA9D3C7, 0x76292CD1 */
-+          _F_64(-1.91256895875763547298e-03), /* 0xBF5F55E5, 0x4844F50F */
-+          _F_64(2.35252600561610495928e-05),  /* 0x3EF8AB03, 0x8FA6B88E */
-+          _F_64(-9.19099158039878874504e-08), /* 0xBE78AC00, 0x569105B8 */
-+      };
- static const __float64 V0[5] = {
-     _F_64(1.99167318236649903973e-02), /* 0x3F94650D, 0x3F4DA9F0 */
-     _F_64(2.02552581025135171496e-04), /* 0x3F2A8C89, 0x6C257764 */
 @@ -176,8 +174,7 @@
          return _F_64(0.0);
  
@@ -32499,200 +30984,9 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_j1.c picolibc-patched/cmd/gas
  static const __float64 ps8[5] = {
      _F_64(1.14207370375678408436e+02), /* 0x405C8D45, 0x8E656CAC */
      _F_64(3.65093083420853463394e+03), /* 0x40AC85DC, 0x964D274F */
-@@ -299,8 +297,8 @@
- pone(__float64 x)
- {
-     const __float64 *p, *q;
--    __float64 z, r, s;
--    __int32_t ix;
-+    __float64        z, r, s;
-+    __int32_t        ix;
-     GET_HIGH_WORD(ix, x);
-     ix &= 0x7fffffff;
-     if (ix >= 0x41b00000) {
-@@ -336,7 +334,7 @@
- 
- static const __float64 qr8[6] = {
-     /* for x in [inf, 8]=1/[0,0.125] */
--    _F_64(0.00000000000000000000e+00), /* 0x00000000, 0x00000000 */
-+    _F_64(0.00000000000000000000e+00),  /* 0x00000000, 0x00000000 */
-     _F_64(-1.02539062499992714161e-01), /* 0xBFBA3FFF, 0xFFFFFDF3 */
-     _F_64(-1.62717534544589987888e+01), /* 0xC0304591, 0xA26779F7 */
-     _F_64(-7.59601722513950107896e+02), /* 0xC087BCD0, 0x53E4B576 */
-@@ -344,11 +342,11 @@
-     _F_64(-4.84385124285750353010e+04), /* 0xC0E7A6D0, 0x65D09C6A */
- };
- static const __float64 qs8[6] = {
--    _F_64(1.61395369700722909556e+02), /* 0x40642CA6, 0xDE5BCDE5 */
--    _F_64(7.82538599923348465381e+03), /* 0x40BE9162, 0xD0D88419 */
--    _F_64(1.33875336287249578163e+05), /* 0x4100579A, 0xB0B75E98 */
--    _F_64(7.19657723683240939863e+05), /* 0x4125F653, 0x72869C19 */
--    _F_64(6.66601232617776375264e+05), /* 0x412457D2, 0x7719AD5C */
-+    _F_64(1.61395369700722909556e+02),  /* 0x40642CA6, 0xDE5BCDE5 */
-+    _F_64(7.82538599923348465381e+03),  /* 0x40BE9162, 0xD0D88419 */
-+    _F_64(1.33875336287249578163e+05),  /* 0x4100579A, 0xB0B75E98 */
-+    _F_64(7.19657723683240939863e+05),  /* 0x4125F653, 0x72869C19 */
-+    _F_64(6.66601232617776375264e+05),  /* 0x412457D2, 0x7719AD5C */
-     _F_64(-2.94490264303834643215e+05), /* 0xC111F969, 0x0EA5AA18 */
- };
- 
-@@ -362,11 +360,11 @@
-     _F_64(-2.61244440453215656817e+03), /* 0xC0A468E3, 0x88FDA79D */
- };
- static const __float64 qs5[6] = {
--    _F_64(8.12765501384335777857e+01), /* 0x405451B2, 0xFF5A11B2 */
--    _F_64(1.99179873460485964642e+03), /* 0x409F1F31, 0xE77BF839 */
--    _F_64(1.74684851924908907677e+04), /* 0x40D10F1F, 0x0D64CE29 */
--    _F_64(4.98514270910352279316e+04), /* 0x40E8576D, 0xAABAD197 */
--    _F_64(2.79480751638918118260e+04), /* 0x40DB4B04, 0xCF7C364B */
-+    _F_64(8.12765501384335777857e+01),  /* 0x405451B2, 0xFF5A11B2 */
-+    _F_64(1.99179873460485964642e+03),  /* 0x409F1F31, 0xE77BF839 */
-+    _F_64(1.74684851924908907677e+04),  /* 0x40D10F1F, 0x0D64CE29 */
-+    _F_64(4.98514270910352279316e+04),  /* 0x40E8576D, 0xAABAD197 */
-+    _F_64(2.79480751638918118260e+04),  /* 0x40DB4B04, 0xCF7C364B */
-     _F_64(-4.71918354795128470869e+03), /* 0xC0B26F2E, 0xFCFFA004 */
- };
- 
-@@ -379,11 +377,11 @@
-     _F_64(-2.19210128478909325622e+02), /* 0xC06B66B9, 0x5F5C1BF6 */
- };
- static const __float64 qs3[6] = {
--    _F_64(4.76651550323729509273e+01), /* 0x4047D523, 0xCCD367E4 */
--    _F_64(6.73865112676699709482e+02), /* 0x40850EEB, 0xC031EE3E */
--    _F_64(3.38015286679526343505e+03), /* 0x40AA684E, 0x448E7C9A */
--    _F_64(5.54772909720722782367e+03), /* 0x40B5ABBA, 0xA61D54A6 */
--    _F_64(1.90311919338810798763e+03), /* 0x409DBC7A, 0x0DD4DF4B */
-+    _F_64(4.76651550323729509273e+01),  /* 0x4047D523, 0xCCD367E4 */
-+    _F_64(6.73865112676699709482e+02),  /* 0x40850EEB, 0xC031EE3E */
-+    _F_64(3.38015286679526343505e+03),  /* 0x40AA684E, 0x448E7C9A */
-+    _F_64(5.54772909720722782367e+03),  /* 0x40B5ABBA, 0xA61D54A6 */
-+    _F_64(1.90311919338810798763e+03),  /* 0x409DBC7A, 0x0DD4DF4B */
-     _F_64(-1.35201191444307340817e+02), /* 0xC060E670, 0x290A311F */
- };
- 
-@@ -397,11 +395,11 @@
-     _F_64(-2.13719211703704061733e+01), /* 0xC0355F36, 0x39CF6E52 */
- };
- static const __float64 qs2[6] = {
--    _F_64(2.95333629060523854548e+01), /* 0x403D888A, 0x78AE64FF */
--    _F_64(2.52981549982190529136e+02), /* 0x406F9F68, 0xDB821CBA */
--    _F_64(7.57502834868645436472e+02), /* 0x4087AC05, 0xCE49A0F7 */
--    _F_64(7.39393205320467245656e+02), /* 0x40871B25, 0x48D4C029 */
--    _F_64(1.55949003336666123687e+02), /* 0x40637E5E, 0x3C3ED8D4 */
-+    _F_64(2.95333629060523854548e+01),  /* 0x403D888A, 0x78AE64FF */
-+    _F_64(2.52981549982190529136e+02),  /* 0x406F9F68, 0xDB821CBA */
-+    _F_64(7.57502834868645436472e+02),  /* 0x4087AC05, 0xCE49A0F7 */
-+    _F_64(7.39393205320467245656e+02),  /* 0x40871B25, 0x48D4C029 */
-+    _F_64(1.55949003336666123687e+02),  /* 0x40637E5E, 0x3C3ED8D4 */
-     _F_64(-4.95949898822628210127e+00), /* 0xC013D686, 0xE71BE86B */
- };
- 
-@@ -409,8 +407,8 @@
- qone(__float64 x)
- {
-     const __float64 *p, *q;
--    __float64 s, r, z;
--    __int32_t ix;
-+    __float64        s, r, z;
-+    __int32_t        ix;
-     GET_HIGH_WORD(ix, x);
-     ix &= 0x7fffffff;
-     if (ix >= 0x41b00000) {
-@@ -430,9 +428,7 @@
-     }
-     z = one / (x * x);
-     r = p[0] + z * (p[1] + z * (p[2] + z * (p[3] + z * (p[4] + z * p[5]))));
--    s = one +
--        z * (q[0] +
--             z * (q[1] + z * (q[2] + z * (q[3] + z * (q[4] + z * q[5])))));
-+    s = one + z * (q[0] + z * (q[1] + z * (q[2] + z * (q[3] + z * (q[4] + z * q[5])))));
-     return (.375 + r / s) / x;
- }
- 
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_jn.c picolibc-patched/cmd/gaston/libm/math/s_jn.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_jn.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_jn.c	2026-04-08 22:31:48
-@@ -40,10 +40,9 @@
- 
- #ifdef _NEED_FLOAT64
- 
--static const __float64
--    invsqrtpi = _F_64(5.64189583547756279280e-01), /* 0x3FE20DD7, 0x50429B6D */
--    two = _F_64(2.00000000000000000000e+00), /* 0x40000000, 0x00000000 */
--    one = _F_64(1.00000000000000000000e+00); /* 0x3FF00000, 0x00000000 */
-+static const __float64 invsqrtpi = _F_64(5.64189583547756279280e-01), /* 0x3FE20DD7, 0x50429B6D */
-+    two = _F_64(2.00000000000000000000e+00),                          /* 0x40000000, 0x00000000 */
-+    one = _F_64(1.00000000000000000000e+00);                          /* 0x3FF00000, 0x00000000 */
- 
- static const __float64 zero = _F_64(0.00000000000000000000e+00);
- 
-@@ -132,39 +131,39 @@
-                 b = temp;
-                 for (a = one, i = 2; i <= n; i++) {
-                     a *= (__float64)i; /* a = n! */
--                    b *= temp; /* b = (x/2)^n */
-+                    b *= temp;         /* b = (x/2)^n */
-                 }
-                 b = b / a;
-             }
-         } else {
-             /* use backward recurrence */
-             /* 			x      x^2      x^2
--		 *  J(n,x)/J(n-1,x) =  ----   ------   ------   .....
--		 *			2n  - 2(n+1) - 2(n+2)
--		 *
--		 * 			1      1        1
--		 *  (for large x)   =  ----  ------   ------   .....
--		 *			2n   2(n+1)   2(n+2)
--		 *			-- - ------ - ------ -
--		 *			 x     x         x
--		 *
--		 * Let w = 2n/x and h=2/x, then the above quotient
--		 * is equal to the continued fraction:
--		 *		    1
--		 *	= -----------------------
--		 *		       1
--		 *	   w - -----------------
--		 *			  1
--		 * 	        w+h - ---------
--		 *		       w+2h - ...
--		 *
--		 * To determine how many terms needed, let
--		 * Q(0) = w, Q(1) = w(w+h) - 1,
--		 * Q(k) = (w+k*h)*Q(k-1) - Q(k-2),
--		 * When Q(k) > 1e4	good for single
--		 * When Q(k) > 1e9	good for double
--		 * When Q(k) > 1e17	good for quadruple
--		 */
-+             *  J(n,x)/J(n-1,x) =  ----   ------   ------   .....
-+             *			2n  - 2(n+1) - 2(n+2)
-+             *
-+             * 			1      1        1
-+             *  (for large x)   =  ----  ------   ------   .....
-+             *			2n   2(n+1)   2(n+2)
-+             *			-- - ------ - ------ -
-+             *			 x     x         x
-+             *
-+             * Let w = 2n/x and h=2/x, then the above quotient
-+             * is equal to the continued fraction:
-+             *		    1
-+             *	= -----------------------
-+             *		       1
-+             *	   w - -----------------
-+             *			  1
-+             * 	        w+h - ---------
-+             *		       w+2h - ...
-+             *
-+             * To determine how many terms needed, let
-+             * Q(0) = w, Q(1) = w(w+h) - 1,
-+             * Q(k) = (w+k*h)*Q(k-1) - Q(k-2),
-+             * When Q(k) > 1e4	good for single
-+             * When Q(k) > 1e9	good for double
-+             * When Q(k) > 1e17	good for quadruple
-+             */
-             /* determine k */
-             __float64 t, v;
-             __float64 q0, q1, h, tmp;
 @@ -188,16 +187,16 @@
              a = t;
              b = one;
@@ -32718,16 +31012,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_jn.c picolibc-patched/cmd/gas
              if (tmp < _F_64(7.09782712893383973096e+02)) {
                  for (i = n - 1, di = (__float64)(i + i); i > 0; i--) {
                      temp = b;
-@@ -232,8 +231,7 @@
- 
- _MATH_ALIAS_d_id(jn)
- 
--__float64
--yn64(int n, __float64 x)
-+    __float64 yn64(int n, __float64 x)
- {
-     __int32_t i, hx, ix, lx;
-     __int32_t sign;
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_lgamma.c picolibc-patched/cmd/gaston/libm/math/s_lgamma.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_lgamma.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_lgamma.c	2026-04-08 22:31:48
@@ -32742,80 +31026,9 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_lgamma.c picolibc-patched/cmd
  #pragma GCC diagnostic ignored "-Wpragmas"
  #pragma GCC diagnostic ignored "-Wunknown-warning-option"
  #pragma GCC diagnostic ignored "-Wattribute-alias="
-@@ -59,7 +59,6 @@
- }
- #endif
- 
--_MATH_ALIAS_d_d(lgamma)
--_MATH_ALIAS_d_d(gamma)
-+_MATH_ALIAS_d_d(lgamma) _MATH_ALIAS_d_d(gamma)
- 
- #endif /* _NEED_FLOAT64 */
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_log.c picolibc-patched/cmd/gaston/libm/math/s_log.c
---- picolibc-pristine/cmd/gaston/libm/math/s_log.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/s_log.c	2026-04-08 22:31:48
-@@ -68,23 +68,23 @@
- #ifdef _NEED_FLOAT64
- 
- static const __float64 ln2_hi = _F_64(6.93147180369123816490e-01), /* 3fe62e42 fee00000 */
--    ln2_lo = _F_64(1.90821492927058770002e-10), /* 3dea39ef 35793c76 */
--    two54 = _F_64(1.80143985094819840000e+16), /* 43500000 00000000 */
--    Lg1 = _F_64(6.666666666666735130e-01), /* 3FE55555 55555593 */
--    Lg2 = _F_64(3.999999999940941908e-01), /* 3FD99999 9997FA04 */
--    Lg3 = _F_64(2.857142874366239149e-01), /* 3FD24924 94229359 */
--    Lg4 = _F_64(2.222219843214978396e-01), /* 3FCC71C5 1D8E78AF */
--    Lg5 = _F_64(1.818357216161805012e-01), /* 3FC74664 96CB03DE */
--    Lg6 = _F_64(1.531383769920937332e-01), /* 3FC39A09 D078C69F */
--    Lg7 = _F_64(1.479819860511658591e-01); /* 3FC2F112 DF3E5244 */
-+    ln2_lo = _F_64(1.90821492927058770002e-10),                    /* 3dea39ef 35793c76 */
-+    two54 = _F_64(1.80143985094819840000e+16),                     /* 43500000 00000000 */
-+    Lg1 = _F_64(6.666666666666735130e-01),                         /* 3FE55555 55555593 */
-+    Lg2 = _F_64(3.999999999940941908e-01),                         /* 3FD99999 9997FA04 */
-+    Lg3 = _F_64(2.857142874366239149e-01),                         /* 3FD24924 94229359 */
-+    Lg4 = _F_64(2.222219843214978396e-01),                         /* 3FCC71C5 1D8E78AF */
-+    Lg5 = _F_64(1.818357216161805012e-01),                         /* 3FC74664 96CB03DE */
-+    Lg6 = _F_64(1.531383769920937332e-01),                         /* 3FC39A09 D078C69F */
-+    Lg7 = _F_64(1.479819860511658591e-01);                         /* 3FC2F112 DF3E5244 */
- 
- static const __float64 zero = _F_64(0.0);
- 
- __float64
- log64(__float64 x)
- {
--    __float64 hfsq, f, s, z, R, w, t1, t2, dk;
--    __int32_t k, hx, i, j;
-+    __float64  hfsq, f, s, z, R, w, t1, t2, dk;
-+    __int32_t  k, hx, i, j;
-     __uint32_t lx;
- 
-     EXTRACT_WORDS(hx, lx, x);
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_log10.c picolibc-patched/cmd/gaston/libm/math/s_log10.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_log10.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_log10.c	2026-04-08 22:31:48
-@@ -48,17 +48,16 @@
- 
- #ifdef _NEED_FLOAT64
- 
--static const __float64
--    two54 = _F_64(1.80143985094819840000e+16), /* 0x43500000, 0x00000000 */
--    ivln10 = _F_64(4.34294481903251816668e-01), /* 0x3FDBCB7B, 0x1526E50E */
--    log10_2hi = _F_64(3.01029995663611771306e-01), /* 0x3FD34413, 0x509F6000 */
--    log10_2lo = _F_64(3.69423907715893078616e-13); /* 0x3D59FEF3, 0x11F12B36 */
-+static const __float64 two54 = _F_64(1.80143985094819840000e+16), /* 0x43500000, 0x00000000 */
-+    ivln10 = _F_64(4.34294481903251816668e-01),                   /* 0x3FDBCB7B, 0x1526E50E */
-+    log10_2hi = _F_64(3.01029995663611771306e-01),                /* 0x3FD34413, 0x509F6000 */
-+    log10_2lo = _F_64(3.69423907715893078616e-13);                /* 0x3D59FEF3, 0x11F12B36 */
- 
- __float64
- log1064(__float64 x)
- {
--    __float64 y, z;
--    __int32_t i, k, hx;
-+    __float64  y, z;
-+    __int32_t  i, k, hx;
-     __uint32_t lx;
- 
-     EXTRACT_WORDS(hx, lx, x);
 @@ -80,7 +79,7 @@
      hx = (hx & 0x000fffff) | ((0x3ff - i) << 20);
      y = (__float64)(k + i);
@@ -32828,21 +31041,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_log10.c picolibc-patched/cmd/
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_pow.c picolibc-patched/cmd/gaston/libm/math/s_pow.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_pow.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_pow.c	2026-04-08 22:31:48
-@@ -97,10 +97,10 @@
- __float64
- pow64(__float64 x, __float64 y)
- {
--    __float64 z, ax, z_h, z_l, p_h, p_l;
--    __float64 y1, t1, t2, r, s, t, u, v, w;
--    __int32_t i, j, k, yisint, n;
--    __int32_t hx, hy, ix, iy;
-+    __float64  z, ax, z_h, z_l, p_h, p_l;
-+    __float64  y1, t1, t2, r, s, t, u, v, w;
-+    __int32_t  i, j, k, yisint, n;
-+    __int32_t  hx, hy, ix, iy;
-     __uint32_t lx, ly;
- 
-     EXTRACT_WORDS(hx, lx, x);
 @@ -116,9 +116,9 @@
      }
  
@@ -32890,23 +31088,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_pow.c picolibc-patched/cmd/ga
                      return __math_invalid(x); /* (-1)**non-int is NaN */
                  } else if (yisint == 1)
                      z = -z; /* (x<0)**odd = -(|x|**odd) */
-@@ -200,14 +200,14 @@
- 
-     /* (x<0)**(non-int) is NaN */
-     /* REDHAT LOCAL: This used to be
--	if((((hx>>31)+1)|yisint)==0) return __math_invalid(x);
-+        if((((hx>>31)+1)|yisint)==0) return __math_invalid(x);
-        but ANSI C says a right shift of a signed negative quantity is
-        implementation defined.  */
-     if (((((__uint32_t)hx >> 31) - 1) | yisint) == 0)
-         return __math_invalid(x);
- 
-     /* |y| is huge */
--    if (iy > 0x42000000) { /* if |y| > ~2**33 */
-+    if (iy > 0x42000000) {     /* if |y| > ~2**33 */
-         if (iy > 0x43f00000) { /* if |y| > ~2**64, must o/uflow */
-             if (ix <= 0x3fefffff)
-                 return (hy < 0) ? __math_oflow(0) : __math_uflow(0);
 @@ -216,15 +216,15 @@
          }
          /* over/underflow if x is not close to one */
@@ -32926,37 +31107,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_pow.c picolibc-patched/cmd/ga
          t = ax - 1; /* t has 20 trailing zeros */
          w = (t * t) * (_F_64(0.5) - t * (_F_64(0.3333333333333333333333) - t * _F_64(0.25)));
          u = ivln2_h * t; /* ivln2_h has 21 sig. bits */
-@@ -269,8 +269,7 @@
-         s_l = v * ((u - s_h * t_h) - s_h * t_l);
-         /* compute log(ax) */
-         s2 = s * s;
--        r = s2 * s2 *
--            (L1 + s2 * (L2 + s2 * (L3 + s2 * (L4 + s2 * (L5 + s2 * L6)))));
-+        r = s2 * s2 * (L1 + s2 * (L2 + s2 * (L3 + s2 * (L4 + s2 * (L5 + s2 * L6)))));
-         r += s_l * (s_h + s);
-         s2 = s_h * s_h;
-         t_h = _F_64(3.0) + s2 + r;
-@@ -303,16 +302,16 @@
-     p_h = y1 * t1;
-     z = p_l + p_h;
-     EXTRACT_WORDS(j, i, z);
--    if (j >= 0x40900000) { /* z >= 1024 */
-+    if (j >= 0x40900000) {               /* z >= 1024 */
-         if (((j - 0x40900000) | i) != 0) /* if z > 1024 */
--            return __math_oflow(s < 0); /* overflow */
-+            return __math_oflow(s < 0);  /* overflow */
-         else {
-             if (p_l + ovt > z - p_h)
-                 return __math_oflow(s < 0); /* overflow */
-         }
-     } else if ((j & 0x7fffffff) >= 0x4090cc00) { /* z <= -1075 */
--        if (((j - 0xc090cc00) | i) != 0) /* z < -1075 */
--            return __math_uflow(s < 0); /* underflow */
-+        if (((j - 0xc090cc00) | i) != 0)         /* z < -1075 */
-+            return __math_uflow(s < 0);          /* underflow */
-         else {
-             if (p_l <= z - p_h)
-                 return __math_uflow(s < 0); /* underflow */
 @@ -345,16 +344,16 @@
      r = (z * t1) / (t1 - two) - (w + z * w);
      z = one - (r - z);
@@ -32982,92 +31132,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_pow.c picolibc-patched/cmd/ga
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_rem_pio2.c picolibc-patched/cmd/gaston/libm/math/s_rem_pio2.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_rem_pio2.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_rem_pio2.c	2026-04-08 22:31:48
-@@ -26,25 +26,21 @@
-  * Table of constants for 2/pi, 396 Hex digits (476 decimal) of 2/pi
-  */
- static const __int32_t two_over_pi[] = {
--    0xA2F983, 0x6E4E44, 0x1529FC, 0x2757D1, 0xF534DD, 0xC0DB62, 0x95993C,
--    0x439041, 0xFE5163, 0xABDEBB, 0xC561B7, 0x246E3A, 0x424DD2, 0xE00649,
--    0x2EEA09, 0xD1921C, 0xFE1DEB, 0x1CB129, 0xA73EE8, 0x8235F5, 0x2EBB44,
--    0x84E99C, 0x7026B4, 0x5F7E41, 0x3991D6, 0x398353, 0x39F49C, 0x845F8B,
--    0xBDF928, 0x3B1FF8, 0x97FFDE, 0x05980F, 0xEF2F11, 0x8B5A0A, 0x6D1F6D,
--    0x367ECF, 0x27CB09, 0xB74F46, 0x3F669E, 0x5FEA2D, 0x7527BA, 0xC7EBE5,
--    0xF17B3D, 0x0739F7, 0x8A5292, 0xEA6BFB, 0x5FB11F, 0x8D5D08, 0x560330,
--    0x46FC7B, 0x6BABF0, 0xCFBC20, 0x9AF436, 0x1DA9E3, 0x91615E, 0xE61B08,
--    0x659985, 0x5F14A0, 0x68408D, 0xFFD880, 0x4D7327, 0x310606, 0x1556CA,
-+    0xA2F983, 0x6E4E44, 0x1529FC, 0x2757D1, 0xF534DD, 0xC0DB62, 0x95993C, 0x439041, 0xFE5163,
-+    0xABDEBB, 0xC561B7, 0x246E3A, 0x424DD2, 0xE00649, 0x2EEA09, 0xD1921C, 0xFE1DEB, 0x1CB129,
-+    0xA73EE8, 0x8235F5, 0x2EBB44, 0x84E99C, 0x7026B4, 0x5F7E41, 0x3991D6, 0x398353, 0x39F49C,
-+    0x845F8B, 0xBDF928, 0x3B1FF8, 0x97FFDE, 0x05980F, 0xEF2F11, 0x8B5A0A, 0x6D1F6D, 0x367ECF,
-+    0x27CB09, 0xB74F46, 0x3F669E, 0x5FEA2D, 0x7527BA, 0xC7EBE5, 0xF17B3D, 0x0739F7, 0x8A5292,
-+    0xEA6BFB, 0x5FB11F, 0x8D5D08, 0x560330, 0x46FC7B, 0x6BABF0, 0xCFBC20, 0x9AF436, 0x1DA9E3,
-+    0x91615E, 0xE61B08, 0x659985, 0x5F14A0, 0x68408D, 0xFFD880, 0x4D7327, 0x310606, 0x1556CA,
-     0x73A8C9, 0x60E27B, 0xC08C6B,
- };
- 
- static const __int32_t npio2_hw[] = {
--    0x3FF921FB, 0x400921FB, 0x4012D97C, 0x401921FB, 0x401F6A7A, 0x4022D97C,
--    0x4025FDBB, 0x402921FB, 0x402C463A, 0x402F6A7A, 0x4031475C, 0x4032D97C,
--    0x40346B9C, 0x4035FDBB, 0x40378FDB, 0x403921FB, 0x403AB41B, 0x403C463A,
--    0x403DD85A, 0x403F6A7A, 0x40407E4C, 0x4041475C, 0x4042106C, 0x4042D97C,
--    0x4043A28C, 0x40446B9C, 0x404534AC, 0x4045FDBB, 0x4046C6CB, 0x40478FDB,
--    0x404858EB, 0x404921FB,
-+    0x3FF921FB, 0x400921FB, 0x4012D97C, 0x401921FB, 0x401F6A7A, 0x4022D97C, 0x4025FDBB, 0x402921FB,
-+    0x402C463A, 0x402F6A7A, 0x4031475C, 0x4032D97C, 0x40346B9C, 0x4035FDBB, 0x40378FDB, 0x403921FB,
-+    0x403AB41B, 0x403C463A, 0x403DD85A, 0x403F6A7A, 0x40407E4C, 0x4041475C, 0x4042106C, 0x4042D97C,
-+    0x4043A28C, 0x40446B9C, 0x404534AC, 0x4045FDBB, 0x4046C6CB, 0x40478FDB, 0x404858EB, 0x404921FB,
- };
- 
- /*
-@@ -57,25 +53,24 @@
-  * pio2_3t:  pi/2 - (pio2_1+pio2_2+pio2_3)
-  */
- 
--static const __float64
--    zero = _F_64(0.00000000000000000000e+00), /* 0x00000000, 0x00000000 */
--    half = _F_64(5.00000000000000000000e-01), /* 0x3FE00000, 0x00000000 */
--    two24 = _F_64(1.67772160000000000000e+07), /* 0x41700000, 0x00000000 */
--    invpio2 = _F_64(6.36619772367581382433e-01), /* 0x3FE45F30, 0x6DC9C883 */
--    pio2_1 = _F_64(1.57079632673412561417e+00), /* 0x3FF921FB, 0x54400000 */
--    pio2_1t = _F_64(6.07710050650619224932e-11), /* 0x3DD0B461, 0x1A626331 */
--    pio2_2 = _F_64(6.07710050630396597660e-11), /* 0x3DD0B461, 0x1A600000 */
--    pio2_2t = _F_64(2.02226624879595063154e-21), /* 0x3BA3198A, 0x2E037073 */
--    pio2_3 = _F_64(2.02226624871116645580e-21), /* 0x3BA3198A, 0x2E000000 */
--    pio2_3t = _F_64(8.47842766036889956997e-32); /* 0x397B839A, 0x252049C1 */
-+static const __float64 zero = _F_64(0.00000000000000000000e+00), /* 0x00000000, 0x00000000 */
-+    half = _F_64(5.00000000000000000000e-01),                    /* 0x3FE00000, 0x00000000 */
-+    two24 = _F_64(1.67772160000000000000e+07),                   /* 0x41700000, 0x00000000 */
-+    invpio2 = _F_64(6.36619772367581382433e-01),                 /* 0x3FE45F30, 0x6DC9C883 */
-+    pio2_1 = _F_64(1.57079632673412561417e+00),                  /* 0x3FF921FB, 0x54400000 */
-+    pio2_1t = _F_64(6.07710050650619224932e-11),                 /* 0x3DD0B461, 0x1A626331 */
-+    pio2_2 = _F_64(6.07710050630396597660e-11),                  /* 0x3DD0B461, 0x1A600000 */
-+    pio2_2t = _F_64(2.02226624879595063154e-21),                 /* 0x3BA3198A, 0x2E037073 */
-+    pio2_3 = _F_64(2.02226624871116645580e-21),                  /* 0x3BA3198A, 0x2E000000 */
-+    pio2_3t = _F_64(8.47842766036889956997e-32);                 /* 0x397B839A, 0x252049C1 */
- 
- __int32_t
- __rem_pio2(__float64 x, __float64 *y)
- {
--    __float64 z = _F_64(0.0), w, t, r, fn;
--    __float64 tx[3];
--    __int32_t i, j, n, ix, hx;
--    int e0, nx;
-+    __float64  z = _F_64(0.0), w, t, r, fn;
-+    __float64  tx[3];
-+    __int32_t  i, j, n, ix, hx;
-+    int        e0, nx;
-     __uint32_t low;
- 
-     GET_HIGH_WORD(hx, x); /* high word of x */
-@@ -134,7 +129,7 @@
-                 GET_HIGH_WORD(high, y[0]);
-                 i = j - ((high >> 20) & 0x7ff);
-                 if (i > 49) { /* 3rd iteration need, 151 bits acc */
--                    t = r; /* will cover all possible cases */
-+                    t = r;    /* will cover all possible cases */
-                     w = fn * pio2_3;
-                     r = t - w;
-                     w = fn * pio2_3t - ((t - r) - w);
 @@ -161,7 +156,7 @@
      GET_LOW_WORD(low, x);
      SET_LOW_WORD(z, low);
@@ -33080,18 +31144,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_rem_pio2.c picolibc-patched/c
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_remainder.c picolibc-patched/cmd/gaston/libm/math/s_remainder.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_remainder.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_remainder.c	2026-04-08 22:31:48
-@@ -29,9 +29,9 @@
- __float64
- remainder64(__float64 x, __float64 p)
- {
--    __int32_t hx, hp;
-+    __int32_t  hx, hp;
-     __uint32_t sx, lx, lp;
--    __float64 p_half;
-+    __float64  p_half;
- 
-     EXTRACT_WORDS(hx, lx, x);
-     EXTRACT_WORDS(hp, lp, p);
 @@ -50,7 +50,7 @@
          return (x * p) / (x * p); /* p = 0 */
  
@@ -33270,37 +31322,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_sinh.c picolibc-patched/cmd/g
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_sqrt.c picolibc-patched/cmd/gaston/libm/math/s_sqrt.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_sqrt.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_sqrt.c	2026-04-08 22:31:48
-@@ -88,10 +88,10 @@
- __float64
- sqrt64(__float64 x)
- {
--    __float64 z;
-+    __float64  z;
-     __uint32_t sign = 0x80000000;
-     __uint32_t r, t1, s1, ix1, q1;
--    __int32_t ix0, s0, q, m, t, i;
-+    __int32_t  ix0, s0, q, m, t, i;
- 
-     EXTRACT_WORDS(ix0, ix1, x);
- 
-@@ -99,7 +99,7 @@
-     if ((ix0 & 0x7ff00000) == 0x7ff00000) {
-         if (ix0 < 0 && !isnan(x))
-             return __math_invalid(x); /* sqrt(-inf)=sNaN */
--        return x + x; /* sqrt(NaN)=NaN, sqrt(+inf)=+inf */
-+        return x + x;                 /* sqrt(NaN)=NaN, sqrt(+inf)=+inf */
-     }
-     /* take care of zero */
-     if (ix0 <= 0) {
-@@ -135,7 +135,7 @@
-     ix0 += ix0 + ((ix1 & sign) >> 31);
-     ix1 += ix1;
-     q = q1 = s0 = s1 = 0; /* [q,q1] = sqrt(x) */
--    r = 0x00200000; /* r = moving bit from right to left */
-+    r = 0x00200000;       /* r = moving bit from right to left */
- 
-     while (r != 0) {
-         t = s0 + r;
 @@ -186,7 +186,7 @@
      ix1 = q1 >> 1;
      if ((q & 1) == 1)
@@ -33310,489 +31331,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_sqrt.c picolibc-patched/cmd/g
      INSERT_WORDS(z, ix0, ix1);
      return z;
  }
-@@ -195,259 +195,259 @@
- 
- #endif /* _NEED_FLOAT64 */
- 
--/*
--Other methods  (use floating-point arithmetic)
---------------
--(This is a copy of a drafted paper by Prof W. Kahan
--and K.C. Ng, written in May, 1986)
-+    /*
-+    Other methods  (use floating-point arithmetic)
-+    -------------
-+    (This is a copy of a drafted paper by Prof W. Kahan
-+    and K.C. Ng, written in May, 1986)
- 
--	Two algorithms are given here to implement sqrt(x)
--	(IEEE double precision arithmetic) in software.
--	Both supply sqrt(x) correctly rounded. The first algorithm (in
--	Section A) uses newton iterations and involves four divisions.
--	The second one uses reciproot iterations to avoid division, but
--	requires more multiplications. Both algorithms need the ability
--	to chop results of arithmetic operations instead of round them,
--	and the INEXACT flag to indicate when an arithmetic operation
--	is executed exactly with no roundoff error, all part of the
--	standard (IEEE 754-1985). The ability to perform shift, add,
--	subtract and logical AND operations upon 32-bit words is needed
--	too, though not part of the standard.
-+            Two algorithms are given here to implement sqrt(x)
-+            (IEEE double precision arithmetic) in software.
-+            Both supply sqrt(x) correctly rounded. The first algorithm (in
-+            Section A) uses newton iterations and involves four divisions.
-+            The second one uses reciproot iterations to avoid division, but
-+            requires more multiplications. Both algorithms need the ability
-+            to chop results of arithmetic operations instead of round them,
-+            and the INEXACT flag to indicate when an arithmetic operation
-+            is executed exactly with no roundoff error, all part of the
-+            standard (IEEE 754-1985). The ability to perform shift, add,
-+            subtract and logical AND operations upon 32-bit words is needed
-+            too, though not part of the standard.
- 
--A.  sqrt(x) by Newton Iteration
-+    A.  sqrt(x) by Newton Iteration
- 
--   (1)	Initial approximation
-+       (1)	Initial approximation
- 
--	Let x0 and x1 be the leading and the trailing 32-bit words of
--	a floating point number x (in IEEE double format) respectively
-+            Let x0 and x1 be the leading and the trailing 32-bit words of
-+            a floating point number x (in IEEE double format) respectively
- 
--	    1    11		     52				  ...widths
--	   ------------------------------------------------------
--	x: |s|	  e     |	      f				|
--	   ------------------------------------------------------
--	      msb    lsb  msb				      lsb ...order
-+                1    11		     52				  ...widths
-+               ------------------------------------------------------
-+            x: |s|	  e     |	      f				|
-+               ------------------------------------------------------
-+                  msb    lsb  msb				      lsb ...order
- 
- 
--	     ------------------------  	     ------------------------
--	x0:  |s|   e    |    f1     |	 x1: |          f2           |
--	     ------------------------  	     ------------------------
-+                 ------------------------  	     ------------------------
-+            x0:  |s|   e    |    f1     |	 x1: |          f2           |
-+                 ------------------------  	     ------------------------
- 
--	By performing shifts and subtracts on x0 and x1 (both regarded
--	as integers), we obtain an 8-bit approximation of sqrt(x) as
--	follows.
-+            By performing shifts and subtracts on x0 and x1 (both regarded
-+            as integers), we obtain an 8-bit approximation of sqrt(x) as
-+            follows.
- 
--		k  := (x0>>1) + 0x1ff80000;
--		y0 := k - T1[31&(k>>15)].	... y ~ sqrt(x) to 8 bits
--	Here k is a 32-bit integer and T1[] is an integer array containing
--	correction terms. Now magically the floating value of y (y's
--	leading 32-bit word is y0, the value of its trailing word is 0)
--	approximates sqrt(x) to almost 8-bit.
-+                    k  := (x0>>1) + 0x1ff80000;
-+                    y0 := k - T1[31&(k>>15)].	... y ~ sqrt(x) to 8 bits
-+            Here k is a 32-bit integer and T1[] is an integer array containing
-+            correction terms. Now magically the floating value of y (y's
-+            leading 32-bit word is y0, the value of its trailing word is 0)
-+            approximates sqrt(x) to almost 8-bit.
- 
--	Value of T1:
--	static int T1[32]= {
--	0,	1024,	3062,	5746,	9193,	13348,	18162,	23592,
--	29598,	36145,	43202,	50740,	58733,	67158,	75992,	85215,
--	83599,	71378,	60428,	50647,	41945,	34246,	27478,	21581,
--	16499,	12183,	8588,	5674,	3403,	1742,	661,	130,};
-+            Value of T1:
-+            static int T1[32]= {
-+            0,	1024,	3062,	5746,	9193,	13348,	18162,	23592,
-+            29598,	36145,	43202,	50740,	58733,	67158,	75992,	85215,
-+            83599,	71378,	60428,	50647,	41945,	34246,	27478,	21581,
-+            16499,	12183,	8588,	5674,	3403,	1742,	661,	130,};
- 
--    (2)	Iterative refinement
-+        (2)	Iterative refinement
- 
--	Apply Heron's rule three times to y, we have y approximates
--	sqrt(x) to within 1 ulp (Unit in the Last Place):
-+            Apply Heron's rule three times to y, we have y approximates
-+            sqrt(x) to within 1 ulp (Unit in the Last Place):
- 
--		y := (y+x/y)/2		... almost 17 sig. bits
--		y := (y+x/y)/2		... almost 35 sig. bits
--		y := y-(y-x/y)/2	... within 1 ulp
-+                    y := (y+x/y)/2		... almost 17 sig. bits
-+                    y := (y+x/y)/2		... almost 35 sig. bits
-+                    y := y-(y-x/y)/2	... within 1 ulp
- 
- 
--	Remark 1.
--	    Another way to improve y to within 1 ulp is:
-+            Remark 1.
-+                Another way to improve y to within 1 ulp is:
- 
--		y := (y+x/y)		... almost 17 sig. bits to 2*sqrt(x)
--		y := y - 0x00100006	... almost 18 sig. bits to sqrt(x)
-+                    y := (y+x/y)		... almost 17 sig. bits to 2*sqrt(x)
-+                    y := y - 0x00100006	... almost 18 sig. bits to sqrt(x)
- 
--				2
--			    (x-y )*y
--		y := y + 2* ----------	...within 1 ulp
--			       2
--			     3y  + x
-+                                    2
-+                                (x-y )*y
-+                    y := y + 2* ----------	...within 1 ulp
-+                                   2
-+                                 3y  + x
- 
- 
--	This formula has one division fewer than the one above; however,
--	it requires more multiplications and additions. Also x must be
--	scaled in advance to avoid spurious overflow in evaluating the
--	expression 3y*y+x. Hence it is not recommended uless division
--	is slow. If division is very slow, then one should use the
--	reciproot algorithm given in section B.
-+            This formula has one division fewer than the one above; however,
-+            it requires more multiplications and additions. Also x must be
-+            scaled in advance to avoid spurious overflow in evaluating the
-+            expression 3y*y+x. Hence it is not recommended uless division
-+            is slow. If division is very slow, then one should use the
-+            reciproot algorithm given in section B.
- 
--    (3) Final adjustment
-+        (3) Final adjustment
- 
--	By twiddling y's last bit it is possible to force y to be
--	correctly rounded according to the prevailing rounding mode
--	as follows. Let r and i be copies of the rounding mode and
--	inexact flag before entering the square root program. Also we
--	use the expression y+-ulp for the next representable floating
--	numbers (up and down) of y. Note that y+-ulp = either fixed
--	point y+-1, or multiply y by nextafter(1,+-inf) in chopped
--	mode.
-+            By twiddling y's last bit it is possible to force y to be
-+            correctly rounded according to the prevailing rounding mode
-+            as follows. Let r and i be copies of the rounding mode and
-+            inexact flag before entering the square root program. Also we
-+            use the expression y+-ulp for the next representable floating
-+            numbers (up and down) of y. Note that y+-ulp = either fixed
-+            point y+-1, or multiply y by nextafter(1,+-inf) in chopped
-+            mode.
- 
--		I := FALSE;	... reset INEXACT flag I
--		R := RZ;	... set rounding mode to round-toward-zero
--		z := x/y;	... chopped quotient, possibly inexact
--		If(not I) then {	... if the quotient is exact
--		    if(z=y) {
--		        I := i;	 ... restore inexact flag
--		        R := r;  ... restore rounded mode
--		        return sqrt(x):=y.
--		    } else {
--			z := z - ulp;	... special rounding
--		    }
--		}
--		i := TRUE;		... sqrt(x) is inexact
--		If (r=RN) then z=z+ulp	... rounded-to-nearest
--		If (r=RP) then {	... round-toward-+inf
--		    y = y+ulp; z=z+ulp;
--		}
--		y := y+z;		... chopped sum
--		y0:=y0-0x00100000;	... y := y/2 is correctly rounded.
--	        I := i;	 		... restore inexact flag
--	        R := r;  		... restore rounded mode
--	        return sqrt(x):=y.
-+                    I := FALSE;	... reset INEXACT flag I
-+                    R := RZ;	... set rounding mode to round-toward-zero
-+                    z := x/y;	... chopped quotient, possibly inexact
-+                    If(not I) then {	... if the quotient is exact
-+                        if(z=y) {
-+                            I := i;	 ... restore inexact flag
-+                            R := r;  ... restore rounded mode
-+                            return sqrt(x):=y.
-+                        } else {
-+                            z := z - ulp;	... special rounding
-+                        }
-+                    }
-+                    i := TRUE;		... sqrt(x) is inexact
-+                    If (r=RN) then z=z+ulp	... rounded-to-nearest
-+                    If (r=RP) then {	... round-toward-+inf
-+                        y = y+ulp; z=z+ulp;
-+                    }
-+                    y := y+z;		... chopped sum
-+                    y0:=y0-0x00100000;	... y := y/2 is correctly rounded.
-+                    I := i;	 		... restore inexact flag
-+                    R := r;  		... restore rounded mode
-+                    return sqrt(x):=y.
- 
--    (4)	Special cases
-+        (4)	Special cases
- 
--	Square root of +inf, +-0, or NaN is itself;
--	Square root of a negative number is NaN with invalid signal.
-+            Square root of +inf, +-0, or NaN is itself;
-+            Square root of a negative number is NaN with invalid signal.
- 
- 
--B.  sqrt(x) by Reciproot Iteration
-+    B.  sqrt(x) by Reciproot Iteration
- 
--   (1)	Initial approximation
-+       (1)	Initial approximation
- 
--	Let x0 and x1 be the leading and the trailing 32-bit words of
--	a floating point number x (in IEEE double format) respectively
--	(see section A). By performing shifs and subtracts on x0 and y0,
--	we obtain a 7.8-bit approximation of 1/sqrt(x) as follows.
-+            Let x0 and x1 be the leading and the trailing 32-bit words of
-+            a floating point number x (in IEEE double format) respectively
-+            (see section A). By performing shifs and subtracts on x0 and y0,
-+            we obtain a 7.8-bit approximation of 1/sqrt(x) as follows.
- 
--	    k := 0x5fe80000 - (x0>>1);
--	    y0:= k - T2[63&(k>>14)].	... y ~ 1/sqrt(x) to 7.8 bits
-+                k := 0x5fe80000 - (x0>>1);
-+                y0:= k - T2[63&(k>>14)].	... y ~ 1/sqrt(x) to 7.8 bits
- 
--	Here k is a 32-bit integer and T2[] is an integer array
--	containing correction terms. Now magically the floating
--	value of y (y's leading 32-bit word is y0, the value of
--	its trailing word y1 is set to zero) approximates 1/sqrt(x)
--	to almost 7.8-bit.
-+            Here k is a 32-bit integer and T2[] is an integer array
-+            containing correction terms. Now magically the floating
-+            value of y (y's leading 32-bit word is y0, the value of
-+            its trailing word y1 is set to zero) approximates 1/sqrt(x)
-+            to almost 7.8-bit.
- 
--	Value of T2:
--	static int T2[64]= {
--	0x1500,	0x2ef8,	0x4d67,	0x6b02,	0x87be,	0xa395,	0xbe7a,	0xd866,
--	0xf14a,	0x1091b,0x11fcd,0x13552,0x14999,0x15c98,0x16e34,0x17e5f,
--	0x18d03,0x19a01,0x1a545,0x1ae8a,0x1b5c4,0x1bb01,0x1bfde,0x1c28d,
--	0x1c2de,0x1c0db,0x1ba73,0x1b11c,0x1a4b5,0x1953d,0x18266,0x16be0,
--	0x1683e,0x179d8,0x18a4d,0x19992,0x1a789,0x1b445,0x1bf61,0x1c989,
--	0x1d16d,0x1d77b,0x1dddf,0x1e2ad,0x1e5bf,0x1e6e8,0x1e654,0x1e3cd,
--	0x1df2a,0x1d635,0x1cb16,0x1be2c,0x1ae4e,0x19bde,0x1868e,0x16e2e,
--	0x1527f,0x1334a,0x11051,0xe951,	0xbe01,	0x8e0d,	0x5924,	0x1edd,};
-+            Value of T2:
-+            static int T2[64]= {
-+            0x1500,	0x2ef8,	0x4d67,	0x6b02,	0x87be,	0xa395,	0xbe7a,	0xd866,
-+            0xf14a,	0x1091b,0x11fcd,0x13552,0x14999,0x15c98,0x16e34,0x17e5f,
-+            0x18d03,0x19a01,0x1a545,0x1ae8a,0x1b5c4,0x1bb01,0x1bfde,0x1c28d,
-+            0x1c2de,0x1c0db,0x1ba73,0x1b11c,0x1a4b5,0x1953d,0x18266,0x16be0,
-+            0x1683e,0x179d8,0x18a4d,0x19992,0x1a789,0x1b445,0x1bf61,0x1c989,
-+            0x1d16d,0x1d77b,0x1dddf,0x1e2ad,0x1e5bf,0x1e6e8,0x1e654,0x1e3cd,
-+            0x1df2a,0x1d635,0x1cb16,0x1be2c,0x1ae4e,0x19bde,0x1868e,0x16e2e,
-+            0x1527f,0x1334a,0x11051,0xe951,	0xbe01,	0x8e0d,	0x5924,	0x1edd,};
- 
--    (2)	Iterative refinement
-+        (2)	Iterative refinement
- 
--	Apply Reciproot iteration three times to y and multiply the
--	result by x to get an approximation z that matches sqrt(x)
--	to about 1 ulp. To be exact, we will have
--		-1ulp < sqrt(x)-z<1.0625ulp.
-+            Apply Reciproot iteration three times to y and multiply the
-+            result by x to get an approximation z that matches sqrt(x)
-+            to about 1 ulp. To be exact, we will have
-+                    -1ulp < sqrt(x)-z<1.0625ulp.
- 
--	... set rounding mode to Round-to-nearest
--	   y := y*(1.5-0.5*x*y*y)	... almost 15 sig. bits to 1/sqrt(x)
--	   y := y*((1.5-2^-30)+0.5*x*y*y)... about 29 sig. bits to 1/sqrt(x)
--	... special arrangement for better accuracy
--	   z := x*y			... 29 bits to sqrt(x), with z*y<1
--	   z := z + 0.5*z*(1-z*y)	... about 1 ulp to sqrt(x)
-+            ... set rounding mode to Round-to-nearest
-+               y := y*(1.5-0.5*x*y*y)	... almost 15 sig. bits to 1/sqrt(x)
-+               y := y*((1.5-2^-30)+0.5*x*y*y)... about 29 sig. bits to 1/sqrt(x)
-+            ... special arrangement for better accuracy
-+               z := x*y			... 29 bits to sqrt(x), with z*y<1
-+               z := z + 0.5*z*(1-z*y)	... about 1 ulp to sqrt(x)
- 
--	Remark 2. The constant 1.5-2^-30 is chosen to bias the error so that
--	(a) the term z*y in the final iteration is always less than 1;
--	(b) the error in the final result is biased upward so that
--		-1 ulp < sqrt(x) - z < 1.0625 ulp
--	    instead of |sqrt(x)-z|<1.03125ulp.
-+            Remark 2. The constant 1.5-2^-30 is chosen to bias the error so that
-+            (a) the term z*y in the final iteration is always less than 1;
-+            (b) the error in the final result is biased upward so that
-+                    -1 ulp < sqrt(x) - z < 1.0625 ulp
-+                instead of |sqrt(x)-z|<1.03125ulp.
- 
--    (3)	Final adjustment
-+        (3)	Final adjustment
- 
--	By twiddling y's last bit it is possible to force y to be
--	correctly rounded according to the prevailing rounding mode
--	as follows. Let r and i be copies of the rounding mode and
--	inexact flag before entering the square root program. Also we
--	use the expression y+-ulp for the next representable floating
--	numbers (up and down) of y. Note that y+-ulp = either fixed
--	point y+-1, or multiply y by nextafter(1,+-inf) in chopped
--	mode.
-+            By twiddling y's last bit it is possible to force y to be
-+            correctly rounded according to the prevailing rounding mode
-+            as follows. Let r and i be copies of the rounding mode and
-+            inexact flag before entering the square root program. Also we
-+            use the expression y+-ulp for the next representable floating
-+            numbers (up and down) of y. Note that y+-ulp = either fixed
-+            point y+-1, or multiply y by nextafter(1,+-inf) in chopped
-+            mode.
- 
--	R := RZ;		... set rounding mode to round-toward-zero
--	switch(r) {
--	    case RN:		... round-to-nearest
--	       if(x<= z*(z-ulp)...chopped) z = z - ulp; else
--	       if(x<= z*(z+ulp)...chopped) z = z; else z = z+ulp;
--	       break;
--	    case RZ:case RM:	... round-to-zero or round-to--inf
--	       R:=RP;		... reset rounding mod to round-to-+inf
--	       if(x<z*z ... rounded up) z = z - ulp; else
--	       if(x>=(z+ulp)*(z+ulp) ...rounded up) z = z+ulp;
--	       break;
--	    case RP:		... round-to-+inf
--	       if(x>(z+ulp)*(z+ulp)...chopped) z = z+2*ulp; else
--	       if(x>z*z ...chopped) z = z+ulp;
--	       break;
--	}
-+            R := RZ;		... set rounding mode to round-toward-zero
-+            switch(r) {
-+                case RN:		... round-to-nearest
-+                   if(x<= z*(z-ulp)...chopped) z = z - ulp; else
-+                   if(x<= z*(z+ulp)...chopped) z = z; else z = z+ulp;
-+                   break;
-+                case RZ:case RM:	... round-to-zero or round-to--inf
-+                   R:=RP;		... reset rounding mod to round-to-+inf
-+                   if(x<z*z ... rounded up) z = z - ulp; else
-+                   if(x>=(z+ulp)*(z+ulp) ...rounded up) z = z+ulp;
-+                   break;
-+                case RP:		... round-to-+inf
-+                   if(x>(z+ulp)*(z+ulp)...chopped) z = z+2*ulp; else
-+                   if(x>z*z ...chopped) z = z+ulp;
-+                   break;
-+            }
- 
--	Remark 3. The above comparisons can be done in fixed point. For
--	example, to compare x and w=z*z chopped, it suffices to compare
--	x1 and w1 (the trailing parts of x and w), regarding them as
--	two's complement integers.
-+            Remark 3. The above comparisons can be done in fixed point. For
-+            example, to compare x and w=z*z chopped, it suffices to compare
-+            x1 and w1 (the trailing parts of x and w), regarding them as
-+            two's complement integers.
- 
--	...Is z an exact square root?
--	To determine whether z is an exact square root of x, let z1 be the
--	trailing part of z, and also let x0 and x1 be the leading and
--	trailing parts of x.
-+            ...Is z an exact square root?
-+            To determine whether z is an exact square root of x, let z1 be the
-+            trailing part of z, and also let x0 and x1 be the leading and
-+            trailing parts of x.
- 
--	If ((z1&0x03ffffff)!=0)	... not exact if trailing 26 bits of z!=0
--	    I := 1;		... Raise Inexact flag: z is not exact
--	else {
--	    j := 1 - [(x0>>20)&1]	... j = logb(x) mod 2
--	    k := z1 >> 26;		... get z's 25-th and 26-th
--					    fraction bits
--	    I := i or (k&j) or ((k&(j+j+1))!=(x1&3));
--	}
--	R:= r		... restore rounded mode
--	return sqrt(x):=z.
-+            If ((z1&0x03ffffff)!=0)	... not exact if trailing 26 bits of z!=0
-+                I := 1;		... Raise Inexact flag: z is not exact
-+            else {
-+                j := 1 - [(x0>>20)&1]	... j = logb(x) mod 2
-+                k := z1 >> 26;		... get z's 25-th and 26-th
-+                                                fraction bits
-+                I := i or (k&j) or ((k&(j+j+1))!=(x1&3));
-+            }
-+            R:= r		... restore rounded mode
-+            return sqrt(x):=z.
- 
--	If multiplication is cheaper then the foregoing red tape, the
--	Inexact flag can be evaluated by
-+            If multiplication is cheaper then the foregoing red tape, the
-+            Inexact flag can be evaluated by
- 
--	    I := i;
--	    I := (z*z!=x) or I.
-+                I := i;
-+                I := (z*z!=x) or I.
- 
--	Note that z*z can overwrite I; this value must be sensed if it is
--	True.
-+            Note that z*z can overwrite I; this value must be sensed if it is
-+            True.
- 
--	Remark 4. If z*z = x exactly, then bit 25 to bit 0 of z1 must be
--	zero.
-+            Remark 4. If z*z = x exactly, then bit 25 to bit 0 of z1 must be
-+            zero.
- 
--		    --------------------
--		z1: |        f2        |
--		    --------------------
--		bit 31		   bit 0
-+                        --------------------
-+                    z1: |        f2        |
-+                        --------------------
-+                    bit 31		   bit 0
- 
--	Further more, bit 27 and 26 of z1, bit 0 and 1 of x1, and the odd
--	or even of logb(x) have the following relations:
-+            Further more, bit 27 and 26 of z1, bit 0 and 1 of x1, and the odd
-+            or even of logb(x) have the following relations:
- 
--	-------------------------------------------------
--	bit 27,26 of z1		bit 1,0 of x1	logb(x)
--	-------------------------------------------------
--	00			00		odd and even
--	01			01		even
--	10			10		odd
--	10			00		even
--	11			01		even
--	-------------------------------------------------
-+            -------------------------------------------------
-+            bit 27,26 of z1		bit 1,0 of x1	logb(x)
-+            -------------------------------------------------
-+            00			00		odd and even
-+            01			01		even
-+            10			10		odd
-+            10			00		even
-+            11			01		even
-+            -------------------------------------------------
- 
--    (4)	Special cases (see (4) of Section A).
-+        (4)	Special cases (see (4) of Section A).
- 
-- */
-+     */
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_tanh.c picolibc-patched/cmd/gaston/libm/math/s_tanh.c
---- picolibc-pristine/cmd/gaston/libm/math/s_tanh.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/s_tanh.c	2026-04-08 22:31:48
-@@ -93,10 +93,10 @@
-     }
- 
-     /* |x| < 22 */
--    if (ix < 0x40360000) { /* |x|<22 */
--        if (ix < 0x3c800000) /* |x|<2**-55 */
-+    if (ix < 0x40360000) {        /* |x|<22 */
-+        if (ix < 0x3c800000)      /* |x|<2**-55 */
-             return x * (one + x); /* tanh(small) = small */
--        if (ix >= 0x3ff00000) { /* |x|>=1  */
-+        if (ix >= 0x3ff00000) {   /* |x|>=1  */
-             t = expm164(two * fabs64(x));
-             z = one - two / (t + two);
-         } else {
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_tgamma.c picolibc-patched/cmd/gaston/libm/math/s_tgamma.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_tgamma.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_tgamma.c	2026-04-08 22:31:48
@@ -33812,166 +31350,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_tgamma.c picolibc-patched/cmd
          return __math_oflow(signgam_local < 0);
      return y;
  }
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_acos.c picolibc-patched/cmd/gaston/libm/math/sf_acos.c
---- picolibc-pristine/cmd/gaston/libm/math/sf_acos.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/sf_acos.c	2026-04-08 22:31:48
-@@ -16,24 +16,24 @@
- #include "fdlibm.h"
- 
- static const float one = 1.0000000000e+00, /* 0x3F800000 */
--    pi = 3.1415925026e+00, /* 0x40490fda */
--    pio2_hi = 1.5707962513e+00, /* 0x3fc90fda */
--    pio2_lo = 7.5497894159e-08, /* 0x33a22168 */
--    pS0 = 1.6666667163e-01, /* 0x3e2aaaab */
--    pS1 = -3.2556581497e-01, /* 0xbea6b090 */
--    pS2 = 2.0121252537e-01, /* 0x3e4e0aa8 */
--    pS3 = -4.0055535734e-02, /* 0xbd241146 */
--    pS4 = 7.9153501429e-04, /* 0x3a4f7f04 */
--    pS5 = 3.4793309169e-05, /* 0x3811ef08 */
--    qS1 = -2.4033949375e+00, /* 0xc019d139 */
--    qS2 = 2.0209457874e+00, /* 0x4001572d */
--    qS3 = -6.8828397989e-01, /* 0xbf303361 */
--    qS4 = 7.7038154006e-02; /* 0x3d9dc62e */
-+    pi = 3.1415925026e+00,                 /* 0x40490fda */
-+    pio2_hi = 1.5707962513e+00,            /* 0x3fc90fda */
-+    pio2_lo = 7.5497894159e-08,            /* 0x33a22168 */
-+    pS0 = 1.6666667163e-01,                /* 0x3e2aaaab */
-+    pS1 = -3.2556581497e-01,               /* 0xbea6b090 */
-+    pS2 = 2.0121252537e-01,                /* 0x3e4e0aa8 */
-+    pS3 = -4.0055535734e-02,               /* 0xbd241146 */
-+    pS4 = 7.9153501429e-04,                /* 0x3a4f7f04 */
-+    pS5 = 3.4793309169e-05,                /* 0x3811ef08 */
-+    qS1 = -2.4033949375e+00,               /* 0xc019d139 */
-+    qS2 = 2.0209457874e+00,                /* 0x4001572d */
-+    qS3 = -6.8828397989e-01,               /* 0xbf303361 */
-+    qS4 = 7.7038154006e-02;                /* 0x3d9dc62e */
- 
- float
- acosf(float x)
- {
--    float z, p, q, r, w, s, c, df;
-+    float     z, p, q, r, w, s, c, df;
-     __int32_t hx, ix;
-     GET_FLOAT_WORD(hx, x);
-     ix = hx & 0x7fffffff;
-@@ -42,8 +42,8 @@
-             return 0.0; /* acos(1) = 0  */
-         else
-             return pi + (float)2.0 * pio2_lo; /* acos(-1)= pi */
--    } else if (ix > 0x3f800000) { /* |x| >= 1 */
--        return __math_invalidf(x); /* acos(|x|>1) is NaN */
-+    } else if (ix > 0x3f800000) {             /* |x| >= 1 */
-+        return __math_invalidf(x);            /* acos(|x|>1) is NaN */
-     }
-     if (ix < 0x3f000000) { /* |x| < 0.5 */
-         if (ix <= 0x23000000)
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_acosh.c picolibc-patched/cmd/gaston/libm/math/sf_acosh.c
---- picolibc-pristine/cmd/gaston/libm/math/sf_acosh.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/sf_acosh.c	2026-04-08 22:31:48
-@@ -21,18 +21,18 @@
- float
- acoshf(float x)
- {
--    float t;
-+    float     t;
-     __int32_t hx;
-     GET_FLOAT_WORD(hx, x);
-     if (hx < 0x3f800000) { /* x < 1 */
-         return __math_invalidf(x);
--    } else if (hx >= 0x4d800000) { /* x > 2**28 */
-+    } else if (hx >= 0x4d800000) {      /* x > 2**28 */
-         if (!FLT_UWORD_IS_FINITE(hx)) { /* x is inf of NaN */
-             return x + x;
-         } else
-             return logf(x) + ln2; /* acosh(huge)=log(2x) */
-     } else if (hx == 0x3f800000) {
--        return 0.0; /* acosh(1) = 0 */
-+        return 0.0;               /* acosh(1) = 0 */
-     } else if (hx > 0x40000000) { /* 2**28 > x > 2 */
-         t = x * x;
-         return logf((float)2.0 * x - one / (x + sqrtf(t - one)));
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_asin.c picolibc-patched/cmd/gaston/libm/math/sf_asin.c
---- picolibc-pristine/cmd/gaston/libm/math/sf_asin.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/sf_asin.c	2026-04-08 22:31:48
-@@ -16,41 +16,39 @@
- #include "fdlibm.h"
- 
- static const float one = 1.0000000000e+00, /* 0x3F800000 */
--    huge = 1.000e+30, pio2_hi = 1.57079637050628662109375f,
--                   pio2_lo = -4.37113900018624283e-8f,
-+    huge = 1.000e+30, pio2_hi = 1.57079637050628662109375f, pio2_lo = -4.37113900018624283e-8f,
-                    pio4_hi = 0.785398185253143310546875f,
-                    /* coefficient for R(x^2) */
--    pS0 = 1.6666667163e-01, /* 0x3e2aaaab */
-+    pS0 = 1.6666667163e-01,  /* 0x3e2aaaab */
-     pS1 = -3.2556581497e-01, /* 0xbea6b090 */
--    pS2 = 2.0121252537e-01, /* 0x3e4e0aa8 */
-+    pS2 = 2.0121252537e-01,  /* 0x3e4e0aa8 */
-     pS3 = -4.0055535734e-02, /* 0xbd241146 */
--    pS4 = 7.9153501429e-04, /* 0x3a4f7f04 */
--    pS5 = 3.4793309169e-05, /* 0x3811ef08 */
-+    pS4 = 7.9153501429e-04,  /* 0x3a4f7f04 */
-+    pS5 = 3.4793309169e-05,  /* 0x3811ef08 */
-     qS1 = -2.4033949375e+00, /* 0xc019d139 */
--    qS2 = 2.0209457874e+00, /* 0x4001572d */
-+    qS2 = 2.0209457874e+00,  /* 0x4001572d */
-     qS3 = -6.8828397989e-01, /* 0xbf303361 */
--    qS4 = 7.7038154006e-02; /* 0x3d9dc62e */
-+    qS4 = 7.7038154006e-02;  /* 0x3d9dc62e */
- 
- float
- asinf(float x)
- {
--    float t, w, p, q, c, r, s;
-+    float     t, w, p, q, c, r, s;
-     __int32_t hx, ix;
-     GET_FLOAT_WORD(hx, x);
-     ix = hx & 0x7fffffff;
-     if (ix == 0x3f800000) {
-         /* asin(1)=+-pi/2 with inexact */
-         return x * pio2_hi + x * pio2_lo;
--    } else if (ix > 0x3f800000) { /* |x|>= 1 */
-+    } else if (ix > 0x3f800000) {  /* |x|>= 1 */
-         return __math_invalidf(x); /* asin(|x|>1) is NaN */
--    } else if (ix < 0x3f000000) { /* |x|<0.5 */
--        if (ix < 0x32000000) { /* if |x| < 2**-27 */
-+    } else if (ix < 0x3f000000) {  /* |x|<0.5 */
-+        if (ix < 0x32000000) {     /* if |x| < 2**-27 */
-             if (huge + x > one)
-                 return x; /* return x with inexact if x!=0*/
-         } else {
-             t = x * x;
--            p = t *
--                (pS0 + t * (pS1 + t * (pS2 + t * (pS3 + t * (pS4 + t * pS5)))));
-+            p = t * (pS0 + t * (pS1 + t * (pS2 + t * (pS3 + t * (pS4 + t * pS5)))));
-             q = one + t * (qS1 + t * (qS2 + t * (qS3 + t * qS4)));
-             w = p / q;
-             return x + x * w;
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_asinh.c picolibc-patched/cmd/gaston/libm/math/sf_asinh.c
---- picolibc-pristine/cmd/gaston/libm/math/sf_asinh.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/sf_asinh.c	2026-04-08 22:31:48
-@@ -16,18 +16,18 @@
- #include "fdlibm.h"
- 
- static const float one = 1.0000000000e+00, /* 0x3F800000 */
--    ln2 = 6.9314718246e-01, /* 0x3f317218 */
-+    ln2 = 6.9314718246e-01,                /* 0x3f317218 */
-     huge = 1.0000000000e+30;
- 
- float
- asinhf(float x)
- {
--    float t, w;
-+    float     t, w;
-     __int32_t hx, ix;
-     GET_FLOAT_WORD(hx, x);
-     ix = hx & 0x7fffffff;
-     if (!FLT_UWORD_IS_FINITE(ix))
--        return x + x; /* x is inf or NaN */
-+        return x + x;      /* x is inf or NaN */
-     if (ix < 0x31800000) { /* |x|<2**-28 */
-         if (huge + x > one)
-             return x; /* return x inexact except 0 */
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_atan.c picolibc-patched/cmd/gaston/libm/math/sf_atan.c
 --- picolibc-pristine/cmd/gaston/libm/math/sf_atan.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/sf_atan.c	2026-04-08 22:31:48
@@ -34029,60 +31407,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_atan.c picolibc-patched/cmd/
              if (ix < 0x3f300000) { /* 7/16 <=|x|<11/16 */
                  id = 0;
                  x = ((float)2.0 * x - one) / ((float)2.0 + x);
-@@ -92,9 +90,7 @@
-     z = x * x;
-     w = z * z;
-     /* break sum from i=0 to 10 aT[i]z**(i+1) into odd and even poly */
--    s1 = z *
--         (aT[0] +
--          w * (aT[2] + w * (aT[4] + w * (aT[6] + w * (aT[8] + w * aT[10])))));
-+    s1 = z * (aT[0] + w * (aT[2] + w * (aT[4] + w * (aT[6] + w * (aT[8] + w * aT[10])))));
-     s2 = w * (aT[1] + w * (aT[3] + w * (aT[5] + w * (aT[7] + w * aT[9]))));
-     if (id < 0)
-         return x - x * (s1 + s2);
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_atan2.c picolibc-patched/cmd/gaston/libm/math/sf_atan2.c
---- picolibc-pristine/cmd/gaston/libm/math/sf_atan2.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/sf_atan2.c	2026-04-08 22:31:48
-@@ -16,16 +16,15 @@
- 
- #include "fdlibm.h"
- 
--static const float tiny = 1.0e-30, zero = 0.0,
--                   pi_o_4 = 7.8539818525e-01, /* 0x3f490fdb */
--    pi_o_2 = 1.5707963705e+00, /* 0x3fc90fdb */
--    pi = 3.1415927410e+00, /* 0x40490fdb */
--    pi_lo = -8.7422776573e-08; /* 0xb3bbbd2e */
-+static const float tiny = 1.0e-30, zero = 0.0, pi_o_4 = 7.8539818525e-01, /* 0x3f490fdb */
-+    pi_o_2 = 1.5707963705e+00,                                            /* 0x3fc90fdb */
-+    pi = 3.1415927410e+00,                                                /* 0x40490fdb */
-+    pi_lo = -8.7422776573e-08;                                            /* 0xb3bbbd2e */
- 
- float
- atan2f(float y, float x)
- {
--    float z;
-+    float     z;
-     __int32_t k, m, hx, hy, ix, iy;
- 
-     GET_FLOAT_WORD(hx, x);
-@@ -35,7 +34,7 @@
-     if (FLT_UWORD_IS_NAN(ix) || FLT_UWORD_IS_NAN(iy)) /* x or y is NaN */
-         return x + y;
-     if (hx == 0x3f800000)
--        return atanf(y); /* x=1.0 */
-+        return atanf(y);                     /* x=1.0 */
-     m = ((hy >> 31) & 1) | ((hx >> 30) & 2); /* 2*sign(x)+sign(y) */
- 
-     /* when y = 0 */
-@@ -103,7 +102,7 @@
-         return z; /* atan(-,+) */
-     case 2:
-         return pi - (z - pi_lo); /* atan(+,-) */
--    default: /* case 3 */
-+    default:                     /* case 3 */
-         return (z - pi_lo) - pi; /* atan(-,-) */
-     }
- }
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_atanh.c picolibc-patched/cmd/gaston/libm/math/sf_atanh.c
 --- picolibc-pristine/cmd/gaston/libm/math/sf_atanh.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/sf_atanh.c	2026-04-08 22:31:48
@@ -34114,18 +31438,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_atanh.c picolibc-patched/cmd
      SET_FLOAT_WORD(x, ix);
      if (ix < 0x3f000000) { /* x < 0.5 */
          t = x + x;
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_ceil.c picolibc-patched/cmd/gaston/libm/math/sf_ceil.c
---- picolibc-pristine/cmd/gaston/libm/math/sf_ceil.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/sf_ceil.c	2026-04-08 22:31:48
-@@ -18,7 +18,7 @@
- float
- ceilf(float x)
- {
--    __int32_t i0, j0;
-+    __int32_t  i0, j0;
-     __uint32_t i, ix;
-     GET_FLOAT_WORD(i0, x);
-     ix = (i0 & 0x7fffffff);
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_cos.c picolibc-patched/cmd/gaston/libm/math/sf_cos.c
 --- picolibc-pristine/cmd/gaston/libm/math/sf_cos.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/sf_cos.c	2026-04-08 22:31:48
@@ -34152,207 +31464,9 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_cos.c picolibc-patched/cmd/g
  #pragma GCC diagnostic ignored "-Wmissing-attributes"
  #endif
  __strong_reference(cosf, _cosf);
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_cosh.c picolibc-patched/cmd/gaston/libm/math/sf_cosh.c
---- picolibc-pristine/cmd/gaston/libm/math/sf_cosh.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/sf_cosh.c	2026-04-08 22:31:48
-@@ -25,7 +25,7 @@
- float
- coshf(float x)
- {
--    float t, w;
-+    float     t, w;
-     __int32_t ix;
- 
-     GET_FLOAT_WORD(ix, x);
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_erf.c picolibc-patched/cmd/gaston/libm/math/sf_erf.c
 --- picolibc-pristine/cmd/gaston/libm/math/sf_erf.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/sf_erf.c	2026-04-08 22:31:48
-@@ -21,44 +21,44 @@
- #endif
- 
- static const float tiny = 1e-30, half = 5.0000000000e-01, /* 0x3F000000 */
--    one = 1.0000000000e+00, /* 0x3F800000 */
--    two = 2.0000000000e+00, /* 0x40000000 */
-+    one = 1.0000000000e+00,                               /* 0x3F800000 */
-+    two = 2.0000000000e+00,                               /* 0x40000000 */
-     /* c = (subfloat)0.84506291151 */
-     erx = 8.4506291151e-01, /* 0x3f58560b */
-     /*
-- * Coefficients for approximation to  erf on [0,0.84375]
-- */
--    efx = 1.2837916613e-01, /* 0x3e0375d4 */
-+     * Coefficients for approximation to  erf on [0,0.84375]
-+     */
-+    efx = 1.2837916613e-01,  /* 0x3e0375d4 */
-     efx8 = 1.0270333290e+00, /* 0x3f8375d4 */
--    pp0 = 1.2837916613e-01, /* 0x3e0375d4 */
-+    pp0 = 1.2837916613e-01,  /* 0x3e0375d4 */
-     pp1 = -3.2504209876e-01, /* 0xbea66beb */
-     pp2 = -2.8481749818e-02, /* 0xbce9528f */
-     pp3 = -5.7702702470e-03, /* 0xbbbd1489 */
-     pp4 = -2.3763017452e-05, /* 0xb7c756b1 */
--    qq1 = 3.9791721106e-01, /* 0x3ecbbbce */
--    qq2 = 6.5022252500e-02, /* 0x3d852a63 */
--    qq3 = 5.0813062117e-03, /* 0x3ba68116 */
--    qq4 = 1.3249473704e-04, /* 0x390aee49 */
-+    qq1 = 3.9791721106e-01,  /* 0x3ecbbbce */
-+    qq2 = 6.5022252500e-02,  /* 0x3d852a63 */
-+    qq3 = 5.0813062117e-03,  /* 0x3ba68116 */
-+    qq4 = 1.3249473704e-04,  /* 0x390aee49 */
-     qq5 = -3.9602282413e-06, /* 0xb684e21a */
-     /*
-- * Coefficients for approximation to  erf  in [0.84375,1.25]
-- */
-+     * Coefficients for approximation to  erf  in [0.84375,1.25]
-+     */
-     pa0 = -2.3621185683e-03, /* 0xbb1acdc6 */
--    pa1 = 4.1485610604e-01, /* 0x3ed46805 */
-+    pa1 = 4.1485610604e-01,  /* 0x3ed46805 */
-     pa2 = -3.7220788002e-01, /* 0xbebe9208 */
--    pa3 = 3.1834661961e-01, /* 0x3ea2fe54 */
-+    pa3 = 3.1834661961e-01,  /* 0x3ea2fe54 */
-     pa4 = -1.1089469492e-01, /* 0xbde31cc2 */
--    pa5 = 3.5478305072e-02, /* 0x3d1151b3 */
-+    pa5 = 3.5478305072e-02,  /* 0x3d1151b3 */
-     pa6 = -2.1663755178e-03, /* 0xbb0df9c0 */
--    qa1 = 1.0642088205e-01, /* 0x3dd9f331 */
--    qa2 = 5.4039794207e-01, /* 0x3f0a5785 */
--    qa3 = 7.1828655899e-02, /* 0x3d931ae7 */
--    qa4 = 1.2617121637e-01, /* 0x3e013307 */
--    qa5 = 1.3637083583e-02, /* 0x3c5f6e13 */
--    qa6 = 1.1984500103e-02, /* 0x3c445aa3 */
-+    qa1 = 1.0642088205e-01,  /* 0x3dd9f331 */
-+    qa2 = 5.4039794207e-01,  /* 0x3f0a5785 */
-+    qa3 = 7.1828655899e-02,  /* 0x3d931ae7 */
-+    qa4 = 1.2617121637e-01,  /* 0x3e013307 */
-+    qa5 = 1.3637083583e-02,  /* 0x3c5f6e13 */
-+    qa6 = 1.1984500103e-02,  /* 0x3c445aa3 */
-     /*
-- * Coefficients for approximation to  erfc in [1.25,1/0.35]
-- */
-+     * Coefficients for approximation to  erfc in [1.25,1/0.35]
-+     */
-     ra0 = -9.8649440333e-03, /* 0xbc21a093 */
-     ra1 = -6.9385856390e-01, /* 0xbf31a0b7 */
-     ra2 = -1.0558626175e+01, /* 0xc128f022 */
-@@ -67,17 +67,17 @@
-     ra5 = -1.8460508728e+02, /* 0xc3389ae7 */
-     ra6 = -8.1287437439e+01, /* 0xc2a2932b */
-     ra7 = -9.8143291473e+00, /* 0xc11d077e */
--    sa1 = 1.9651271820e+01, /* 0x419d35ce */
--    sa2 = 1.3765776062e+02, /* 0x4309a863 */
--    sa3 = 4.3456588745e+02, /* 0x43d9486f */
--    sa4 = 6.4538726807e+02, /* 0x442158c9 */
--    sa5 = 4.2900814819e+02, /* 0x43d6810b */
--    sa6 = 1.0863500214e+02, /* 0x42d9451f */
--    sa7 = 6.5702495575e+00, /* 0x40d23f7c */
-+    sa1 = 1.9651271820e+01,  /* 0x419d35ce */
-+    sa2 = 1.3765776062e+02,  /* 0x4309a863 */
-+    sa3 = 4.3456588745e+02,  /* 0x43d9486f */
-+    sa4 = 6.4538726807e+02,  /* 0x442158c9 */
-+    sa5 = 4.2900814819e+02,  /* 0x43d6810b */
-+    sa6 = 1.0863500214e+02,  /* 0x42d9451f */
-+    sa7 = 6.5702495575e+00,  /* 0x40d23f7c */
-     sa8 = -6.0424413532e-02, /* 0xbd777f97 */
-     /*
-- * Coefficients for approximation to  erfc in [1/.35,28]
-- */
-+     * Coefficients for approximation to  erfc in [1/.35,28]
-+     */
-     rb0 = -9.8649431020e-03, /* 0xbc21a092 */
-     rb1 = -7.9928326607e-01, /* 0xbf4c9dd4 */
-     rb2 = -1.7757955551e+01, /* 0xc18e104b */
-@@ -85,19 +85,19 @@
-     rb4 = -6.3756646729e+02, /* 0xc41f6441 */
-     rb5 = -1.0250950928e+03, /* 0xc480230b */
-     rb6 = -4.8351919556e+02, /* 0xc3f1c275 */
--    sb1 = 3.0338060379e+01, /* 0x41f2b459 */
--    sb2 = 3.2579251099e+02, /* 0x43a2e571 */
--    sb3 = 1.5367296143e+03, /* 0x44c01759 */
--    sb4 = 3.1998581543e+03, /* 0x4547fdbb */
--    sb5 = 2.5530502930e+03, /* 0x451f90ce */
--    sb6 = 4.7452853394e+02, /* 0x43ed43a7 */
-+    sb1 = 3.0338060379e+01,  /* 0x41f2b459 */
-+    sb2 = 3.2579251099e+02,  /* 0x43a2e571 */
-+    sb3 = 1.5367296143e+03,  /* 0x44c01759 */
-+    sb4 = 3.1998581543e+03,  /* 0x4547fdbb */
-+    sb5 = 2.5530502930e+03,  /* 0x451f90ce */
-+    sb6 = 4.7452853394e+02,  /* 0x43ed43a7 */
-     sb7 = -2.2440952301e+01; /* 0xc1b38712 */
- 
- float
- erff(float x)
- {
-     __int32_t hx, ix, i;
--    float R, S, P, Q, s, y, z, r;
-+    float     R, S, P, Q, s, y, z, r;
-     GET_FLOAT_WORD(hx, x);
-     ix = hx & 0x7fffffff;
-     if (!FLT_UWORD_IS_FINITE(ix)) { /* erf(nan)=nan */
-@@ -105,7 +105,7 @@
-         return (float)(1 - i) + one / x; /* erf(+-inf)=+-1 */
-     }
- 
--    if (ix < 0x3f580000) { /* |x|<0.84375 */
-+    if (ix < 0x3f580000) {     /* |x|<0.84375 */
-         if (ix < 0x31800000) { /* |x|<2**-28 */
-             if (ix < 0x04000000)
-                 /*avoid underflow */
-@@ -120,10 +120,8 @@
-     }
-     if (ix < 0x3fa00000) { /* 0.84375 <= |x| < 1.25 */
-         s = fabsf(x) - one;
--        P = pa0 +
--            s * (pa1 + s * (pa2 + s * (pa3 + s * (pa4 + s * (pa5 + s * pa6)))));
--        Q = one +
--            s * (qa1 + s * (qa2 + s * (qa3 + s * (qa4 + s * (qa5 + s * qa6)))));
-+        P = pa0 + s * (pa1 + s * (pa2 + s * (pa3 + s * (pa4 + s * (pa5 + s * pa6)))));
-+        Q = one + s * (qa1 + s * (qa2 + s * (qa3 + s * (qa4 + s * (qa5 + s * qa6)))));
-         if (hx >= 0)
-             return erx + P / Q;
-         else
-@@ -138,23 +136,16 @@
-     x = fabsf(x);
-     s = one / (x * x);
-     if (ix < 0x4036DB6E) { /* |x| < 1/0.35 */
--        R = ra0 +
--            s * (ra1 +
--                 s * (ra2 +
--                      s * (ra3 + s * (ra4 + s * (ra5 + s * (ra6 + s * ra7))))));
--        S = one +
--            s * (sa1 +
--                 s * (sa2 +
--                      s * (sa3 +
--                           s * (sa4 +
--                                s * (sa5 + s * (sa6 + s * (sa7 + s * sa8)))))));
-+        R = ra0 + s * (ra1 + s * (ra2 + s * (ra3 + s * (ra4 + s * (ra5 + s * (ra6 + s * ra7))))));
-+        S = one
-+            + s
-+                * (sa1
-+                   + s
-+                       * (sa2
-+                          + s * (sa3 + s * (sa4 + s * (sa5 + s * (sa6 + s * (sa7 + s * sa8)))))));
-     } else { /* |x| >= 1/0.35 */
--        R = rb0 +
--            s * (rb1 + s * (rb2 + s * (rb3 + s * (rb4 + s * (rb5 + s * rb6)))));
--        S = one +
--            s * (sb1 +
--                 s * (sb2 +
--                      s * (sb3 + s * (sb4 + s * (sb5 + s * (sb6 + s * sb7))))));
-+        R = rb0 + s * (rb1 + s * (rb2 + s * (rb3 + s * (rb4 + s * (rb5 + s * rb6)))));
-+        S = one + s * (sb1 + s * (sb2 + s * (sb3 + s * (sb4 + s * (sb5 + s * (sb6 + s * sb7))))));
-     }
-     GET_FLOAT_WORD(ix, x);
-     SET_FLOAT_WORD(z, ix & 0xfffff000);
-@@ -169,7 +160,7 @@
- erfcf(float x)
- {
-     __int32_t hx, ix;
--    float R, S, P, Q, s, y, z, r;
-+    float     R, S, P, Q, s, y, z, r;
-     GET_FLOAT_WORD(hx, x);
-     ix = hx & 0x7fffffff;
-     if (!FLT_UWORD_IS_FINITE(ix)) { /* erfc(nan)=nan */
 @@ -177,8 +168,8 @@
          return (float)(((__uint32_t)hx >> 31) << 1) + one / x;
      }
@@ -34364,19 +31478,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_erf.c picolibc-patched/cmd/g
              return one - x;
          z = x * x;
          r = pp0 + z * (pp1 + z * (pp2 + z * (pp3 + z * pp4)));
-@@ -194,10 +185,8 @@
-     }
-     if (ix < 0x3fa00000) { /* 0.84375 <= |x| < 1.25 */
-         s = fabsf(x) - one;
--        P = pa0 +
--            s * (pa1 + s * (pa2 + s * (pa3 + s * (pa4 + s * (pa5 + s * pa6)))));
--        Q = one +
--            s * (qa1 + s * (qa2 + s * (qa3 + s * (qa4 + s * (qa5 + s * qa6)))));
-+        P = pa0 + s * (pa1 + s * (pa2 + s * (pa3 + s * (pa4 + s * (pa5 + s * pa6)))));
-+        Q = one + s * (qa1 + s * (qa2 + s * (qa3 + s * (qa4 + s * (qa5 + s * qa6)))));
-         if (hx >= 0) {
-             z = one - erx;
-             return z - P / Q;
 @@ -210,32 +199,25 @@
          x = fabsf(x);
          s = one / (x * x);
@@ -34427,26 +31528,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_erf.c picolibc-patched/cmd/g
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_exp.c picolibc-patched/cmd/gaston/libm/math/sf_exp.c
 --- picolibc-pristine/cmd/gaston/libm/math/sf_exp.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/sf_exp.c	2026-04-08 22:31:48
-@@ -40,8 +40,8 @@
- float
- expf(float x) /* default IEEE double exp */
- {
--    float y, hi, lo, c, t;
--    __int32_t k = 0, xsb, sx;
-+    float      y, hi, lo, c, t;
-+    __int32_t  k = 0, xsb, sx;
-     __uint32_t hx;
- 
-     GET_FLOAT_WORD(sx, x);
-@@ -59,7 +59,7 @@
-         return __math_uflowf(0); /* underflow */
- 
-     /* argument reduction */
--    if (hx > 0x3eb17218) { /* if  |x| > 0.5 ln2 */
-+    if (hx > 0x3eb17218) {     /* if  |x| > 0.5 ln2 */
-         if (hx < 0x3F851592) { /* and |x| < 1.5 ln2 */
-             hi = x - ln2HI[xsb];
-             lo = ln2LO[xsb];
 @@ -86,12 +86,12 @@
      if (k >= -125) {
          __uint32_t hy;
@@ -34474,48 +31555,9 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_exp2.c picolibc-patched/cmd/
  exp2f(float x) /* wrapper exp2f */
  {
      return _powf(2.0, x);
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_floor.c picolibc-patched/cmd/gaston/libm/math/sf_floor.c
---- picolibc-pristine/cmd/gaston/libm/math/sf_floor.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/sf_floor.c	2026-04-08 22:31:48
-@@ -27,7 +27,7 @@
- float
- floorf(float x)
- {
--    __int32_t i0, j0;
-+    __int32_t  i0, j0;
-     __uint32_t i, ix;
-     GET_FLOAT_WORD(i0, x);
-     ix = (i0 & 0x7fffffff);
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_fmod.c picolibc-patched/cmd/gaston/libm/math/sf_fmod.c
 --- picolibc-pristine/cmd/gaston/libm/math/sf_fmod.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/sf_fmod.c	2026-04-08 22:31:48
-@@ -21,10 +21,11 @@
- 
- #include "fdlibm.h"
- 
--static const float one = 1.0, Zero[] = {
--    0.0,
--    -0.0,
--};
-+static const float one = 1.0,
-+                   Zero[] = {
-+                       0.0,
-+                       -0.0,
-+                   };
- 
- float
- fmodf(float x, float y)
-@@ -34,8 +35,8 @@
-     GET_FLOAT_WORD(hx, x);
-     GET_FLOAT_WORD(hy, y);
-     sx = hx & 0x80000000; /* sign of x */
--    hx ^= sx; /* |x| */
--    hy &= 0x7fffffff; /* |y| */
-+    hx ^= sx;             /* |x| */
-+    hy &= 0x7fffffff;     /* |y| */
- 
-     /* purge off exception values */
-     if (isnan(x) || isnan(y)) /* x or y nan, return nan */
 @@ -56,14 +57,14 @@
  
      /* determine ix = ilogb(x) */
@@ -34533,51 +31575,9 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_fmod.c picolibc-patched/cmd/
              iy -= 1;
      } else
          iy = (hy >> 23) - 127;
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_frexp.c picolibc-patched/cmd/gaston/libm/math/sf_frexp.c
---- picolibc-pristine/cmd/gaston/libm/math/sf_frexp.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/sf_frexp.c	2026-04-08 22:31:48
-@@ -25,7 +25,7 @@
-     ix = 0x7fffffff & hx;
-     *eptr = 0;
-     if (!FLT_UWORD_IS_FINITE(ix) || FLT_UWORD_IS_ZERO(ix))
--        return x + x; /* 0,inf,nan */
-+        return x + x;                 /* 0,inf,nan */
-     if (FLT_UWORD_IS_SUBNORMAL(ix)) { /* subnormal */
-         x *= two25;
-         GET_FLOAT_WORD(hx, x);
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_hypot.c picolibc-patched/cmd/gaston/libm/math/sf_hypot.c
 --- picolibc-pristine/cmd/gaston/libm/math/sf_hypot.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/sf_hypot.c	2026-04-08 22:31:48
-@@ -18,7 +18,7 @@
- float
- hypotf(float x, float y)
- {
--    float a = x, b = y, t1, t2, y1, y2, w;
-+    float     a = x, b = y, t1, t2, y1, y2, w;
-     __int32_t j, k, ha, hb;
- 
-     GET_FLOAT_WORD(ha, x);
-@@ -36,9 +36,9 @@
-         return a + b;
-     } /* x/y > 2**30 */
-     k = 0;
--    if (ha > 0x58800000L) { /* a>2**50 */
-+    if (ha > 0x58800000L) {             /* a>2**50 */
-         if (!FLT_UWORD_IS_FINITE(ha)) { /* Inf or NaN */
--            w = a + b; /* for sNaN */
-+            w = a + b;                  /* for sNaN */
-             if (FLT_UWORD_IS_INFINITE(ha) && !issignaling(b))
-                 w = a;
-             if (FLT_UWORD_IS_INFINITE(hb) && !issignaling(a))
-@@ -60,7 +60,7 @@
-             b *= t1;
-             a *= t1;
-             k -= 126;
--        } else { /* scale a and b by 2^68 */
-+        } else {              /* scale a and b by 2^68 */
-             ha += 0x22000000; /* a *= 2^68 */
-             hb += 0x22000000; /* b *= 2^68 */
-             k -= 68;
 @@ -83,7 +83,7 @@
          w = sqrtf(t1 * y1 - (w * (-w) - (t1 * y2 + t2 * b)));
      }
@@ -34642,48 +31642,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_j0.c picolibc-patched/cmd/ga
          ss = s - c;
          cc = s + c;
          if (ix <= FLT_UWORD_HALF_MAX) { /* make sure x+x not overflow */
-@@ -72,7 +70,7 @@
-         }
-         return z;
-     }
--    if (ix < 0x39000000) { /* |x| < 2**-13 */
-+    if (ix < 0x39000000) {    /* |x| < 2**-13 */
-         if (huge + x > one) { /* raise inexact if x != 0 */
-             if (ix < 0x32000000)
-                 return one; /* |x|<2**-27 */
-@@ -92,21 +90,21 @@
- }
- 
- static const float u00 = -7.3804296553e-02, /* 0xbd9726b5 */
--    u01 = 1.7666645348e-01, /* 0x3e34e80d */
--    u02 = -1.3818567619e-02, /* 0xbc626746 */
--    u03 = 3.4745343146e-04, /* 0x39b62a69 */
--    u04 = -3.8140706238e-06, /* 0xb67ff53c */
--    u05 = 1.9559013964e-08, /* 0x32a802ba */
--    u06 = -3.9820518410e-11, /* 0xae2f21eb */
--    v01 = 1.2730483897e-02, /* 0x3c509385 */
--    v02 = 7.6006865129e-05, /* 0x389f65e0 */
--    v03 = 2.5915085189e-07, /* 0x348b216c */
--    v04 = 4.4111031494e-10; /* 0x2ff280c2 */
-+    u01 = 1.7666645348e-01,                 /* 0x3e34e80d */
-+    u02 = -1.3818567619e-02,                /* 0xbc626746 */
-+    u03 = 3.4745343146e-04,                 /* 0x39b62a69 */
-+    u04 = -3.8140706238e-06,                /* 0xb67ff53c */
-+    u05 = 1.9559013964e-08,                 /* 0x32a802ba */
-+    u06 = -3.9820518410e-11,                /* 0xae2f21eb */
-+    v01 = 1.2730483897e-02,                 /* 0x3c509385 */
-+    v02 = 7.6006865129e-05,                 /* 0x389f65e0 */
-+    v03 = 2.5915085189e-07,                 /* 0x348b216c */
-+    v04 = 4.4111031494e-10;                 /* 0x2ff280c2 */
- 
- float
- y0f(float x)
- {
--    float z, s, c, ss, cc, u, v;
-+    float     z, s, c, ss, cc, u, v;
-     __int32_t hx, ix;
- 
-     GET_FLOAT_WORD(hx, x);
 @@ -136,14 +134,13 @@
           *              sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
           * to compute the worse one.
@@ -34703,131 +31661,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_j0.c picolibc-patched/cmd/ga
          if (ix <= FLT_UWORD_HALF_MAX) { /* make sure x+x not overflow */
              z = -cosf(x + x);
              if ((s * c) < zero)
-@@ -164,8 +161,7 @@
-         return (u00 + tpi * logf(x));
-     }
-     z = x * x;
--    u = u00 +
--        z * (u01 + z * (u02 + z * (u03 + z * (u04 + z * (u05 + z * u06)))));
-+    u = u00 + z * (u01 + z * (u02 + z * (u03 + z * (u04 + z * (u05 + z * u06)))));
-     v = one + z * (v01 + z * (v02 + z * (v03 + z * v04)));
-     return (u / v + tpi * (j0f(x) * logf(x)));
- }
-@@ -181,7 +177,7 @@
-  */
- static const float pR8[6] = {
-     /* for x in [inf, 8]=1/[0,0.125] */
--    0.0000000000e+00, /* 0x00000000 */
-+    0.0000000000e+00,  /* 0x00000000 */
-     -7.0312500000e-02, /* 0xbd900000 */
-     -8.0816707611e+00, /* 0xc1014e86 */
-     -2.5706311035e+02, /* 0xc3808814 */
-@@ -250,8 +246,8 @@
- pzerof(float x)
- {
-     const float *p, *q;
--    float z, r, s;
--    __int32_t ix;
-+    float        z, r, s;
-+    __int32_t    ix;
-     GET_FLOAT_WORD(ix, x);
-     ix &= 0x7fffffff;
-     if (ix >= 0x41000000) {
-@@ -292,11 +288,11 @@
-     3.7014625000e+04, /* 0x471096a0 */
- };
- static const float qS8[6] = {
--    1.6377603149e+02, /* 0x4323c6aa */
--    8.0983447266e+03, /* 0x45fd12c2 */
--    1.4253829688e+05, /* 0x480b3293 */
--    8.0330925000e+05, /* 0x49441ed4 */
--    8.4050156250e+05, /* 0x494d3359 */
-+    1.6377603149e+02,  /* 0x4323c6aa */
-+    8.0983447266e+03,  /* 0x45fd12c2 */
-+    1.4253829688e+05,  /* 0x480b3293 */
-+    8.0330925000e+05,  /* 0x49441ed4 */
-+    8.4050156250e+05,  /* 0x494d3359 */
-     -3.4389928125e+05, /* 0xc8a7eb69 */
- };
- 
-@@ -310,11 +306,11 @@
-     1.9899779053e+03, /* 0x44f8bf4b */
- };
- static const float qS5[6] = {
--    8.2776611328e+01, /* 0x42a58da0 */
--    2.0778142090e+03, /* 0x4501dd07 */
--    1.8847289062e+04, /* 0x46933e94 */
--    5.6751113281e+04, /* 0x475daf1d */
--    3.5976753906e+04, /* 0x470c88c1 */
-+    8.2776611328e+01,  /* 0x42a58da0 */
-+    2.0778142090e+03,  /* 0x4501dd07 */
-+    1.8847289062e+04,  /* 0x46933e94 */
-+    5.6751113281e+04,  /* 0x475daf1d */
-+    3.5976753906e+04,  /* 0x470c88c1 */
-     -5.3543427734e+03, /* 0xc5a752be */
- };
- 
-@@ -328,11 +324,11 @@
-     1.6673394775e+02, /* 0x4326bbe4 */
- };
- static const float qS3[6] = {
--    4.8758872986e+01, /* 0x42430916 */
--    7.0968920898e+02, /* 0x44316c1c */
--    3.7041481934e+03, /* 0x4567825f */
--    6.4604252930e+03, /* 0x45c9e367 */
--    2.5163337402e+03, /* 0x451d4557 */
-+    4.8758872986e+01,  /* 0x42430916 */
-+    7.0968920898e+02,  /* 0x44316c1c */
-+    3.7041481934e+03,  /* 0x4567825f */
-+    6.4604252930e+03,  /* 0x45c9e367 */
-+    2.5163337402e+03,  /* 0x451d4557 */
-     -1.4924745178e+02, /* 0xc3153f59 */
- };
- 
-@@ -346,11 +342,11 @@
-     1.6252708435e+01, /* 0x4182058c */
- };
- static const float qS2[6] = {
--    3.0365585327e+01, /* 0x41f2ecb8 */
--    2.6934811401e+02, /* 0x4386ac8f */
--    8.4478375244e+02, /* 0x44533229 */
--    8.8293585205e+02, /* 0x445cbbe5 */
--    2.1266638184e+02, /* 0x4354aa98 */
-+    3.0365585327e+01,  /* 0x41f2ecb8 */
-+    2.6934811401e+02,  /* 0x4386ac8f */
-+    8.4478375244e+02,  /* 0x44533229 */
-+    8.8293585205e+02,  /* 0x445cbbe5 */
-+    2.1266638184e+02,  /* 0x4354aa98 */
-     -5.3109550476e+00, /* 0xc0a9f358 */
- };
- 
-@@ -358,8 +354,8 @@
- qzerof(float x)
- {
-     const float *p, *q;
--    float s, r, z;
--    __int32_t ix;
-+    float        s, r, z;
-+    __int32_t    ix;
-     GET_FLOAT_WORD(ix, x);
-     ix &= 0x7fffffff;
-     if (ix >= 0x41000000) {
-@@ -377,13 +373,10 @@
-     }
-     z = one / (x * x);
-     r = p[0] + z * (p[1] + z * (p[2] + z * (p[3] + z * (p[4] + z * p[5]))));
--    s = one +
--        z * (q[0] +
--             z * (q[1] + z * (q[2] + z * (q[3] + z * (q[4] + z * q[5])))));
-+    s = one + z * (q[0] + z * (q[1] + z * (q[2] + z * (q[3] + z * (q[4] + z * q[5])))));
-     return (-(float).125 + r / s) / x;
- }
- 
- _MATH_ALIAS_f_f(j0)
- 
--_MATH_ALIAS_f_f(y0)
--
-+    _MATH_ALIAS_f_f(y0)
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_j1.c picolibc-patched/cmd/gaston/libm/math/sf_j1.c
 --- picolibc-pristine/cmd/gaston/libm/math/sf_j1.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/sf_j1.c	2026-04-08 22:31:48
@@ -34885,27 +31718,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_j1.c picolibc-patched/cmd/ga
          ss = -s - c;
          cc = s - c;
          if (ix <= FLT_UWORD_HALF_MAX) { /* make sure y+y not overflow */
-@@ -91,9 +89,9 @@
- 
- static const float U0[5] = {
-     -1.9605709612e-01, /* 0xbe48c331 */
--    5.0443872809e-02, /* 0x3d4e9e3c */
-+    5.0443872809e-02,  /* 0x3d4e9e3c */
-     -1.9125689287e-03, /* 0xbafaaf2a */
--    2.3525259166e-05, /* 0x37c5581c */
-+    2.3525259166e-05,  /* 0x37c5581c */
-     -9.1909917899e-08, /* 0xb3c56003 */
- };
- static const float V0[5] = {
-@@ -107,7 +105,7 @@
- float
- y1f(float x)
- {
--    float z, s, c, ss, cc, u, v;
-+    float     z, s, c, ss, cc, u, v;
-     __int32_t hx, ix;
- 
-     GET_FLOAT_WORD(hx, x);
 @@ -117,7 +115,7 @@
          return __math_divzerof(1);
  
@@ -34925,224 +31737,9 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_j1.c picolibc-patched/cmd/ga
          ss = -s - c;
          cc = s - c;
          if (ix <= FLT_UWORD_HALF_MAX) { /* make sure x+x not overflow */
-@@ -247,8 +244,8 @@
- ponef(float x)
- {
-     const float *p, *q;
--    float z, r, s;
--    __int32_t ix;
-+    float        z, r, s;
-+    __int32_t    ix;
-     GET_FLOAT_WORD(ix, x);
-     ix &= 0x7fffffff;
-     if (ix >= 0x41000000) {
-@@ -282,7 +279,7 @@
- 
- static const float qr8[6] = {
-     /* for x in [inf, 8]=1/[0,0.125] */
--    0.0000000000e+00, /* 0x00000000 */
-+    0.0000000000e+00,  /* 0x00000000 */
-     -1.0253906250e-01, /* 0xbdd20000 */
-     -1.6271753311e+01, /* 0xc1822c8d */
-     -7.5960174561e+02, /* 0xc43de683 */
-@@ -290,11 +287,11 @@
-     -4.8438511719e+04, /* 0xc73d3683 */
- };
- static const float qs8[6] = {
--    1.6139537048e+02, /* 0x43216537 */
--    7.8253862305e+03, /* 0x45f48b17 */
--    1.3387534375e+05, /* 0x4802bcd6 */
--    7.1965775000e+05, /* 0x492fb29c */
--    6.6660125000e+05, /* 0x4922be94 */
-+    1.6139537048e+02,  /* 0x43216537 */
-+    7.8253862305e+03,  /* 0x45f48b17 */
-+    1.3387534375e+05,  /* 0x4802bcd6 */
-+    7.1965775000e+05,  /* 0x492fb29c */
-+    6.6660125000e+05,  /* 0x4922be94 */
-     -2.9449025000e+05, /* 0xc88fcb48 */
- };
- 
-@@ -308,11 +305,11 @@
-     -2.6124443359e+03, /* 0xc523471c */
- };
- static const float qs5[6] = {
--    8.1276550293e+01, /* 0x42a28d98 */
--    1.9917987061e+03, /* 0x44f8f98f */
--    1.7468484375e+04, /* 0x468878f8 */
--    4.9851425781e+04, /* 0x4742bb6d */
--    2.7948074219e+04, /* 0x46da5826 */
-+    8.1276550293e+01,  /* 0x42a28d98 */
-+    1.9917987061e+03,  /* 0x44f8f98f */
-+    1.7468484375e+04,  /* 0x468878f8 */
-+    4.9851425781e+04,  /* 0x4742bb6d */
-+    2.7948074219e+04,  /* 0x46da5826 */
-     -4.7191835938e+03, /* 0xc5937978 */
- };
- 
-@@ -325,11 +322,11 @@
-     -2.1921012878e+02, /* 0xc35b35cb */
- };
- static const float qs3[6] = {
--    4.7665153503e+01, /* 0x423ea91e */
--    6.7386511230e+02, /* 0x4428775e */
--    3.3801528320e+03, /* 0x45534272 */
--    5.5477290039e+03, /* 0x45ad5dd5 */
--    1.9031191406e+03, /* 0x44ede3d0 */
-+    4.7665153503e+01,  /* 0x423ea91e */
-+    6.7386511230e+02,  /* 0x4428775e */
-+    3.3801528320e+03,  /* 0x45534272 */
-+    5.5477290039e+03,  /* 0x45ad5dd5 */
-+    1.9031191406e+03,  /* 0x44ede3d0 */
-     -1.3520118713e+02, /* 0xc3073381 */
- };
- 
-@@ -343,11 +340,11 @@
-     -2.1371921539e+01, /* 0xc1aaf9b2 */
- };
- static const float qs2[6] = {
--    2.9533363342e+01, /* 0x41ec4454 */
--    2.5298155212e+02, /* 0x437cfb47 */
--    7.5750280762e+02, /* 0x443d602e */
--    7.3939318848e+02, /* 0x4438d92a */
--    1.5594900513e+02, /* 0x431bf2f2 */
-+    2.9533363342e+01,  /* 0x41ec4454 */
-+    2.5298155212e+02,  /* 0x437cfb47 */
-+    7.5750280762e+02,  /* 0x443d602e */
-+    7.3939318848e+02,  /* 0x4438d92a */
-+    1.5594900513e+02,  /* 0x431bf2f2 */
-     -4.9594988823e+00, /* 0xc09eb437 */
- };
- 
-@@ -355,8 +352,8 @@
- qonef(float x)
- {
-     const float *p, *q;
--    float s, r, z;
--    __int32_t ix;
-+    float        s, r, z;
-+    __int32_t    ix;
-     GET_FLOAT_WORD(ix, x);
-     ix &= 0x7fffffff;
-     if (ix >= 0x40200000) {
-@@ -374,12 +371,10 @@
-     }
-     z = one / (x * x);
-     r = p[0] + z * (p[1] + z * (p[2] + z * (p[3] + z * (p[4] + z * p[5]))));
--    s = one +
--        z * (q[0] +
--             z * (q[1] + z * (q[2] + z * (q[3] + z * (q[4] + z * q[5])))));
-+    s = one + z * (q[0] + z * (q[1] + z * (q[2] + z * (q[3] + z * (q[4] + z * q[5])))));
-     return ((float).375 + r / s) / x;
- }
- 
- _MATH_ALIAS_f_f(j1)
- 
--_MATH_ALIAS_f_f(y1)
-+    _MATH_ALIAS_f_f(y1)
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_jn.c picolibc-patched/cmd/gaston/libm/math/sf_jn.c
 --- picolibc-pristine/cmd/gaston/libm/math/sf_jn.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/sf_jn.c	2026-04-08 22:31:48
-@@ -16,7 +16,7 @@
- #include "fdlibm.h"
- 
- static const float two = 2.0000000000e+00, /* 0x40000000 */
--    one = 1.0000000000e+00; /* 0x3F800000 */
-+    one = 1.0000000000e+00;                /* 0x3F800000 */
- 
- static const float zero = 0.0000000000e+00;
- 
-@@ -24,8 +24,8 @@
- jnf(int n, float x)
- {
-     __int32_t i, hx, ix, sgn;
--    float a, b, temp, di;
--    float z, w;
-+    float     a, b, temp, di;
-+    float     z, w;
- 
-     /* J(-n,x) = (-1)^n * J(n, x), J(n, -x) = (-1)^n * J(n, x)
-      * Thus, J(-n,x) = J(n,-x)
-@@ -69,42 +69,42 @@
-                 b = temp;
-                 for (a = one, i = 2; i <= n; i++) {
-                     a *= (float)i; /* a = n! */
--                    b *= temp; /* b = (x/2)^n */
-+                    b *= temp;     /* b = (x/2)^n */
-                 }
-                 b = b / a;
-             }
-         } else {
-             /* use backward recurrence */
-             /* 			x      x^2      x^2
--		 *  J(n,x)/J(n-1,x) =  ----   ------   ------   .....
--		 *			2n  - 2(n+1) - 2(n+2)
--		 *
--		 * 			1      1        1
--		 *  (for large x)   =  ----  ------   ------   .....
--		 *			2n   2(n+1)   2(n+2)
--		 *			-- - ------ - ------ -
--		 *			 x     x         x
--		 *
--		 * Let w = 2n/x and h=2/x, then the above quotient
--		 * is equal to the continued fraction:
--		 *		    1
--		 *	= -----------------------
--		 *		       1
--		 *	   w - -----------------
--		 *			  1
--		 * 	        w+h - ---------
--		 *		       w+2h - ...
--		 *
--		 * To determine how many terms needed, let
--		 * Q(0) = w, Q(1) = w(w+h) - 1,
--		 * Q(k) = (w+k*h)*Q(k-1) - Q(k-2),
--		 * When Q(k) > 1e4	good for single
--		 * When Q(k) > 1e9	good for double
--		 * When Q(k) > 1e17	good for quadruple
--		 */
-+             *  J(n,x)/J(n-1,x) =  ----   ------   ------   .....
-+             *			2n  - 2(n+1) - 2(n+2)
-+             *
-+             * 			1      1        1
-+             *  (for large x)   =  ----  ------   ------   .....
-+             *			2n   2(n+1)   2(n+2)
-+             *			-- - ------ - ------ -
-+             *			 x     x         x
-+             *
-+             * Let w = 2n/x and h=2/x, then the above quotient
-+             * is equal to the continued fraction:
-+             *		    1
-+             *	= -----------------------
-+             *		       1
-+             *	   w - -----------------
-+             *			  1
-+             * 	        w+h - ---------
-+             *		       w+2h - ...
-+             *
-+             * To determine how many terms needed, let
-+             * Q(0) = w, Q(1) = w(w+h) - 1,
-+             * Q(k) = (w+k*h)*Q(k-1) - Q(k-2),
-+             * When Q(k) > 1e4	good for single
-+             * When Q(k) > 1e9	good for double
-+             * When Q(k) > 1e17	good for quadruple
-+             */
-             /* determine k */
--            float t, v;
--            float q0, q1, h, tmp;
-+            float     t, v;
-+            float     q0, q1, h, tmp;
-             __int32_t k, m;
-             w = (n + n) / (float)x;
-             h = (float)2.0 / (float)x;
-@@ -172,7 +172,7 @@
- {
-     __int32_t i, hx, ix, ib;
-     __int32_t sign;
--    float a, b, temp;
-+    float     a, b, temp;
- 
-     GET_FLOAT_WORD(hx, x);
-     ix = 0x7fffffff & hx;
 @@ -181,7 +181,7 @@
          return __math_divzerof(1);
  
@@ -35166,71 +31763,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_lgamma.c picolibc-patched/cm
  #pragma GCC diagnostic ignored "-Wpragmas"
  #pragma GCC diagnostic ignored "-Wunknown-warning-option"
  #pragma GCC diagnostic ignored "-Wattribute-alias="
-@@ -39,5 +39,4 @@
- }
- #endif
- 
--_MATH_ALIAS_f_f(lgamma)
--_MATH_ALIAS_f_f(gamma)
-+_MATH_ALIAS_f_f(lgamma) _MATH_ALIAS_f_f(gamma)
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_log.c picolibc-patched/cmd/gaston/libm/math/sf_log.c
---- picolibc-pristine/cmd/gaston/libm/math/sf_log.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/sf_log.c	2026-04-08 22:31:48
-@@ -17,22 +17,22 @@
- 
- #if __OBSOLETE_MATH_FLOAT
- static const float ln2_hi = 6.9313812256e-01, /* 0x3f317180 */
--    ln2_lo = 9.0580006145e-06, /* 0x3717f7d1 */
--    two25 = 3.355443200e+07, /* 0x4c000000 */
--    Lg1 = 6.6666668653e-01, /* 3F2AAAAB */
--    Lg2 = 4.0000000596e-01, /* 3ECCCCCD */
--    Lg3 = 2.8571429849e-01, /* 3E924925 */
--    Lg4 = 2.2222198546e-01, /* 3E638E29 */
--    Lg5 = 1.8183572590e-01, /* 3E3A3325 */
--    Lg6 = 1.5313838422e-01, /* 3E1CD04F */
--    Lg7 = 1.4798198640e-01; /* 3E178897 */
-+    ln2_lo = 9.0580006145e-06,                /* 0x3717f7d1 */
-+    two25 = 3.355443200e+07,                  /* 0x4c000000 */
-+    Lg1 = 6.6666668653e-01,                   /* 3F2AAAAB */
-+    Lg2 = 4.0000000596e-01,                   /* 3ECCCCCD */
-+    Lg3 = 2.8571429849e-01,                   /* 3E924925 */
-+    Lg4 = 2.2222198546e-01,                   /* 3E638E29 */
-+    Lg5 = 1.8183572590e-01,                   /* 3E3A3325 */
-+    Lg6 = 1.5313838422e-01,                   /* 3E1CD04F */
-+    Lg7 = 1.4798198640e-01;                   /* 3E178897 */
- 
- static const float zero = 0.0;
- 
- float
- logf(float x)
- {
--    float hfsq, f, s, z, R, w, t1, t2, dk;
-+    float     hfsq, f, s, z, R, w, t1, t2, dk;
-     __int32_t k, ix, i, j;
- 
-     GET_FLOAT_WORD(ix, x);
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_log10.c picolibc-patched/cmd/gaston/libm/math/sf_log10.c
---- picolibc-pristine/cmd/gaston/libm/math/sf_log10.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/sf_log10.c	2026-04-08 22:31:48
-@@ -16,14 +16,14 @@
- #include "fdlibm.h"
- 
- static const float two25 = 3.3554432000e+07, /* 0x4c000000 */
--    ivln10 = 4.3429449201e-01, /* 0x3ede5bd9 */
--    log10_2hi = 3.0102920532e-01, /* 0x3e9a2080 */
--    log10_2lo = 7.9034151668e-07; /* 0x355427db */
-+    ivln10 = 4.3429449201e-01,               /* 0x3ede5bd9 */
-+    log10_2hi = 3.0102920532e-01,            /* 0x3e9a2080 */
-+    log10_2lo = 7.9034151668e-07;            /* 0x355427db */
- 
- float
- log10f(float x)
- {
--    float y, z;
-+    float     y, z;
-     __int32_t i, k, hx;
- 
-     GET_FLOAT_WORD(hx, x);
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_pow.c picolibc-patched/cmd/gaston/libm/math/sf_pow.c
 --- picolibc-pristine/cmd/gaston/libm/math/sf_pow.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/sf_pow.c	2026-04-08 22:31:48
@@ -35245,17 +31777,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_pow.c picolibc-patched/cmd/g
  ivln2    =  1.4426950216e+00, /* 0x3fb8aa3b =1/ln2 */
  ivln2_h  =  1.4426879883e+00, /* 0x3fb8aa00 =16b 1/ln2*/
  ivln2_l  =  7.0526075433e-06; /* 0x36eca570 =1/ln2 tail*/
-@@ -56,8 +56,8 @@
- float
- powf(float x, float y)
- {
--    float z, ax, z_h, z_l, p_h, p_l;
--    float y1, t1, t2, r, s, t, u, v, w;
-+    float     z, ax, z_h, z_l, p_h, p_l;
-+    float     y1, t1, t2, r, s, t, u, v, w;
-     __int32_t i, j, k, yisint, n;
-     __int32_t hx, hy, ix, iy, is;
- 
 @@ -93,7 +93,7 @@
          else if (iy >= 0x3f800000) {
              k = (iy >> 23) - 0x7f; /* exponent */
@@ -35265,40 +31786,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_pow.c picolibc-patched/cmd/g
                  yisint = 2 - (j & 1);
          }
      }
-@@ -101,7 +101,7 @@
-     /* special value of y */
-     if (FLT_UWORD_IS_INFINITE(iy)) { /* y is +-inf */
-         if (ix == 0x3f800000)
--            return one; /* +-1**+-inf = 1 */
-+            return one;           /* +-1**+-inf = 1 */
-         else if (ix > 0x3f800000) /* (|x|>1)**+-inf = inf,0 */
-             return (hy >= 0) ? y : zero;
-         else /* (|x|<1)**-,+inf = inf,0 */
-@@ -116,9 +116,9 @@
-             return x;
-     }
-     if (hy == 0x40000000 && ix < 0x5f800000 && ix > 0x1a000000)
--        return x * x; /* y is  2 */
-+        return x * x;       /* y is  2 */
-     if (hy == 0x3f000000) { /* y is  0.5 */
--        if (hx >= 0) /* x >= +0 */
-+        if (hx >= 0)        /* x >= +0 */
-             return sqrtf(x);
-     }
- 
-@@ -157,10 +157,9 @@
-         if (ix > 0x3f800007)
-             return (hy > 0) ? __math_oflowf(0) : __math_uflowf(0);
-         /* now |1-x| is tiny <= 2**-20, suffice to compute
--	   log(x) by x-x^2/2+x^3/3-x^4/4 */
-+           log(x) by x-x^2/2+x^3/3-x^4/4 */
-         t = ax - 1; /* t has 20 trailing zeros */
--        w = (t * t) *
--            ((float)0.5 - t * ((float)0.333333333333 - t * (float)0.25));
-+        w = (t * t) * ((float)0.5 - t * ((float)0.333333333333 - t * (float)0.25));
-         u = ivln2_h * t; /* ivln2_h has 16 sig. bits */
-         v = t * ivln2_l - w * ivln2;
-         t1 = u + v;
 @@ -199,13 +198,13 @@
          GET_FLOAT_WORD(is, s_h);
          SET_FLOAT_WORD(s_h, is & 0xfffff000);
@@ -35684,21 +32171,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_rem_pio2.c picolibc-patched/
 +    y[1] = y1 * 0x1p-61f;
 +    return n & 3;
  }
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_remainder.c picolibc-patched/cmd/gaston/libm/math/sf_remainder.c
---- picolibc-pristine/cmd/gaston/libm/math/sf_remainder.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/sf_remainder.c	2026-04-08 22:31:48
-@@ -20,9 +20,9 @@
- float
- remainderf(float x, float p)
- {
--    __int32_t hx, hp;
-+    __int32_t  hx, hp;
-     __uint32_t sx;
--    float p_half;
-+    float      p_half;
- 
-     GET_FLOAT_WORD(hx, x);
-     GET_FLOAT_WORD(hp, p);
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_scalb.c picolibc-patched/cmd/gaston/libm/math/sf_scalb.c
 --- picolibc-pristine/cmd/gaston/libm/math/sf_scalb.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/sf_scalb.c	2026-04-08 22:31:48
@@ -35876,36 +32348,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_sinh.c picolibc-patched/cmd/
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_sqrt.c picolibc-patched/cmd/gaston/libm/math/sf_sqrt.c
 --- picolibc-pristine/cmd/gaston/libm/math/sf_sqrt.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/sf_sqrt.c	2026-04-08 22:31:48
-@@ -18,9 +18,9 @@
- float
- sqrtf(float x)
- {
--    float z;
-+    float      z;
-     __uint32_t r, hx;
--    __int32_t ix, s, q, m, t, i;
-+    __int32_t  ix, s, q, m, t, i;
- 
-     GET_FLOAT_WORD(ix, x);
-     hx = ix & 0x7fffffff;
-@@ -29,7 +29,7 @@
-     if (!FLT_UWORD_IS_FINITE(hx)) {
-         if (ix < 0 && !isnanf(x))
-             return __math_invalidf(x); /* sqrt(-inf)=sNaN */
--        return x + x; /* sqrt(NaN)=NaN, sqrt(+inf)=+inf */
-+        return x + x;                  /* sqrt(NaN)=NaN, sqrt(+inf)=+inf */
-     }
- 
-     /* take care of zero and -ves */
-@@ -53,7 +53,7 @@
- 
-     /* generate sqrt(x) bit by bit */
-     ix += ix;
--    q = s = 0; /* q = sqrt(x) */
-+    q = s = 0;       /* q = sqrt(x) */
-     r = 0x01000000L; /* r = moving bit from right to left */
- 
-     while (r != 0) {
 @@ -75,7 +75,7 @@
              q += 2;
      }
@@ -35930,32 +32372,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_tan.c picolibc-patched/cmd/g
  
      GET_FLOAT_WORD(ix, x);
  
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_tanh.c picolibc-patched/cmd/gaston/libm/math/sf_tanh.c
---- picolibc-pristine/cmd/gaston/libm/math/sf_tanh.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/sf_tanh.c	2026-04-08 22:31:48
-@@ -20,7 +20,7 @@
- float
- tanhf(float x)
- {
--    float t, z;
-+    float     t, z;
-     __int32_t jx, ix;
- 
-     GET_FLOAT_WORD(jx, x);
-@@ -35,10 +35,10 @@
-     }
- 
-     /* |x| < 22 */
--    if (ix < 0x41b00000) { /* |x|<22 */
--        if (ix < 0x24000000) /* |x|<2**-55 */
-+    if (ix < 0x41b00000) {        /* |x|<22 */
-+        if (ix < 0x24000000)      /* |x|<2**-55 */
-             return x * (one + x); /* tanh(small) = small */
--        if (ix >= 0x3f800000) { /* |x|>=1  */
-+        if (ix >= 0x3f800000) {   /* |x|>=1  */
-             t = expm1f(two * fabsf(x));
-             z = one - two / (t + two);
-         } else {
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/sl_hypot.c picolibc-patched/cmd/gaston/libm/math/sl_hypot.c
 --- picolibc-pristine/cmd/gaston/libm/math/sl_hypot.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/sl_hypot.c	2026-04-08 22:31:48
@@ -36228,157 +32644,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sr_lgamma.c picolibc-patched/cm
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/srf_lgamma.c picolibc-patched/cmd/gaston/libm/math/srf_lgamma.c
 --- picolibc-pristine/cmd/gaston/libm/math/srf_lgamma.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/srf_lgamma.c	2026-04-08 22:31:48
-@@ -19,78 +19,78 @@
- #include "fdlibm.h"
- 
- static const float two23 = 8.3886080000e+06, /* 0x4b000000 */
--    half = 5.0000000000e-01, /* 0x3f000000 */
--    one = 1.0000000000e+00, /* 0x3f800000 */
--    pi = 3.1415927410e+00, /* 0x40490fdb */
--    a0 = 7.7215664089e-02, /* 0x3d9e233f */
--    a1 = 3.2246702909e-01, /* 0x3ea51a66 */
--    a2 = 6.7352302372e-02, /* 0x3d89f001 */
--    a3 = 2.0580807701e-02, /* 0x3ca89915 */
--    a4 = 7.3855509982e-03, /* 0x3bf2027e */
--    a5 = 2.8905137442e-03, /* 0x3b3d6ec6 */
--    a6 = 1.1927076848e-03, /* 0x3a9c54a1 */
--    a7 = 5.1006977446e-04, /* 0x3a05b634 */
--    a8 = 2.2086278477e-04, /* 0x39679767 */
--    a9 = 1.0801156895e-04, /* 0x38e28445 */
--    a10 = 2.5214456400e-05, /* 0x37d383a2 */
--    a11 = 4.4864096708e-05, /* 0x383c2c75 */
--    tc = 1.4616321325e+00, /* 0x3fbb16c3 */
--    tf = -1.2148628384e-01, /* 0xbdf8cdcd */
-+    half = 5.0000000000e-01,                 /* 0x3f000000 */
-+    one = 1.0000000000e+00,                  /* 0x3f800000 */
-+    pi = 3.1415927410e+00,                   /* 0x40490fdb */
-+    a0 = 7.7215664089e-02,                   /* 0x3d9e233f */
-+    a1 = 3.2246702909e-01,                   /* 0x3ea51a66 */
-+    a2 = 6.7352302372e-02,                   /* 0x3d89f001 */
-+    a3 = 2.0580807701e-02,                   /* 0x3ca89915 */
-+    a4 = 7.3855509982e-03,                   /* 0x3bf2027e */
-+    a5 = 2.8905137442e-03,                   /* 0x3b3d6ec6 */
-+    a6 = 1.1927076848e-03,                   /* 0x3a9c54a1 */
-+    a7 = 5.1006977446e-04,                   /* 0x3a05b634 */
-+    a8 = 2.2086278477e-04,                   /* 0x39679767 */
-+    a9 = 1.0801156895e-04,                   /* 0x38e28445 */
-+    a10 = 2.5214456400e-05,                  /* 0x37d383a2 */
-+    a11 = 4.4864096708e-05,                  /* 0x383c2c75 */
-+    tc = 1.4616321325e+00,                   /* 0x3fbb16c3 */
-+    tf = -1.2148628384e-01,                  /* 0xbdf8cdcd */
-     /* tt = -(tail of tf) */
--    tt = 6.6971006518e-09, /* 0x31e61c52 */
--    t0 = 4.8383611441e-01, /* 0x3ef7b95e */
--    t1 = -1.4758771658e-01, /* 0xbe17213c */
--    t2 = 6.4624942839e-02, /* 0x3d845a15 */
--    t3 = -3.2788541168e-02, /* 0xbd064d47 */
--    t4 = 1.7970675603e-02, /* 0x3c93373d */
--    t5 = -1.0314224288e-02, /* 0xbc28fcfe */
--    t6 = 6.1005386524e-03, /* 0x3bc7e707 */
--    t7 = -3.6845202558e-03, /* 0xbb7177fe */
--    t8 = 2.2596477065e-03, /* 0x3b141699 */
--    t9 = -1.4034647029e-03, /* 0xbab7f476 */
--    t10 = 8.8108185446e-04, /* 0x3a66f867 */
-+    tt = 6.6971006518e-09,   /* 0x31e61c52 */
-+    t0 = 4.8383611441e-01,   /* 0x3ef7b95e */
-+    t1 = -1.4758771658e-01,  /* 0xbe17213c */
-+    t2 = 6.4624942839e-02,   /* 0x3d845a15 */
-+    t3 = -3.2788541168e-02,  /* 0xbd064d47 */
-+    t4 = 1.7970675603e-02,   /* 0x3c93373d */
-+    t5 = -1.0314224288e-02,  /* 0xbc28fcfe */
-+    t6 = 6.1005386524e-03,   /* 0x3bc7e707 */
-+    t7 = -3.6845202558e-03,  /* 0xbb7177fe */
-+    t8 = 2.2596477065e-03,   /* 0x3b141699 */
-+    t9 = -1.4034647029e-03,  /* 0xbab7f476 */
-+    t10 = 8.8108185446e-04,  /* 0x3a66f867 */
-     t11 = -5.3859531181e-04, /* 0xba0d3085 */
--    t12 = 3.1563205994e-04, /* 0x39a57b6b */
-+    t12 = 3.1563205994e-04,  /* 0x39a57b6b */
-     t13 = -3.1275415677e-04, /* 0xb9a3f927 */
--    t14 = 3.3552918467e-04, /* 0x39afe9f7 */
--    u0 = -7.7215664089e-02, /* 0xbd9e233f */
--    u1 = 6.3282704353e-01, /* 0x3f2200f4 */
--    u2 = 1.4549225569e+00, /* 0x3fba3ae7 */
--    u3 = 9.7771751881e-01, /* 0x3f7a4bb2 */
--    u4 = 2.2896373272e-01, /* 0x3e6a7578 */
--    u5 = 1.3381091878e-02, /* 0x3c5b3c5e */
--    v1 = 2.4559779167e+00, /* 0x401d2ebe */
--    v2 = 2.1284897327e+00, /* 0x4008392d */
--    v3 = 7.6928514242e-01, /* 0x3f44efdf */
--    v4 = 1.0422264785e-01, /* 0x3dd572af */
--    v5 = 3.2170924824e-03, /* 0x3b52d5db */
--    s0 = -7.7215664089e-02, /* 0xbd9e233f */
--    s1 = 2.1498242021e-01, /* 0x3e5c245a */
--    s2 = 3.2577878237e-01, /* 0x3ea6cc7a */
--    s3 = 1.4635047317e-01, /* 0x3e15dce6 */
--    s4 = 2.6642270386e-02, /* 0x3cda40e4 */
--    s5 = 1.8402845599e-03, /* 0x3af135b4 */
--    s6 = 3.1947532989e-05, /* 0x3805ff67 */
--    r1 = 1.3920053244e+00, /* 0x3fb22d3b */
--    r2 = 7.2193557024e-01, /* 0x3f38d0c5 */
--    r3 = 1.7193385959e-01, /* 0x3e300f6e */
--    r4 = 1.8645919859e-02, /* 0x3c98bf54 */
--    r5 = 7.7794247773e-04, /* 0x3a4beed6 */
--    r6 = 7.3266842264e-06, /* 0x36f5d7bd */
--    w0 = 4.1893854737e-01, /* 0x3ed67f1d */
--    w1 = 8.3333335817e-02, /* 0x3daaaaab */
--    w2 = -2.7777778450e-03, /* 0xbb360b61 */
--    w3 = 7.9365057172e-04, /* 0x3a500cfd */
--    w4 = -5.9518753551e-04, /* 0xba1c065c */
--    w5 = 8.3633989561e-04, /* 0x3a5b3dd2 */
--    w6 = -1.6309292987e-03; /* 0xbad5c4e8 */
-+    t14 = 3.3552918467e-04,  /* 0x39afe9f7 */
-+    u0 = -7.7215664089e-02,  /* 0xbd9e233f */
-+    u1 = 6.3282704353e-01,   /* 0x3f2200f4 */
-+    u2 = 1.4549225569e+00,   /* 0x3fba3ae7 */
-+    u3 = 9.7771751881e-01,   /* 0x3f7a4bb2 */
-+    u4 = 2.2896373272e-01,   /* 0x3e6a7578 */
-+    u5 = 1.3381091878e-02,   /* 0x3c5b3c5e */
-+    v1 = 2.4559779167e+00,   /* 0x401d2ebe */
-+    v2 = 2.1284897327e+00,   /* 0x4008392d */
-+    v3 = 7.6928514242e-01,   /* 0x3f44efdf */
-+    v4 = 1.0422264785e-01,   /* 0x3dd572af */
-+    v5 = 3.2170924824e-03,   /* 0x3b52d5db */
-+    s0 = -7.7215664089e-02,  /* 0xbd9e233f */
-+    s1 = 2.1498242021e-01,   /* 0x3e5c245a */
-+    s2 = 3.2577878237e-01,   /* 0x3ea6cc7a */
-+    s3 = 1.4635047317e-01,   /* 0x3e15dce6 */
-+    s4 = 2.6642270386e-02,   /* 0x3cda40e4 */
-+    s5 = 1.8402845599e-03,   /* 0x3af135b4 */
-+    s6 = 3.1947532989e-05,   /* 0x3805ff67 */
-+    r1 = 1.3920053244e+00,   /* 0x3fb22d3b */
-+    r2 = 7.2193557024e-01,   /* 0x3f38d0c5 */
-+    r3 = 1.7193385959e-01,   /* 0x3e300f6e */
-+    r4 = 1.8645919859e-02,   /* 0x3c98bf54 */
-+    r5 = 7.7794247773e-04,   /* 0x3a4beed6 */
-+    r6 = 7.3266842264e-06,   /* 0x36f5d7bd */
-+    w0 = 4.1893854737e-01,   /* 0x3ed67f1d */
-+    w1 = 8.3333335817e-02,   /* 0x3daaaaab */
-+    w2 = -2.7777778450e-03,  /* 0xbb360b61 */
-+    w3 = 7.9365057172e-04,   /* 0x3a500cfd */
-+    w4 = -5.9518753551e-04,  /* 0xba1c065c */
-+    w5 = 8.3633989561e-04,   /* 0x3a5b3dd2 */
-+    w6 = -1.6309292987e-03;  /* 0xbad5c4e8 */
- 
- static const float zero = 0.0000000000e+00;
- 
- static float
- sin_pif(float x)
- {
--    float y, z;
-+    float     y, z;
-     __int32_t n, ix;
- 
-     GET_FLOAT_WORD(ix, x);
-@@ -148,7 +148,7 @@
- float
- __math_lgammaf_r(float x, int *signgamp, int *divzero)
- {
--    float t, y, z, nadj = 0.0, p, p1, p2, p3, q, r, w;
-+    float     t, y, z, nadj = 0.0, p, p1, p2, p3, q, r, w;
-     __int32_t i, hx, ix;
- 
-     GET_FLOAT_WORD(hx, x);
 @@ -157,14 +157,14 @@
      *signgamp = 1;
      ix = hx & 0x7fffffff;
@@ -36396,16 +32661,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/srf_lgamma.c picolibc-patched/c
          if (hx < 0) {
              *signgamp = -1;
              return -logf(-x);
-@@ -230,8 +230,7 @@
-         case 1:
-             z = y * y;
-             w = z * y;
--            p1 = t0 +
--                 w * (t3 + w * (t6 + w * (t9 + w * t12))); /* parallel comp */
-+            p1 = t0 + w * (t3 + w * (t6 + w * (t9 + w * t12))); /* parallel comp */
-             p2 = t1 + w * (t4 + w * (t7 + w * (t10 + w * t13)));
-             p3 = t2 + w * (t5 + w * (t8 + w * (t11 + w * t14)));
-             p = z * p1 - (tt - w * (p2 + y * p3));
 @@ -245,22 +244,25 @@
      } else if (ix < 0x41000000) { /* x < 8.0 */
          i = (__int32_t)x;
@@ -36498,22 +32753,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/argz/CMakeLists.txt picolib
 -  envz_remove.c
 -  envz_strip.c
 -)
-diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/argz/argz_create_sep.c picolibc-patched/cmd/gaston/picolibc/libc/argz/argz_create_sep.c
---- picolibc-pristine/cmd/gaston/picolibc/libc/argz/argz_create_sep.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/picolibc/libc/argz/argz_create_sep.c	2026-04-08 22:31:47
-@@ -47,10 +47,10 @@
-       num_strings++;
-     }
- 
--  free(old_running);
--
-   if(!(*argz = (char *)malloc(*argz_len)))
-     return ENOMEM;
-+
-+  free(old_running);
- 
-   running = strdup(string);
-   old_running = running;
 diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/argz/envz_merge.c picolibc-patched/cmd/gaston/picolibc/libc/argz/envz_merge.c
 --- picolibc-pristine/cmd/gaston/picolibc/libc/argz/envz_merge.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/picolibc/libc/argz/envz_merge.c	2026-04-08 22:31:47
@@ -39313,42 +35552,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/include/machine/setjmp.h pi
  #define _JBLEN 64
  #else
  #define _JBLEN 32
-@@ -323,24 +319,22 @@
-    (where "proc" is the procedure that calls setjmp): 4-12 registers
-    from the window of proc, the 4 words from the save area at proc's $sp
-    (in case a subsequent alloca in proc moves $sp), and the return
--   address within proc. Everything else is saved on the stack in the
--   normal save areas. The jmp_buf structure is:
--
--   struct jmp_buf {
--      int regs[12];
--      int save[4];
--      void *return_address;
--   }
--
-+   address within proc.  Everything else is saved on the stack in the
-+   normal save areas.  The jmp_buf structure is:
-+  
-+  	struct jmp_buf {
-+  	    int regs[12];
-+  	    int save[4];
-+  	    void *return_address;
-+  	}
-+  
-    See the setjmp code for details.  */
- 
--/* sizeof(struct jmp_buf) */
--#define _JBLEN 17
-+#define _JBLEN		17	/* 12 + 4 + 1 */
- 
- #else /* __XTENSA_CALL0_ABI__ */
- 
--/* a0, a1, a12, a13, a14, a15 */
--#define _JBLEN 6
-+#define _JBLEN		6	/* a0, a1, a12, a13, a14, a15 */
- 
- #endif /* __XTENSA_CALL0_ABI__ */
- #endif /* __XTENSA__ */
 diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/include/malloc.h picolibc-patched/cmd/gaston/picolibc/libc/include/malloc.h
 --- picolibc-pristine/cmd/gaston/picolibc/libc/include/malloc.h	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/picolibc/libc/include/malloc.h	2026-04-08 22:31:47
@@ -41867,15 +38070,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/locale/locale.c picolibc-pa
    long val = 0;
    char *end, *c = NULL;
    int mbc_max;
-@@ -760,7 +752,7 @@
-     break;
-     case 'K':
-     case 'k':
--      /* KOI8-R, KOI8-U, KOI8-T and the aliases without dash */
-+      /* KOI8-R, KOI8-U and the aliases without dash */
-       if (strncasecmp (charset, "KOI8", 4))
- 	FAIL;
-       c = charset + 4;
 @@ -776,11 +768,6 @@
  	  val = 21866;
  	  strcpy (charset, "CP21866");
@@ -43753,12 +39947,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/CMakeLists.txt picol
 diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/arc4random.c picolibc-patched/cmd/gaston/picolibc/libc/stdlib/arc4random.c
 --- picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/arc4random.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/picolibc/libc/stdlib/arc4random.c	2026-04-08 22:31:47
-@@ -1,4 +1,4 @@
--/*	$OpenBSD: arc4random.c,v 1.58 2022/07/31 13:41:45 tb Exp $	*/
-+/*	$OpenBSD: arc4random.c,v 1.52 2015/01/16 16:48:51 deraadt Exp $	*/
- 
- /*
-  * Copyright (c) 1996, David Mazieres <dm@uun.org>
 @@ -37,27 +37,18 @@
  #define KEYSTREAM_ONLY
  #include "chacha_private.h"
@@ -43840,15 +40028,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/arc4random.c picolib
  			keystream = rsx->rs_buf + sizeof(rsx->rs_buf)
  			    - rs->rs_have;
  			memcpy(buf, keystream, m);
-diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/arc4random_uniform.c picolibc-patched/cmd/gaston/picolibc/libc/stdlib/arc4random_uniform.c
---- picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/arc4random_uniform.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/picolibc/libc/stdlib/arc4random_uniform.c	2026-04-08 22:31:47
-@@ -1,4 +1,4 @@
--/*	$OpenBSD: arc4random_uniform.c,v 1.2 2015/09/13 08:31:47 guenther Exp $	*/
-+/*	$OpenBSD: arc4random_uniform.c,v 1.1 2014/07/12 13:24:54 deraadt Exp $	*/
- 
- /*
-  * Copyright (c) 2008, Damien Miller <djm@openbsd.org>
 diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/assert.c picolibc-patched/cmd/gaston/picolibc/libc/stdlib/assert.c
 --- picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/assert.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/picolibc/libc/stdlib/assert.c	2026-04-08 22:31:47
@@ -44015,15 +40194,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/assert_no_arg.c pico
 diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/chacha_private.h picolibc-patched/cmd/gaston/picolibc/libc/stdlib/chacha_private.h
 --- picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/chacha_private.h	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/picolibc/libc/stdlib/chacha_private.h	2026-04-08 22:31:47
-@@ -22,7 +22,7 @@
- Public domain.
- */
- 
--/* $OpenBSD: chacha_private.h,v 1.3 2022/02/28 21:56:29 dtucker Exp $ */
-+/* $OpenBSD: chacha_private.h,v 1.2 2013/10/04 07:02:27 djm Exp $ */
- 
- #include <stdint.h>
- 
 @@ -69,10 +69,11 @@
  static const char tau[16] = "expand 16-byte k";
  
@@ -47383,14 +43553,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/string/strspn.c picolibc-pa
 diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/string/wide.t picolibc-patched/cmd/gaston/picolibc/libc/string/wide.t
 --- picolibc-pristine/cmd/gaston/picolibc/libc/string/wide.t	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/picolibc/libc/string/wide.t	2026-04-08 22:31:47
-@@ -1,5 +1,5 @@
--//# EastAsianWidth-15.0.0.txt
--//# Blocks-15.0.0.txt
-+//# EastAsianWidth-14.0.0.txt
-+//# Blocks-14.0.0.txt
- {
-   { 0x1100, 0x115F }, { 0x231A, 0x231B }, { 0x2329, 0x232A },
-   { 0x23E9, 0x23EC }, { 0x23F0, 0x23F0 }, { 0x23F3, 0x23F3 },
 @@ -26,7 +26,7 @@
    { 0x1F550, 0x1F567 }, { 0x1F57A, 0x1F57A }, { 0x1F595, 0x1F596 },
    { 0x1F5A4, 0x1F5A4 }, { 0x1F5FB, 0x1F64F }, { 0x1F680, 0x1F6C5 },
