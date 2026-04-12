@@ -1120,7 +1120,8 @@ func (l *lexer) scanAlignasArg() int {
 
 // attrExtractStringArg extracts the quoted string from an attribute argument like ("target").
 // It scans past optional whitespace and parens to find the opening '"', then reads until the
-// closing '"', returning the content. Returns "" if the format is not recognized.
+// closing '"', returning the content.  Adjacent string literals are concatenated, so
+// ("lgamma" "_r") returns "lgamma_r".  Returns "" if the format is not recognized.
 func attrExtractStringArg(s string) string {
 	i := 0
 	// Skip whitespace and opening paren.
@@ -1137,12 +1138,23 @@ func attrExtractStringArg(s string) string {
 	if i >= len(s) || s[i] != '"' {
 		return ""
 	}
-	i++ // consume '"'
-	start := i
-	for i < len(s) && s[i] != '"' {
-		i++
+	// Concatenate adjacent string literals: "foo" "bar" → "foobar"
+	var result strings.Builder
+	for i < len(s) && s[i] == '"' {
+		i++ // consume opening '"'
+		for i < len(s) && s[i] != '"' {
+			result.WriteByte(s[i])
+			i++
+		}
+		if i < len(s) {
+			i++ // consume closing '"'
+		}
+		// Skip whitespace before possible next string literal.
+		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+			i++
+		}
 	}
-	return s[start:i]
+	return result.String()
 }
 
 // attrExtractIntArg extracts the decimal integer from an attribute argument like (16).
