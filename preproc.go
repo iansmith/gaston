@@ -1333,6 +1333,28 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 #define __FUNCTION__ ""
 #define __PRETTY_FUNCTION__ ""
 #define __func__ ""
+
+/* ── picolibc legacy naming compatibility ────────────────────────────── */
+/* Both _HAVE_* (original picolibc) and __HAVE_* (patched rename) forms   */
+#define _HAVE_LONG_DOUBLE_MATH          1
+#define __HAVE_LONG_DOUBLE_MATH         1
+#define _HAVE_BUILTIN_COPYSIGNL         1
+#define __HAVE_BUILTIN_COPYSIGNL        1
+#define _HAVE_FAST_FMA                  1
+#define __HAVE_FAST_FMA                 1
+#define _HAVE_ALIAS_ATTRIBUTE           1
+#define __HAVE_ALIAS_ATTRIBUTE          1
+#define _HAVE_ATTRIBUTE_NOINLINE        1
+#define __HAVE_ATTRIBUTE_NOINLINE       1
+#define _HAVE_BUILTIN_EXPECT            1
+#define __HAVE_BUILTIN_EXPECT           1
+#define NOINLINE                        __noinline
+#define PICOLIBC_FLOAT64_NOEXCEPT       1
+#define PICOLIBC_FLOAT_NOEXCEPT         1
+#define PICOLIBC_LONG_DOUBLE_NOEXCEPT   1
+#define __PICOLIBC_FALLTHROUGH          /* fallthrough */
+#define FALLTHROUGH                     /* fallthrough */
+#define __GNUCLIKE_PRAGMA_DIAGNOSTIC    1
 `
 	var dummy strings.Builder
 	pp.processFile(builtinSrc, "<builtin>", &dummy)

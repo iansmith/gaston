@@ -771,26 +771,9 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/exp2.c picolibc-patched/cmd/g
  }
  
  _MATH_ALIAS_d_d(exp2)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/fabsl.c picolibc-patched/cmd/gaston/libm/common/fabsl.c
---- picolibc-pristine/cmd/gaston/libm/common/fabsl.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/fabsl.c	2026-04-08 22:31:48
-@@ -44,4 +44,3 @@
- }
- 
- #endif
--
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/fdlibm.h picolibc-patched/cmd/gaston/libm/common/fdlibm.h
 --- picolibc-pristine/cmd/gaston/libm/common/fdlibm.h	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/fdlibm.h	2026-04-08 22:31:48
-@@ -6,7 +6,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
 @@ -31,59 +31,59 @@
     macros below wrap up that kind of information:
  
@@ -1032,15 +1015,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/fdlibm.h picolibc-patched/cmd
     to dig two 32 bit words out of the 64 bit IEEE floating point
     value.  That is non-ANSI, and, moreover, the gcc instruction
     scheduler gets it wrong.  We instead use the following macros.
-@@ -199,7 +198,7 @@
- 
- #ifndef __IEEE_BIG_ENDIAN
- #ifndef __IEEE_LITTLE_ENDIAN
-- #error Must define endianness
-+#error Must define endianness
- #endif
- #endif
- 
 @@ -208,139 +207,180 @@
  
  #ifdef __IEEE_BIG_ENDIAN
@@ -1322,17 +1296,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/fma_inc.h picolibc-patched/cm
  #endif
  
  /*
-@@ -44,8 +42,8 @@
-  * bits of the result.
-  */
- struct dd {
--	FLOAT_T hi;
--	FLOAT_T lo;
-+    FLOAT_T hi;
-+    FLOAT_T lo;
- };
- 
- /*
 @@ -56,13 +54,13 @@
  static inline struct dd
  dd_add(FLOAT_T a, FLOAT_T b)
@@ -1350,28 +1313,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/fma_inc.h picolibc-patched/cm
 +    s = ret.hi - a;
 +    ret.lo = (a - (ret.hi - s)) + (b - s);
 +    return (ret);
- }
- 
- /*
-@@ -79,14 +77,14 @@
- static inline FLOAT_T
- add_adjusted(FLOAT_T a, FLOAT_T b)
- {
--	struct dd sum;
-+    struct dd sum;
- 
--	sum = dd_add(a, b);
--	if (sum.lo != 0) {
--		if (!odd_mant(sum.hi))
--			sum.hi = NEXTAFTER(sum.hi, (FLOAT_T)INFINITY * sum.lo);
--	}
--	return (sum.hi);
-+    sum = dd_add(a, b);
-+    if (sum.lo != 0) {
-+        if (!odd_mant(sum.hi))
-+            sum.hi = NEXTAFTER(sum.hi, (FLOAT_T)INFINITY * sum.lo);
-+    }
-+    return (sum.hi);
  }
  
  /*
@@ -1969,15 +1910,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/frexpl.c picolibc-patched/cmd
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/isgreater.c picolibc-patched/cmd/gaston/libm/common/isgreater.c
 --- picolibc-pristine/cmd/gaston/libm/common/isgreater.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/isgreater.c	2026-04-08 22:31:48
-@@ -3,7 +3,7 @@
- 
- Developed at SunPro, a Sun Microsystems, Inc. business.
- Permission to use, copy, modify, and distribute this
--software is freely granted, provided that this notice 
-+software is freely granted, provided that this notice
- is preserved.
-  */
- /* isgreater.c:  This file contains no source code, but rather only the
 @@ -11,28 +11,22 @@
   * defined in math.h (q.v.).  */
  /*
@@ -2019,21 +1951,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/isgreater.c picolibc-patched/
  
  DESCRIPTION
  <<isgreater>>, <<isgreaterequal>>, <<isless>>, <<islessequal>>,
-@@ -59,11 +53,11 @@
- For example:
- o+
- o	NaN < 1.0
--		causes an "invalid" exception,
-+                causes an "invalid" exception,
- o	isless(NaN, 1.0)
--		does not, and
-+                does not, and
- o	isless(NaN*0., 1.0)
--		causes an exception due to the "NaN*0.", but not from the
-+                causes an exception due to the "NaN*0.", but not from the
- resultant reduced comparison of isless(NaN, 1.0).
- o-
- 
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/isinfl.c picolibc-patched/cmd/gaston/libm/common/isinfl.c
 --- picolibc-pristine/cmd/gaston/libm/common/isinfl.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/isinfl.c	1969-12-31 19:00:00
@@ -2661,14 +2578,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/log_data.c picolibc-patched/c
  {0x1.61000014fb66bp-1, 0x1.e026c91425b3cp-56},
  {0x1.63000034db495p-1, 0x1.dbfea48005d41p-55},
  {0x1.650000d94d478p-1, 0x1.e7fa786d6a5b7p-55},
-@@ -531,6 +531,6 @@
- {0x1.5efffe7b87a89p+0, -0x1.47eb780ed6904p-54},
- #endif
- },
--#endif /* !_HAVE_FAST_FMA */
-+#endif /* !__HAVE_FAST_FMA */
- };
- #endif /* __OBSOLETE_MATH_DOUBLE */
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_config.h picolibc-patched/cmd/gaston/libm/common/math_config.h
 --- picolibc-pristine/cmd/gaston/libm/common/math_config.h	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/math_config.h	2026-04-08 22:31:48
@@ -4807,15 +4716,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/math_config.h picolibc-patche
  float _powf(float, float);
  float _sinf(float);
  float _cosf(float);
-@@ -1306,7 +1433,7 @@
- __float64 _cos64(__float64);
- #endif
- 
--#ifdef _HAVE_LONG_DOUBLE_MATH
-+#ifdef __HAVE_LONG_DOUBLE_MATH
- long double _powl(long double, long double);
- long double _sinl(long double);
- long double _cosl(long double);
 @@ -1314,23 +1441,23 @@
  
  #else
@@ -6023,51 +5923,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/pow_log_data.c picolibc-patch
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_cbrt.c picolibc-patched/cmd/gaston/libm/common/s_cbrt.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_cbrt.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_cbrt.c	2026-04-08 22:31:48
-@@ -6,7 +6,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  *
-@@ -14,26 +14,26 @@
- 
- /*
- FUNCTION
--	<<cbrt>>, <<cbrtf>>---cube root
-+        <<cbrt>>, <<cbrtf>>---cube root
- 
- INDEX
--	cbrt
-+        cbrt
- INDEX
--	cbrtf
-+        cbrtf
- 
- SYNOPSIS
--	#include <math.h>
--	double cbrt(double <[x]>);
--	float  cbrtf(float <[x]>);
-+        #include <math.h>
-+        double cbrt(double <[x]>);
-+        float  cbrtf(float <[x]>);
- 
- DESCRIPTION
--	<<cbrt>> computes the cube root of the argument.
-+        <<cbrt>> computes the cube root of the argument.
- 
- RETURNS
--	The cube root is returned. 
-+        The cube root is returned.
- 
- PORTABILITY
--	<<cbrt>> is in System V release 4.  <<cbrtf>> is an extension.
-+        <<cbrt>> is in System V release 4.  <<cbrtf>> is an extension.
- */
- 
- #include "fdlibm.h"
 @@ -43,64 +43,64 @@
  /* cbrt(x)
   * Return cube root of x
@@ -6180,35 +6035,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_cbrt.c picolibc-patched/cmd
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_copysign.c picolibc-patched/cmd/gaston/libm/common/s_copysign.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_copysign.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_copysign.c	2026-04-08 22:31:48
-@@ -6,7 +6,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
-@@ -16,14 +16,14 @@
- <<copysign>>, <<copysignf>>---sign of <[y]>, magnitude of <[x]>
- 
- INDEX
--	copysign
-+        copysign
- INDEX
--	copysignf
-+        copysignf
- 
- SYNOPSIS
--	#include <math.h>
--	double copysign (double <[x]>, double <[y]>);
--	float copysignf (float <[x]>, float <[y]>);
-+        #include <math.h>
-+        double copysign (double <[x]>, double <[y]>);
-+        float copysignf (float <[x]>, float <[y]>);
- 
- DESCRIPTION
- <<copysign>> constructs a number with the magnitude (absolute value)
 @@ -58,11 +58,11 @@
  __float64
  copysign64(__float64 x, __float64 y)
@@ -6229,59 +6055,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_copysign.c picolibc-patched
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_exp10.c picolibc-patched/cmd/gaston/libm/common/s_exp10.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_exp10.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_exp10.c	2026-04-08 22:31:48
-@@ -14,34 +14,34 @@
- 
- /*
- FUNCTION
--	<<exp10>>, <<exp10f>>---exponential, base 10
-+        <<exp10>>, <<exp10f>>---exponential, base 10
- INDEX
--	exp10
-+        exp10
- INDEX
--	exp10f
-+        exp10f
- 
- SYNOPSIS
--	#include <math.h>
--	double exp10(double <[x]>);
--	float exp10f(float <[x]>);
-+        #include <math.h>
-+        double exp10(double <[x]>);
-+        float exp10f(float <[x]>);
- 
- DESCRIPTION
--	<<exp10>> and <<exp10f>> calculate 10 ^ <[x]>, that is, 
--	@ifnottex
--	10 raised to the power <[x]>.
--	@end ifnottex
--	@tex
--	$10^x$
--	@end tex
-+        <<exp10>> and <<exp10f>> calculate 10 ^ <[x]>, that is,
-+        @ifnottex
-+        10 raised to the power <[x]>.
-+        @end ifnottex
-+        @tex
-+        $10^x$
-+        @end tex
- 
- RETURNS
--	On success, <<exp10>> and <<exp10f>> return the calculated value.
--	If the result underflows, the returned value is <<0>>.  If the
--	result overflows, the returned value is <<HUGE_VAL>>.  In
--	either case, <<errno>> is set to <<ERANGE>>.
-+        On success, <<exp10>> and <<exp10f>> return the calculated value.
-+        If the result underflows, the returned value is <<0>>.  If the
-+        result overflows, the returned value is <<HUGE_VAL>>.  In
-+        either case, <<errno>> is set to <<ERANGE>>.
- 
- PORTABILITY
--	<<exp10>> and <<exp10f>> are GNU extensions.
-+        <<exp10>> and <<exp10f>> are GNU extensions.
- 
- */
- 
 @@ -49,6 +49,7 @@
   * wrapper exp10(x)
   */
@@ -6305,161 +6078,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_exp10.c picolibc-patched/cm
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_expm1.c picolibc-patched/cmd/gaston/libm/common/s_expm1.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_expm1.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_expm1.c	2026-04-08 22:31:48
-@@ -6,44 +6,44 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
- 
- /*
- FUNCTION
--	<<expm1>>, <<expm1f>>---exponential minus 1
-+        <<expm1>>, <<expm1f>>---exponential minus 1
- INDEX
--	expm1
-+        expm1
- INDEX
--	expm1f
-+        expm1f
- 
- SYNOPSIS
--	#include <math.h>
--	double expm1(double <[x]>);
--	float expm1f(float <[x]>);
-+        #include <math.h>
-+        double expm1(double <[x]>);
-+        float expm1f(float <[x]>);
- 
- DESCRIPTION
--	<<expm1>> and <<expm1f>> calculate the exponential of <[x]>
--	and subtract 1, that is,
--	@ifnottex
--	e raised to the power <[x]> minus 1 (where e
--	@end ifnottex
--	@tex
--	$e^x - 1$ (where $e$
--	@end tex
--	is the base of the natural system of logarithms, approximately
--	2.71828).  The result is accurate even for small values of
--	<[x]>, where using <<exp(<[x]>)-1>> would lose many
--	significant digits.
-+        <<expm1>> and <<expm1f>> calculate the exponential of <[x]>
-+        and subtract 1, that is,
-+        @ifnottex
-+        e raised to the power <[x]> minus 1 (where e
-+        @end ifnottex
-+        @tex
-+        $e^x - 1$ (where $e$
-+        @end tex
-+        is the base of the natural system of logarithms, approximately
-+        2.71828).  The result is accurate even for small values of
-+        <[x]>, where using <<exp(<[x]>)-1>> would lose many
-+        significant digits.
- 
- RETURNS
--	e raised to the power <[x]>, minus 1.
-+        e raised to the power <[x]>, minus 1.
- 
- PORTABILITY
--	Neither <<expm1>> nor <<expm1f>> is required by ANSI C or by
--	the System V Interface Definition (Issue 2).
-+        Neither <<expm1>> nor <<expm1f>> is required by ANSI C or by
-+        the System V Interface Definition (Issue 2).
- */
- 
- /* expm1(x)
-@@ -53,9 +53,9 @@
-  *   1. Argument reduction:
-  *	Given x, find r and integer k such that
-  *
-- *               x = k*ln2 + r,  |r| <= 0.5*ln2 ~ 0.34658  
-+ *               x = k*ln2 + r,  |r| <= 0.5*ln2 ~ 0.34658
-  *
-- *      Here a correction term c will be computed to compensate 
-+ *      Here a correction term c will be computed to compensate
-  *	the error in r when rounded to a floating-point number.
-  *
-  *   2. Approximating expm1(r) by a special rational function on
-@@ -68,9 +68,9 @@
-  *	    R1(r**2) = 6/r *((exp(r)+1)/(exp(r)-1) - 2/r)
-  *		     = 6/r * ( 1 + 2.0*(1/(exp(r)-1) - 1/r))
-  *		     = 1 - r^2/60 + r^4/2520 - r^6/100800 + ...
-- *      We use a special Remez algorithm on [0,0.347] to generate 
-- * 	a polynomial of degree 5 in r*r to approximate R1. The 
-- *	maximum error of this polynomial approximation is bounded 
-+ *      We use a special Remez algorithm on [0,0.347] to generate
-+ * 	a polynomial of degree 5 in r*r to approximate R1. The
-+ *	maximum error of this polynomial approximation is bounded
-  *	by 2**-61. In other words,
-  *	    R1(z) ~ 1.0 + Q1*z + Q2*z**2 + Q3*z**3 + Q4*z**4 + Q5*z**5
-  *	where 	Q1  =  -1.6666666666666567384E-2,
-@@ -81,28 +81,28 @@
-  *  	(where z=r*r, and the values of Q1 to Q5 are listed below)
-  *	with error bounded by
-  *	    |                  5           |     -61
-- *	    | 1.0+Q1*z+...+Q5*z   -  R1(z) | <= 2 
-+ *	    | 1.0+Q1*z+...+Q5*z   -  R1(z) | <= 2
-  *	    |                              |
-- *	
-- *	expm1(r) = exp(r)-1 is then computed by the following 
-- * 	specific way which minimize the accumulation rounding error: 
-+ *
-+ *	expm1(r) = exp(r)-1 is then computed by the following
-+ * 	specific way which minimize the accumulation rounding error:
-  *			       2     3
-  *			      r     r    [ 3 - (R1 + R1*r/2)  ]
-  *	      expm1(r) = r + --- + --- * [--------------------]
-  *		              2     2    [ 6 - r*(3 - R1*r/2) ]
-- *	
-+ *
-  *	To compensate the error in the argument reduction, we use
-- *		expm1(r+c) = expm1(r) + c + expm1(r)*c 
-- *			   ~ expm1(r) + c + r*c 
-+ *		expm1(r+c) = expm1(r) + c + expm1(r)*c
-+ *			   ~ expm1(r) + c + r*c
-  *	Thus c+r*c will be added in as the correction terms for
-- *	expm1(r+c). Now rearrange the term to avoid optimization 
-+ *	expm1(r+c). Now rearrange the term to avoid optimization
-  * 	screw up:
-  *		        (      2                                    2 )
-  *		        ({  ( r    [ R1 -  (3 - R1*r/2) ]  )  }    r  )
-  *	 expm1(r+c)~r - ({r*(--- * [--------------------]-c)-c} - --- )
-  *	                ({  ( 2    [ 6 - r*(3 - R1*r/2) ]  )  }    2  )
-  *                      (                                             )
-- *    	
-+ *
-  *		   = r - E
-  *   3. Scale back to obtain expm1(x):
-  *	From step 1, we have
-@@ -119,7 +119,7 @@
-  *	       	       else	     return  1.0+2.0*(r-E);
-  *	  (v)   if (k<-2||k>56) return 2^k(1-(E-r)) - 1 (or exp(x)-1)
-  *	  (vi)  if k <= 20, return 2^k((1-2^-k)-(E-r)), else
-- *	  (vii) return 2^k(1-((E+2^-k)-r)) 
-+ *	  (vii) return 2^k(1-((E+2^-k)-r))
-  *
-  * Special cases:
-  *	expm1(INF) is INF, expm1(NaN) is NaN;
-@@ -131,12 +131,12 @@
-  *	1 ulp (unit in the last place).
-  *
-  * Misc. info.
-- *	For IEEE double 
-+ *	For IEEE double
-  *	    if x >  7.09782712893383973096e+02 then expm1(x) overflow
-  *
-  * Constants:
-- * The hexadecimal values are the intended ones for the following 
-- * constants. The decimal values may be used, provided that the 
-+ * The hexadecimal values are the intended ones for the following
-+ * constants. The decimal values may be used, provided that the
-  * compiler will convert from decimal to binary accurately enough
-  * to produce the hexadecimal values shown.
-  */
 @@ -146,112 +146,120 @@
  
  #ifdef _NEED_FLOAT64
@@ -6678,41 +6296,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_expm1.c picolibc-patched/cm
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_fdim.c picolibc-patched/cmd/gaston/libm/common/s_fdim.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_fdim.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_fdim.c	2026-04-08 22:31:48
-@@ -7,25 +7,25 @@
- FUNCTION
- <<fdim>>, <<fdimf>>---positive difference
- INDEX
--	fdim
-+        fdim
- INDEX
--	fdimf
-+        fdimf
- 
- SYNOPSIS
--	#include <math.h>
--	double fdim(double <[x]>, double <[y]>);
--	float fdimf(float <[x]>, float <[y]>);
-+        #include <math.h>
-+        double fdim(double <[x]>, double <[y]>);
-+        float fdimf(float <[x]>, float <[y]>);
- 
- DESCRIPTION
- The <<fdim>> functions determine the positive difference between their
- arguments, returning:
- .	<[x]> - <[y]>	if <[x]> > <[y]>, or
--	@ifnottex
-+        @ifnottex
- .	+0	if <[x]> <= <[y]>, or
--	@end ifnottex
--	@tex
-+        @end ifnottex
-+        @tex
- .	+0	if <[x]> $\leq$ <[y]>, or
--	@end tex
-+        @end tex
- .	NAN	if either argument is NAN.
- A range error may occur.
- 
 @@ -44,12 +44,13 @@
  __float64
  fdim64(__float64 x, __float64 y)
@@ -6735,15 +6318,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_fdim.c picolibc-patched/cmd
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_finite.c picolibc-patched/cmd/gaston/libm/common/s_finite.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_finite.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_finite.c	2026-04-08 22:31:48
-@@ -6,7 +6,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
 @@ -23,27 +23,21 @@
  int
  finite64(__float64 x)
@@ -6782,26 +6356,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_finite.c picolibc-patched/c
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_fma.c picolibc-patched/cmd/gaston/libm/common/s_fma.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_fma.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_fma.c	2026-04-08 22:31:48
-@@ -8,14 +8,14 @@
- FUNCTION
- <<fma>>, <<fmaf>>---floating multiply add
- INDEX
--	fma
-+        fma
- INDEX
--	fmaf
-+        fmaf
- 
- SYNOPSIS
--	#include <math.h>
--	double fma(double <[x]>, double <[y]>, double <[z]>);
--	float fmaf(float <[x]>, float <[y]>, float <[z]>);
-+        #include <math.h>
-+        double fma(double <[x]>, double <[y]>, double <[z]>);
-+        float fmaf(float <[x]>, float <[y]>, float <[z]>);
- 
- DESCRIPTION
- The <<fma>> functions compute (<[x]> * <[y]>) + <[z]>, rounded as one ternary
 @@ -44,34 +44,34 @@
  
  #include "fdlibm.h"
@@ -6862,58 +6416,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_fma.c picolibc-patched/cmd/
  #endif
  
  #include "fma_inc.h"
-@@ -97,4 +97,4 @@
- 
- #endif /* _NEED_FLOAT64 */
- 
--#endif /* !_HAVE_FAST_FMA */
-+#endif /* !__HAVE_FAST_FMA */
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_fmax.c picolibc-patched/cmd/gaston/libm/common/s_fmax.c
---- picolibc-pristine/cmd/gaston/libm/common/s_fmax.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/s_fmax.c	2026-04-08 22:31:48
-@@ -7,14 +7,14 @@
- FUNCTION
- <<fmax>>, <<fmaxf>>---maximum
- INDEX
--	fmax
-+        fmax
- INDEX
--	fmaxf
-+        fmaxf
- 
- SYNOPSIS
--	#include <math.h>
--	double fmax(double <[x]>, double <[y]>);
--	float fmaxf(float <[x]>, float <[y]>);
-+        #include <math.h>
-+        double fmax(double <[x]>, double <[y]>);
-+        float fmaxf(float <[x]>, float <[y]>);
- 
- DESCRIPTION
- The <<fmax>> functions determine the maximum numeric value of their arguments.
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_fmin.c picolibc-patched/cmd/gaston/libm/common/s_fmin.c
---- picolibc-pristine/cmd/gaston/libm/common/s_fmin.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/s_fmin.c	2026-04-08 22:31:48
-@@ -7,14 +7,14 @@
- FUNCTION
- <<fmin>>, <<fminf>>---minimum
- INDEX
--	fmin
-+        fmin
- INDEX
--	fminf
-+        fminf
- 
- SYNOPSIS
--	#include <math.h>
--	double fmin(double <[x]>, double <[y]>);
--	float fminf(float <[x]>, float <[y]>);
-+        #include <math.h>
-+        double fmin(double <[x]>, double <[y]>);
-+        float fminf(float <[x]>, float <[y]>);
- 
- DESCRIPTION
- The <<fmin>> functions determine the minimum numeric value of their arguments.
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_fpclassify.c picolibc-patched/cmd/gaston/libm/common/s_fpclassify.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_fpclassify.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_fpclassify.c	2026-04-08 22:31:48
@@ -6977,46 +6479,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_getpayload.c picolibc-patch
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_ilogb.c picolibc-patched/cmd/gaston/libm/common/s_ilogb.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_ilogb.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_ilogb.c	2026-04-08 22:31:48
-@@ -6,7 +6,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
-@@ -15,22 +15,22 @@
- FUNCTION
-        <<ilogb>>, <<ilogbf>>---get exponent of floating-point number
- INDEX
--	ilogb
-+        ilogb
- INDEX
--	ilogbf
-+        ilogbf
- 
- SYNOPSIS
--	#include <math.h>
-+        #include <math.h>
-         int ilogb(double <[val]>);
-         int ilogbf(float <[val]>);
- 
- DESCRIPTION
- 
--	All nonzero, normal numbers can be described as <[m]> *
--	2**<[p]>.  <<ilogb>> and <<ilogbf>> examine the argument
--	<[val]>, and return <[p]>.  The functions <<frexp>> and
--	<<frexpf>> are similar to <<ilogb>> and <<ilogbf>>, but also
--	return <[m]>.
-+        All nonzero, normal numbers can be described as <[m]> *
-+        2**<[p]>.  <<ilogb>> and <<ilogbf>> examine the argument
-+        <[val]>, and return <[p]>.  The functions <<frexp>> and
-+        <<frexpf>> are similar to <<ilogb>> and <<ilogbf>>, but also
-+        return <[m]>.
- 
- RETURNS
- 
 @@ -68,33 +68,35 @@
  int
  ilogb64(__float64 x)
@@ -7080,56 +6542,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_ilogb.c picolibc-patched/cm
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_infinity.c picolibc-patched/cmd/gaston/libm/common/s_infinity.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_infinity.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_infinity.c	2026-04-08 22:31:48
-@@ -3,7 +3,7 @@
- 
- Developed at SunPro, a Sun Microsystems, Inc. business.
- Permission to use, copy, modify, and distribute this
--software is freely granted, provided that this notice 
-+software is freely granted, provided that this notice
- is preserved.
-  */
- /*
-@@ -13,22 +13,22 @@
- 
- /*
- FUNCTION
--	<<infinity>>, <<infinityf>>---representation of infinity
-+        <<infinity>>, <<infinityf>>---representation of infinity
- 
- INDEX
--	infinity
-+        infinity
- INDEX
--	infinityf
-+        infinityf
- 
- SYNOPSIS
--	#include <math.h>
--	double infinity(void);
--	float infinityf(void);
-+        #include <math.h>
-+        double infinity(void);
-+        float infinityf(void);
- 
- DESCRIPTION
--	<<infinity>> and <<infinityf>> return the special number IEEE
--	infinity in double- and single-precision arithmetic
--	respectively.
-+        <<infinity>> and <<infinityf>> return the special number IEEE
-+        infinity in double- and single-precision arithmetic
-+        respectively.
- 
- PORTABILITY
- <<infinity>> and <<infinityf>> are neither standard C nor POSIX.  C and
-@@ -38,7 +38,7 @@
- infinities.
- 
- QUICKREF
--	infinity - pure
-+        infinity - pure
- 
- */
- 
 @@ -49,10 +49,10 @@
  __float64
  infinity64(void)
@@ -7147,15 +6559,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_infinity.c picolibc-patched
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_isinf.c picolibc-patched/cmd/gaston/libm/common/s_isinf.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_isinf.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_isinf.c	2026-04-08 22:31:48
-@@ -3,7 +3,7 @@
- 
- Developed at SunPro, a Sun Microsystems, Inc. business.
- Permission to use, copy, modify, and distribute this
--software is freely granted, provided that this notice 
-+software is freely granted, provided that this notice
- is preserved.
-  */
- /*
 @@ -16,24 +16,37 @@
   * chooses to use it instead of the C99 macro.
   */
@@ -7426,30 +6829,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_isnan.c picolibc-patched/cm
  RETURNS
  @comment Formatting note:  "$@" forces a new line
  The fpclassify macro returns the value corresponding to the appropriate FP_ macro.@*
-@@ -161,17 +163,17 @@
- the macro was standardized in POSIX.1-2001.
- 
- QUICKREF
--	isnan - pure
-+        isnan - pure
- QUICKREF
--	isinf - pure
-+        isinf - pure
- QUICKREF
--	finite - pure
-+        finite - pure
- QUICKREF
--	isnan - pure
-+        isnan - pure
- QUICKREF
--	isinf - pure
-+        isinf - pure
- QUICKREF
--	finite - pure
-+        finite - pure
- */
- 
- /*
 @@ -185,24 +187,37 @@
   * <math.h> for compatibility.
   */
@@ -7610,30 +6989,9 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_isnand.c picolibc-patched/c
 -_MATH_ALIAS_i_d(__isnan)
 -
 -#endif /* _NEED_FLOAT64 */
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_issignaling.c picolibc-patched/cmd/gaston/libm/common/s_issignaling.c
---- picolibc-pristine/cmd/gaston/libm/common/s_issignaling.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/s_issignaling.c	2026-04-08 22:31:48
-@@ -40,7 +40,7 @@
- int
- __issignaling64(__float64 x)
- {
--	return issignaling64_inline(x);
-+    return issignaling64_inline(x);
- }
- 
- _MATH_ALIAS_i_d(__issignaling)
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_llrint.c picolibc-patched/cmd/gaston/libm/common/s_llrint.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_llrint.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_llrint.c	2026-04-08 22:31:48
-@@ -6,7 +6,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
 @@ -27,93 +27,85 @@
  #ifdef _NEED_FLOAT64
  
@@ -7801,15 +7159,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_llrint.c picolibc-patched/c
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_llround.c picolibc-patched/cmd/gaston/libm/common/s_llround.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_llround.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_llround.c	2026-04-08 22:31:48
-@@ -5,7 +5,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
 @@ -18,77 +18,67 @@
  long long int
  llround64(__float64 x)
@@ -7945,112 +7294,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_llround.c picolibc-patched/
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_log1p.c picolibc-patched/cmd/gaston/libm/common/s_log1p.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_log1p.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_log1p.c	2026-04-08 22:31:48
-@@ -6,7 +6,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
-@@ -16,19 +16,19 @@
- <<log1p>>, <<log1pf>>---log of <<1 + <[x]>>>
- 
- INDEX
--	log1p
-+        log1p
- INDEX
--	log1pf
-+        log1pf
- 
- SYNOPSIS
--	#include <math.h>
--	double log1p(double <[x]>);
--	float log1pf(float <[x]>);
-+        #include <math.h>
-+        double log1p(double <[x]>);
-+        float log1pf(float <[x]>);
- 
- DESCRIPTION
--<<log1p>> calculates 
-+<<log1p>> calculates
- @tex
--$ln(1+x)$, 
-+$ln(1+x)$,
- @end tex
- the natural logarithm of <<1+<[x]>>>.  You can use <<log1p>> rather
- than `<<log(1+<[x]>)>>' for greater precision when <[x]> is very
-@@ -49,9 +49,9 @@
- 
- /* double log1p(double x)
-  *
-- * Method :                  
-- *   1. Argument Reduction: find k and f such that 
-- *			1+x = 2^k * (1+f), 
-+ * Method :
-+ *   1. Argument Reduction: find k and f such that
-+ *			1+x = 2^k * (1+f),
-  *	   where  sqrt(2)/2 < 1+f < sqrt(2) .
-  *
-  *      Note. If k=0, then f=x is exact. However, if k!=0, then f
-@@ -65,8 +65,8 @@
-  *	Let s = f/(2+f) ; based on log(1+f) = log(1+s) - log(1-s)
-  *		 = 2s + 2/3 s**3 + 2/5 s**5 + .....,
-  *	     	 = 2s + s*R
-- *      We use a special Remez algorithm on [0,0.1716] to generate 
-- * 	a polynomial of degree 14 to approximate R The maximum error 
-+ *      We use a special Remez algorithm on [0,0.1716] to generate
-+ * 	a polynomial of degree 14 to approximate R The maximum error
-  *	of this polynomial approximation is bounded by 2**-58.45. In
-  *	other words,
-  *		        2      4      6      8      10      12      14
-@@ -74,21 +74,21 @@
-  *  	(the values of Lp1 to Lp7 are listed in the program)
-  *	and
-  *	    |      2          14          |     -58.45
-- *	    | Lp1*s +...+Lp7*s    -  R(z) | <= 2 
-+ *	    | Lp1*s +...+Lp7*s    -  R(z) | <= 2
-  *	    |                             |
-  *	Note that 2s = f - s*f = f - hfsq + s*hfsq, where hfsq = f*f/2.
-  *	In order to guarantee error in log below 1ulp, we compute log
-  *	by
-  *		log1p(f) = f - (hfsq - s*(hfsq+R)).
-- *	
-- *	3. Finally, log1p(x) = k*ln2 + log1p(f).  
-+ *
-+ *	3. Finally, log1p(x) = k*ln2 + log1p(f).
-  *		 	     = k*ln2_hi+(f-(hfsq-(s*(hfsq+R)+k*ln2_lo)))
-- *	   Here ln2 is split into two floating point number: 
-+ *	   Here ln2 is split into two floating point number:
-  *			ln2_hi + ln2_lo,
-  *	   where n*ln2_hi is always exact for |n| < 2000.
-  *
-  * Special cases:
-- *	log1p(x) is NaN with signal if x < -1 (including -INF) ; 
-+ *	log1p(x) is NaN with signal if x < -1 (including -INF) ;
-  *	log1p(+INF) is +INF; log1p(-1) is -INF with signal;
-  *	log1p(NaN) is that NaN with no signal.
-  *
-@@ -97,14 +97,14 @@
-  *	1 ulp (unit in the last place).
-  *
-  * Constants:
-- * The hexadecimal values are the intended ones for the following 
-- * constants. The decimal values may be used, provided that the 
-- * compiler will convert from decimal to binary accurately enough 
-+ * The hexadecimal values are the intended ones for the following
-+ * constants. The decimal values may be used, provided that the
-+ * compiler will convert from decimal to binary accurately enough
-  * to produce the hexadecimal values shown.
-  *
-  * Note: Assuming log() return accurate answer, the following
-  * 	 algorithm can be used to compute log1p(x) to within a few ULP:
-- *	
-+ *
-  *		u = 1+x;
-  *		if(u==1.0) return x ; else
-  *			   return log(u)*(x/(u-1.0));
 @@ -117,84 +117,95 @@
  
  #ifdef _NEED_FLOAT64
@@ -8220,29 +7463,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_log1p.c picolibc-patched/cm
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_log2.c picolibc-patched/cmd/gaston/libm/common/s_log2.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_log2.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_log2.c	2026-04-08 22:31:48
-@@ -14,16 +14,16 @@
- 
- /*
- FUNCTION
--	<<log2>>, <<log2f>>---base 2 logarithm
-+        <<log2>>, <<log2f>>---base 2 logarithm
- INDEX
--	log2
-+        log2
- INDEX
--	log2f
-+        log2f
- 
- SYNOPSIS
--	#include <math.h>
--	double log2(double <[x]>);
--	float log2f(float <[x]>);
-+        #include <math.h>
-+        double log2(double <[x]>);
-+        float log2f(float <[x]>);
- 
- DESCRIPTION
- The <<log2>> functions compute the base-2 logarithm of <[x]>.  A domain error
 @@ -69,7 +69,7 @@
  #ifdef _NEED_FLOAT64
  
@@ -8255,31 +7475,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_log2.c picolibc-patched/cmd
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_logb.c picolibc-patched/cmd/gaston/libm/common/s_logb.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_logb.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_logb.c	2026-04-08 22:31:48
-@@ -6,7 +6,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
-@@ -14,12 +14,12 @@
- FUNCTION
-        <<logb>>, <<logbf>>---get exponent of floating-point number
- INDEX
--	logb
-+        logb
- INDEX
--	logbf
-+        logbf
- 
- SYNOPSIS
--	#include <math.h>
-+        #include <math.h>
-         double logb(double <[x]>);
-         float logbf(float <[x]>);
- 
 @@ -78,26 +78,29 @@
  __float64
  logb64(__float64 x)
@@ -8332,45 +7527,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_logb.c picolibc-patched/cmd
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_lrint.c picolibc-patched/cmd/gaston/libm/common/s_lrint.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_lrint.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_lrint.c	2026-04-08 22:31:48
-@@ -6,7 +6,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
-@@ -14,20 +14,20 @@
- FUNCTION
- <<lrint>>, <<lrintf>>, <<llrint>>, <<llrintf>>---round to integer
- INDEX
--	lrint
-+        lrint
- INDEX
--	lrintf
-+        lrintf
- INDEX
--	llrint
-+        llrint
- INDEX
--	llrintf
-+        llrintf
- 
- SYNOPSIS
--	#include <math.h>
--	long int lrint(double <[x]>);
--	long int lrintf(float <[x]>);
--	long long int llrint(double <[x]>);
--	long long int llrintf(float <[x]>);
-+        #include <math.h>
-+        long int lrint(double <[x]>);
-+        long int lrintf(float <[x]>);
-+        long long int llrint(double <[x]>);
-+        long long int llrintf(float <[x]>);
- 
- DESCRIPTION
- The <<lrint>> and <<llrint>> functions round their argument to the nearest
 @@ -66,108 +66,100 @@
  
  static const __float64
@@ -8566,59 +7722,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_lrint.c picolibc-patched/cm
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_lround.c picolibc-patched/cmd/gaston/libm/common/s_lround.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_lround.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_lround.c	2026-04-08 22:31:48
-@@ -4,7 +4,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
-@@ -12,28 +12,28 @@
- FUNCTION
- <<lround>>, <<lroundf>>, <<llround>>, <<llroundf>>---round to integer, to nearest
- INDEX
--	lround
-+        lround
- INDEX
--	lroundf
-+        lroundf
- INDEX
--	llround
-+        llround
- INDEX
--	llroundf
-+        llroundf
- 
- SYNOPSIS
--	#include <math.h>
--	long int lround(double <[x]>);
--	long int lroundf(float <[x]>);
--	long long int llround(double <[x]>);
--	long long int llroundf(float <[x]>);
-+        #include <math.h>
-+        long int lround(double <[x]>);
-+        long int lroundf(float <[x]>);
-+        long long int llround(double <[x]>);
-+        long long int llroundf(float <[x]>);
- 
- DESCRIPTION
--	The <<lround>> and <<llround>> functions round their argument to the
--	nearest integer value, rounding halfway cases away from zero, regardless
--	of the current rounding direction.  If the rounded value is outside the
--	range of the return type, the numeric result is unspecified (depending
--	upon the floating-point implementation, not the library).  A range
--	error may occur if the magnitude of x is too large.
-+        The <<lround>> and <<llround>> functions round their argument to the
-+        nearest integer value, rounding halfway cases away from zero, regardless
-+        of the current rounding direction.  If the rounded value is outside the
-+        range of the return type, the numeric result is unspecified (depending
-+        upon the floating-point implementation, not the library).  A range
-+        error may occur if the magnitude of x is too large.
- 
- RETURNS
- <[x]> rounded to an integral value as an integer.
 @@ -55,84 +55,74 @@
  long int
  lround64(__float64 x)
@@ -8767,76 +7870,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_lround.c picolibc-patched/c
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_modf.c picolibc-patched/cmd/gaston/libm/common/s_modf.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_modf.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_modf.c	2026-04-08 22:31:48
-@@ -6,7 +6,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
-@@ -16,41 +16,41 @@
-        <<modf>>, <<modff>>---split fractional and integer parts
- 
- INDEX
--	modf
-+        modf
- INDEX
--	modff
-+        modff
- 
- SYNOPSIS
--	#include <math.h>
--	double modf(double <[val]>, double *<[ipart]>);
-+        #include <math.h>
-+        double modf(double <[val]>, double *<[ipart]>);
-         float modff(float <[val]>, float *<[ipart]>);
- 
- DESCRIPTION
--	<<modf>> splits the double <[val]> apart into an integer part
--	and a fractional part, returning the fractional part and
--	storing the integer part in <<*<[ipart]>>>.  No rounding
--	whatsoever is done; the sum of the integer and fractional
--	parts is guaranteed to be exactly  equal to <[val]>.   That
--	is, if <[realpart]> = modf(<[val]>, &<[intpart]>); then
--	`<<<[realpart]>+<[intpart]>>>' is the same as <[val]>.
--	<<modff>> is identical, save that it takes and returns
--	<<float>> rather than <<double>> values. 
-+        <<modf>> splits the double <[val]> apart into an integer part
-+        and a fractional part, returning the fractional part and
-+        storing the integer part in <<*<[ipart]>>>.  No rounding
-+        whatsoever is done; the sum of the integer and fractional
-+        parts is guaranteed to be exactly  equal to <[val]>.   That
-+        is, if <[realpart]> = modf(<[val]>, &<[intpart]>); then
-+        `<<<[realpart]>+<[intpart]>>>' is the same as <[val]>.
-+        <<modff>> is identical, save that it takes and returns
-+        <<float>> rather than <<double>> values.
- 
- RETURNS
--	The fractional part is returned.  Each result has the same
--	sign as the supplied argument <[val]>.
-+        The fractional part is returned.  Each result has the same
-+        sign as the supplied argument <[val]>.
- 
- PORTABILITY
--	<<modf>> is ANSI C. <<modff>> is an extension.
-+        <<modf>> is ANSI C. <<modff>> is an extension.
- 
- QUICKREF
--	modf  ansi pure 
--	modff - pure
-+        modf  ansi pure
-+        modff - pure
- 
- */
- 
- /*
-- * modf(double x, double *iptr) 
-+ * modf(double x, double *iptr)
-  * return fraction part of x, and return x's integral part in *iptr.
-  * Method:
-  *	Bit twiddling.
 @@ -66,41 +66,42 @@
  __float64
  modf64(__float64 x, __float64 *iptr)
@@ -8918,52 +7951,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_modf.c picolibc-patched/cmd
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_nan.c picolibc-patched/cmd/gaston/libm/common/s_nan.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_nan.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_nan.c	2026-04-08 22:31:48
-@@ -3,7 +3,7 @@
- 
- Developed at SunPro, a Sun Microsystems, Inc. business.
- Permission to use, copy, modify, and distribute this
--software is freely granted, provided that this notice 
-+software is freely granted, provided that this notice
- is preserved.
-  */
- /*
-@@ -13,26 +13,26 @@
- 
- /*
- FUNCTION
--	<<nan>>, <<nanf>>---representation of ``Not a Number''
-+        <<nan>>, <<nanf>>---representation of ``Not a Number''
- 
- INDEX
--	nan
-+        nan
- INDEX
--	nanf
-+        nanf
- 
- SYNOPSIS
--	#include <math.h>
--	double nan(const char *<[unused]>);
--	float nanf(const char *<[unused]>);
-+        #include <math.h>
-+        double nan(const char *<[unused]>);
-+        float nanf(const char *<[unused]>);
- 
- 
- DESCRIPTION
--	<<nan>> and <<nanf>> return an IEEE NaN (Not a Number) in
--	double- and single-precision arithmetic respectively.  The
--	argument is currently disregarded.
-+        <<nan>> and <<nanf>> return an IEEE NaN (Not a Number) in
-+        double- and single-precision arithmetic respectively.  The
-+        argument is currently disregarded.
- 
- QUICKREF
--	nan - pure
-+        nan - pure
- 
- */
- 
 @@ -43,15 +43,15 @@
  __float64
  nan64(const char *unused)
@@ -8989,26 +7976,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_nan.c picolibc-patched/cmd/
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_nearbyint.c picolibc-patched/cmd/gaston/libm/common/s_nearbyint.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_nearbyint.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_nearbyint.c	2026-04-08 22:31:48
-@@ -12,14 +12,14 @@
- FUNCTION
- <<nearbyint>>, <<nearbyintf>>---round to integer
- INDEX
--	nearbyint
-+        nearbyint
- INDEX
--	nearbyintf
-+        nearbyintf
- 
- SYNOPSIS
--	#include <math.h>
--	double nearbyint(double <[x]>);
--	float nearbyintf(float <[x]>);
-+        #include <math.h>
-+        double nearbyint(double <[x]>);
-+        float nearbyintf(float <[x]>);
- 
- DESCRIPTION
- The <<nearbyint>> functions round their argument to an integer value in
 @@ -46,6 +46,7 @@
  <<rint>>, <<round>>
  */
@@ -9039,38 +8006,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_nearbyint.c picolibc-patche
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_nextafter.c picolibc-patched/cmd/gaston/libm/common/s_nextafter.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_nextafter.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_nextafter.c	2026-04-08 22:31:48
-@@ -6,7 +6,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
-@@ -16,9 +16,9 @@
-        <<nextafter>>, <<nextafterf>>---get next number
- 
- INDEX
--	nextafter
-+        nextafter
- INDEX
--	nextafterf
-+        nextafterf
- 
- SYNOPSIS
-        #include <math.h>
-@@ -37,8 +37,8 @@
- <[dir]>.
- 
- PORTABILITY
--	Neither <<nextafter>> nor <<nextafterf>> is required by ANSI C
--	or by the System V Interface Definition (Issue 2).
-+        Neither <<nextafter>> nor <<nextafterf>> is required by ANSI C
-+        or by the System V Interface Definition (Issue 2).
- */
- 
- /* IEEE functions
 @@ -55,47 +55,52 @@
  __float64
  nextafter64(__float64 x, __float64 y)
@@ -9242,35 +8177,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_pow10.c picolibc-patched/cm
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_remquo.c picolibc-patched/cmd/gaston/libm/common/s_remquo.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_remquo.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_remquo.c	2026-04-08 22:31:48
-@@ -7,7 +7,7 @@
-  *
-  * Developed at SunSoft, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
-@@ -15,14 +15,14 @@
- FUNCTION
- <<remquo>>, <<remquof>>---remainder and part of quotient
- INDEX
--	remquo
-+        remquo
- INDEX
--	remquof
-+        remquof
- 
- SYNOPSIS
--	#include <math.h>
--	double remquo(double <[x]>, double <[y]>, int *<[quo]>);
--	float remquof(float <[x]>, float <[y]>, int *<[quo]>);
-+        #include <math.h>
-+        double remquo(double <[x]>, double <[y]>, int *<[quo]>);
-+        float remquof(float <[x]>, float <[y]>, int *<[quo]>);
- 
- DESCRIPTION
- The <<remquo>> functions compute the same remainder as the <<remainder>>
 @@ -67,12 +67,15 @@
  /* For quotient, return either all 31 bits that can from calculation (using
   * int32_t), or as many as can fit into an int that is smaller than 32 bits.  */
@@ -9558,55 +8464,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_remquo.c picolibc-patched/c
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_rint.c picolibc-patched/cmd/gaston/libm/common/s_rint.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_rint.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_rint.c	2026-04-08 22:31:48
-@@ -6,7 +6,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
-@@ -14,25 +14,25 @@
- FUNCTION
- <<rint>>, <<rintf>>---round to integer
- INDEX
--	rint
-+        rint
- INDEX
--	rintf
-+        rintf
- 
- SYNOPSIS
--	#include <math.h>
--	double rint(double <[x]>);
--	float rintf(float <[x]>);
-+        #include <math.h>
-+        double rint(double <[x]>);
-+        float rintf(float <[x]>);
- 
- DESCRIPTION
--	The <<rint>> functions round their argument to an integer value in
--	floating-point format, using the current rounding direction.  They
--	raise the "inexact" floating-point exception if the result differs
--	in value from the argument.  See the <<nearbyint>> functions for the
--	same function with the "inexact" floating-point exception never being
--	raised.  Newlib does not directly support floating-point exceptions.
--	The <<rint>> functions are written so that the "inexact" exception is
--	raised in hardware implementations that support it, even though Newlib
--	does not provide access.
-+        The <<rint>> functions round their argument to an integer value in
-+        floating-point format, using the current rounding direction.  They
-+        raise the "inexact" floating-point exception if the result differs
-+        in value from the argument.  See the <<nearbyint>> functions for the
-+        same function with the "inexact" floating-point exception never being
-+        raised.  Newlib does not directly support floating-point exceptions.
-+        The <<rint>> functions are written so that the "inexact" exception is
-+        raised in hardware implementations that support it, even though Newlib
-+        does not provide access.
- 
- RETURNS
- <[x]> rounded to an integral value, using the current rounding direction.
 @@ -69,66 +69,68 @@
  
  #ifdef _NEED_FLOAT64
@@ -9733,51 +8590,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_rint.c picolibc-patched/cmd
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_round.c picolibc-patched/cmd/gaston/libm/common/s_round.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_round.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_round.c	2026-04-08 22:31:48
-@@ -4,7 +4,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
-@@ -12,23 +12,23 @@
- FUNCTION
- <<round>>, <<roundf>>---round to integer, to nearest
- INDEX
--	round
-+        round
- INDEX
--	roundf
-+        roundf
- 
- SYNOPSIS
--	#include <math.h>
--	double round(double <[x]>);
--	float roundf(float <[x]>);
-+        #include <math.h>
-+        double round(double <[x]>);
-+        float roundf(float <[x]>);
- 
- DESCRIPTION
--	The <<round>> functions round their argument to the nearest integer
--	value in floating-point format, rounding halfway cases away from zero,
--	regardless of the current rounding direction.  (While the "inexact"
--	floating-point exception behavior is unspecified by the C standard, the
--	<<round>> functions are written so that "inexact" is not raised if the
--	result does not equal the argument, which behavior is as recommended by
--	IEEE 754 for its related functions.)
-+        The <<round>> functions round their argument to the nearest integer
-+        value in floating-point format, rounding halfway cases away from zero,
-+        regardless of the current rounding direction.  (While the "inexact"
-+        floating-point exception behavior is unspecified by the C standard, the
-+        <<round>> functions are written so that "inexact" is not raised if the
-+        result does not equal the argument, which behavior is as recommended by
-+        IEEE 754 for its related functions.)
- 
- RETURNS
- <[x]> rounded to an integral value.
 @@ -48,64 +48,56 @@
  __float64
  round64(__float64 x)
@@ -9958,75 +8770,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_scalbln.c picolibc-patched/
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_scalbn.c picolibc-patched/cmd/gaston/libm/common/s_scalbn.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_scalbn.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_scalbn.c	2026-04-08 22:31:48
-@@ -6,7 +6,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
-@@ -15,29 +15,29 @@
- FUNCTION
- <<scalbn>>, <<scalbnf>>, <<scalbln>>, <<scalblnf>>---scale by power of FLT_RADIX (=2)
- INDEX
--	scalbn
-+        scalbn
- INDEX
--	scalbnf
-+        scalbnf
- INDEX
--	scalbln
-+        scalbln
- INDEX
--	scalblnf
-+        scalblnf
- 
- SYNOPSIS
--	#include <math.h>
--	double scalbn(double <[x]>, int <[n]>);
--	float scalbnf(float <[x]>, int <[n]>);
--	double scalbln(double <[x]>, long int <[n]>);
--	float scalblnf(float <[x]>, long int <[n]>);
-+        #include <math.h>
-+        double scalbn(double <[x]>, int <[n]>);
-+        float scalbnf(float <[x]>, int <[n]>);
-+        double scalbln(double <[x]>, long int <[n]>);
-+        float scalblnf(float <[x]>, long int <[n]>);
- 
- DESCRIPTION
--The <<scalbn>> and <<scalbln>> functions compute 
--	@ifnottex
--	<[x]> times FLT_RADIX to the power <[n]>.
--	@end ifnottex
--	@tex
--	$x \cdot FLT\_RADIX^n$.
--	@end tex
-+The <<scalbn>> and <<scalbln>> functions compute
-+        @ifnottex
-+        <[x]> times FLT_RADIX to the power <[n]>.
-+        @end ifnottex
-+        @tex
-+        $x \cdot FLT\_RADIX^n$.
-+        @end tex
- efficiently.  The result is computed by manipulating the exponent, rather than
- by actually performing an exponentiation or multiplication.  In this
- floating-point implementation FLT_RADIX=2, which makes the <<scalbn>>
-@@ -54,10 +54,10 @@
- 
- */
- 
--/* 
-+/*
-  * scalbn (double x, int n)
-- * scalbn(x,n) returns x* 2**n  computed by  exponent  
-- * manipulation rather than by actually performing an 
-+ * scalbn(x,n) returns x* 2**n  computed by  exponent
-+ * manipulation rather than by actually performing an
-  * exponentiation or a multiplication.
-  */
- 
 @@ -65,43 +65,49 @@
  
  #ifdef _NEED_FLOAT64
@@ -10116,21 +8859,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_scalbn.c picolibc-patched/c
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_signbit.c picolibc-patched/cmd/gaston/libm/common/s_signbit.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_signbit.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_signbit.c	2026-04-08 22:31:48
-@@ -8,11 +8,11 @@
- <<signbit>>---Does floating-point number have negative sign?
- 
- INDEX
--	signbit
-+        signbit
- 
- SYNOPSIS
--	#include <math.h>
--	int signbit(real-floating <[x]>);
-+        #include <math.h>
-+        int signbit(real-floating <[x]>);
- 
- DESCRIPTION
- The <<signbit>> macro determines whether the sign of its argument value is
 @@ -37,27 +37,15 @@
  
  #include "fdlibm.h"
@@ -10165,42 +8893,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_signbit.c picolibc-patched/
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/s_trunc.c picolibc-patched/cmd/gaston/libm/common/s_trunc.c
 --- picolibc-pristine/cmd/gaston/libm/common/s_trunc.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/s_trunc.c	2026-04-08 22:31:48
-@@ -12,23 +12,23 @@
- FUNCTION
- <<trunc>>, <<truncf>>---round to integer, towards zero
- INDEX
--	trunc
-+        trunc
- INDEX
--	truncf
-+        truncf
- 
- SYNOPSIS
--	#include <math.h>
--	double trunc(double <[x]>);
--	float truncf(float <[x]>);
-+        #include <math.h>
-+        double trunc(double <[x]>);
-+        float truncf(float <[x]>);
- 
- DESCRIPTION
--	The <<trunc>> functions round their argument to the integer value, in
--	floating format, nearest to but no larger in magnitude than the
--	argument, regardless of the current rounding direction.  (While the
--	"inexact" floating-point exception behavior is unspecified by the C
--	standard, the <<trunc>> functions are written so that "inexact" is not
--	raised if the result does not equal the argument, which behavior is as
--	recommended by IEEE 754 for its related functions.)
-+        The <<trunc>> functions round their argument to the integer value, in
-+        floating format, nearest to but no larger in magnitude than the
-+        argument, regardless of the current rounding direction.  (While the
-+        "inexact" floating-point exception behavior is unspecified by the C
-+        standard, the <<trunc>> functions are written so that "inexact" is not
-+        raised if the result does not equal the argument, which behavior is as
-+        recommended by IEEE 754 for its related functions.)
- 
- RETURNS
- <[x]> truncated to an integral value.
 @@ -47,7 +47,7 @@
  {
      int64_t ix = _asint64(x);
@@ -10228,15 +8920,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/scalbnl.c picolibc-patched/cm
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_cbrt.c picolibc-patched/cmd/gaston/libm/common/sf_cbrt.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_cbrt.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_cbrt.c	2026-04-08 22:31:48
-@@ -8,7 +8,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  *
 @@ -19,64 +19,63 @@
  /* cbrtf(x)
   * Return cube root of x
@@ -10353,15 +9036,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_cbrt.c picolibc-patched/cm
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_copysign.c picolibc-patched/cmd/gaston/libm/common/sf_copysign.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_copysign.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_copysign.c	2026-04-08 22:31:48
-@@ -8,7 +8,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
 @@ -21,18 +21,14 @@
  
  #include "fdlibm.h"
@@ -10646,15 +9320,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_exp2.c picolibc-patched/cm
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_expm1.c picolibc-patched/cmd/gaston/libm/common/sf_expm1.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_expm1.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_expm1.c	2026-04-08 22:31:48
-@@ -8,7 +8,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
 @@ -20,106 +20,113 @@
  #define const
  #endif
@@ -10889,15 +9554,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_fdim.c picolibc-patched/cm
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_finite.c picolibc-patched/cmd/gaston/libm/common/sf_finite.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_finite.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_finite.c	2026-04-08 22:31:48
-@@ -8,7 +8,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
 @@ -20,21 +20,18 @@
  
  #include "fdlibm.h"
@@ -11078,15 +9734,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_getpayload.c picolibc-patc
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_ilogb.c picolibc-patched/cmd/gaston/libm/common/sf_ilogb.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_ilogb.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_ilogb.c	2026-04-08 22:31:48
-@@ -8,7 +8,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
 @@ -16,31 +16,33 @@
  #include <limits.h>
  #include "fdlibm.h"
@@ -11145,15 +9792,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_ilogb.c picolibc-patched/c
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_infinity.c picolibc-patched/cmd/gaston/libm/common/sf_infinity.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_infinity.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_infinity.c	2026-04-08 22:31:48
-@@ -3,7 +3,7 @@
- 
- Developed at SunPro, a Sun Microsystems, Inc. business.
- Permission to use, copy, modify, and distribute this
--software is freely granted, provided that this notice 
-+software is freely granted, provided that this notice
- is preserved.
-  */
- /*
 @@ -13,12 +13,13 @@
  
  #include "fdlibm.h"
@@ -11175,15 +9813,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_infinity.c picolibc-patche
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_isinf.c picolibc-patched/cmd/gaston/libm/common/sf_isinf.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_isinf.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_isinf.c	2026-04-08 22:31:48
-@@ -3,7 +3,7 @@
- 
- Developed at SunPro, a Sun Microsystems, Inc. business.
- Permission to use, copy, modify, and distribute this
--software is freely granted, provided that this notice 
-+software is freely granted, provided that this notice
- is preserved.
-  */
- /*
 @@ -16,25 +16,29 @@
   */
  
@@ -11258,15 +9887,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_isinff.c picolibc-patched/
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_isnan.c picolibc-patched/cmd/gaston/libm/common/sf_isnan.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_isnan.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_isnan.c	2026-04-08 22:31:48
-@@ -7,7 +7,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
 @@ -18,20 +18,30 @@
   * isnanf is an extension declared in <math.h>.
   */
@@ -11340,30 +9960,9 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_isnanf.c picolibc-patched/
 -}
 -
 -_MATH_ALIAS_i_f(__isnan)
-diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_issignaling.c picolibc-patched/cmd/gaston/libm/common/sf_issignaling.c
---- picolibc-pristine/cmd/gaston/libm/common/sf_issignaling.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/common/sf_issignaling.c	2026-04-08 22:31:48
-@@ -37,7 +37,7 @@
- int
- __issignalingf(float x)
- {
--	return issignalingf_inline(x);
-+    return issignalingf_inline(x);
- }
- 
- _MATH_ALIAS_i_f(__issignaling)
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_llrint.c picolibc-patched/cmd/gaston/libm/common/sf_llrint.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_llrint.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_llrint.c	2026-04-08 22:31:48
-@@ -6,7 +6,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
 @@ -25,60 +25,57 @@
  #include <limits.h>
  
@@ -11472,15 +10071,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_llrint.c picolibc-patched/
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_llround.c picolibc-patched/cmd/gaston/libm/common/sf_llround.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_llround.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_llround.c	2026-04-08 22:31:48
-@@ -5,7 +5,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
 @@ -16,40 +16,36 @@
  long long int
  llroundf(float x)
@@ -11656,15 +10246,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_log.c picolibc-patched/cmd
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_log1p.c picolibc-patched/cmd/gaston/libm/common/sf_log1p.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_log1p.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_log1p.c	2026-04-08 22:31:48
-@@ -8,7 +8,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
 @@ -16,85 +16,96 @@
  #include "fdlibm.h"
  #include "math_config.h"
@@ -11945,15 +10526,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_log2.c picolibc-patched/cm
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_logb.c picolibc-patched/cmd/gaston/libm/common/sf_logb.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_logb.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_logb.c	2026-04-08 22:31:48
-@@ -5,7 +5,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
 @@ -23,21 +23,24 @@
  float
  logbf(float x)
@@ -11996,15 +10568,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_logb.c picolibc-patched/cm
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_lrint.c picolibc-patched/cmd/gaston/libm/common/sf_lrint.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_lrint.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_lrint.c	2026-04-08 22:31:48
-@@ -6,7 +6,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
 @@ -25,59 +25,56 @@
  #include <limits.h>
  
@@ -12110,15 +10673,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_lrint.c picolibc-patched/c
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_lround.c picolibc-patched/cmd/gaston/libm/common/sf_lround.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_lround.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_lround.c	2026-04-08 22:31:48
-@@ -4,7 +4,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
 @@ -12,42 +12,39 @@
  #include "fdlibm.h"
  #include <limits.h>
@@ -12192,15 +10746,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_lround.c picolibc-patched/
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_modf.c picolibc-patched/cmd/gaston/libm/common/sf_modf.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_modf.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_modf.c	2026-04-08 22:31:48
-@@ -8,7 +8,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
 @@ -18,31 +18,32 @@
  float
  modff(float x, float *iptr)
@@ -12262,15 +10807,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_modf.c picolibc-patched/cm
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_nan.c picolibc-patched/cmd/gaston/libm/common/sf_nan.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_nan.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_nan.c	2026-04-08 22:31:48
-@@ -3,7 +3,7 @@
- 
- Developed at SunPro, a Sun Microsystems, Inc. business.
- Permission to use, copy, modify, and distribute this
--software is freely granted, provided that this notice 
-+software is freely granted, provided that this notice
- is preserved.
-  */
- /*
 @@ -13,17 +13,18 @@
  
  #include "fdlibm.h"
@@ -13146,15 +11682,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_rint.c picolibc-patched/cm
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_round.c picolibc-patched/cmd/gaston/libm/common/sf_round.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_round.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_round.c	2026-04-08 22:31:48
-@@ -4,7 +4,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
 @@ -14,45 +14,39 @@
  float
  roundf(float x)
@@ -13309,15 +11836,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_scalbln.c picolibc-patched
 diff -ruN picolibc-pristine/cmd/gaston/libm/common/sf_scalbn.c picolibc-patched/cmd/gaston/libm/common/sf_scalbn.c
 --- picolibc-pristine/cmd/gaston/libm/common/sf_scalbn.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/common/sf_scalbn.c	2026-04-08 22:31:48
-@@ -8,7 +8,7 @@
-  *
-  * Developed at SunPro, a Sun Microsystems, Inc. business.
-  * Permission to use, copy, modify, and distribute this
-- * software is freely granted, provided that this notice 
-+ * software is freely granted, provided that this notice
-  * is preserved.
-  * ====================================================
-  */
 @@ -23,45 +23,50 @@
  #define OVERFLOW_INT 30000
  #endif
@@ -32872,30 +31390,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_asin.c picolibc-patched/cmd/g
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_asinh.c picolibc-patched/cmd/gaston/libm/math/s_asinh.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_asinh.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_asinh.c	2026-04-08 22:31:48
-@@ -13,17 +13,17 @@
- 
- /*
- FUNCTION
--	<<asinh>>, <<asinhf>>---inverse hyperbolic sine
-+        <<asinh>>, <<asinhf>>---inverse hyperbolic sine
- 
- INDEX
--	asinh
-+        asinh
- INDEX
--	asinhf
-+        asinhf
- 
- SYNOPSIS
--	#include <math.h>
--	double asinh(double <[x]>);
--	float asinhf(float <[x]>);
-+        #include <math.h>
-+        double asinh(double <[x]>);
-+        float asinhf(float <[x]>);
- 
- DESCRIPTION
- <<asinh>> calculates the inverse hyperbolic sine of <[x]>.
 @@ -60,9 +60,8 @@
  
  #ifdef _NEED_FLOAT64
@@ -33148,78 +31642,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_cosh.c picolibc-patched/cmd/g
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_erf.c picolibc-patched/cmd/gaston/libm/math/s_erf.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_erf.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_erf.c	2026-04-08 22:31:48
-@@ -15,45 +15,45 @@
- FUNCTION
-         <<erf>>, <<erff>>, <<erfc>>, <<erfcf>>---error function
- INDEX
--	erf
-+        erf
- INDEX
--	erff
-+        erff
- INDEX
--	erfc
-+        erfc
- INDEX
--	erfcf
-+        erfcf
- 
- SYNOPSIS
--	#include <math.h>
--	double erf(double <[x]>);
--	float erff(float <[x]>);
--	double erfc(double <[x]>);
--	float erfcf(float <[x]>);
-+        #include <math.h>
-+        double erf(double <[x]>);
-+        float erff(float <[x]>);
-+        double erfc(double <[x]>);
-+        float erfcf(float <[x]>);
- 
- DESCRIPTION
--	<<erf>> calculates an approximation to the ``error function'',
--	which estimates the probability that an observation will fall within
--	<[x]> standard deviations of the mean (assuming a normal
--	distribution).
--	@tex
--	The error function is defined as
--	$${2\over\sqrt\pi}\times\int_0^x e^{-t^2}dt$$
--	 @end tex
-+        <<erf>> calculates an approximation to the ``error function'',
-+        which estimates the probability that an observation will fall within
-+        <[x]> standard deviations of the mean (assuming a normal
-+        distribution).
-+        @tex
-+        The error function is defined as
-+        $${2\over\sqrt\pi}\times\int_0^x e^{-t^2}dt$$
-+         @end tex
- 
--	<<erfc>> calculates the complementary probability; that is,
--	<<erfc(<[x]>)>> is <<1 - erf(<[x]>)>>.  <<erfc>> is computed directly,
--	so that you can use it to avoid the loss of precision that would
--	result from subtracting large probabilities (on large <[x]>) from 1.
-+        <<erfc>> calculates the complementary probability; that is,
-+        <<erfc(<[x]>)>> is <<1 - erf(<[x]>)>>.  <<erfc>> is computed directly,
-+        so that you can use it to avoid the loss of precision that would
-+        result from subtracting large probabilities (on large <[x]>) from 1.
- 
--	<<erff>> and <<erfcf>> differ from <<erf>> and <<erfc>> only in the
--	argument and result types.
-+        <<erff>> and <<erfcf>> differ from <<erf>> and <<erfc>> only in the
-+        argument and result types.
- 
- RETURNS
--	For positive arguments, <<erf>> and all its variants return a
--	probability---a number between 0 and 1.
-+        For positive arguments, <<erf>> and all its variants return a
-+        probability---a number between 0 and 1.
- 
- PORTABILITY
--	None of the variants of <<erf>> are ANSI C.
-+        None of the variants of <<erf>> are ANSI C.
- */
- 
- /* double erf(double x)
 @@ -154,47 +154,46 @@
  
  #ifdef _NEED_FLOAT64
@@ -33526,59 +31948,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_exp.c picolibc-patched/cmd/ga
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_exp2.c picolibc-patched/cmd/gaston/libm/math/s_exp2.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_exp2.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_exp2.c	2026-04-08 22:31:48
-@@ -13,34 +13,34 @@
- 
- /*
- FUNCTION
--	<<exp2>>, <<exp2f>>---exponential, base 2
-+        <<exp2>>, <<exp2f>>---exponential, base 2
- INDEX
--	exp2
-+        exp2
- INDEX
--	exp2f
-+        exp2f
- 
- SYNOPSIS
--	#include <math.h>
--	double exp2(double <[x]>);
--	float exp2f(float <[x]>);
-+        #include <math.h>
-+        double exp2(double <[x]>);
-+        float exp2f(float <[x]>);
- 
- DESCRIPTION
--	<<exp2>> and <<exp2f>> calculate 2 ^ <[x]>, that is,
--	@ifnottex
--	2 raised to the power <[x]>.
--	@end ifnottex
--	@tex
--	$2^x$
--	@end tex
-+        <<exp2>> and <<exp2f>> calculate 2 ^ <[x]>, that is,
-+        @ifnottex
-+        2 raised to the power <[x]>.
-+        @end ifnottex
-+        @tex
-+        $2^x$
-+        @end tex
- 
- RETURNS
--	On success, <<exp2>> and <<exp2f>> return the calculated value.
--	If the result underflows, the returned value is <<0>>.  If the
--	result overflows, the returned value is <<HUGE_VAL>>.  In
--	either case, <<errno>> is set to <<ERANGE>>.
-+        On success, <<exp2>> and <<exp2f>> return the calculated value.
-+        If the result underflows, the returned value is <<0>>.  If the
-+        result overflows, the returned value is <<HUGE_VAL>>.  In
-+        either case, <<errno>> is set to <<ERANGE>>.
- 
- PORTABILITY
--	ANSI C, POSIX.
-+        ANSI C, POSIX.
- 
- */
- 
 @@ -54,7 +54,7 @@
  
  extern __float64 _pow64(__float64, __float64);
@@ -33588,52 +31957,9 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_exp2.c picolibc-patched/cmd/g
  exp264(__float64 x) /* wrapper exp2 */
  {
      return _pow64(2.0, x);
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_fabs.c picolibc-patched/cmd/gaston/libm/math/s_fabs.c
---- picolibc-pristine/cmd/gaston/libm/math/s_fabs.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/s_fabs.c	2026-04-08 22:31:48
-@@ -15,12 +15,12 @@
- FUNCTION
-        <<fabs>>, <<fabsf>>---absolute value (magnitude)
- INDEX
--	fabs
-+        fabs
- INDEX
--	fabsf
-+        fabsf
- 
- SYNOPSIS
--	#include <math.h>
-+        #include <math.h>
-        double fabs(double <[x]>);
-        float fabsf(float <[x]>);
- 
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_floor.c picolibc-patched/cmd/gaston/libm/math/s_floor.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_floor.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_floor.c	2026-04-08 22:31:48
-@@ -15,17 +15,17 @@
- FUNCTION
- <<floor>>, <<floorf>>, <<ceil>>, <<ceilf>>---floor and ceiling
- INDEX
--	floor
-+        floor
- INDEX
--	floorf
-+        floorf
- INDEX
--	ceil
-+        ceil
- INDEX
--	ceilf
-+        ceilf
- 
- SYNOPSIS
--	#include <math.h>
--	double floor(double <[x]>);
-+        #include <math.h>
-+        double floor(double <[x]>);
-         float floorf(float <[x]>);
-         double ceil(double <[x]>);
-         float ceilf(float <[x]>);
 @@ -69,7 +69,7 @@
  __float64
  floor64(__float64 x)
@@ -33701,38 +32027,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_fmod.c picolibc-patched/cmd/g
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_frexp.c picolibc-patched/cmd/gaston/libm/math/s_frexp.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_frexp.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_frexp.c	2026-04-08 22:31:48
-@@ -15,22 +15,22 @@
- FUNCTION
-        <<frexp>>, <<frexpf>>---split floating-point number
- INDEX
--	frexp
-+        frexp
- INDEX
--	frexpf
-+        frexpf
- 
- SYNOPSIS
--	#include <math.h>
-+        #include <math.h>
-         double frexp(double <[val]>, int *<[exp]>);
-         float frexpf(float <[val]>, int *<[exp]>);
- 
- DESCRIPTION
--	All nonzero, normal numbers can be described as <[m]> * 2**<[p]>.
--	<<frexp>> represents the double <[val]> as a mantissa <[m]>
--	and a power of two <[p]>. The resulting mantissa will always
--	be greater than or equal to <<0.5>>, and less than <<1.0>> (as
--	long as <[val]> is nonzero). The power of two will be stored
--	in <<*>><[exp]>.
-+        All nonzero, normal numbers can be described as <[m]> * 2**<[p]>.
-+        <<frexp>> represents the double <[val]> as a mantissa <[m]>
-+        and a power of two <[p]>. The resulting mantissa will always
-+        be greater than or equal to <<0.5>>, and less than <<1.0>> (as
-+        long as <[val]> is nonzero). The power of two will be stored
-+        in <<*>><[exp]>.
- 
- @ifnottex
- <[m]> and <[p]> are calculated so that
 @@ -69,8 +69,7 @@
  
  #ifdef _NEED_FLOAT64
@@ -33856,19 +32150,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_j0.c picolibc-patched/cmd/gas
          ss = s - c;
          cc = s + c;
          if (ix < 0x7fe00000) { /* make sure x+x not overflow */
-@@ -107,9 +106,9 @@
-                 ss = z / cc;
-         }
-         /*
--	 * j0(x) = 1/sqrt(pi) * (P(0,x)*cc - Q(0,x)*ss) / sqrt(x)
--	 * y0(x) = 1/sqrt(pi) * (P(0,x)*ss + Q(0,x)*cc) / sqrt(x)
--	 */
-+         * j0(x) = 1/sqrt(pi) * (P(0,x)*cc - Q(0,x)*ss) / sqrt(x)
-+         * y0(x) = 1/sqrt(pi) * (P(0,x)*ss + Q(0,x)*cc) / sqrt(x)
-+         */
-         if (ix > 0x48000000)
-             z = (invsqrtpi * cc) / sqrt64(x);
-         else {
 @@ -119,7 +118,7 @@
          }
          return z;
@@ -34135,19 +32416,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_j1.c picolibc-patched/cmd/gas
          ss = -s - c;
          cc = s - c;
          if (ix < 0x7fe00000) { /* make sure y+y not overflow */
-@@ -109,9 +106,9 @@
-                 ss = z / cc;
-         }
-         /*
--	 * j1(x) = 1/sqrt(pi) * (P(1,x)*cc - Q(1,x)*ss) / sqrt(x)
--	 * y1(x) = 1/sqrt(pi) * (P(1,x)*ss + Q(1,x)*cc) / sqrt(x)
--	 */
-+         * j1(x) = 1/sqrt(pi) * (P(1,x)*cc - Q(1,x)*ss) / sqrt(x)
-+         * y1(x) = 1/sqrt(pi) * (P(1,x)*ss + Q(1,x)*cc) / sqrt(x)
-+         */
-         if (ix > 0x48000000)
-             z = (invsqrtpi * cc) / sqrt64(y);
-         else {
 @@ -139,13 +136,14 @@
  
  _MATH_ALIAS_d_d(j1)
@@ -34358,48 +32626,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_jn.c picolibc-patched/cmd/gas
  
  static const __float64 zero = _F_64(0.00000000000000000000e+00);
  
-@@ -83,18 +82,18 @@
-         /* Safe to use J(n+1,x)=2n/x *J(n,x)-J(n-1,x) */
-         if (ix >= 0x52D00000) { /* x > 2**302 */
-             /* (x >> n**2)
--     *	    Jn(x) = cos(x-(2n+1)*pi/4)*sqrt(2/x*pi)
--     *	    Yn(x) = sin(x-(2n+1)*pi/4)*sqrt(2/x*pi)
--     *	    Let s=sin(x), c=cos(x),
--     *		xn=x-(2n+1)*pi/4, sqt2 = sqrt(2),then
--     *
--     *		   n	sin(xn)*sqt2	cos(xn)*sqt2
--     *		----------------------------------
--     *		   0	 s-c		 c+s
--     *		   1	-s-c 		-c+s
--     *		   2	-s+c		-c-s
--     *		   3	 s+c		 c-s
--     */
-+             *	    Jn(x) = cos(x-(2n+1)*pi/4)*sqrt(2/x*pi)
-+             *	    Yn(x) = sin(x-(2n+1)*pi/4)*sqrt(2/x*pi)
-+             *	    Let s=sin(x), c=cos(x),
-+             *		xn=x-(2n+1)*pi/4, sqt2 = sqrt(2),then
-+             *
-+             *		   n	sin(xn)*sqt2	cos(xn)*sqt2
-+             *		----------------------------------
-+             *		   0	 s-c		 c+s
-+             *		   1	-s-c 		-c+s
-+             *		   2	-s+c		-c-s
-+             *		   3	 s+c		 c-s
-+             */
-             switch (n & 3) {
-             case 0:
-             default:
-@@ -123,8 +122,8 @@
-     } else {
-         if (ix < 0x3e100000) { /* x < 2**-29 */
-             /* x is tiny, return the first Taylor expansion of J(n,x)
--     * J(n,x) = 1/n!*(x/2)^n  - ...
--     */
-+             * J(n,x) = 1/n!*(x/2)^n  - ...
-+             */
-             if (n > 33) /* underflow */
-                 b = zero;
-             else {
 @@ -132,39 +131,39 @@
                  b = temp;
                  for (a = one, i = 2; i <= n; i++) {
@@ -34502,37 +32728,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_jn.c picolibc-patched/cmd/gas
  {
      __int32_t i, hx, ix, lx;
      __int32_t sign;
-@@ -267,18 +265,18 @@
- 
-     if (ix >= 0x52D00000) { /* x > 2**302 */
-         /* (x >> n**2)
--     *	    Jn(x) = cos(x-(2n+1)*pi/4)*sqrt(2/x*pi)
--     *	    Yn(x) = sin(x-(2n+1)*pi/4)*sqrt(2/x*pi)
--     *	    Let s=sin(x), c=cos(x),
--     *		xn=x-(2n+1)*pi/4, sqt2 = sqrt(2),then
--     *
--     *		   n	sin(xn)*sqt2	cos(xn)*sqt2
--     *		----------------------------------
--     *		   0	 s-c		 c+s
--     *		   1	-s-c 		-c+s
--     *		   2	-s+c		-c-s
--     *		   3	 s+c		 c-s
--     */
-+         *	    Jn(x) = cos(x-(2n+1)*pi/4)*sqrt(2/x*pi)
-+         *	    Yn(x) = sin(x-(2n+1)*pi/4)*sqrt(2/x*pi)
-+         *	    Let s=sin(x), c=cos(x),
-+         *		xn=x-(2n+1)*pi/4, sqt2 = sqrt(2),then
-+         *
-+         *		   n	sin(xn)*sqt2	cos(xn)*sqt2
-+         *		----------------------------------
-+         *		   0	 s-c		 c+s
-+         *		   1	-s-c 		-c+s
-+         *		   2	-s+c		-c-s
-+         *		   3	 s+c		 c-s
-+         */
-         switch (n & 3) {
-         case 0:
-         default:
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_lgamma.c picolibc-patched/cmd/gaston/libm/math/s_lgamma.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_lgamma.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_lgamma.c	2026-04-08 22:31:48
@@ -35581,18 +33776,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_sqrt.c picolibc-patched/cmd/g
  
 - */
 +     */
-diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_tan.c picolibc-patched/cmd/gaston/libm/math/s_tan.c
---- picolibc-pristine/cmd/gaston/libm/math/s_tan.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/libm/math/s_tan.c	2026-04-08 22:31:48
-@@ -95,7 +95,7 @@
-     else {
-         n = __rem_pio2(x, y);
-         return __kernel_tan(y[0], y[1], 1 - ((n & 1) << 1)); /*   1 -- n even
--							-1 -- n odd */
-+                                                        -1 -- n odd */
-     }
- }
- 
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/s_tanh.c picolibc-patched/cmd/gaston/libm/math/s_tanh.c
 --- picolibc-pristine/cmd/gaston/libm/math/s_tanh.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/s_tanh.c	2026-04-08 22:31:48
@@ -36241,12 +34424,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_erf.c picolibc-patched/cmd/g
          r = expf(-z * z - (float)0.5625) * expf((z - x) * (z + x) + R / S);
          if (hx > 0)
              return r / x;
-@@ -251,4 +233,4 @@
- 
- _MATH_ALIAS_f_f(erf)
- 
--_MATH_ALIAS_f_f(erfc)
-+    _MATH_ALIAS_f_f(erfc)
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_exp.c picolibc-patched/cmd/gaston/libm/math/sf_exp.c
 --- picolibc-pristine/cmd/gaston/libm/math/sf_exp.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/sf_exp.c	2026-04-08 22:31:48
@@ -36356,15 +34533,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_fmod.c picolibc-patched/cmd/
              iy -= 1;
      } else
          iy = (hy >> 23) - 127;
-@@ -111,7 +112,7 @@
-         SET_FLOAT_WORD(x, hx | sx);
-     } else { /* subnormal output */
-         /* If denormals are not supported, this code will generate a
--	       zero representation.  */
-+               zero representation.  */
-         n = -126 - iy;
-         hx >>= n;
-         SET_FLOAT_WORD(x, hx | sx);
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_frexp.c picolibc-patched/cmd/gaston/libm/math/sf_frexp.c
 --- picolibc-pristine/cmd/gaston/libm/math/sf_frexp.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/sf_frexp.c	2026-04-08 22:31:48
@@ -36474,19 +34642,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_j0.c picolibc-patched/cmd/ga
          ss = s - c;
          cc = s + c;
          if (ix <= FLT_UWORD_HALF_MAX) { /* make sure x+x not overflow */
-@@ -60,9 +58,9 @@
-                 ss = z / cc;
-         }
-         /*
--	 * j0(x) = 1/sqrt(pi) * (P(0,x)*cc - Q(0,x)*ss) / sqrt(x)
--	 * y0(x) = 1/sqrt(pi) * (P(0,x)*ss + Q(0,x)*cc) / sqrt(x)
--	 */
-+         * j0(x) = 1/sqrt(pi) * (P(0,x)*cc - Q(0,x)*ss) / sqrt(x)
-+         * y0(x) = 1/sqrt(pi) * (P(0,x)*ss + Q(0,x)*cc) / sqrt(x)
-+         */
-         if (ix > 0x5c000000)
-             z = (invsqrtpi * cc) / sqrtf(x);
-         else {
 @@ -72,7 +70,7 @@
          }
          return z;
@@ -36730,19 +34885,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_j1.c picolibc-patched/cmd/ga
          ss = -s - c;
          cc = s - c;
          if (ix <= FLT_UWORD_HALF_MAX) { /* make sure y+y not overflow */
-@@ -62,9 +60,9 @@
-                 ss = z / cc;
-         }
-         /*
--	 * j1(x) = 1/sqrt(pi) * (P(1,x)*cc - Q(1,x)*ss) / sqrt(x)
--	 * y1(x) = 1/sqrt(pi) * (P(1,x)*ss + Q(1,x)*cc) / sqrt(x)
--	 */
-+         * j1(x) = 1/sqrt(pi) * (P(1,x)*cc - Q(1,x)*ss) / sqrt(x)
-+         * y1(x) = 1/sqrt(pi) * (P(1,x)*ss + Q(1,x)*cc) / sqrt(x)
-+         */
-         if (ix > 0x5c000000)
-             z = (invsqrtpi * cc) / sqrtf(y);
-         else {
 @@ -91,9 +89,9 @@
  
  static const float U0[5] = {
@@ -36920,17 +35062,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_jn.c picolibc-patched/cmd/ga
  
      /* J(-n,x) = (-1)^n * J(n, x), J(n, -x) = (-1)^n * J(n, x)
       * Thus, J(-n,x) = J(n,-x)
-@@ -60,8 +60,8 @@
-     } else {
-         if (ix < 0x30800000) { /* x < 2**-29 */
-             /* x is tiny, return the first Taylor expansion of J(n,x)
--     * J(n,x) = 1/n!*(x/2)^n  - ...
--     */
-+             * J(n,x) = 1/n!*(x/2)^n  - ...
-+             */
-             if (n > 33) /* underflow */
-                 b = zero;
-             else {
 @@ -69,42 +69,42 @@
                  b = temp;
                  for (a = one, i = 2; i <= n; i++) {
@@ -37003,27 +35134,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_jn.c picolibc-patched/cmd/ga
              __int32_t k, m;
              w = (n + n) / (float)x;
              h = (float)2.0 / (float)x;
-@@ -125,13 +125,13 @@
-             a = t;
-             b = one;
-             /*  estimate log((2/x)^n*n!) = n*log(2/x)+n*ln(n)
--		 *  Hence, if n*(log(2n/x)) > ...
--		 *  single 8.8722839355e+01
--		 *  double 7.09782712893383973096e+02
--		 *  long double 1.1356523406294143949491931077970765006170e+04
--		 *  then recurrent value may overflow and the result is
--		 *  likely underflow to zero
--		 */
-+             *  Hence, if n*(log(2n/x)) > ...
-+             *  single 8.8722839355e+01
-+             *  double 7.09782712893383973096e+02
-+             *  long double 1.1356523406294143949491931077970765006170e+04
-+             *  then recurrent value may overflow and the result is
-+             *  likely underflow to zero
-+             */
-             tmp = n;
-             v = two / x;
-             tmp = tmp * logf(fabsf(v * tmp));
 @@ -172,7 +172,7 @@
  {
      __int32_t i, hx, ix, ib;
@@ -37042,12 +35152,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_jn.c picolibc-patched/cmd/ga
  
      if (hx < 0)
          return __math_invalidf(x);
-@@ -217,4 +217,4 @@
- 
- _MATH_ALIAS_f_if(jn)
- 
--_MATH_ALIAS_f_if(yn)
-+    _MATH_ALIAS_f_if(yn)
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_lgamma.c picolibc-patched/cmd/gaston/libm/math/sf_lgamma.c
 --- picolibc-pristine/cmd/gaston/libm/math/sf_lgamma.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/libm/math/sf_lgamma.c	2026-04-08 22:31:48
@@ -37825,15 +35929,6 @@ diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_tan.c picolibc-patched/cmd/g
 +    int       n;
  
      GET_FLOAT_WORD(ix, x);
- 
-@@ -36,7 +37,7 @@
-     else {
-         n = __rem_pio2f(x, y);
-         return __kernel_tanf(y[0], y[1], 1 - ((n & 1) << 1)); /*   1 -- n even
--							      -1 -- n odd */
-+                                                              -1 -- n odd */
-     }
- }
  
 diff -ruN picolibc-pristine/cmd/gaston/libm/math/sf_tanh.c picolibc-patched/cmd/gaston/libm/math/sf_tanh.c
 --- picolibc-pristine/cmd/gaston/libm/math/sf_tanh.c	2026-04-08 22:31:47
@@ -38818,263 +36913,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/ctype/ctype_.c picolibc-pat
 diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/ctype/ctype_cp.h picolibc-patched/cmd/gaston/picolibc/libc/ctype/ctype_cp.h
 --- picolibc-pristine/cmd/gaston/picolibc/libc/ctype/ctype_cp.h	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/picolibc/libc/ctype/ctype_cp.h	2026-04-08 22:31:47
-@@ -1,11 +1,11 @@
- /*
-  * Copyright (c) 2009 Corinna Vinschen <corinna@vinschen.de>
-  */
--/* ctype table definitions for Windows codepage charsets.
-+/* ctype table definitions for Windows codepage charsets. 
-    Included by ctype_.c. */
- 
- #define _CTYPE_CP437_128_254 \
--	_U,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
-+   	_U,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
- 	_L,	_L,	_L,	_L,	_L,	_L,	_U,	_U, \
- 	_U,	_L,	_U,	_L,	_L,	_L,	_L,	_L, \
- 	_L,	_U,	_U,	_P,	_P,	_P,	_P,	_P, \
-@@ -23,7 +23,7 @@
- 	_P,	_P,	_P,	_P,	_P,	_P,	_P
- #define _CTYPE_CP437_255 _S|_B
- #define _CTYPE_CP720_128_254 \
--	0,	0,	_L,	_L,	0,	_L,	0,	_L, \
-+   	0,	0,	_L,	_L,	0,	_L,	0,	_L, \
- 	_L,	_L,	_L,	_L,	_L,	0,	0,	0,  \
- 	0,	_P,	_P,	_L,	_P,	_P,	_L,	_L, \
- 	_U|_L,	_U|_L,	_U|_L,	_U|_L,	_P,	_U|_L,	_U|_L,	_U|_L, \
-@@ -41,9 +41,9 @@
- 	_P,	_P,	_P,	_P,	_P,	_P,	_P
- #define _CTYPE_CP720_255 _S|_B
- #define _CTYPE_CP737_128_254 \
-+   	_U,	_U,	_U,	_U,	_U,	_U,	_U,	_U, \
- 	_U,	_U,	_U,	_U,	_U,	_U,	_U,	_U, \
- 	_U,	_U,	_U,	_U,	_U,	_U,	_U,	_U, \
--	_U,	_U,	_U,	_U,	_U,	_U,	_U,	_U, \
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
-@@ -59,7 +59,7 @@
- 	_P,	_P,	_P,	_P,	_P,	_P,	_P
- #define _CTYPE_CP737_255 _S|_B
- #define _CTYPE_CP775_128_254 \
--	_U,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
-+   	_U,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
- 	_L,	_L,	_U,	_L,	_L,	_U,	_U,	_U, \
- 	_U,	_L,	_U,	_L,	_L,	_U,	_P,	_U, \
- 	_L,	_U,	_U,	_L,	_P,	_U,	_P,	_P, \
-@@ -77,7 +77,7 @@
- 	_P,	_P,	_P,	_P,	_P,	_P,	_P
- #define _CTYPE_CP775_255 _S|_B
- #define _CTYPE_CP850_128_254 \
--	_U,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
-+   	_U,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
- 	_L,	_L,	_L,	_L,	_L,	_L,	_U,	_U, \
- 	_U,	_L,	_U,	_L,	_L,	_L,	_L,	_L, \
- 	_L,	_U,	_U,	_L,	_P,	_U,	_P,	_L, \
-@@ -95,7 +95,7 @@
- 	_P,	_P,	_P,	_P,	_P,	_P,	_P
- #define _CTYPE_CP850_255 _S|_B
- #define _CTYPE_CP852_128_254 \
--	_U,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
-+   	_U,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
- 	_L,	_L,	_U,	_L,	_L,	_U,	_U,	_U, \
- 	_U,	_U,	_L,	_L,	_L,	_U,	_L,	_U, \
- 	_L,	_U,	_U,	_U,	_L,	_U,	_P,	_L, \
-@@ -113,11 +113,11 @@
- 	_P,	_P,	_P,	_L,	_U,	_L,	_P
- #define _CTYPE_CP852_255 _S|_B
- #define _CTYPE_CP855_128_254 \
-+   	_L,	_U,	_L,	_U,	_L,	_U,	_L,	_U, \
- 	_L,	_U,	_L,	_U,	_L,	_U,	_L,	_U, \
- 	_L,	_U,	_L,	_U,	_L,	_U,	_L,	_U, \
- 	_L,	_U,	_L,	_U,	_L,	_U,	_L,	_U, \
- 	_L,	_U,	_L,	_U,	_L,	_U,	_L,	_U, \
--	_L,	_U,	_L,	_U,	_L,	_U,	_L,	_U, \
- 	_L,	_U,	_L,	_U,	_L,	_U,	_P,	_P, \
- 	_P,	_P,	_P,	_P,	_P,	_L,	_U,	_L, \
- 	_U,	_P,	_P,	_P,	_P,	_L,	_U,	_P, \
-@@ -131,7 +131,7 @@
- 	_U,	_L,	_U,	_L,	_U,	_P,	_P
- #define _CTYPE_CP855_255 _S|_B
- #define _CTYPE_CP857_128_254 \
--	_U,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
-+   	_U,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
- 	_L,	_L,	_L,	_L,	_L,	_L,	_U,	_U, \
- 	_U,	_L,	_U,	_L,	_L,	_L,	_L,	_L, \
- 	_U,	_U,	_U,	_L,	_P,	_U,	_U,	_L, \
-@@ -149,7 +149,7 @@
- 	_P,	_P,	_P,	_P,	_P,	_P,	_P
- #define _CTYPE_CP857_255 _S|_B
- #define _CTYPE_CP858_128_254 \
--	_U,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
-+   	_U,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
- 	_L,	_L,	_L,	_L,	_L,	_L,	_U,	_U, \
- 	_U,	_L,	_U,	_L,	_L,	_L,	_L,	_L, \
- 	_L,	_U,	_U,	_L,	_P,	_U,	_P,	_L, \
-@@ -167,9 +167,9 @@
- 	_P,	_P,	_P,	_P,	_P,	_P,	_P
- #define _CTYPE_CP858_255 _S|_B
- #define _CTYPE_CP862_128_254 \
-+   	_U|_L,	_U|_L,	_U|_L,	_U|_L,	_U|_L,	_U|_L,	_U|_L,	_U|_L, \
- 	_U|_L,	_U|_L,	_U|_L,	_U|_L,	_U|_L,	_U|_L,	_U|_L,	_U|_L, \
- 	_U|_L,	_U|_L,	_U|_L,	_U|_L,	_U|_L,	_U|_L,	_U|_L,	_U|_L, \
--	_U|_L,	_U|_L,	_U|_L,	_U|_L,	_U|_L,	_U|_L,	_U|_L,	_U|_L, \
- 	_U|_L,	_U|_L,	_U|_L,	_P,	_P,	_P,	_P,	_L, \
- 	_L,	_L,	_L,	_L,	_L,	_U,	_P,	_P, \
- 	_P,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
-@@ -185,10 +185,10 @@
- 	_P,	_P,	_P,	_P,	_P,	_P,	_P
- #define _CTYPE_CP862_255 _S|_B
- #define _CTYPE_CP866_128_254 \
-+   	_U,	_U,	_U,	_U,	_U,	_U,	_U,	_U, \
- 	_U,	_U,	_U,	_U,	_U,	_U,	_U,	_U, \
- 	_U,	_U,	_U,	_U,	_U,	_U,	_U,	_U, \
- 	_U,	_U,	_U,	_U,	_U,	_U,	_U,	_U, \
--	_U,	_U,	_U,	_U,	_U,	_U,	_U,	_U, \
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
- 	_P,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
-@@ -203,7 +203,7 @@
- 	_P,	_P,	_P,	_P,	_P,	_P,	_P
- #define _CTYPE_CP866_255 _S|_B
- #define _CTYPE_CP874_128_254 \
--	_P,	0,	0,	0,	0,	_P,	0,	0,  \
-+   	_P,	0,	0,	0,	0,	_P,	0,	0,  \
- 	0,	0,	0,	0,	0,	0,	0,	0,  \
- 	0,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
- 	0,	0,	0,	0,	0,	0,	0,	0,  \
-@@ -221,10 +221,10 @@
- 	_P,	_P,	_U|_L,	_U|_L,	0,	0,	0
- #define _CTYPE_CP874_255 0
- #define _CTYPE_CP1125_128_254 \
-+   	_U,	_U,	_U,	_U,	_U,	_U,	_U,	_U, \
- 	_U,	_U,	_U,	_U,	_U,	_U,	_U,	_U, \
- 	_U,	_U,	_U,	_U,	_U,	_U,	_U,	_U, \
- 	_U,	_U,	_U,	_U,	_U,	_U,	_U,	_U, \
--	_U,	_U,	_U,	_U,	_U,	_U,	_U,	_U, \
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
- 	_P,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
-@@ -239,7 +239,7 @@
- 	_U,	_L,	_P,	_P,	_P,	_P,	_P
- #define _CTYPE_CP1125_255 _S|_B
- #define _CTYPE_CP1250_128_254 \
--	_P,	0,	_P,	0,	_P,	_P,	_P,	_P, \
-+   	_P,	0,	_P,	0,	_P,	_P,	_P,	_P, \
- 	0,	_P,	_U,	_P,	_U,	_U,	_U,	_U, \
- 	0,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
- 	0,	_P,	_L,	_P,	_L,	_L,	_L,	_L, \
-@@ -257,7 +257,7 @@
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L
- #define _CTYPE_CP1250_255 _P
- #define _CTYPE_CP1251_128_254 \
--	_U,	_U,	_P,	_L,	_P,	_P,	_P,	_P, \
-+   	_U,	_U,	_P,	_L,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	_U,	_P,	_U,	_U,	_U,	_U, \
- 	_L,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
- 	0,	_P,	_L,	_P,	_L,	_L,	_L,	_L, \
-@@ -275,7 +275,7 @@
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L
- #define _CTYPE_CP1251_255 _L
- #define _CTYPE_CP1252_128_254 \
--	_P,	0,	_P,	_L,	_P,	_P,	_P,	_P, \
-+   	_P,	0,	_P,	_L,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	_U,	_P,	_U,	_U,	0,	0,  \
- 	0,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	_L,	_P,	_L,	0,	_L,	_U, \
-@@ -293,7 +293,7 @@
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L
- #define _CTYPE_CP1252_255 _L
- #define _CTYPE_CP1253_128_254 \
--	_P,	0,	_P,	_L,	_P,	_P,	_P,	_P, \
-+   	_P,	0,	_P,	_L,	_P,	_P,	_P,	_P, \
- 	0,	_P,	0,	_P,	0,	0,	0,	0,  \
- 	0,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
- 	0,	_P,	0,	_P,	0,	0,	0,	0,  \
-@@ -311,7 +311,7 @@
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L
- #define _CTYPE_CP1253_255 _L
- #define _CTYPE_CP1254_128_254 \
--	_P,	0,	_P,	_L,	_P,	_P,	_P,	_P, \
-+   	_P,	0,	_P,	_L,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	_U,	_P,	_U,	0,	0,	0,  \
- 	0,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	_L,	_P,	_L,	0,	0,	_U, \
-@@ -329,7 +329,7 @@
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L
- #define _CTYPE_CP1254_255 _L
- #define _CTYPE_CP1255_128_254 \
--	_P,	0,	_P,	_L,	_P,	_P,	_P,	_P, \
-+   	_P,	0,	_P,	_L,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	0,	_P,	0,	0,	0,	0,  \
- 	0,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	0,	_P,	0,	0,	0,	0,  \
-@@ -347,7 +347,7 @@
- 	_U|_L,	_U|_L,	_U|_L,	0,	0,	_P,	_P
- #define _CTYPE_CP1255_255 0
- #define _CTYPE_CP1256_128_254 \
--	_P,	_U|_L,	_P,	_L,	_P,	_P,	_P,	_P, \
-+   	_P,	_U|_L,	_P,	_L,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	_U|_L,	_P,	_U,	_U|_L,	_U|_L,	_U|_L, \
- 	_U|_L,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
- 	_U|_L,	_P,	_U|_L,	_P,	_L,	_P,	_P,	_U|_L, \
-@@ -365,7 +365,7 @@
- 	_P,	_L,	_P,	_L,	_L,	_P,	_P
- #define _CTYPE_CP1256_255 _U|_L
- #define _CTYPE_CP1257_128_254 \
--	_P,	0,	_P,	0,	_P,	_P,	_P,	_P, \
-+   	_P,	0,	_P,	0,	_P,	_P,	_P,	_P, \
- 	0,	_P,	0,	_P,	0,	_P,	_P,	_P, \
- 	0,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
- 	0,	_P,	0,	_P,	0,	_P,	_P,	0,  \
-@@ -383,7 +383,7 @@
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L
- #define _CTYPE_CP1257_255 _P
- #define _CTYPE_CP1258_128_254 \
--	_P,	0,	_P,	_L,	_P,	_P,	_P,	_P, \
-+   	_P,	0,	_P,	_L,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	0,	_P,	_U,	0,	0,	0,  \
- 	0,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	0,	_P,	_L,	0,	0,	_U, \
-@@ -401,9 +401,9 @@
- 	_L,	_L,	_L,	_L,	_L,	_L,	_P
- #define _CTYPE_CP1258_255 _L
- #define _CTYPE_CP20866_128_254 \
-+   	_P,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
--	_P,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	_S|_B,	_P,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	_P,	_L,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
-@@ -419,9 +419,9 @@
- 	_U,	_U,	_U,	_U,	_U,	_U,	_U
- #define _CTYPE_CP20866_255 _U
- #define _CTYPE_CP21866_128_254 \
-+   	_P,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
--	_P,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	_S|_B,	_P,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	_P,	_L,	_L,	_P,	_L,	_L, \
- 	_P,	_P,	_P,	_P,	_P,	_L,	_P,	_P, \
-@@ -437,7 +437,7 @@
- 	_U,	_U,	_U,	_U,	_U,	_U,	_U
- #define _CTYPE_CP21866_255 _U
- #define _CTYPE_GEORGIAN_PS_128_254 \
--	_P,	0,	_P,	_L,	_P,	_P,	_P,	_P, \
-+   	_P,	0,	_P,	_L,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	_U,	_P,	_U,	_U,	0,	0,  \
- 	0,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
- 	_P,	_P,	_L,	_P,	_L,	0,	_L,	_U, \
-@@ -455,7 +455,7 @@
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L
- #define _CTYPE_GEORGIAN_PS_255 _L
- #define _CTYPE_PT154_128_254 \
--	_U,	_U,	_U,	_L,	_P,	_P,	_U,	_U, \
-+   	_U,	_U,	_U,	_L,	_P,	_P,	_U,	_U, \
- 	_U,	_L,	_U,	_U,	_U,	_U,	_U,	_U, \
- 	_L,	_P,	_P,	_P,	_P,	_P,	_P,	_P, \
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
 @@ -472,31 +472,13 @@
  	_L,	_L,	_L,	_L,	_L,	_L,	_L,	_L, \
  	_L,	_L,	_L,	_L,	_L,	_L,	_L
@@ -39139,144 +36977,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/ctype/ctype_cp.h picolibc-p
    },
  };
  
-diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/ctype/ctype_iso.h picolibc-patched/cmd/gaston/picolibc/libc/ctype/ctype_iso.h
---- picolibc-pristine/cmd/gaston/picolibc/libc/ctype/ctype_iso.h	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/picolibc/libc/ctype/ctype_iso.h	2026-04-08 22:31:47
-@@ -1,7 +1,7 @@
- /*
-  * Copyright (c) 2009 Corinna Vinschen <corinna@vinschen.de>
-  */
--/* ctype table definitions for ISO-8859-x charsets.
-+/* ctype table definitions for ISO-8859-x charsets. 
-    Included by ctype_.c. */
- 
- #define _CTYPE_ISO_8859_1_128_254 \
-@@ -23,7 +23,7 @@
-         _L,     _L,     _L,     _L,     _L,     _L,     _L
- #define _CTYPE_ISO_8859_1_255 _L
- #define _CTYPE_ISO_8859_2_128_254 \
--	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-+   	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-@@ -41,7 +41,7 @@
-         _L,     _L,     _L,     _L,     _L,     _L,     _L
- #define _CTYPE_ISO_8859_2_255 _P
- #define _CTYPE_ISO_8859_3_128_254 \
--	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-+   	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-@@ -59,7 +59,7 @@
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L
- #define _CTYPE_ISO_8859_3_255 _P
- #define _CTYPE_ISO_8859_4_128_254 \
--	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-+   	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-@@ -77,7 +77,7 @@
-         _L,     _L,     _L,     _L,     _L,     _L,     _L
- #define _CTYPE_ISO_8859_4_255 _L
- #define _CTYPE_ISO_8859_5_128_254 \
--	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-+   	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-@@ -95,7 +95,7 @@
-         _L,     _L,     _L,     _L,     _L,     _P,     _L
- #define _CTYPE_ISO_8859_5_255 _L
- #define _CTYPE_ISO_8859_6_128_254 \
--	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-+   	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-@@ -113,7 +113,7 @@
- 	0,	0,	0,	0,	0,	0,	0
- #define _CTYPE_ISO_8859_6_255 0
- #define _CTYPE_ISO_8859_7_128_254 \
--	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-+   	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-@@ -131,7 +131,7 @@
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L
- #define _CTYPE_ISO_8859_7_255 0
- #define _CTYPE_ISO_8859_8_128_254 \
--	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-+   	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-@@ -149,7 +149,7 @@
- 	_U|_L,	_U|_L,	_U|_L,	0,	0,	_P,	_P
- #define _CTYPE_ISO_8859_8_255 0
- #define _CTYPE_ISO_8859_9_128_254 \
--	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-+   	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-@@ -167,7 +167,7 @@
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L
- #define _CTYPE_ISO_8859_9_255 _L
- #define _CTYPE_ISO_8859_10_128_254 \
--	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-+   	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-@@ -185,7 +185,7 @@
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L
- #define _CTYPE_ISO_8859_10_255 _L
- #define _CTYPE_ISO_8859_11_128_254 \
--	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-+   	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-@@ -203,7 +203,7 @@
- 	_U|_L,	_U|_L,	_U|_L,	_U|_L,	0,	0,	0
- #define _CTYPE_ISO_8859_11_255 0
- #define _CTYPE_ISO_8859_13_128_254 \
--	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-+   	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-@@ -221,7 +221,7 @@
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L
- #define _CTYPE_ISO_8859_13_255 _P
- #define _CTYPE_ISO_8859_14_128_254 \
--	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-+   	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-@@ -239,7 +239,7 @@
- 	_L,	_L,	_L,	_L,	_L,	_L,	_L
- #define _CTYPE_ISO_8859_14_255 _L
- #define _CTYPE_ISO_8859_15_128_254 \
--	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-+   	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-@@ -257,7 +257,7 @@
-         _L,     _L,     _L,     _L,     _L,     _L,     _L
- #define _CTYPE_ISO_8859_15_255 _L
- #define _CTYPE_ISO_8859_16_128_254 \
--	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-+   	_C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
-         _C,     _C,     _C,     _C,     _C,     _C,     _C,     _C, \
 diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/ctype/isalnum.c picolibc-patched/cmd/gaston/picolibc/libc/ctype/isalnum.c
 --- picolibc-pristine/cmd/gaston/picolibc/libc/ctype/isalnum.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/picolibc/libc/ctype/isalnum.c	2026-04-08 22:31:47
@@ -42892,22 +40592,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/include/sys/cdefs.h picolib
  #endif	/* __GNUC__ */
  
  #ifndef	__FBSDID
-@@ -794,12 +785,12 @@
-  */
- #if __cplusplus >= 201703L || __STDC_VERSION__ > 201710L
- /* Standard C++17/C23 attribute */
--#define __PICOLIBC_FALLTHROUGH [[fallthrough]]
-+#define FALLTHROUGH [[fallthrough]]
- #elif __has_attribute(fallthrough)
- /* Non-standard but supported by at least gcc and clang */
--#define __PICOLIBC_FALLTHROUGH __attribute__((fallthrough))
-+#define FALLTHROUGH __attribute__((fallthrough))
- #else
--#define __PICOLIBC_FALLTHROUGH do { } while(0)
-+#define FALLTHROUGH do { } while(0)
- #endif
- 
- /* Guard variables and structure members by lock. */
 diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/include/sys/config.h picolibc-patched/cmd/gaston/picolibc/libc/include/sys/config.h
 --- picolibc-pristine/cmd/gaston/picolibc/libc/include/sys/config.h	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/picolibc/libc/include/sys/config.h	2026-04-08 22:31:47
@@ -44183,15 +41867,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/locale/locale.c picolibc-pa
    long val = 0;
    char *end, *c = NULL;
    int mbc_max;
-@@ -648,7 +640,7 @@
- 	}
- #ifdef __CYGWIN__
-       /* Newlib does neither provide EUC-KR nor EUC-CN, and Cygwin's
--	 implementation requires Windows support. */
-+      	 implementation requires Windows support. */
-       else if (!strcasecmp (c, "KR"))
- 	{
- 	  strcpy (charset, "EUCKR");
 @@ -760,7 +752,7 @@
      break;
      case 'K':
@@ -44857,15 +42532,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/posix/dirname.c picolibc-pa
 diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/posix/fnmatch.c picolibc-patched/cmd/gaston/picolibc/libc/posix/fnmatch.c
 --- picolibc-pristine/cmd/gaston/picolibc/libc/posix/fnmatch.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/picolibc/libc/posix/fnmatch.c	2026-04-08 22:31:47
-@@ -139,7 +139,7 @@
- 					--pattern;
- 				}
- 			}
--			__PICOLIBC_FALLTHROUGH;
-+			/* FALLTHROUGH */
- 		default:
- 		norm:
- 			if (c == *string)
 @@ -206,7 +206,7 @@
  				c2 = tolower((unsigned char)c2);
  
@@ -44995,15 +42661,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/posix/regcomp.c picolibc-pa
  	if (g == NULL)
  		return(REG_ESPACE);
  	p->ssize = len/(size_t)2*(size_t)3 + (size_t)1;	/* ugh */
-@@ -416,7 +417,7 @@
- 		break;
- 	case '{':		/* okay as ordinary except if digit follows */
- 		(void)REQUIRE(!MORE() || !isdigit((uch)PEEK()), REG_BADRPT);
--		__PICOLIBC_FALLTHROUGH;
-+		FALLTHROUGH;
- 	default:
- 		ordinary(p, c);
- 		break;
 @@ -460,7 +461,7 @@
  				count2 = p_count(p);
  				(void)REQUIRE(count <= count2, REG_BADBR);
@@ -45013,15 +42670,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/posix/regcomp.c picolibc-pa
  		} else		/* just a single number */
  			count2 = count;
  		repeat(p, pos, count, count2);
-@@ -616,7 +617,7 @@
- 		break;
- 	case '*':
- 		(void)REQUIRE(starordinary, REG_BADRPT);
--		__PICOLIBC_FALLTHROUGH;
-+		FALLTHROUGH;
- 	default:
- 		ordinary(p, (char)c);
- 		break;
 @@ -635,7 +636,7 @@
  				count2 = p_count(p);
  				(void)REQUIRE(count <= count2, REG_BADBR);
@@ -45153,15 +42801,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/posix/regcomp.c picolibc-pa
  	cs = &p->g->sets[no];
  	cs->ptr = p->g->setbits + css*((no)/CHAR_BIT);
  	cs->mask = 1 << ((no) % CHAR_BIT);
-@@ -1668,7 +1668,7 @@
- 					return;
- 				}
- 			} while (OP(s) != O_QUEST && OP(s) != O_CH);
--			__PICOLIBC_FALLTHROUGH;
-+			FALLTHROUGH;
- 		case OBOW:		/* things that break a sequence */
- 		case OEOW:
- 		case OBOL:
 @@ -1750,7 +1750,7 @@
  		}
  	} while (OP(s) != OEND);
@@ -45171,15 +42810,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/posix/regcomp.c picolibc-pa
  		g->moffset = -1;
  		return;
  	}
-@@ -1823,7 +1823,7 @@
- 		case OANYOF:
- 			if (mccs)
- 				return -1;
--                        __PICOLIBC_FALLTHROUGH;
-+                        FALLTHROUGH;
- 		case OCHAR:
- 		case OANY:
- 			try++;
 @@ -1869,14 +1869,16 @@
  	if (p->error != 0)
  		return;
@@ -45220,31 +42850,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/posix/regcomp.c picolibc-pa
  
  	/* Set maximum possible jump for each character in the pattern */
  	for (mindex = 0; mindex < g->mlen; mindex++)
-@@ -1959,16 +1959,16 @@
- 		g->matchjump[mindex] = MIN(g->matchjump[mindex],
- 		    g->mlen + suffix - mindex);
- 
--	ssuffix = pmatches[suffix];
--	while (suffix < g->mlen) {
--		while (suffix <= ssuffix && suffix < g->mlen) {
--			g->matchjump[suffix] = MIN(g->matchjump[suffix],
-+        ssuffix = pmatches[suffix];
-+        while (suffix < g->mlen) {
-+                while (suffix <= ssuffix && suffix < g->mlen) {
-+                        g->matchjump[suffix] = MIN(g->matchjump[suffix],
- 			    g->mlen + ssuffix - suffix);
--			suffix++;
--		}
-+                        suffix++;
-+                }
- 		if (suffix < g->mlen)
--			ssuffix = pmatches[ssuffix];
--	}
-+                	ssuffix = pmatches[ssuffix];
-+        }
- 
- 	free(pmatches);
- }
 diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/posix/regerror.c picolibc-patched/cmd/gaston/picolibc/libc/posix/regerror.c
 --- picolibc-pristine/cmd/gaston/picolibc/libc/posix/regerror.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/picolibc/libc/posix/regerror.c	2026-04-08 22:31:47
@@ -45507,42 +43112,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/search/hash_bigkey.c picoli
  	}
  	if (bufp->addr != save_addr) {
  		errno = EINVAL;			/* Out of buffers. */
-diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/search/hash_func.c picolibc-patched/cmd/gaston/picolibc/libc/search/hash_func.c
---- picolibc-pristine/cmd/gaston/picolibc/libc/search/hash_func.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/picolibc/libc/search/hash_func.c	2026-04-08 22:31:47
-@@ -134,25 +134,25 @@
- 		case 0:
- 			do {
- 				HASHC;
--				__PICOLIBC_FALLTHROUGH;
-+				FALLTHROUGH;
- 		case 7:
- 				HASHC;
--				__PICOLIBC_FALLTHROUGH;
-+				FALLTHROUGH;
- 		case 6:
- 				HASHC;
--				__PICOLIBC_FALLTHROUGH;
-+				FALLTHROUGH;
- 		case 5:
- 				HASHC;
--				__PICOLIBC_FALLTHROUGH;
-+				FALLTHROUGH;
- 		case 4:
- 				HASHC;
--				__PICOLIBC_FALLTHROUGH;
-+				FALLTHROUGH;
- 		case 3:
- 				HASHC;
--				__PICOLIBC_FALLTHROUGH;
-+				FALLTHROUGH;
- 		case 2:
- 				HASHC;
--				__PICOLIBC_FALLTHROUGH;
-+				FALLTHROUGH;
- 		case 1:
- 				HASHC;
- 			} while (--loop);
 diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/search/hash_page.c picolibc-patched/cmd/gaston/picolibc/libc/search/hash_page.c
 --- picolibc-pristine/cmd/gaston/picolibc/libc/search/hash_page.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/picolibc/libc/search/hash_page.c	2026-04-08 22:31:47
@@ -46478,27 +44047,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/chacha_private.h pic
    u_int i;
  
    if (!bytes) return;
-diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/dtoa.c picolibc-patched/cmd/gaston/picolibc/libc/stdlib/dtoa.c
---- picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/dtoa.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/picolibc/libc/stdlib/dtoa.c	2026-04-08 22:31:47
-@@ -399,7 +399,7 @@
-       break;
-     case 2:
-       leftright = 0;
--      __PICOLIBC_FALLTHROUGH;
-+      FALLTHROUGH;
-     case 4:
-       if (ndigits <= 0)
- 	ndigits = 1;
-@@ -407,7 +407,7 @@
-       break;
-     case 3:
-       leftright = 0;
--      __PICOLIBC_FALLTHROUGH;
-+      FALLTHROUGH;
-     case 5:
-       i = ndigits + k + 1;
-       ilim = i;
 diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/ecvtbuf.c picolibc-patched/cmd/gaston/picolibc/libc/stdlib/ecvtbuf.c
 --- picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/ecvtbuf.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/picolibc/libc/stdlib/ecvtbuf.c	2026-04-08 22:31:47
@@ -47630,15 +45178,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/gdtoa-gdtoa.c picoli
 diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/gdtoa-gethex.c picolibc-patched/cmd/gaston/picolibc/libc/stdlib/gdtoa-gethex.c
 --- picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/gdtoa-gethex.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/picolibc/libc/stdlib/gdtoa-gethex.c	2026-04-08 22:31:47
-@@ -212,7 +212,7 @@
- 		switch(*++s) {
- 		  case '-':
- 			esign = 1;
--			__PICOLIBC_FALLTHROUGH;
-+			FALLTHROUGH;
- 		  case '+':
- 			s++;
- 		  }
 @@ -251,7 +251,7 @@
  			L = 0;
  			n = 0;
@@ -48932,38 +46471,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/strtod.c picolibc-pa
  #endif
  
  	delta = bs = bd = NULL;
-@@ -279,11 +277,11 @@
- 	for(s = s00;;s++) switch(*s) {
- 		case '-':
- 			sign = 1;
--                        __PICOLIBC_FALLTHROUGH;
-+                        FALLTHROUGH;
- 		case '+':
- 			if (*++s)
- 				goto break2;
--                        __PICOLIBC_FALLTHROUGH;
-+                        FALLTHROUGH;
- 		case 0:
- 			goto ret0;
- 		case '\t':
-@@ -324,7 +322,7 @@
- 			  case STRTOG_NoNumber:
- 				s = s00;
- 				sign = 0;
--				__PICOLIBC_FALLTHROUGH;
-+				FALLTHROUGH;
- 			  case STRTOG_Zero:
- 				break;
- 			  default:
-@@ -400,7 +398,7 @@
- 		switch(c = *++s) {
- 			case '-':
- 				esign = 1;
--                                __PICOLIBC_FALLTHROUGH;
-+                                FALLTHROUGH;
- 			case '+':
- 				c = *++s;
- 			}
 @@ -1317,20 +1315,6 @@
      union { float f; __uint32_t i; } u;
      u.f = f;
@@ -48985,32 +46492,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/strtod.c picolibc-pa
  }
  
  float
-diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/strtodg.c picolibc-patched/cmd/gaston/picolibc/libc/stdlib/strtodg.c
---- picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/strtodg.c	2026-04-08 22:31:47
-+++ picolibc-patched/cmd/gaston/picolibc/libc/stdlib/strtodg.c	2026-04-08 22:31:47
-@@ -461,11 +461,11 @@
- 	for(s = s00;;s++) switch(*s) {
- 		case '-':
- 			sign = 1;
--                        __PICOLIBC_FALLTHROUGH;
-+                        FALLTHROUGH;
- 		case '+':
- 			if (*++s)
- 				goto break2;
--                        __PICOLIBC_FALLTHROUGH;
-+                        FALLTHROUGH;
- 		case 0:
- 			sign = 0;
- 			irv = STRTOG_NoNumber;
-@@ -563,7 +563,7 @@
- 		switch(c = *++s) {
- 			case '-':
- 				esign = 1;
--                                __PICOLIBC_FALLTHROUGH;
-+                                FALLTHROUGH;
- 			case '+':
- 				c = *++s;
- 			}
 diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/strtold.c picolibc-patched/cmd/gaston/picolibc/libc/stdlib/strtold.c
 --- picolibc-pristine/cmd/gaston/picolibc/libc/stdlib/strtold.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/picolibc/libc/stdlib/strtold.c	2026-04-08 22:31:47
@@ -50251,15 +47732,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/time/strptime.c picolibc-pa
  	    case 'r' :		/* %I:%M:%S %p */
  		s = strptime_l (buf, _ctloc (ampm_fmt), timeptr, locale);
  		if (s == NULL)
-@@ -434,7 +426,7 @@
- 		break;
- 	    case '\0' :
- 		--format;
--		__PICOLIBC_FALLTHROUGH;
-+		FALLTHROUGH;
- 	    case '%' :
- 		if (*buf == '%')
- 		    ++buf;
 diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/time/tzset.c picolibc-patched/cmd/gaston/picolibc/libc/time/tzset.c
 --- picolibc-pristine/cmd/gaston/picolibc/libc/time/tzset.c	2026-04-08 22:31:47
 +++ picolibc-patched/cmd/gaston/picolibc/libc/time/tzset.c	2026-04-08 22:31:47
@@ -51259,15 +48731,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/tinystdio/conv_flt.c picoli
  static unsigned char
  conv_flt (FLT_STREAM *stream, int *lenp, width_t width, void *addr, uint16_t flags)
  {
-@@ -208,7 +194,7 @@
-     switch ((unsigned char)i) {
-     case '-':
-         flags |= FL_MINUS;
--	__PICOLIBC_FALLTHROUGH;
-+	FALLTHROUGH;
-     case '+':
- 	if (!CHECK_WIDTH() || (i = scanf_getc (stream, lenp)) < 0)
- 	    return 0;
 @@ -230,7 +216,7 @@
  	    while ((c = *p++) != 0) {
  		if (CHECK_WIDTH()) {
@@ -51353,15 +48816,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/tinystdio/conv_flt.c picoli
          int exp_match = (flags & FL_FHEX) ? 'p' : 'e';
  #else
  #define exp_match 'e'
-@@ -343,7 +316,7 @@
- 	    switch ((unsigned char)esign) {
-             case '-':
- 		flags |= FL_MEXP;
--		__PICOLIBC_FALLTHROUGH;
-+		FALLTHROUGH;
-             case '+':
-                 if (!CHECK_WIDTH()) {
-                     scanf_ungetc(esign, stream, lenp);
 @@ -357,7 +330,7 @@
                  break;
  	    }
@@ -60388,15 +57842,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/tinystdio/vfprintf.c picoli
          argno = 0;
  #endif
  
-@@ -485,7 +406,7 @@
- 		    continue;
- 		  case '+':
- 		    flags |= FL_PLUS;
--		    __PICOLIBC_FALLTHROUGH;
-+		    FALLTHROUGH;
- 		  case ' ':
- 		    flags |= FL_SPACE;
- 		    continue;
 @@ -506,7 +427,6 @@
  
  	    if (flags < FL_LONG) {
@@ -61551,15 +58996,6 @@ diff -ruN picolibc-pristine/cmd/gaston/picolibc/libc/tinystdio/vfscanf.c picolib
  	          case 'd':
  		  case 'u':
                      base = 10;
-@@ -659,7 +621,7 @@
- 
- 	          case 'o':
-                     base = 8;
--		    __PICOLIBC_FALLTHROUGH;
-+		    FALLTHROUGH;
- 		  case 'i':
- 		  conv_int:
-                     c = conv_int (stream, lenp, width, addr, flags, base);
 @@ -673,22 +635,16 @@
                      base = 10;
  		    goto conv_int;
