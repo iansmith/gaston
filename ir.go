@@ -251,6 +251,7 @@ type IRGlobal struct {
 	Pointee    *CType  // non-nil when IsPtr: full pointee type
 	StructTag  string  // struct type name (when IsStruct)
 	IsExtern    bool   // true for extern-declared globals (no storage allocated)
+	IsStatic    bool   // true for static globals (internal linkage; STB_LOCAL in ELF)
 	IsWeak      bool   // true for __attribute__((weak)) globals
 	SectionName string // non-empty for __attribute__((section("name")))
 	Align       int    // non-zero for _Alignas(N): required alignment in bytes
@@ -297,6 +298,7 @@ type IRFunc struct {
 	ParamStructTag  []string   // parallel to ParamType; non-empty when ParamType[i]==TypeStruct
 	IsVariadic   bool       // true if this function accepts variadic arguments
 	HasVLA       bool       // true if any local is a VLA (requires FP-relative frame addressing)
+	IsStatic     bool       // true for static functions (internal linkage; STB_LOCAL in ELF)
 	IsWeak       bool       // true for __attribute__((weak)) functions
 	SectionName  string     // non-empty for __attribute__((section("name")))
 	Locals       []IRLocal  // local variables declared inside the function body

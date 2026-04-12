@@ -9,6 +9,11 @@ union __fp_bits { unsigned long u; double f; };
 union __fpf_bits { unsigned int u; float f; };
 
 /* ── signbit ─────────────────────────────────────────────────────────── */
+/* Gaston's prelude defines __builtin_signbit* as macros; undef them here  */
+/* so we can define the actual functions that back those macros.            */
+#undef __builtin_signbit
+#undef __builtin_signbitf
+#undef __builtin_signbitl
 
 int __builtin_signbit(double x) {
     union __fp_bits b;

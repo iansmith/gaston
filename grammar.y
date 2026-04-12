@@ -41,6 +41,7 @@ import "fmt"
 %token ALIGNOF GENERIC
 %token STATIC_ASSERT
 %token ASM_KW
+%token INLINE_KW
 %token <sval> TYPENAME
 
 // Multi-character operators
@@ -1467,9 +1468,11 @@ typedef_declaration
 			$$ = nil
 		}
 	/* typedef of function type (not pointer): typedef int name(params); */
+	/* IsFuncType=true marks it as a function type (not pointer-to-function), so that
+	   `wctomb_f name;` is treated as a function prototype, not a variable. */
 	| TYPEDEF type_specifier ID '(' fp_param_types ')' ';'
 		{
-			yylex.(*lexer).registerTypedef($3, leafCType(TypeFuncPtr))
+			yylex.(*lexer).registerTypedef($3, funcTypeCType())
 			$$ = nil
 		}
 	/* typedef of anonymous struct/union: typedef struct { ... } Name; */
@@ -2026,6 +2029,28 @@ declaration_specifiers
 		{ $$ = &DeclSpec{BaseType: $3, IsStatic: true, IsConst: true} }
 	| EXTERN CONST type_specifier
 		{ $$ = &DeclSpec{BaseType: $3, IsExtern: true, IsConst: true} }
+	/* ── inline function specifier combinations ── */
+	| INLINE_KW type_specifier
+		{ $$ = &DeclSpec{BaseType: $2, IsInline: true} }
+	| STATIC INLINE_KW type_specifier
+		{ $$ = &DeclSpec{BaseType: $3, IsStatic: true, IsInline: true} }
+	| EXTERN INLINE_KW type_specifier
+		{ $$ = &DeclSpec{BaseType: $3, IsExtern: true, IsInline: true} }
+	| INLINE_KW STATIC type_specifier
+		{ $$ = &DeclSpec{BaseType: $3, IsStatic: true, IsInline: true} }
+	| INLINE_KW EXTERN type_specifier
+		{ $$ = &DeclSpec{BaseType: $3, IsExtern: true, IsInline: true} }
+	| STATIC INLINE_KW CONST type_specifier
+		{ $$ = &DeclSpec{BaseType: $4, IsStatic: true, IsInline: true, IsConst: true} }
+	| EXTERN INLINE_KW CONST type_specifier
+		{ $$ = &DeclSpec{BaseType: $4, IsExtern: true, IsInline: true, IsConst: true} }
+	| INLINE_KW CONST type_specifier
+		{ $$ = &DeclSpec{BaseType: $3, IsInline: true, IsConst: true} }
+	| INLINE_KW STATIC CONST type_specifier
+		{ $$ = &DeclSpec{BaseType: $4, IsStatic: true, IsInline: true, IsConst: true} }
+	/* trailing INLINE_KW: handles "extern type __inline" and similar */
+	| declaration_specifiers INLINE_KW
+		{ $$ = $1; $$.IsInline = true }
 	/* ── const + type specifier ── */
 	| CONST type_specifier
 		{ $$ = &DeclSpec{BaseType: $2, IsConst: true} }

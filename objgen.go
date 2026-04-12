@@ -135,6 +135,7 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 	type globalSlot struct {
 		gbl        IRGlobal
 		inData     bool   // initialized scalar → .data; else → .bss
+		isCommon   bool   // true for non-static uninitialized globals (SHN_COMMON; linker merges)
 		dataOff    uint64 // byte offset within .data
 		bssOff     uint64 // byte offset within .bss
 		customOff  uint64 // byte offset within the custom section data
@@ -206,7 +207,14 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 			}
 			sl.dataOff = dataTotal
 			dataTotal += sz
+		} else if !gbl.IsStatic && !gbl.IsWeak {
+			// Non-static uninitialized global → SHN_COMMON (tentative definition).
+			// The linker merges all COMMON symbols with the same name across TUs,
+			// which is the correct C semantic for file-scope declarations without
+			// initializers (e.g. `int x;` in a header included by multiple .c files).
+			sl.isCommon = true
 		} else {
+			// Static or weak uninitialized global → .bss (strong/local definition).
 			if gbl.Align > 0 {
 				bssTotal = (bssTotal + uint64(gbl.Align) - 1) &^ (uint64(gbl.Align) - 1)
 			}
@@ -536,12 +544,66 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 		})
 	}
 
-	// First global symbol index.
-	firstGlobal := len(syms)
-
-	// Global symbols for locally-defined default functions (STB_GLOBAL, STT_FUNC).
+	// ELF requires STB_LOCAL symbols to appear before STB_GLOBAL/STB_WEAK symbols.
+	// Pass 1: emit static (STB_LOCAL) function symbols.
 	funcSymIdx := make(map[string]int) // C-minus name → symtab index
 	for _, fn := range defaultFuncs {
+		if !fn.IsStatic {
+			continue
+		}
+		label := funcLabel(fn.Name)
+		wordIdx, ok := cb.labels[label]
+		if !ok {
+			return fmt.Errorf("genObjectFile: function label %q not found", label)
+		}
+		idx := len(syms)
+		funcSymIdx[fn.Name] = idx
+		nameIdx := strtab.add(label)
+		syms = append(syms, symRec{
+			nameIdx: nameIdx,
+			info:    (0 << 4) | 2, // STB_LOCAL | STT_FUNC
+			shndx:   objSecText,
+			value:   uint64(wordIdx) * 4,
+		})
+	}
+
+	// Pass 1b: static variables as STB_LOCAL.
+	globalSymIdx := make(map[string]int) // C-minus name → symtab index
+	for _, sl := range slots {
+		if !sl.gbl.IsStatic {
+			continue
+		}
+		idx := len(syms)
+		globalSymIdx[sl.gbl.Name] = idx
+		nameIdx := strtab.add(sl.gbl.Name)
+		sz := uint64(sl.gbl.Size) * 8
+		if sl.inData {
+			syms = append(syms, symRec{
+				nameIdx: nameIdx,
+				info:    (0 << 4) | 1, // STB_LOCAL | STT_OBJECT
+				shndx:   objSecData,
+				value:   sl.dataOff,
+				size:    sz,
+			})
+		} else {
+			syms = append(syms, symRec{
+				nameIdx: nameIdx,
+				info:    (0 << 4) | 1, // STB_LOCAL | STT_OBJECT
+				shndx:   objSecBss,
+				value:   sl.bssOff,
+				size:    sz,
+			})
+		}
+	}
+
+	// First global symbol index (all STB_LOCAL symbols emitted above this point).
+	firstGlobal := len(syms)
+
+	// Pass 2: global/weak function symbols (STB_GLOBAL, STT_FUNC).
+	for _, fn := range defaultFuncs {
+		if fn.IsStatic {
+			continue
+		}
 		label := funcLabel(fn.Name)
 		wordIdx, ok := cb.labels[label]
 		if !ok {
@@ -586,9 +648,11 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 		}
 	}
 
-	// Global symbols for locally-defined default variables.
-	globalSymIdx := make(map[string]int) // C-minus name → symtab index
+	// Global symbols for locally-defined default variables (non-static only; static emitted above).
 	for _, sl := range slots {
+		if sl.gbl.IsStatic {
+			continue // already emitted as STB_LOCAL before firstGlobal
+		}
 		idx := len(syms)
 		globalSymIdx[sl.gbl.Name] = idx
 		nameIdx := strtab.add(sl.gbl.Name)
@@ -597,7 +661,21 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 		if sl.gbl.IsWeak {
 			gblBinding = 2 // STB_WEAK
 		}
-		if sl.inData {
+		if sl.isCommon {
+			// Tentative definition → SHN_COMMON.  ELF spec: value = alignment,
+			// size = byte size.  The linker merges same-named COMMON symbols.
+			alignment := uint64(8)
+			if sl.gbl.Align > 0 {
+				alignment = uint64(sl.gbl.Align)
+			}
+			syms = append(syms, symRec{
+				nameIdx: nameIdx,
+				info:    (gblBinding << 4) | 1, // STB_GLOBAL | STT_OBJECT
+				shndx:   uint16(elf.SHN_COMMON),
+				value:   alignment,
+				size:    sz,
+			})
+		} else if sl.inData {
 			syms = append(syms, symRec{
 				nameIdx: nameIdx,
 				info:    (gblBinding << 4) | 1, // STB_{GLOBAL,WEAK} | STT_OBJECT
@@ -634,6 +712,8 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 		gblBinding := uint8(1)
 		if sl.gbl.IsWeak {
 			gblBinding = 2
+		} else if sl.gbl.IsStatic {
+			gblBinding = 0 // STB_LOCAL
 		}
 		syms = append(syms, symRec{
 			nameIdx: nameIdx,

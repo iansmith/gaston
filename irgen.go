@@ -148,6 +148,7 @@ func genIR(prog *Node) *IRProgram {
 				Pointee:   decl.Pointee,
 				StructTag: decl.StructTag,
 				IsExtern:    decl.IsExtern,
+				IsStatic:    decl.IsStatic,
 				IsWeak:      decl.IsWeak,
 				SectionName: decl.SectionName,
 				Align:       decl.Align,
@@ -368,7 +369,7 @@ func buildStructDefIR(n *Node, structDefs map[string]*StructDef) *StructDef {
 
 func (g *irGen) genFunc(n *Node) {
 	g.fn = &IRFunc{Name: n.Name, ReturnType: n.Type, ReturnPointee: n.Pointee,
-		ReturnStructTag: n.StructTag, IsWeak: n.IsWeak, SectionName: n.SectionName}
+		ReturnStructTag: n.StructTag, IsStatic: n.IsStatic, IsWeak: n.IsWeak, SectionName: n.SectionName}
 	g.tempN = 0
 	g.labelN = 0
 	g.locals = make(map[string]localInfo)
@@ -463,6 +464,7 @@ func (g *irGen) genCompound(n *Node) {
 					Pointee:  child.Pointee,
 					Size:     szS,
 					InnerDim: child.Dim2,
+					IsStatic: true, // static local: internal linkage
 				}
 				if len(child.Children) > 0 && child.Children[0].Kind == KindNum {
 					gblS.HasInitVal = true
@@ -1011,6 +1013,12 @@ func (g *irGen) genStmt(n *Node) {
 		g.emitLabel("user_" + n.Name)
 		g.genStmt(n.Children[0])
 	case KindReturn:
+		if len(n.Children) > 0 && g.fn.ReturnType == TypeVoid {
+			// "return void_expr;" in a void function: evaluate for side effects, then return.
+			g.genExpr(n.Children[0])
+			g.emit(Quad{Op: IRReturn})
+			return
+		}
 		if len(n.Children) > 0 {
 			// Struct-by-value return: emit IRReturn with TypeHint=TypeStruct.
 			if g.fn.ReturnStructTag != "" {

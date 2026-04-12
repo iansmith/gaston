@@ -15,6 +15,7 @@ type FuncSig struct {
 	Params          []TypeKind
 	ParamPointees   []*CType // per-param pointee CType (nil for non-pointer params); len == len(Params)
 	IsExtern        bool     // true for extern function declarations (no body)
+	IsStatic        bool     // true for static (file-scope) or static-inline functions
 	IsVariadic      bool     // true for variadic functions (last param is "...")
 }
 
@@ -314,6 +315,17 @@ func (st *symTable) declareFunc(sig *FuncSig) error {
 		if sig.IsExtern {
 			return nil
 		}
+		// Allow a non-static (external) definition to replace a static/inline one.
+		// This handles the common pattern: "static inline f(){}" in a header,
+		// then "f(){}" in the corresponding .c file.
+		if existing.IsStatic && !sig.IsStatic {
+			st.funcs[sig.Name] = sig
+			return nil
+		}
+		// Allow a second static definition to match (e.g. duplicate force-includes).
+		if existing.IsStatic && sig.IsStatic {
+			return nil
+		}
 		return fmt.Errorf("redeclaration of function '%s'", sig.Name)
 	}
 	st.funcs[sig.Name] = sig
@@ -568,7 +580,7 @@ func checkFunDecl(n *Node, st *symTable, errs *[]string) {
 	}
 
 	nparams := len(n.Children) - 1 // last child is the body
-	sig := &FuncSig{Name: n.Name, ReturnType: n.Type, ReturnPointee: n.Pointee, ReturnStructTag: n.StructTag}
+	sig := &FuncSig{Name: n.Name, ReturnType: n.Type, ReturnPointee: n.Pointee, ReturnStructTag: n.StructTag, IsStatic: n.IsStatic}
 	for i := 0; i < nparams; i++ {
 		p := n.Children[i]
 		if p.Name == "..." {
@@ -745,13 +757,18 @@ func checkStmt(n *Node, st *symTable, fn *Node, errs *[]string) {
 		checkStmt(n.Children[0], st, fn, errs)
 	case KindReturn:
 		if fn.Type == TypeVoid && len(n.Children) > 0 {
-			*errs = append(*errs, fmt.Sprintf("void function '%s' cannot return a value", fn.Name))
-		}
-		if fn.Type != TypeVoid && len(n.Children) == 0 {
-			*errs = append(*errs, fmt.Sprintf("non-void function '%s' missing return value", fn.Name))
-		}
-		if len(n.Children) > 0 {
-			checkExpr(n.Children[0], st, errs)
+			// Allow "return void_expr;" (GCC extension: return from void func with void call).
+			retType := checkExpr(n.Children[0], st, errs)
+			if retType != TypeVoid {
+				*errs = append(*errs, fmt.Sprintf("void function '%s' cannot return a value", fn.Name))
+			}
+		} else {
+			if fn.Type != TypeVoid && len(n.Children) == 0 {
+				*errs = append(*errs, fmt.Sprintf("non-void function '%s' missing return value", fn.Name))
+			}
+			if len(n.Children) > 0 {
+				checkExpr(n.Children[0], st, errs)
+			}
 		}
 	case KindVarDecl:
 		// C99 declaration inside a switch case (or other statement position).

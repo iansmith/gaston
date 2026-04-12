@@ -275,6 +275,9 @@ var keywords = map[string]int{
 	"asm":             ASM_KW,
 	"__asm":           ASM_KW,
 	"__asm__":         ASM_KW,
+	"inline":          INLINE_KW,
+	"__inline":        INLINE_KW,
+	"__inline__":      INLINE_KW,
 }
 
 // skipWords lists storage-class and qualifier keywords that the lexer silently drops.
@@ -283,7 +286,6 @@ var skipWords = map[string]bool{
 	"volatile":   true,
 	"register":   true,
 	"restrict":   true,
-	"inline":     true,
 	// C11 function specifiers
 	"_Noreturn":  true,
 	"noreturn":   true,
@@ -293,8 +295,6 @@ var skipWords = map[string]bool{
 	"__volatile__":  true,
 	"__const__":     true,
 	"__signed__":    true,
-	"__inline__":         true,
-	"__inline":           true,
 	"__noreturn__":       true,
 	"__noreturn":         true,  // GCC single-underscore form
 	"__always_inline__":  true,  // __attribute__((always_inline)) spelled as keyword

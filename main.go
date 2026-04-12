@@ -513,6 +513,9 @@ func main() {
 			for _, d := range defines {
 				gccArgs = append(gccArgs, "-D", d)
 			}
+			for _, f := range forceIncludes {
+				gccArgs = append(gccArgs, "-include", f)
+			}
 			gccArgs = append(gccArgs, infile)
 			cmd := exec.Command("gcc", gccArgs...)
 			cmd.Stdout = os.Stdout

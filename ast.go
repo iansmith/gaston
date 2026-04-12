@@ -36,9 +36,10 @@ const (
 //   - Kind == TypePtr, Pointee = next level for double/triple pointer chains
 //   - Kind == TypeVoid for void*
 type CType struct {
-	Kind    TypeKind // pointee kind
-	Tag     string   // struct/union name (non-empty when Kind == TypeStruct)
-	Pointee *CType   // non-nil when Kind == TypePtr (double/triple pointer chain)
+	Kind       TypeKind // pointee kind
+	Tag        string   // struct/union name (non-empty when Kind == TypeStruct)
+	Pointee    *CType   // non-nil when Kind == TypePtr (double/triple pointer chain)
+	IsFuncType bool     // true for function-type typedefs (typedef int f(params)), not pointer-to-function
 }
 
 // leafCType builds a CType for a non-pointer (leaf) type.
@@ -49,6 +50,10 @@ func structCType(tag string) *CType { return &CType{Kind: TypeStruct, Tag: tag} 
 
 // ptrCType builds a CType representing a pointer to the given pointee.
 func ptrCType(pointee *CType) *CType { return &CType{Kind: TypePtr, Pointee: pointee} }
+
+// funcTypeCType builds a CType for a function-type typedef (typedef int f(params)).
+// IsFuncType=true distinguishes it from pointer-to-function typedefs.
+func funcTypeCType() *CType { return &CType{Kind: TypeFuncPtr, IsFuncType: true} }
 
 // ctypeStructTag returns the struct/union tag from a CType, or "" if not a struct.
 func ctypeStructTag(ct *CType) string {
@@ -621,6 +626,7 @@ type DeclSpec struct {
 	BaseType      *CType // resolved base type from type keywords
 	IsStatic      bool
 	IsExtern      bool
+	IsInline      bool   // true for inline / __inline__ / __inline function specifier
 	IsConst       bool   // leading const (qualifier on type)
 	IsConstTarget bool   // const T *p pattern (pointer target is const)
 	IsTypedef     bool
@@ -835,7 +841,16 @@ func applyDeclToFunNode(ds *DeclSpec, name string, retPtrChain *CType, params []
 	}
 
 	if body != nil {
-		n.Children = append(params, body)
+		if ds.IsInline && ds.IsExtern {
+			// extern inline function (e.g. gnu_inline pattern in headers): treat as
+			// a prototype only. The body is discarded — a real definition in the
+			// corresponding .c file will replace it via declareFunc.
+			n.IsExtern = true
+			n.Children = params
+		} else {
+			n.IsExtern = false // extern on a definition means external linkage, not prototype
+			n.Children = append(params, body)
+		}
 	} else {
 		n.IsExtern = true
 		n.Children = params
@@ -857,6 +872,20 @@ func buildDeclNodes(ds *DeclSpec, decls []*Declarator, lex *lexer) []*Node {
 	}
 
 	for _, d := range decls {
+		// When a function-type typedef is used as a declaration (e.g. `wctomb_f __ascii_wctomb;`
+		// where `typedef int wctomb_f(char *, wchar_t, mbstate_t *)`), the declaration is a
+		// function prototype, not a variable. Emit an extern KindFunDecl so the function is
+		// callable but no storage is allocated.
+		if ds.BaseType != nil && ds.BaseType.IsFuncType && d.PtrChain == nil && !d.IsFuncPtr {
+			n := &Node{
+				Kind:     KindFunDecl,
+				Name:     d.Name,
+				Type:     TypeVoid, // return type unknown; sufficient for call resolution
+				IsExtern: true,
+			}
+			result = append(result, n)
+			continue
+		}
 		n := applyDeclToVarNode(ds, d)
 		// Handle typeof expressions.
 		if ds.TypeofExpr != nil {
