@@ -2482,9 +2482,10 @@ func (p *preprocessor) expandForIf(expr, currentFile string) string {
 
 // ppToken is a token in a preprocessor constant expression.
 type ppToken struct {
-	kind string // "num", "op"
-	num  int64
-	op   string
+	kind       string // "num", "op"
+	num        int64
+	op         string
+	isUnsigned bool // true if the literal had a U/UL/ULL suffix
 }
 
 // scanPPTokens tokenizes a preprocessor constant expression.
@@ -2548,21 +2549,26 @@ func scanPPTokens(s string) []ppToken {
 				}
 			}
 			numStr := s[i:j]
-			// Skip integer suffixes.
+			// Skip integer suffixes and note if unsigned.
+			isUnsigned := false
 			for j < len(s) && (s[j] == 'u' || s[j] == 'U' || s[j] == 'l' || s[j] == 'L') {
+				if s[j] == 'u' || s[j] == 'U' {
+					isUnsigned = true
+				}
 				j++
 			}
 			// Parse number.
 			base := 0
 			v, err := strconv.ParseInt(numStr, base, 64)
 			if err != nil {
-				// Try unsigned.
+				// Try unsigned (handles values > INT64_MAX like ULONG_MAX).
 				uv, uerr := strconv.ParseUint(numStr, base, 64)
 				if uerr == nil {
 					v = int64(uv)
+					isUnsigned = true
 				}
 			}
-			toks = append(toks, ppToken{kind: "num", num: v})
+			toks = append(toks, ppToken{kind: "num", num: v, isUnsigned: isUnsigned})
 			i = j
 			continue
 		}
@@ -2683,173 +2689,264 @@ func evalBitAnd(toks []ppToken, pos *int) int64 {
 }
 
 func evalEquality(toks []ppToken, pos *int) int64 {
-	lhs := evalRelational(toks, pos)
+	lhs, lhsU := evalRelationalU(toks, pos)
 	for {
 		if consumeOp(toks, pos, "==") {
-			rhs := evalRelational(toks, pos)
-			if lhs == rhs {
+			rhs, rhsU := evalRelationalU(toks, pos)
+			var eq bool
+			if lhsU || rhsU {
+				eq = uint64(lhs) == uint64(rhs)
+			} else {
+				eq = lhs == rhs
+			}
+			if eq {
 				lhs = 1
 			} else {
 				lhs = 0
 			}
+			lhsU = false
 		} else if consumeOp(toks, pos, "!=") {
-			rhs := evalRelational(toks, pos)
-			if lhs != rhs {
+			rhs, rhsU := evalRelationalU(toks, pos)
+			var ne bool
+			if lhsU || rhsU {
+				ne = uint64(lhs) != uint64(rhs)
+			} else {
+				ne = lhs != rhs
+			}
+			if ne {
 				lhs = 1
 			} else {
 				lhs = 0
 			}
+			lhsU = false
 		} else {
 			break
 		}
 	}
+	_ = lhsU
 	return lhs
+}
+
+// evalRelationalU returns (value, isUnsigned) for use by evalEquality.
+func evalRelationalU(toks []ppToken, pos *int) (int64, bool) {
+	lhs, lhsU := evalShiftU(toks, pos)
+	for {
+		if consumeOp(toks, pos, "<=") {
+			rhs, rhsU := evalShiftU(toks, pos)
+			u := lhsU || rhsU
+			var ok bool
+			if u {
+				ok = uint64(lhs) <= uint64(rhs)
+			} else {
+				ok = lhs <= rhs
+			}
+			if ok {
+				lhs = 1
+			} else {
+				lhs = 0
+			}
+			lhsU = false
+		} else if consumeOp(toks, pos, ">=") {
+			rhs, rhsU := evalShiftU(toks, pos)
+			u := lhsU || rhsU
+			var ok bool
+			if u {
+				ok = uint64(lhs) >= uint64(rhs)
+			} else {
+				ok = lhs >= rhs
+			}
+			if ok {
+				lhs = 1
+			} else {
+				lhs = 0
+			}
+			lhsU = false
+		} else if peekOp(toks, pos, "<") {
+			*pos++
+			rhs, rhsU := evalShiftU(toks, pos)
+			u := lhsU || rhsU
+			var ok bool
+			if u {
+				ok = uint64(lhs) < uint64(rhs)
+			} else {
+				ok = lhs < rhs
+			}
+			if ok {
+				lhs = 1
+			} else {
+				lhs = 0
+			}
+			lhsU = false
+		} else if peekOp(toks, pos, ">") {
+			*pos++
+			rhs, rhsU := evalShiftU(toks, pos)
+			u := lhsU || rhsU
+			var ok bool
+			if u {
+				ok = uint64(lhs) > uint64(rhs)
+			} else {
+				ok = lhs > rhs
+			}
+			if ok {
+				lhs = 1
+			} else {
+				lhs = 0
+			}
+			lhsU = false
+		} else {
+			break
+		}
+	}
+	return lhs, lhsU
 }
 
 func evalRelational(toks []ppToken, pos *int) int64 {
-	lhs := evalShift(toks, pos)
+	v, _ := evalRelationalU(toks, pos)
+	return v
+}
+
+func evalShiftU(toks []ppToken, pos *int) (int64, bool) {
+	lhs, lhsU := evalAddSubU(toks, pos)
 	for {
-		if consumeOp(toks, pos, "<=") {
-			rhs := evalShift(toks, pos)
-			if lhs <= rhs {
-				lhs = 1
+		if consumeOp(toks, pos, "<<") {
+			rhs, _ := evalAddSubU(toks, pos)
+			lhs = lhs << uint(rhs)
+		} else if consumeOp(toks, pos, ">>") {
+			rhs, _ := evalAddSubU(toks, pos)
+			if lhsU {
+				lhs = int64(uint64(lhs) >> uint(rhs))
 			} else {
-				lhs = 0
-			}
-		} else if consumeOp(toks, pos, ">=") {
-			rhs := evalShift(toks, pos)
-			if lhs >= rhs {
-				lhs = 1
-			} else {
-				lhs = 0
-			}
-		} else if peekOp(toks, pos, "<") {
-			*pos++
-			rhs := evalShift(toks, pos)
-			if lhs < rhs {
-				lhs = 1
-			} else {
-				lhs = 0
-			}
-		} else if peekOp(toks, pos, ">") {
-			*pos++
-			rhs := evalShift(toks, pos)
-			if lhs > rhs {
-				lhs = 1
-			} else {
-				lhs = 0
+				lhs = lhs >> uint(rhs)
 			}
 		} else {
 			break
 		}
 	}
-	return lhs
+	return lhs, lhsU
 }
 
 func evalShift(toks []ppToken, pos *int) int64 {
-	lhs := evalAddSub(toks, pos)
-	for {
-		if consumeOp(toks, pos, "<<") {
-			rhs := evalAddSub(toks, pos)
-			lhs = lhs << uint(rhs)
-		} else if consumeOp(toks, pos, ">>") {
-			rhs := evalAddSub(toks, pos)
-			lhs = lhs >> uint(rhs)
-		} else {
-			break
-		}
-	}
-	return lhs
+	v, _ := evalShiftU(toks, pos)
+	return v
 }
 
-func evalAddSub(toks []ppToken, pos *int) int64 {
-	lhs := evalMulDiv(toks, pos)
+func evalAddSubU(toks []ppToken, pos *int) (int64, bool) {
+	lhs, lhsU := evalMulDivU(toks, pos)
 	for {
 		if peekOp(toks, pos, "+") {
 			*pos++
-			rhs := evalMulDiv(toks, pos)
+			rhs, rhsU := evalMulDivU(toks, pos)
 			lhs = lhs + rhs
+			lhsU = lhsU || rhsU
 		} else if peekOp(toks, pos, "-") {
 			*pos++
-			rhs := evalMulDiv(toks, pos)
+			rhs, rhsU := evalMulDivU(toks, pos)
 			lhs = lhs - rhs
+			lhsU = lhsU || rhsU
 		} else {
 			break
 		}
 	}
-	return lhs
+	return lhs, lhsU
 }
 
-func evalMulDiv(toks []ppToken, pos *int) int64 {
-	lhs := evalUnary(toks, pos)
+func evalAddSub(toks []ppToken, pos *int) int64 {
+	v, _ := evalAddSubU(toks, pos)
+	return v
+}
+
+func evalMulDivU(toks []ppToken, pos *int) (int64, bool) {
+	lhs, lhsU := evalUnaryU(toks, pos)
 	for {
 		if peekOp(toks, pos, "*") {
 			*pos++
-			rhs := evalUnary(toks, pos)
+			rhs, rhsU := evalUnaryU(toks, pos)
 			lhs = lhs * rhs
+			lhsU = lhsU || rhsU
 		} else if peekOp(toks, pos, "/") {
 			*pos++
-			rhs := evalUnary(toks, pos)
+			rhs, rhsU := evalUnaryU(toks, pos)
 			if rhs == 0 {
 				lhs = 0 // division by zero: return 0
+			} else if lhsU || rhsU {
+				lhs = int64(uint64(lhs) / uint64(rhs))
 			} else {
 				lhs = lhs / rhs
 			}
+			lhsU = lhsU || rhsU
 		} else if peekOp(toks, pos, "%") {
 			*pos++
-			rhs := evalUnary(toks, pos)
+			rhs, rhsU := evalUnaryU(toks, pos)
 			if rhs == 0 {
 				lhs = 0 // modulo by zero: return 0
+			} else if lhsU || rhsU {
+				lhs = int64(uint64(lhs) % uint64(rhs))
 			} else {
 				lhs = lhs % rhs
 			}
+			lhsU = lhsU || rhsU
 		} else {
 			break
 		}
 	}
-	return lhs
+	return lhs, lhsU
 }
 
-func evalUnary(toks []ppToken, pos *int) int64 {
+func evalMulDiv(toks []ppToken, pos *int) int64 {
+	v, _ := evalMulDivU(toks, pos)
+	return v
+}
+
+func evalUnaryU(toks []ppToken, pos *int) (int64, bool) {
 	if consumeOp(toks, pos, "!") {
-		v := evalUnary(toks, pos)
+		v, _ := evalUnaryU(toks, pos)
 		if v == 0 {
-			return 1
+			return 1, false
 		}
-		return 0
+		return 0, false
 	}
 	if consumeOp(toks, pos, "~") {
-		v := evalUnary(toks, pos)
-		return ^v
+		v, u := evalUnaryU(toks, pos)
+		return ^v, u
 	}
 	if peekOp(toks, pos, "-") {
 		*pos++
-		v := evalUnary(toks, pos)
-		return -v
+		v, u := evalUnaryU(toks, pos)
+		return -v, u
 	}
 	if peekOp(toks, pos, "+") {
 		*pos++
-		return evalUnary(toks, pos)
+		return evalUnaryU(toks, pos)
 	}
-	return evalPrimary(toks, pos)
+	return evalPrimaryU(toks, pos)
 }
 
-func evalPrimary(toks []ppToken, pos *int) int64 {
+func evalUnary(toks []ppToken, pos *int) int64 {
+	v, _ := evalUnaryU(toks, pos)
+	return v
+}
+
+func evalPrimaryU(toks []ppToken, pos *int) (int64, bool) {
 	if *pos >= len(toks) {
-		return 0
+		return 0, false
 	}
 	tok := toks[*pos]
 	if tok.kind == "num" {
 		*pos++
-		return tok.num
+		return tok.num, tok.isUnsigned
 	}
 	if tok.kind == "op" && tok.op == "(" {
 		*pos++ // consume '('
 		val := evalTernary(toks, pos)
 		consumeOp(toks, pos, ")")
-		return val
+		return val, false
 	}
-	return 0
+	return 0, false
+}
+
+func evalPrimary(toks []ppToken, pos *int) int64 {
+	v, _ := evalPrimaryU(toks, pos)
+	return v
 }
 
 // ── utility functions ────────────────────────────────────────────────────────
