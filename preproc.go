@@ -2306,82 +2306,84 @@ func (p *preprocessor) expandForIf(expr, currentFile string) string {
 	}
 
 	// Handle defined(X) and defined X.
-	for {
-		idx := strings.Index(expr, "defined")
-		if idx < 0 {
-			break
-		}
-		after := idx + len("defined")
-		// Make sure "defined" is a complete token (not part of longer identifier).
-		if idx > 0 && (isLetter(expr[idx-1]) || isDigit(expr[idx-1])) {
-			// Part of a longer word — skip by replacing just the word.
-			// Find end of this identifier.
-			end := after
-			for end < len(expr) && (isLetter(expr[end]) || isDigit(expr[end])) {
-				end++
+	// Use an offset so identifiers that merely contain "defined" as a substring
+	// (e.g. "___int16_t_defined", "defined_something") are left alone for
+	// expandLine to expand them as macros.
+	{
+		offset := 0
+		for {
+			rel := strings.Index(expr[offset:], "defined")
+			if rel < 0 {
+				break
 			}
-			// Replace with 0 (unknown identifier).
-			expr = expr[:idx] + "0" + expr[end:]
-			continue
-		}
-		if after < len(expr) && (isLetter(expr[after]) || isDigit(expr[after])) {
-			// Part of a longer word (e.g. "defined_something").
-			end := after
-			for end < len(expr) && (isLetter(expr[end]) || isDigit(expr[end])) {
-				end++
+			idx := offset + rel
+			after := idx + len("defined")
+			// Make sure "defined" is a complete token (not part of a longer identifier).
+			if idx > 0 && (isLetter(expr[idx-1]) || isDigit(expr[idx-1])) {
+				// "defined" is a suffix (e.g. "___int16_t_defined") — skip past it.
+				offset = after
+				continue
 			}
-			expr = expr[:idx] + "0" + expr[end:]
-			continue
-		}
-		// Skip spaces.
-		j := after
-		for j < len(expr) && (expr[j] == ' ' || expr[j] == '\t') {
-			j++
-		}
-		if j >= len(expr) {
-			expr = expr[:idx] + "0"
-			break
-		}
-		var macroName string
-		var end int
-		if expr[j] == '(' {
-			// defined(X) form.
-			k := j + 1
-			for k < len(expr) && (expr[k] == ' ' || expr[k] == '\t') {
-				k++
+			if after < len(expr) && (isLetter(expr[after]) || isDigit(expr[after])) {
+				// "defined" is a prefix (e.g. "defined_something") — skip past it.
+				offset = after
+				for offset < len(expr) && (isLetter(expr[offset]) || isDigit(expr[offset])) {
+					offset++
+				}
+				continue
 			}
-			nameStart := k
-			for k < len(expr) && (isLetter(expr[k]) || isDigit(expr[k])) {
-				k++
+			// Skip spaces.
+			j := after
+			for j < len(expr) && (expr[j] == ' ' || expr[j] == '\t') {
+				j++
 			}
-			macroName = expr[nameStart:k]
-			for k < len(expr) && (expr[k] == ' ' || expr[k] == '\t') {
-				k++
+			if j >= len(expr) {
+				expr = expr[:idx] + "0"
+				break
 			}
-			if k < len(expr) && expr[k] == ')' {
-				k++
+			var macroName string
+			var end int
+			if expr[j] == '(' {
+				// defined(X) form.
+				k := j + 1
+				for k < len(expr) && (expr[k] == ' ' || expr[k] == '\t') {
+					k++
+				}
+				nameStart := k
+				for k < len(expr) && (isLetter(expr[k]) || isDigit(expr[k])) {
+					k++
+				}
+				macroName = expr[nameStart:k]
+				for k < len(expr) && (expr[k] == ' ' || expr[k] == '\t') {
+					k++
+				}
+				if k < len(expr) && expr[k] == ')' {
+					k++
+				}
+				end = k
+			} else if isLetter(expr[j]) {
+				// defined X form.
+				k := j
+				for k < len(expr) && (isLetter(expr[k]) || isDigit(expr[k])) {
+					k++
+				}
+				macroName = expr[j:k]
+				end = k
+			} else {
+				// Malformed defined — replace with 0.
+				expr = expr[:idx] + "0" + expr[j:]
+				offset = idx + 1
+				continue
 			}
-			end = k
-		} else if isLetter(expr[j]) {
-			// defined X form.
-			k := j
-			for k < len(expr) && (isLetter(expr[k]) || isDigit(expr[k])) {
-				k++
+			var replacement string
+			if p.defines[macroName] != nil {
+				replacement = "1"
+			} else {
+				replacement = "0"
 			}
-			macroName = expr[j:k]
-			end = k
-		} else {
-			// Malformed defined — replace with 0.
-			expr = expr[:idx] + "0" + expr[j:]
-			continue
+			expr = expr[:idx] + replacement + expr[end:]
+			offset = idx + len(replacement)
 		}
-		var replacement string
-		if p.defines[macroName] != nil {
-			replacement = "1"
-		} else {
-			replacement = "0"
-		}
-		expr = expr[:idx] + replacement + expr[end:]
 	}
 
 	// Expand remaining macros using the normal macro expander.

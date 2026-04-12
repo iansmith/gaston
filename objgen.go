@@ -726,6 +726,24 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 		})
 	}
 
+	// Build a map from alias name → alias target for chain resolution.
+	aliasTargetMap := make(map[string]string, len(irp.Aliases))
+	for _, a := range irp.Aliases {
+		aliasTargetMap[a.Name] = a.Target
+	}
+	resolveAliasTarget := func(target string) string {
+		seen := make(map[string]bool)
+		for {
+			next, ok := aliasTargetMap[target]
+			if !ok || seen[target] {
+				break
+			}
+			seen[target] = true
+			target = next
+		}
+		return target
+	}
+
 	// Emit alias symbols: defined symbols with the same value+section as their target.
 	aliasSymIdx := make(map[string]int) // alias name → symtab index
 	for _, a := range irp.Aliases {
@@ -734,7 +752,8 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 		nameIdx := strtab.add(a.Name)
 		if a.IsFunc {
 			// Function alias: look up the target's code offset.
-			targetLabel := funcLabel(a.Target)
+			// Follow alias chains (e.g. gammal → gamma → lgamma).
+			targetLabel := funcLabel(resolveAliasTarget(a.Target))
 			// Check default cb first, then custom cbs.
 			var wordIdx int
 			var shndx uint16
@@ -779,7 +798,8 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 				// Fallback: the alias may point to a function whose type was not
 				// resolved (e.g. __typeof(fn) aliases where TypeTypeof was not
 				// resolved to TypeFuncPtr). Try the function code-label lookup.
-				targetLabel := funcLabel(a.Target)
+				// Also follow alias chains.
+				targetLabel := funcLabel(resolveAliasTarget(a.Target))
 				var wordIdx int
 				var shndx uint16
 				var found bool
