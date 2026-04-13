@@ -64,11 +64,13 @@ RUN gaston -ar -o liblua.a \
     loadlib.o loslib.o lstrlib.o ltablib.o lutf8lib.o linit.o
 
 # Link lua interpreter and luac compiler
-RUN gaston -I . -I /gaston/include -D LUA_USE_POSIX -c -o lua.o lua.c && \
+RUN mkdir -p /output/bin && \
+    gaston -I . -I /gaston/include -D LUA_USE_POSIX -c -o lua.o lua.c && \
     gaston -link -o /output/bin/lua lua.o liblua.a -L /gaston/lib -l gastonc
 
 RUN gaston -I . -I /gaston/include -D LUA_USE_POSIX -c -o luac.o luac.c && \
     gaston -link -o /output/bin/luac luac.o liblua.a -L /gaston/lib -l gastonc
+# (Note: /output/bin/ already exists from the lua link step above)
 
 
 # ── Final image: binaries only ────────────────────────────────────────────────

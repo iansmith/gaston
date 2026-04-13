@@ -1117,6 +1117,9 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 					ct := leafCType(rhs.ElemType)
 					if rhs.ElemType == TypeStruct && rhs.StructTag != "" {
 						ct.Tag = rhs.StructTag
+					} else if rhs.ElemType == TypePtr {
+						// T *arr[N] decays to T **: propagate the inner pointee.
+						ct.Pointee = rhs.ElemPointee
 					}
 					effectiveRhsPtee = ct
 				} else {
