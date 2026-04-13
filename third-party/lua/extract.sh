@@ -25,7 +25,7 @@ rm -rf "$OUTPUT"
 mkdir -p "$OUTPUT"
 
 id=$(docker create --platform linux/arm64 "$IMAGE")
-docker cp "$id":/ "$OUTPUT/"
+docker cp "$id":/bin "$OUTPUT/bin"
 docker rm "$id"
 
 echo ""
