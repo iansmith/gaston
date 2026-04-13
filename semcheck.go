@@ -523,6 +523,7 @@ func buildStructDef(n *Node, errs *[]string, structDefs map[string]*StructDef) *
 				StructTag:   child.StructTag,
 				ByteOffset:  offset,
 				IsFlexArray: isFlexArr,
+				Dim2:        child.Dim2,
 			}
 			if child.Type == TypeIntArray && child.Val > 0 {
 				f.ByteSize = sz
@@ -862,9 +863,26 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 						ep = e.elemPointee
 					}
 				}
+			} else {
+				// Non-variable array expression (e.g. struct field access like s->arr):
+				// ElemType/ElemPointee are set by semcheck on the expression node.
+				if child.ElemType != 0 {
+					et = child.ElemType
+					ep = child.ElemPointee
+				} else if child.StructTag != "" {
+					// StructTag on a TypeIntArray node holds the element struct tag.
+					et = TypeStruct
+					ep = structCType(child.StructTag)
+				}
 			}
 			if et == TypePtr {
 				n.Pointee = ptrCType(ep)
+			} else if et == TypeStruct {
+				if ep != nil {
+					n.Pointee = ep
+				} else {
+					n.Pointee = leafCType(TypeInt)
+				}
 			} else {
 				n.Pointee = leafCType(et)
 			}
@@ -1028,10 +1046,17 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			if et == 0 {
 				et = TypeInt
 			}
-			n.Type = et
-			n.StructTag = base.StructTag
-			if et == TypePtr {
-				n.Pointee = base.ElemPointee
+			if base.Dim2 > 0 && et == TypePtr {
+				// 2D array: arr[i] where arr is T *arr[N][M] — result is a T** (row pointer).
+				// The row decays to a pointer to its element type (TypePtr → ElemPointee).
+				n.Type = TypePtr
+				n.Pointee = ptrCType(base.ElemPointee)
+			} else {
+				n.Type = et
+				n.StructTag = base.StructTag
+				if et == TypePtr {
+					n.Pointee = base.ElemPointee
+				}
 			}
 		default:
 			n.Type = TypeInt
@@ -1326,6 +1351,7 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			n.Pointee = f.Pointee
 			n.ElemType = f.ElemType
 			n.ElemPointee = f.ElemPointee
+			n.Dim2 = f.Dim2
 			if f.Type == TypeStruct {
 				n.StructTag = f.StructTag
 			} else if f.Type == TypePtr && f.Pointee != nil && f.Pointee.Kind == TypeStruct {

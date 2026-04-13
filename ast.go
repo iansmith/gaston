@@ -474,6 +474,7 @@ type StructField struct {
 	BitOffset   int      // bit offset within the 8-byte storage word
 	BitWidth    int      // bit width (0 for normal fields)
 	IsFlexArray bool     // true for flexible array members (last field, no size)
+	Dim2        int      // non-zero for 2D array fields: size of second (inner) dimension
 }
 
 // StructDef describes one named struct or union type and its fields.

@@ -828,14 +828,6 @@ postfix_expr
 	| postfix_expr '.' ID '(' args ')'
 		{ callee := &Node{Kind: KindFieldAccess, Op: ".", Name: $3, Children: []*Node{$1}}
 		  $$ = &Node{Kind: KindIndirectCall, Children: append([]*Node{callee}, $5...)} }
-	/* Address-of parenthesized expression with field/arrow access: &(expr).field, &(expr)->field.
-	   These MUST come before plain '(' expression ')' '.' ID to win R/R conflict. */
-	| '&' '(' expression ')' '.' ID
-		{ fa := &Node{Kind: KindFieldAccess, Op: ".", Name: $6, Children: []*Node{$3}}
-		  $$ = &Node{Kind: KindAddrOf, Children: []*Node{fa}} }
-	| '&' '(' expression ')' ARROW ID
-		{ fa := &Node{Kind: KindFieldAccess, Op: "->", Name: $6, Children: []*Node{$3}}
-		  $$ = &Node{Kind: KindAddrOf, Children: []*Node{fa}} }
 	/* Parenthesized expression with field access: (expr).field */
 	| '(' expression ')' '.' ID
 		{ $$ = &Node{Kind: KindFieldAccess, Op: ".", Name: $5, Children: []*Node{$2}} }
@@ -1044,6 +1036,13 @@ factor
 	| INC factor          { $$ = &Node{Kind: KindPreInc, Children: []*Node{$2}} }
 	| DEC factor          { $$ = &Node{Kind: KindPreDec, Children: []*Node{$2}} }
 	| '&' var             { $$ = &Node{Kind: KindAddrOf, Children: []*Node{$2}} }
+	/* General address-of: covers &postfix_expr chains like &p->f.g, &arr[i], &(*p)->f.g.
+	   The specific '&' postfix_expr ARROW ID / '.' ID / '[' ']' rules below are now
+	   dead code (postfix_expr chains extend as far as possible before this fires), but
+	   kept for documentation. Reduce/reduce conflicts with those rules are resolved in
+	   favour of the postfix_expr rule (earlier in grammar), so the full chain is built
+	   first and this rule wraps it in KindAddrOf. */
+	| '&' postfix_expr    { $$ = &Node{Kind: KindAddrOf, Children: []*Node{$2}} }
 	| ANDAND ID           { $$ = &Node{Kind: KindLabelAddr, Name: $2, Type: TypePtr} }
 	| '&' '(' expression ')' { $$ = &Node{Kind: KindAddrOf, Children: []*Node{$3}} }
 	/* Address-of array element through dereference: &(*p)[idx] — &(expr)[idx] */
