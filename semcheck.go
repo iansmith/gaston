@@ -886,6 +886,11 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 			} else {
 				n.Pointee = leafCType(et)
 			}
+		case TypeFuncPtr:
+			// &func — address of a function is a function pointer, same type as the function itself.
+			// In C, &f and f are equivalent for function names.
+			n.Type = TypeFuncPtr
+			return TypeFuncPtr
 		case TypePtr:
 			// &ptr — pointer to a pointer.
 			n.Pointee = ptrCType(child.Pointee)
