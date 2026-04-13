@@ -245,7 +245,10 @@ func filterArgs(args []string) (filtered []string, versionRequested bool, dumpMa
 		}
 		// Split GCC-style combined flag+value (-DFOO, -Idir, -lfoo, -ofoo, -UMACRO).
 		// Go's flag package only understands -flag=val or -flag val (two tokens).
-		if len(arg) > 2 && arg[0] == '-' && arg[1] != '-' {
+		// Exception: gaston's own long flags (-link, -ar, -asm, -preprocess) must NOT
+		// be split even though they start with a single-char value-flag letter.
+		gastonLongFlags := map[string]bool{"link": true, "ar": true, "asm": true, "preprocess": true}
+		if len(arg) > 2 && arg[0] == '-' && arg[1] != '-' && !gastonLongFlags[arg[1:]] {
 			name := string(arg[1])
 			if valueFlags[name] {
 				if name == "U" {
