@@ -84,8 +84,8 @@ tasks:
       - 'third-party/micropython/extract.sh'
 
   docker-lua:
-    desc: Build Lua container and extract binaries (iansmith/gaston-lua)
-    deps: [docker-picolibc]
+    desc: Build Lua for mazarin disk image (iansmith/mazarin-lua)
+    deps: [docker-mazarin]
     cmds:
       - 'third-party/lua/extract.sh'
 

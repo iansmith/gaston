@@ -101,6 +101,8 @@ RUN mkdir -p /output/include && \
 # ── Final image: toolchain artifacts only ────────────────────────────────────
 FROM scratch
 
-COPY --from=go-builder       /out/gaston        /bin/gaston
+COPY --from=go-builder       /out/gaston                /bin/gaston
 COPY --from=picolibc-builder /output/lib/libgastonc.a   /lib/libgastonc.a
 COPY --from=picolibc-builder /output/include            /include
+
+CMD ["/bin/gaston"]

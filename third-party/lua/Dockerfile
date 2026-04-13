@@ -1,41 +1,50 @@
-# Lua Build — ARM64 Linux container
+# Lua 5.4.7 — mazarin disk image build
 #
-# PURPOSE: Download and compile Lua 5.4.7 using gaston, producing a
-# standalone Lua interpreter binary for ARM64 Linux.
+# MODEL: This Dockerfile is the template for building third-party C programs
+# for the mazarin disk image.  Every new program follows this same three-stage
+# pattern:
+#
+#   Stage 1 (toolchain): pull gaston + libgastonc.a + headers from the
+#                        mazarin toolchain image (iansmith/mazarin-toolchain).
+#   Stage 2 (builder):   run on linux/arm64, compile the program with gaston.
+#   Final   (scratch):   output binaries only — no OS layer.
+#
+# The final image contains only what goes into the disk image:
+#   /bin/<program>     — one or more AArch64 ELF binaries
 #
 # BUILD CONTEXT: Must be the repository root (extract.sh handles this).
+# PREREQUISITE:  iansmith/mazarin-toolchain must exist locally
+#                (run third-party/mazarin/extract.sh first, or task docker-mazarin).
 #
 # USAGE:
 #   ./extract.sh [output-dir]
 #
-# OUTPUT LAYOUT (at /output inside container):
-#   bin/
-#     lua             - Lua interpreter (ARM64 Linux ELF)
-#     luac            - Lua compiler (ARM64 Linux ELF)
+# OUTPUT LAYOUT (output-dir on host → target path on mazarin):
+#   bin/lua             → /bin/lua
+#   bin/luac            → /bin/luac
 
-ARG TARGETPLATFORM=linux/arm64
-FROM --platform=$TARGETPLATFORM iansmith/gaston-picolibc AS base
+
+# ── Stage 1: pull the mazarin C toolchain ────────────────────────────────────
+FROM iansmith/mazarin-toolchain AS toolchain
+# Provides: /bin/gaston  /lib/libgastonc.a  /include/
+
+
+# ── Stage 2: compile Lua with gaston ─────────────────────────────────────────
+FROM --platform=linux/arm64 ubuntu:22.04 AS builder
+
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# Install toolchain into the standard locations gaston expects.
+COPY --from=toolchain /bin/gaston           /usr/local/bin/gaston
+COPY --from=toolchain /lib/libgastonc.a     /gaston/lib/libgastonc.a
+COPY --from=toolchain /include              /gaston/include
 
 ARG LUA_VERSION=5.4.7
-
-# Download Lua source
 RUN curl -sL https://www.lua.org/ftp/lua-${LUA_VERSION}.tar.gz | tar xz -C /tmp
 
 WORKDIR /tmp/lua-${LUA_VERSION}/src
 
-# Install the picolibc artifacts where gaston-mazarin expects them.
-# gaston-mazarin has defaults: -I/gaston/include -L /gaston/lib -l gastonc
-RUN mkdir -p /gaston/include /gaston/lib && \
-    cp -r /output/include/* /gaston/include/ && \
-    cp /output/lib/libgastonc.a /gaston/lib/
-
-# Clean /output for our results
-RUN rm -rf /output && mkdir -p /output/bin
-
 # Compile all Lua core + library source files.
-# Lua uses -std=gnu99 and -DLUA_COMPAT_5_3 by default.
-# The "generic" target needs no platform-specific defines.
-# We add -DLUA_USE_POSIX for basic POSIX support (popen, mkstemp, etc.)
 RUN set -e && \
     for f in lapi.c lcode.c lctype.c ldebug.c ldo.c ldump.c lfunc.c lgc.c \
              llex.c lmem.c lobject.c lopcodes.c lparser.c lstate.c lstring.c \
@@ -43,26 +52,28 @@ RUN set -e && \
              lauxlib.c lbaselib.c lcorolib.c ldblib.c liolib.c lmathlib.c \
              loadlib.c loslib.c lstrlib.c ltablib.c lutf8lib.c linit.c; do \
         echo "  CC $f" && \
-        /usr/local/bin/gaston -I . -I /gaston/include -D LUA_USE_POSIX -c -o $(basename $f .c).o $f; \
-    done && \
-    echo "All Lua source files compiled successfully."
+        gaston -I . -I /gaston/include -D LUA_USE_POSIX -c -o $(basename $f .c).o $f; \
+    done
 
 # Archive into liblua.a
-RUN /usr/local/bin/gaston -ar -o liblua.a \
+RUN gaston -ar -o liblua.a \
     lapi.o lcode.o lctype.o ldebug.o ldo.o ldump.o lfunc.o lgc.o \
     llex.o lmem.o lobject.o lopcodes.o lparser.o lstate.o lstring.o \
     ltable.o ltm.o lundump.o lvm.o lzio.o \
     lauxlib.o lbaselib.o lcorolib.o ldblib.o liolib.o lmathlib.o \
     loadlib.o loslib.o lstrlib.o ltablib.o lutf8lib.o linit.o
 
-# Compile and link the lua interpreter
-RUN /usr/local/bin/gaston -I . -I /gaston/include -D LUA_USE_POSIX -c -o lua.o lua.c && \
-    /usr/local/bin/gaston -link -o /output/bin/lua lua.o liblua.a -L /gaston/lib -l gastonc
+# Link lua interpreter and luac compiler
+RUN gaston -I . -I /gaston/include -D LUA_USE_POSIX -c -o lua.o lua.c && \
+    gaston -link -o /output/bin/lua lua.o liblua.a -L /gaston/lib -l gastonc
 
-# Compile and link the luac compiler
-RUN /usr/local/bin/gaston -I . -I /gaston/include -D LUA_USE_POSIX -c -o luac.o luac.c && \
-    /usr/local/bin/gaston -link -o /output/bin/luac luac.o liblua.a -L /gaston/lib -l gastonc
+RUN gaston -I . -I /gaston/include -D LUA_USE_POSIX -c -o luac.o luac.c && \
+    gaston -link -o /output/bin/luac luac.o liblua.a -L /gaston/lib -l gastonc
 
-WORKDIR /output
 
-CMD ["/bin/sh", "-c", "echo 'Lua ARM64 Linux binaries ready at /output' && ls -lh /output/bin/"]
+# ── Final image: binaries only ────────────────────────────────────────────────
+FROM scratch
+
+COPY --from=builder /output/bin /bin
+
+CMD ["/bin/lua"]
