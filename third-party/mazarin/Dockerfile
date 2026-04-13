@@ -1,7 +1,7 @@
 # Mazarin C Toolchain — AArch64 Linux container
 #
 # PURPOSE: Produce the complete C toolchain for mazarin disk image construction:
-#   gaston-mazarin  — AArch64 C compiler with /gaston/include and /gaston/lib baked in
+#   gaston  — AArch64 C compiler with /gaston/include and /gaston/lib baked in
 #   libgastonc.a    — C library (picolibc + gaston libc)
 #   include/        — Headers
 #
@@ -15,7 +15,7 @@
 #   ./extract.sh [output-dir]
 #
 # OUTPUT LAYOUT (output-dir on host, /output inside container):
-#   bin/gaston-mazarin  — AArch64 C compiler
+#   bin/gaston  — AArch64 C compiler
 #   lib/libgastonc.a    — AArch64 C library
 #   include/            — Headers
 
@@ -41,7 +41,7 @@ RUN GOOS=linux GOARCH=arm64 go build \
     -ldflags="-X main.defaultIncludes=/gaston/include \
               -X main.defaultLibPaths=/gaston/lib \
               -X main.defaultLibs=gastonc" \
-    -o /out/gaston-mazarin .
+    -o /out/gaston .
 
 
 # ── Stage 2: Compile picolibc into libgastonc.a and collect headers ───────────
@@ -101,6 +101,6 @@ RUN mkdir -p /output/include && \
 # ── Final image: toolchain artifacts only ────────────────────────────────────
 FROM scratch
 
-COPY --from=go-builder       /out/gaston-mazarin        /bin/gaston-mazarin
+COPY --from=go-builder       /out/gaston        /bin/gaston
 COPY --from=picolibc-builder /output/lib/libgastonc.a   /lib/libgastonc.a
 COPY --from=picolibc-builder /output/include            /include

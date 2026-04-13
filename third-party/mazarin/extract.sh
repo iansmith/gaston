@@ -23,6 +23,6 @@ docker buildx build --platform linux/arm64 \
 echo ""
 echo "Done. Output at: $OUTPUT"
 echo ""
-echo "Compiler: $(ls -lh "$OUTPUT/bin/gaston-mazarin" | awk '{print $5, $9}')"
+echo "Compiler: $(ls -lh "$OUTPUT/bin/gaston" | awk '{print $5, $9}')"
 echo "Library:  $(ls -lh "$OUTPUT/lib/libgastonc.a"   | awk '{print $5, $9}')"
 echo "Headers:  $(ls "$OUTPUT/include/" | wc -l | tr -d ' ') files"

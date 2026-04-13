@@ -51,20 +51,29 @@ tasks:
   #
   # Container layering: gaston → picolibc → micropython | lua
   #
+  # docker-mazarin is self-contained (builds gaston + picolibc from scratch)
+  # and produces the disk-image toolchain: gaston, libgastonc.a, and headers.
+  #
   # Usage:
-  #   task docker-all        # Rebuild all containers + extract artifacts
-  #   task docker-gaston     # Just rebuild the gaston container
-  #   task docker-picolibc   # Rebuild picolibc (requires gaston)
+  #   task docker-all         # Rebuild all containers + extract artifacts
+  #   task docker-mazarin     # Rebuild the disk-image C toolchain
+  #   task docker-gaston      # Just rebuild the gaston container (dev use)
+  #   task docker-picolibc    # Rebuild picolibc (dev use, requires docker-gaston)
   #   task docker-micropython # Rebuild micropython
-  #   task docker-lua        # Rebuild lua (requires picolibc)
+  #   task docker-lua         # Rebuild lua (requires picolibc)
+
+  docker-mazarin:
+    desc: Build self-contained C toolchain for disk image (gaston + libgastonc.a + headers)
+    cmds:
+      - 'third-party/mazarin/extract.sh'
 
   docker-gaston:
-    desc: Build gaston compiler container (iansmith/gaston)
+    desc: Build gaston compiler container — iansmith/gaston (dev use)
     cmds:
       - 'third-party/gaston/extract.sh'
 
   docker-picolibc:
-    desc: Build picolibc container and extract libgastonc.a + headers (iansmith/gaston-picolibc)
+    desc: Build picolibc container and extract libgastonc.a + headers (dev use)
     deps: [docker-gaston]
     cmds:
       - 'third-party/picolibc/extract.sh'
@@ -83,6 +92,7 @@ tasks:
   docker-all:
     desc: Rebuild all third-party containers and extract artifacts
     cmds:
+      - task: docker-mazarin
       - task: docker-gaston
       - task: docker-picolibc
       - task: docker-micropython
