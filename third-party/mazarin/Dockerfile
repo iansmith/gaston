@@ -14,10 +14,10 @@
 # USAGE:
 #   ./extract.sh [output-dir]
 #
-# OUTPUT LAYOUT (output-dir on host, /output inside container):
-#   bin/gaston  — AArch64 C compiler
-#   lib/libgastonc.a    — AArch64 C library
-#   include/            — Headers
+# OUTPUT LAYOUT (output-dir on host → target path on mazarin):
+#   bin/gaston          → /bin/gaston
+#   lib/libgastonc.a    → /gaston/lib/libgastonc.a  (baked into gaston as default -L)
+#   include/            → /gaston/include/           (baked into gaston as default -I)
 
 # BUILDPLATFORM = the machine running Docker.
 # Go cross-compilation is used so Stage 1 always runs natively (no QEMU),
