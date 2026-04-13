@@ -1342,8 +1342,6 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 #define __HAVE_BUILTIN_COPYSIGNL        1
 #define _HAVE_FAST_FMA                  1
 #define __HAVE_FAST_FMA                 1
-#define _HAVE_ALIAS_ATTRIBUTE           1
-#define __HAVE_ALIAS_ATTRIBUTE          1
 #define _HAVE_ATTRIBUTE_NOINLINE        1
 #define __HAVE_ATTRIBUTE_NOINLINE       1
 #define _HAVE_BUILTIN_EXPECT            1
