@@ -152,17 +152,17 @@ typedef unsigned char uint8_t;
 #define FLT_MIN         1.1754944e-38
 #define FLT_EPSILON     1.1920929e-07
 #define FLT_DECIMAL_DIG 9
-/* long double == double on gaston (64-bit IEEE 754) */
-#define LDBL_MANT_DIG    53
-#define LDBL_DIG         15
-#define LDBL_MIN_EXP     (-1021)
-#define LDBL_MAX_EXP     1024
-#define LDBL_MIN_10_EXP  (-307)
-#define LDBL_MAX_10_EXP  308
-#define LDBL_MAX         1.7976931348623157e+308
-#define LDBL_MIN         2.2250738585072014e-308
-#define LDBL_EPSILON     2.2204460492503131e-16
-#define LDBL_DECIMAL_DIG 17
+/* long double is 128-bit quad (AArch64 binary128); arithmetic uses low 64 bits */
+#define LDBL_MANT_DIG    113
+#define LDBL_DIG         33
+#define LDBL_MIN_EXP     (-16381)
+#define LDBL_MAX_EXP     16384
+#define LDBL_MIN_10_EXP  (-4931)
+#define LDBL_MAX_10_EXP  4932
+#define LDBL_MAX         1.18973149535723176508575932662800702e+4932L
+#define LDBL_MIN         3.36210314311209350626267781732175260e-4932L
+#define LDBL_EPSILON     1.92592994438723585305597794258492732e-34L
+#define LDBL_DECIMAL_DIG 36
 /* radix and rounding */
 #define FLT_RADIX        2
 #define FLT_ROUNDS       1
@@ -905,7 +905,7 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 #define __SIZEOF_LONG_LONG__    8
 #define __SIZEOF_FLOAT__        4
 #define __SIZEOF_DOUBLE__       8
-#define __SIZEOF_LONG_DOUBLE__  8
+#define __SIZEOF_LONG_DOUBLE__  16
 #define __SIZEOF_WCHAR_T__      4
 #define __SIZEOF_WINT_T__       4
 #define __SIZEOF_INT128__       16
@@ -1150,26 +1150,21 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 #define __DBL_HAS_INFINITY__    1
 #define __DBL_HAS_QUIET_NAN__   1
 #define __DBL_DECIMAL_DIG__     17
-/* gaston treats long double as double (64-bit IEEE 754).
-   LDBL_MANT_DIG == 53 is the signal picolibc/fdlibm use to detect this.
-   _LDBL_EQ_DBL is picolibc's internal signal that long double == double;
-   normally set in ieeefp.h but we define it here so the patch hunk is
-   not needed. */
-#define __LDBL_MANT_DIG__       53
-#define _LDBL_EQ_DBL            1
-#define __LDBL_DIG__            15
-#define __LDBL_MIN_EXP__        (-1021)
-#define __LDBL_MAX_EXP__        1024
-#define __LDBL_MIN_10_EXP__     (-307)
-#define __LDBL_MAX_10_EXP__     308
-#define __LDBL_MAX__            1.7976931348623157e+308
-#define __LDBL_MIN__            2.2250738585072014e-308
-#define __LDBL_EPSILON__        2.2204460492503131e-16
-#define __LDBL_DENORM_MIN__     4.9406564584124654e-324
+/* long double is 128-bit quad (AArch64 binary128); arithmetic uses low 64 bits as double */
+#define __LDBL_MANT_DIG__       113
+#define __LDBL_DIG__            33
+#define __LDBL_MIN_EXP__        (-16381)
+#define __LDBL_MAX_EXP__        16384
+#define __LDBL_MIN_10_EXP__     (-4931)
+#define __LDBL_MAX_10_EXP__     4932
+#define __LDBL_MAX__            1.18973149535723176508575932662800702e+4932L
+#define __LDBL_MIN__            3.36210314311209350626267781732175260e-4932L
+#define __LDBL_EPSILON__        1.92592994438723585305597794258492732e-34L
+#define __LDBL_DENORM_MIN__     6.47517511943802511092443895822764655e-4966L
 #define __LDBL_HAS_DENORM__     1
 #define __LDBL_HAS_INFINITY__   1
 #define __LDBL_HAS_QUIET_NAN__  1
-#define __LDBL_DECIMAL_DIG__    17
+#define __LDBL_DECIMAL_DIG__    36
 #define __DECIMAL_DIG__         17
 #define __FP_FAST_FMA           1
 #define __FP_FAST_FMAF          1
@@ -1243,7 +1238,7 @@ func newPreprocessor(includePaths []string, extraDefines []string) *preprocessor
 #define __builtin_huge_val()  (1.0/0.0)
 #define __builtin_huge_vall() (1.0/0.0)
 
-/* ── long double == double aliases ──────────────────────────────────── */
+/* ── long double builtins: arithmetic uses double path (low 64 bits) ── */
 #define __builtin_copysignl(x,y)  __builtin_copysign((double)(x),(double)(y))
 #define __builtin_isnanl(x)       __builtin_isnan((double)(x))
 #define __builtin_isinfl(x)       __builtin_isinf((double)(x))
