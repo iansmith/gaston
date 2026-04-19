@@ -106,8 +106,8 @@ var featureTests = []dockerTest{
 	{name: "float_func", want: "6\n2\n5\n4\n"},
 	// float_print: print_double runtime (integer-valued and fractional doubles)
 	{name: "float_print", want: "3.000000\n0.500000\n-1.250000\n100.000000\n"},
-	// longdouble_size: sizeof and _Alignof for long double must be 16 (AArch64 quad)
-	{name: "longdouble_size", want: "16\n16\n"},
+	// longdouble_size: sizeof/alignof=16; variable declared, assigned, and read as double
+	{name: "longdouble_size", want: "16\n16\n3\n"},
 
 	// ── setjmp / longjmp ─────────────────────────────────────────────────
 	// setjmp_basic: setjmp returns 0 on first call; longjmp resumes with val;

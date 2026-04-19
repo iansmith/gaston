@@ -421,6 +421,21 @@ func (g *elfGen) fpStore(fd int, dst IRAddr) {
 	}
 }
 
+// fpStoreLD emits a 128-bit Q-register store for a long double slot.
+// Writing to a D register (encSTRDuoff) zeros the upper 64 bits of the corresponding
+// Q register on AArch64; STR Qt then stores the full 128 bits with zeros in [127:64].
+// byteOff must be 16-byte aligned because encSTRQuoff scales by 16.
+func (g *elfGen) fpStoreLD(fd int, dst IRAddr) {
+	switch dst.Kind {
+	case AddrTemp, AddrLocal:
+		off := g.fr.offsets[dst.Name]
+		g.cb.emit(encSTRQuoff(fd, g.frameBase(), off))
+	case AddrGlobal:
+		g.cb.emitLDRglobal(dst.Name)            // X9 = &global
+		g.cb.emit(encSTRQuoff(fd, regX9, 0))    // *X9 = Qfd (128 bits)
+	}
+}
+
 // emitFPCmpBool emits: Dst = (Src1 cond Src2) as integer 0 or 1.
 // FCMP D0, D1 computes D0 − D1 and sets NZCV flags.
 func (g *elfGen) emitFPCmpBool(q Quad, cond int) {
@@ -1144,7 +1159,11 @@ func (g *elfGen) genFunc(fn *IRFunc) {
 			g.fpStore(0, q.Dst)
 		case IRFCopy:
 			g.fpLoad(q.Src1, 0)
-			g.fpStore(0, q.Dst)
+			if q.TypeHint == TypeLongDouble {
+				g.fpStoreLD(0, q.Dst) // 16-byte Q-register store; zeros high 64 bits
+			} else {
+				g.fpStore(0, q.Dst)
+			}
 		case IRFLt:
 			g.emitFPCmpBool(q, condLT)
 		case IRFLe:

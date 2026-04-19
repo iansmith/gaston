@@ -1452,7 +1452,7 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 				}
 				g.emit(Quad{Op: IRStructCopy, Dst: addr, Src1: rhs, StructTag: tag})
 			} else if isFPType(lhsType) {
-				g.emit(Quad{Op: IRFCopy, Dst: addr, Src1: rhs})
+				g.emit(Quad{Op: IRFCopy, Dst: addr, Src1: rhs, TypeHint: lhsType})
 			} else if isFPType(rhsType) {
 				tmp := g.newTemp()
 				g.emit(Quad{Op: IRDoubleToInt, Dst: tmp, Src1: rhs})

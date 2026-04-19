@@ -66,6 +66,18 @@ func encSTRuoff(rt, rn, byteOff int) uint32 {
 	return 0xF9000000 | uint32(byteOff/8)<<10 | uint32(rn)<<5 | uint32(rt)
 }
 
+// encLDRQuoff encodes LDR Qt, [Xn, #byteOff] (unsigned 12-bit scaled offset, 128-bit SIMD).
+// byteOff must be 0..65520 and divisible by 16. AArch64 DDI 0487: size=00, V=1, opc=11.
+func encLDRQuoff(rt, rn, byteOff int) uint32 {
+	return 0x3DC00000 | uint32(byteOff/16)<<10 | uint32(rn)<<5 | uint32(rt)
+}
+
+// encSTRQuoff encodes STR Qt, [Xn, #byteOff] (unsigned 12-bit scaled offset, 128-bit SIMD).
+// byteOff must be 0..65520 and divisible by 16. AArch64 DDI 0487: size=00, V=1, opc=10.
+func encSTRQuoff(rt, rn, byteOff int) uint32 {
+	return 0x3D800000 | uint32(byteOff/16)<<10 | uint32(rn)<<5 | uint32(rt)
+}
+
 // encLDRlit encodes LDR Xt, [PC, #(imm19*4)] (PC-relative literal load, 64-bit).
 // imm19 is the signed word offset from the instruction to the 8-byte-aligned literal.
 func encLDRlit(rt, imm19 int) uint32 {

@@ -192,6 +192,10 @@ func buildFrame(fn *IRFunc, structDefs map[string]*StructDef) *frame {
 			} else {
 				offset += loc.ArrSize * 8 // fallback
 			}
+		} else if loc.IsLongDouble {
+			// long double: 16-byte aligned 16-byte slot.
+			// Alignment already applied above via loc.Align == 16.
+			offset += 16
 		} else {
 			if loc.IsPtr {
 				f.isPtrVar[loc.Name] = true
