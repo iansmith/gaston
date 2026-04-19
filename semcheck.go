@@ -210,7 +210,7 @@ func sizeofKind(t TypeKind, structTag string, structDefs map[string]*StructDef) 
 			}
 		}
 		return 8
-	case TypeInt128, TypeUint128:
+	case TypeInt128, TypeUint128, TypeLongDouble:
 		return 16
 	default:
 		// TypeDouble, TypePtr, TypeFuncPtr, TypeCharPtr, TypeIntArray, TypeVoid → 8 bytes
@@ -227,8 +227,10 @@ func alignofKind(t TypeKind) int {
 		return 2
 	case TypeInt, TypeUnsignedInt, TypeFloat:
 		return 4
+	case TypeInt128, TypeUint128, TypeLongDouble:
+		return 16
 	default:
-		return 8 // long, double, pointer, int128, struct, etc.
+		return 8 // long, double, pointer, struct, etc.
 	}
 }
 

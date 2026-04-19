@@ -474,6 +474,19 @@ func (g *irGen) genCompound(n *Node) {
 				g.globals[mangledName] = &g.prog.Globals[len(g.prog.Globals)-1]
 				continue
 			}
+			// long double locals: 16-byte aligned 16-byte slot; arithmetic uses low 64 bits.
+			if child.Type == TypeLongDouble {
+				g.fn.Locals = append(g.fn.Locals, IRLocal{
+					Name: child.Name, IsLongDouble: true, Align: 16,
+				})
+				g.locals[child.Name] = localInfo{}
+				if len(child.Children) > 0 {
+					initVal := g.genExpr(child.Children[0])
+					initVal = g.coerceToFP(initVal, child.Children[0].Type)
+					g.emit(Quad{Op: IRFCopy, Dst: g.addrOf(child.Name), Src1: initVal, TypeHint: TypeLongDouble})
+				}
+				continue
+			}
 			// 128-bit integer locals: allocate as 2-slot array with Is128 flag.
 			if child.Type == TypeInt128 || child.Type == TypeUint128 {
 				g.fn.Locals = append(g.fn.Locals, IRLocal{

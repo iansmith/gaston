@@ -301,7 +301,7 @@ type_specifier
 	| SHORT UNSIGNED INT { $$ = leafCType(TypeUnsignedShort) }
 	| FLOAT              { $$ = leafCType(TypeFloat) }
 	| DOUBLE             { $$ = leafCType(TypeDouble) }
-	| LONG DOUBLE        { $$ = leafCType(TypeDouble) }
+	| LONG DOUBLE        { $$ = leafCType(TypeLongDouble) }
 	| SIGNED             { $$ = leafCType(TypeInt) }
 	| SIGNED INT         { $$ = leafCType(TypeInt) }
 	| SIGNED CHAR        { $$ = leafCType(TypeChar) }
@@ -441,7 +441,7 @@ param
 	| LONG        { $$ = &Node{Kind: KindParam, Type: TypeLong,        Name: ""} }
 	| LONG LONG   { $$ = &Node{Kind: KindParam, Type: TypeLong,        Name: ""} }
 	| LONG INT    { $$ = &Node{Kind: KindParam, Type: TypeLong,        Name: ""} }
-	| LONG DOUBLE { $$ = &Node{Kind: KindParam, Type: TypeDouble,      Name: ""} }
+	| LONG DOUBLE { $$ = &Node{Kind: KindParam, Type: TypeLongDouble,  Name: ""} }
 	| SHORT       { $$ = &Node{Kind: KindParam, Type: TypeShort,       Name: ""} }
 	| SHORT INT   { $$ = &Node{Kind: KindParam, Type: TypeShort,       Name: ""} }
 	| FLOAT       { $$ = &Node{Kind: KindParam, Type: TypeFloat,       Name: ""} }

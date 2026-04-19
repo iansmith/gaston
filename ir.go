@@ -278,7 +278,8 @@ type IRLocal struct {
 	IsPtr     bool    // true for TypePtr locals
 	IsStruct  bool    // true for TypeStruct locals
 	IsVLA     bool    // true for variable-length array (runtime size; pointer slot in frame)
-	Is128     bool    // true for TypeInt128/TypeUint128 locals (2-slot, 16-byte)
+	Is128         bool    // true for TypeInt128/TypeUint128 locals (2-slot, 16-byte)
+	IsLongDouble  bool    // true for TypeLongDouble locals (16-byte aligned, 16-byte slot)
 	Pointee   *CType  // non-nil when IsPtr: full pointee type
 	StructTag string  // struct type name (when IsStruct)
 	ArrSize   int      // 1 for scalar, N for int x[N]; for struct: number of fields; 0 for VLA

@@ -25,8 +25,9 @@ const (
 	TypeLong                  // long / long long (8-byte LP64, signed)
 	TypeUnsignedLong          // unsigned long / unsigned long long (8-byte LP64, unsigned)
 	TypeTypeof                // sentinel: typeof(expr) — resolved to real type by semcheck
-	TypeInt128  // __int128 / __int128_t (signed 128-bit integer, 16 bytes)
-	TypeUint128 // __uint128_t / unsigned __int128 (unsigned 128-bit integer, 16 bytes)
+	TypeInt128      // __int128 / __int128_t (signed 128-bit integer, 16 bytes)
+	TypeUint128     // __uint128_t / unsigned __int128 (unsigned 128-bit integer, 16 bytes)
+	TypeLongDouble  // long double (16-byte quad, AArch64 binary128; arithmetic uses low 64 bits as double)
 )
 
 // CType is the full parameterised representation of a pointer type.
@@ -190,9 +191,9 @@ func isUnsignedType(t TypeKind) bool {
 	return t == TypeUnsignedInt || t == TypeUnsignedChar || t == TypeUnsignedShort || t == TypeUnsignedLong || t == TypeUint128
 }
 
-// isFPType reports whether t is a floating-point type (float or double).
+// isFPType reports whether t is a floating-point type (float, double, or long double).
 func isFPType(t TypeKind) bool {
-	return t == TypeFloat || t == TypeDouble
+	return t == TypeFloat || t == TypeDouble || t == TypeLongDouble
 }
 
 // isPtrType reports whether t is a pointer type (holds an address).
