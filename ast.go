@@ -146,10 +146,10 @@ func alignofType(ct *CType) int {
 		return 2
 	case TypeInt, TypeUnsignedInt, TypeFloat:
 		return 4
-	case TypeLongDouble:
-		return 16 // AArch64 binary128: 16-byte aligned
+	case TypeLongDouble, TypeInt128, TypeUint128:
+		return 16 // AArch64: binary128 and __int128 are 16-byte aligned
 	default:
-		return 8 // long, double, ptr, int128, struct → 8
+		return 8 // long, double, ptr, struct → 8
 	}
 }
 
