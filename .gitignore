@@ -8,3 +8,12 @@ build/
 
 # Container output binaries ARE tracked (they're the project's deliverables)
 !third-party/*/output/**
+
+# Vendored musl source (downloaded locally, not tracked)
+/musl/
+
+# Local project workflow config (not tracked)
+/.project-conf.toml
+
+# Scratch markdown notes (not tracked). design/ is for committed docs.
+/docs/
