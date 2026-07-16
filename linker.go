@@ -55,6 +55,13 @@ type objFile struct {
 	rodataOff    uint64 // byte offset within merged rodata
 	dataOff      uint64 // byte offset within merged data
 	bssOff       uint64 // byte offset within merged bss
+
+	// fromArchive marks lazily-pulled archive members. Duplicate strong
+	// definitions are a hard error between explicit user objects, but only a
+	// warning (last definition wins, matching historical behavior) when an
+	// archive member is involved — shipped archives legitimately contain
+	// duplicates (e.g. __isnand in both mathbuiltins and libm).
+	fromArchive bool
 }
 
 // lnkSym is one symbol table entry (simplified).
@@ -296,6 +303,7 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 			if err != nil {
 				return fmt.Errorf("link: archive member %s: %w", m.name, err)
 			}
+			pulled.fromArchive = true
 			objs = append(objs, pulled)
 		}
 	}
@@ -321,7 +329,7 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 				if defined[sym.name] {
 					continue
 				}
-				// Undefined symbol — search archives.
+				// Undefined symbol — search archives; first resolver wins.
 				for ai := range archives {
 					mi, ok := archives[ai].symMap[sym.name]
 					if !ok || archives[ai].used[mi] {
@@ -333,8 +341,10 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 					if err != nil {
 						return fmt.Errorf("link: archive member %s: %w", m.name, err)
 					}
+					pulled.fromArchive = true
 					objs = append(objs, pulled)
 					added = true
+					break
 					fmt.Fprintf(os.Stderr, "linker: pulled %s for %s\n", m.name, sym.name)
 				}
 			}
@@ -397,23 +407,28 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 		}
 	}
 
+	align16 := func(v uint64) uint64 { return (v + 15) &^ 15 }
 	for _, obj := range objs {
-		obj.rodataOff = totalRodata
-		totalRodata += uint64(len(obj.rodataData))
-		obj.dataOff = totalData
-		totalData += uint64(len(obj.dataData))
-		obj.bssOff = totalBss
-		totalBss += obj.bssSize
+		obj.rodataOff = align16(totalRodata)
+		totalRodata = obj.rodataOff + uint64(len(obj.rodataData))
+		obj.dataOff = align16(totalData)
+		totalData = obj.dataOff + uint64(len(obj.dataData))
+		obj.bssOff = align16(totalBss)
+		totalBss = obj.bssOff + obj.bssSize
 	}
 
 	// ── merge and allocate COMMON (tentative) symbols ─────────────────────
-	// Classic COMMON semantics: a real section definition wins over any
-	// tentative one regardless of link order; multiple tentative definitions
-	// merge into one BSS slot of the MAX size and MAX alignment. Two real
-	// definitions of the same global are an error.
+	// Classic COMMON semantics among LOADED objects: a real section
+	// definition wins over any tentative one regardless of load order;
+	// multiple tentative definitions merge into one BSS slot of the MAX size
+	// and MAX alignment. Two real definitions of one global are an error
+	// between user objects, tolerated (with a warning) when an archive
+	// member is involved. Note: archive members are only loaded on demand —
+	// a tentative def in an earlier member can satisfy a reference so a
+	// later member's real def is never pulled (GNU ld behaves the same).
 	type commonInfo struct{ size, align uint64 }
 	commons := make(map[string]commonInfo)
-	realDef := make(map[string]string) // name → defining object path
+	realDef := make(map[string]*objFile) // name → defining object
 	for _, obj := range objs {
 		for _, sym := range obj.syms {
 			if sym.binding != elf.STB_GLOBAL || sym.name == "" {
@@ -422,18 +437,32 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 			switch sym.secName {
 			case ".text", ".rodata", ".data", ".bss":
 				if prev, dup := realDef[sym.name]; dup {
-					return fmt.Errorf("linker: duplicate definition of '%s' (in %s and %s)",
-						sym.name, prev, obj.path)
+					if !prev.fromArchive && !obj.fromArchive {
+						return fmt.Errorf("linker: duplicate definition of '%s' (in %s and %s)",
+							sym.name, prev.path, obj.path)
+					}
+					// Archive member involved: tolerated (shipped archives contain
+					// duplicates, e.g. __isnand in mathbuiltins and libm). An
+					// explicit user object beats an archive member; between two
+					// archive members the last pulled wins (historical behavior).
+					winner := obj
+					if !prev.fromArchive && obj.fromArchive {
+						winner = prev
+					}
+					fmt.Fprintf(os.Stderr, "linker: warning: duplicate definition of '%s' (%s and %s); using %s\n",
+						sym.name, prev.path, obj.path, winner.path)
+					realDef[sym.name] = winner
+					continue
 				}
-				realDef[sym.name] = obj.path
+				realDef[sym.name] = obj
 			case "COMMON":
 				ci := commons[sym.name]
 				if sym.size > ci.size {
 					ci.size = sym.size
 				}
 				al := sym.value // ELF convention: st_value of a COMMON = alignment
-				if al == 0 {
-					al = 8
+				if al == 0 || al&(al-1) != 0 || al > 4096 {
+					al = 8 // zero, non-power-of-two, or absurd alignment: use default
 				}
 				if al > ci.align {
 					ci.align = al
@@ -488,12 +517,16 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 		symVA[name] = lnkCodeBase + uint64(wordIdx)*4
 	}
 
-	// User function and variable symbols from all .o files. (Real-definition
-	// duplicates were rejected above, so iteration order cannot matter here.)
+	// User function and variable symbols from all .o files. For duplicated
+	// names, realDef records the winning object — only its definition enters
+	// symVA, so link order cannot silently change which copy wins.
 	for _, obj := range objs {
 		for _, sym := range obj.syms {
 			if sym.binding != elf.STB_GLOBAL || sym.name == "" {
 				continue
+			}
+			if w, ok := realDef[sym.name]; ok && w != obj {
+				continue // a different object owns this name
 			}
 			switch sym.secName {
 			case ".text":
@@ -549,8 +582,11 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 				va = bssBase + obj.bssOff + sym.value
 			case "COMMON":
 				// Tentative definition: resolve to the merged BSS slot (or a
-				// real definition elsewhere) via the global table.
-				va = symVA[sym.name]
+				// real definition elsewhere) via the global table. Only GLOBAL
+				// COMMONs are merged; anything else must not alias a global.
+				if sym.binding == elf.STB_GLOBAL {
+					va = symVA[sym.name]
+				}
 			case "":
 				// Undefined: look up in global table.
 				if sym.binding == elf.STB_GLOBAL && sym.name != "" {
@@ -629,7 +665,9 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 			case ".bss":
 				va = bssBase + obj.bssOff + sym.value
 			case "COMMON":
-				va = symVA[sym.name]
+				if sym.binding == elf.STB_GLOBAL {
+					va = symVA[sym.name]
+				}
 			case "":
 				if sym.binding == elf.STB_GLOBAL && sym.name != "" {
 					va = symVA[sym.name]

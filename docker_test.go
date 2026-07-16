@@ -657,9 +657,9 @@ var libcTests = []libcTest{
 	{name: "vadouble_libc", want: "3 7 100\n"},
 }
 
-// buildLibgastonc compiles every .cm file under libc/ plus picolibc tinystdio
-// sources to object files, archives them all into libgastonc.a, and returns
-// the archive path.  The caller must clean up.
+// buildLibgastonc returns the path to the committed, container-built
+// libgastonc.a. It performs no compilation and the caller must NOT remove
+// the returned path — it is a tracked artifact.
 func buildLibgastonc(t *testing.T) (libPath string) {
 	t.Helper()
 	// picolibc/libm sources are not vendored on the host — they are built inside the

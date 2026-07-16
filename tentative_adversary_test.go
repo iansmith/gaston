@@ -234,3 +234,32 @@ func TestDuplicateStrongDefRejected(t *testing.T) {
 		t.Errorf("error does not name the duplicate symbol: %v", err)
 	}
 }
+
+// TestDuplicateAcrossArchiveTolerated: two archive members both define
+// dup_helper and both get pulled (via from_a/from_b). Shipped archives
+// contain such duplicates (e.g. __isnand in mathbuiltins AND libm), so this
+// must link with a warning — one definition wins for all callers — not
+// hard-error. Duplicates between explicit user objects remain an error
+// (TestDuplicateStrongDefRejected).
+func TestDuplicateAcrossArchiveTolerated(t *testing.T) {
+	arPath := buildTentativeArchive(t, "tentative_ardup_lib", "tentative_ardup_a", "tentative_ardup_b")
+	got := runTentativeProgWithLibs(t, "tentative_ardup", []string{"tentative_ardup_main"}, arPath)
+	// Intra-member references bind locally (each member calls its OWN
+	// dup_helper — long-standing fileSymVA semantics), so from_a sees 1 and
+	// from_b sees 2: 10+1 + 20+2 = 33. Cross-object references to the
+	// duplicated name resolve to realDef's single winner.
+	want := "33\n"
+	if got != want {
+		t.Errorf("output mismatch:\n  got  %q\n  want %q", got, want)
+	}
+}
+
+// TestInit128Global: an initialized __int128 global gets a full 16-byte,
+// sign-extended .data slot, and its neighbor is not overlapped.
+func TestInit128Global(t *testing.T) {
+	got := runTentativeProg(t, "init128_global", "init128_global")
+	want := "1\n-5\n-4\n77\n"
+	if got != want {
+		t.Errorf("output mismatch:\n  got  %q\n  want %q", got, want)
+	}
+}

@@ -3,30 +3,34 @@
 // Generates a .o file suitable for linking with the gaston linker.
 //
 // Fixed section layout (indices 0–9):
-//   [0] NULL
-//   [1] .text      — literal pool (zeros + RELA) + machine code (default functions)
-//   [2] .rodata    — NUL-terminated string literals (default)
-//   [3] .data      — initialized global scalars (default)
-//   [4] .bss       — uninitialized globals (SHT_NOBITS, default)
-//   [5] .symtab    — symbol table
-//   [6] .strtab    — symbol name strings
-//   [7] .rela.text — relocations for .text
-//   [8] .rela.data — relocations for .data
-//   [9] .shstrtab  — section name strings
+//
+//	[0] NULL
+//	[1] .text      — literal pool (zeros + RELA) + machine code (default functions)
+//	[2] .rodata    — NUL-terminated string literals (default)
+//	[3] .data      — initialized global scalars (default)
+//	[4] .bss       — uninitialized globals (SHT_NOBITS, default)
+//	[5] .symtab    — symbol table
+//	[6] .strtab    — symbol name strings
+//	[7] .rela.text — relocations for .text
+//	[8] .rela.data — relocations for .data
+//	[9] .shstrtab  — section name strings
 //
 // Dynamic custom sections (indices 10+):
-//   Each unique custom exec section gets two indices: the section itself,
-//   then its .rela.<name> companion.
-//   Each unique custom data/rodata section gets one index.
+//
+//	Each unique custom exec section gets two indices: the section itself,
+//	then its .rela.<name> companion.
+//	Each unique custom data/rodata section gets one index.
 //
 // Symbol naming:
-//   Functions   → "<name>" (STB_GLOBAL, STT_FUNC, in their section)
-//   Global vars → "<name>" (STB_GLOBAL, STT_OBJECT, in their section)
-//   Str lits    → ".str<n>" (STB_LOCAL,  STT_OBJECT, in .rodata)
+//
+//	Functions   → "<name>" (STB_GLOBAL, STT_FUNC, in their section)
+//	Global vars → "<name>" (STB_GLOBAL, STT_OBJECT, in their section)
+//	Str lits    → ".str<n>" (STB_LOCAL,  STT_OBJECT, in .rodata)
 //
 // Relocations:
-//   Pool entry k (byte offset k*8): R_AARCH64_ABS64 for the symbol
-//   Extern BL at instruction i:     R_AARCH64_CALL26 for the callee symbol
+//
+//	Pool entry k (byte offset k*8): R_AARCH64_ABS64 for the symbol
+//	Extern BL at instruction i:     R_AARCH64_CALL26 for the callee symbol
 package main
 
 import (
@@ -133,15 +137,15 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 	// Only locally-defined (non-extern) globals get storage.
 	// Globals with a custom SectionName go into their own section, not .data/.bss.
 	type globalSlot struct {
-		gbl        IRGlobal
-		inData     bool   // initialized scalar → .data; else → .bss
-		isCommon   bool   // true for non-static uninitialized globals (SHN_COMMON; linker merges)
-		dataOff    uint64 // byte offset within .data
-		bssOff     uint64 // byte offset within .bss
-		customOff  uint64 // byte offset within the custom section data
+		gbl       IRGlobal
+		inData    bool   // initialized scalar → .data; else → .bss
+		isCommon  bool   // true for non-static uninitialized globals (SHN_COMMON; linker merges)
+		dataOff   uint64 // byte offset within .data
+		bssOff    uint64 // byte offset within .bss
+		customOff uint64 // byte offset within the custom section data
 	}
-	var slots []globalSlot        // default-section globals
-	var customSlots []globalSlot  // custom-section globals
+	var slots []globalSlot       // default-section globals
+	var customSlots []globalSlot // custom-section globals
 	var dataTotal, bssTotal uint64
 	// customSecData: section name → accumulated bytes for that custom section
 	customSecData := make(map[string][]byte)
@@ -189,7 +193,13 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 				dataTotal = (dataTotal + uint64(gbl.Align) - 1) &^ (uint64(gbl.Align) - 1)
 			}
 			sl.dataOff = dataTotal
-			dataTotal += 8
+			// Scalar slot is Size words (16-byte types have Size=2), not a
+			// fixed 8 — a following global must not overlap a 128-bit load.
+			slotWords := uint64(gbl.Size)
+			if slotWords == 0 {
+				slotWords = 1
+			}
+			dataTotal += slotWords * 8
 		} else if len(gbl.InitData) > 0 {
 			// Struct/array with init data → .data section.
 			sz := uint64(len(gbl.InitData))
@@ -237,6 +247,15 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 		if sl.inData {
 			if sl.gbl.HasInitVal && len(sl.gbl.InitData) == 0 {
 				binary.LittleEndian.PutUint64(dataBytes[sl.dataOff:], uint64(sl.gbl.InitVal))
+				if sl.gbl.Size >= 2 {
+					// 16-byte scalar (__int128 / long double): the high word is
+					// the sign extension of the 64-bit initializer.
+					hi := uint64(0)
+					if sl.gbl.InitVal < 0 {
+						hi = ^uint64(0)
+					}
+					binary.LittleEndian.PutUint64(dataBytes[sl.dataOff+8:], hi)
+				}
 			} else if len(sl.gbl.InitData) > 0 {
 				copy(dataBytes[sl.dataOff:], sl.gbl.InitData)
 				for _, rel := range sl.gbl.InitRelocs {
@@ -355,8 +374,8 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 	// customExecSections: section name → generated bytes + externBLs + labels
 	type customExecSection struct {
 		name      string
-		secIdx    uint16   // assigned ELF section index
-		relaIdx   uint16   // assigned ELF rela section index
+		secIdx    uint16 // assigned ELF section index
+		relaIdx   uint16 // assigned ELF rela section index
 		textBytes []byte
 		cb        *codeBuilder
 	}
