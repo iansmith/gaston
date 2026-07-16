@@ -10,32 +10,33 @@ import (
 
 // lexer implements the yyLexer interface required by the goyacc-generated parser.
 type lexer struct {
-	src         string
-	pos         int
-	line        int
-	file        string
-	errors      int
-	result      *Node            // set by the top-level grammar action
-	enumAutoVal  int              // auto-increment counter for enum constants
-	enumConsts   map[string]int   // enum constant name → integer value (populated during parse)
-	anonCount    int              // counter for anonymous struct/union synthetic names
-	typedefs     map[string]*CType   // typedef name → full CType (leaf or pointer)
-	shadowedTypedefs map[string]int      // typedef names shadowed by local vars: name → brace depth when shadowed
-	braceDepth       int                // current {} nesting depth (0 = global scope)
-	typeofExpr      *Node              // scratch: holds typeof(expr) expression until declaration picks it up
-	prevTok         int                // previous token returned (for struct/union tag disambiguation)
-	pendingToks     []int              // tokens queued by scanAttrParens for multi-attr blocks
-	pendingTokSvals []string           // parallel svals for pendingToks (empty string for tokens without string values)
-	pendingTokIvals []int              // parallel ivals for pendingToks (0 for tokens without integer values)
-	pendingStructDefs []*Node          // anonymous struct defs created in cast expressions, injected into AST after parse
+	src               string
+	pos               int
+	line              int
+	file              string
+	errors            int
+	firstError        string            // first parse-error message (for error-bucket reporting)
+	result            *Node             // set by the top-level grammar action
+	enumAutoVal       int               // auto-increment counter for enum constants
+	enumConsts        map[string]int    // enum constant name → integer value (populated during parse)
+	anonCount         int               // counter for anonymous struct/union synthetic names
+	typedefs          map[string]*CType // typedef name → full CType (leaf or pointer)
+	shadowedTypedefs  map[string]int    // typedef names shadowed by local vars: name → brace depth when shadowed
+	braceDepth        int               // current {} nesting depth (0 = global scope)
+	typeofExpr        *Node             // scratch: holds typeof(expr) expression until declaration picks it up
+	prevTok           int               // previous token returned (for struct/union tag disambiguation)
+	pendingToks       []int             // tokens queued by scanAttrParens for multi-attr blocks
+	pendingTokSvals   []string          // parallel svals for pendingToks (empty string for tokens without string values)
+	pendingTokIvals   []int             // parallel ivals for pendingToks (0 for tokens without integer values)
+	pendingStructDefs []*Node           // anonymous struct defs created in cast expressions, injected into AST after parse
 }
 
 func newLexer(src, file string) *lexer {
 	l := &lexer{
-		src:      src,
-		pos:      0,
-		line:     1,
-		file:     file,
+		src:              src,
+		pos:              0,
+		line:             1,
+		file:             file,
 		typedefs:         make(map[string]*CType),
 		shadowedTypedefs: make(map[string]int),
 		enumConsts:       make(map[string]int),
@@ -43,65 +44,65 @@ func newLexer(src, file string) *lexer {
 	// Pre-register "bool" as a typedef for _Bool (TypeInt).
 	l.typedefs["bool"] = leafCType(TypeInt)
 	// Pre-register wchar_t / wint_t as unsigned int (AArch64 LP64 ABI).
-	l.typedefs["wchar_t"]  = leafCType(TypeUnsignedInt)
-	l.typedefs["wint_t"]   = leafCType(TypeUnsignedInt)
+	l.typedefs["wchar_t"] = leafCType(TypeUnsignedInt)
+	l.typedefs["wint_t"] = leafCType(TypeUnsignedInt)
 	// Pre-register 128-bit integer typedefs.
 	l.typedefs["__uint128_t"] = leafCType(TypeUint128)
-	l.typedefs["__int128_t"]  = leafCType(TypeInt128)
+	l.typedefs["__int128_t"] = leafCType(TypeInt128)
 	// Pre-register common C99/POSIX fixed-width and size types (LP64 AArch64).
-	l.typedefs["size_t"]    = leafCType(TypeUnsignedLong)
-	l.typedefs["ssize_t"]   = leafCType(TypeLong)
+	l.typedefs["size_t"] = leafCType(TypeUnsignedLong)
+	l.typedefs["ssize_t"] = leafCType(TypeLong)
 	l.typedefs["ptrdiff_t"] = leafCType(TypeLong)
-	l.typedefs["intptr_t"]  = leafCType(TypeLong)
+	l.typedefs["intptr_t"] = leafCType(TypeLong)
 	l.typedefs["uintptr_t"] = leafCType(TypeUnsignedLong)
-	l.typedefs["off_t"]     = leafCType(TypeLong)
-	l.typedefs["off64_t"]   = leafCType(TypeLong)
-	l.typedefs["uint8_t"]   = leafCType(TypeUnsignedChar)
-	l.typedefs["uint16_t"]  = leafCType(TypeUnsignedShort)
-	l.typedefs["uint32_t"]  = leafCType(TypeUnsignedInt)
-	l.typedefs["uint64_t"]  = leafCType(TypeUnsignedLong)
-	l.typedefs["int8_t"]    = leafCType(TypeChar)
-	l.typedefs["int16_t"]   = leafCType(TypeShort)
-	l.typedefs["int32_t"]   = leafCType(TypeInt)
-	l.typedefs["int64_t"]   = leafCType(TypeLong)
+	l.typedefs["off_t"] = leafCType(TypeLong)
+	l.typedefs["off64_t"] = leafCType(TypeLong)
+	l.typedefs["uint8_t"] = leafCType(TypeUnsignedChar)
+	l.typedefs["uint16_t"] = leafCType(TypeUnsignedShort)
+	l.typedefs["uint32_t"] = leafCType(TypeUnsignedInt)
+	l.typedefs["uint64_t"] = leafCType(TypeUnsignedLong)
+	l.typedefs["int8_t"] = leafCType(TypeChar)
+	l.typedefs["int16_t"] = leafCType(TypeShort)
+	l.typedefs["int32_t"] = leafCType(TypeInt)
+	l.typedefs["int64_t"] = leafCType(TypeLong)
 	// picolibc internal fixed-width types.
-	l.typedefs["__uint8_t"]  = leafCType(TypeUnsignedChar)
+	l.typedefs["__uint8_t"] = leafCType(TypeUnsignedChar)
 	l.typedefs["__uint16_t"] = leafCType(TypeUnsignedShort)
 	l.typedefs["__uint32_t"] = leafCType(TypeUnsignedInt)
 	l.typedefs["__uint64_t"] = leafCType(TypeUnsignedLong)
-	l.typedefs["__int8_t"]   = leafCType(TypeChar)
-	l.typedefs["__int16_t"]  = leafCType(TypeShort)
-	l.typedefs["__int32_t"]  = leafCType(TypeInt)
-	l.typedefs["__int64_t"]  = leafCType(TypeLong)
+	l.typedefs["__int8_t"] = leafCType(TypeChar)
+	l.typedefs["__int16_t"] = leafCType(TypeShort)
+	l.typedefs["__int32_t"] = leafCType(TypeInt)
+	l.typedefs["__int64_t"] = leafCType(TypeLong)
 	// POSIX / picolibc supplemental types.
-	l.typedefs["__ssize_t"]   = leafCType(TypeLong)
-	l.typedefs["__blkcnt_t"]  = leafCType(TypeLong)
+	l.typedefs["__ssize_t"] = leafCType(TypeLong)
+	l.typedefs["__blkcnt_t"] = leafCType(TypeLong)
 	l.typedefs["__clockid_t"] = leafCType(TypeUnsignedLong)
-	l.typedefs["__timer_t"]   = leafCType(TypeUnsignedLong)
-	l.typedefs["__pid_t"]     = leafCType(TypeInt)
-	l.typedefs["__uid_t"]     = leafCType(TypeUnsignedInt)
-	l.typedefs["__gid_t"]     = leafCType(TypeUnsignedInt)
-	l.typedefs["__dev_t"]     = leafCType(TypeUnsignedLong)
-	l.typedefs["__ino_t"]     = leafCType(TypeUnsignedLong)
-	l.typedefs["__mode_t"]    = leafCType(TypeUnsignedInt)
-	l.typedefs["__nlink_t"]   = leafCType(TypeUnsignedInt)
-	l.typedefs["__off_t"]     = leafCType(TypeLong)
-	l.typedefs["__off64_t"]   = leafCType(TypeLong)
+	l.typedefs["__timer_t"] = leafCType(TypeUnsignedLong)
+	l.typedefs["__pid_t"] = leafCType(TypeInt)
+	l.typedefs["__uid_t"] = leafCType(TypeUnsignedInt)
+	l.typedefs["__gid_t"] = leafCType(TypeUnsignedInt)
+	l.typedefs["__dev_t"] = leafCType(TypeUnsignedLong)
+	l.typedefs["__ino_t"] = leafCType(TypeUnsignedLong)
+	l.typedefs["__mode_t"] = leafCType(TypeUnsignedInt)
+	l.typedefs["__nlink_t"] = leafCType(TypeUnsignedInt)
+	l.typedefs["__off_t"] = leafCType(TypeLong)
+	l.typedefs["__off64_t"] = leafCType(TypeLong)
 	l.typedefs["__blksize_t"] = leafCType(TypeLong)
-	l.typedefs["__time_t"]    = leafCType(TypeLong)
+	l.typedefs["__time_t"] = leafCType(TypeLong)
 	l.typedefs["__suseconds_t"] = leafCType(TypeLong)
-	l.typedefs["__useconds_t"]  = leafCType(TypeUnsignedInt)
-	l.typedefs["__socklen_t"]   = leafCType(TypeUnsignedInt)
-	l.typedefs["__float64"]   = leafCType(TypeDouble)
-	l.typedefs["__float32"]   = leafCType(TypeFloat)
+	l.typedefs["__useconds_t"] = leafCType(TypeUnsignedInt)
+	l.typedefs["__socklen_t"] = leafCType(TypeUnsignedInt)
+	l.typedefs["__float64"] = leafCType(TypeDouble)
+	l.typedefs["__float32"] = leafCType(TypeFloat)
 	// tinystdio internal type: ultoa_unsigned_t is unsigned long long on LP64.
 	l.typedefs["ultoa_unsigned_t"] = leafCType(TypeUnsignedLong)
 	// Compiler-provided opaque FILE type (picolibc wchar.h uses __FILE directly).
 	l.typedefs["__FILE"] = structCType("__FILE")
 	// GCC built-in va_list types — treat as opaque pointer.
-	l.typedefs["va_list"]            = structCType("__va_list")
-	l.typedefs["__gnuc_va_list"]     = structCType("__va_list")
-	l.typedefs["__builtin_va_list"]  = structCType("__va_list")
+	l.typedefs["va_list"] = structCType("__va_list")
+	l.typedefs["__gnuc_va_list"] = structCType("__va_list")
+	l.typedefs["__builtin_va_list"] = structCType("__va_list")
 	// locale_t is a pointer to struct __locale_t (POSIX; picolibc internals).
 	// Pre-register here so function declarations that use locale_t before
 	// the typedef is seen get the correct pointer type.
@@ -230,81 +231,81 @@ func (l *lexer) declareAll(nodes []*Node) {
 
 // keywords maps reserved words to their goyacc token constants.
 var keywords = map[string]int{
-	"int":      INT,
-	"void":     VOID,
-	"if":       IF,
-	"else":     ELSE,
-	"while":    WHILE,
-	"return":   RETURN,
-	"for":      FOR,
-	"do":       DO,
-	"break":    BREAK,
-	"continue": CONTINUE,
-	"const":    CONST,
-	"char":     CHAR,
-	"extern":   EXTERN,
-	"long":     LONG,
-	"unsigned": UNSIGNED,
-	"short":    SHORT,
-	"float":    FLOAT,
-	"double":   DOUBLE,
-	"struct":   STRUCT,
-	"goto":     GOTO,
-	"sizeof":   SIZEOF,
-	"enum":     ENUM,
-	"union":    UNION,
-	"typedef":  TYPEDEF,
-	"static":   STATIC,
-	"switch":   SWITCH,
-	"case":     CASE,
-	"default":  DEFAULT,
-	"_Bool":           INT,
-	"va_arg":          VA_ARG,
-	"typeof":          TYPEOF,
-	"__typeof":        TYPEOF,
-	"__typeof__":      TYPEOF,
-	"__int128":        INT128,
-	"__int128_t":      INT128,
-	"signed":          SIGNED,
-	"_Static_assert":  STATIC_ASSERT,
-	"static_assert":   STATIC_ASSERT,
-	"_Alignof":        ALIGNOF,
-	"__alignof__":     ALIGNOF,
-	"__alignof":       ALIGNOF,
-	"_Generic":        GENERIC,
-	"asm":             ASM_KW,
-	"__asm":           ASM_KW,
-	"__asm__":         ASM_KW,
-	"inline":          INLINE_KW,
-	"__inline":        INLINE_KW,
-	"__inline__":      INLINE_KW,
+	"int":            INT,
+	"void":           VOID,
+	"if":             IF,
+	"else":           ELSE,
+	"while":          WHILE,
+	"return":         RETURN,
+	"for":            FOR,
+	"do":             DO,
+	"break":          BREAK,
+	"continue":       CONTINUE,
+	"const":          CONST,
+	"char":           CHAR,
+	"extern":         EXTERN,
+	"long":           LONG,
+	"unsigned":       UNSIGNED,
+	"short":          SHORT,
+	"float":          FLOAT,
+	"double":         DOUBLE,
+	"struct":         STRUCT,
+	"goto":           GOTO,
+	"sizeof":         SIZEOF,
+	"enum":           ENUM,
+	"union":          UNION,
+	"typedef":        TYPEDEF,
+	"static":         STATIC,
+	"switch":         SWITCH,
+	"case":           CASE,
+	"default":        DEFAULT,
+	"_Bool":          INT,
+	"va_arg":         VA_ARG,
+	"typeof":         TYPEOF,
+	"__typeof":       TYPEOF,
+	"__typeof__":     TYPEOF,
+	"__int128":       INT128,
+	"__int128_t":     INT128,
+	"signed":         SIGNED,
+	"_Static_assert": STATIC_ASSERT,
+	"static_assert":  STATIC_ASSERT,
+	"_Alignof":       ALIGNOF,
+	"__alignof__":    ALIGNOF,
+	"__alignof":      ALIGNOF,
+	"_Generic":       GENERIC,
+	"asm":            ASM_KW,
+	"__asm":          ASM_KW,
+	"__asm__":        ASM_KW,
+	"inline":         INLINE_KW,
+	"__inline":       INLINE_KW,
+	"__inline__":     INLINE_KW,
 }
 
 // skipWords lists storage-class and qualifier keywords that the lexer silently drops.
 var skipWords = map[string]bool{
 	// Standard qualifiers / storage classes
-	"volatile":   true,
-	"register":   true,
-	"restrict":   true,
+	"volatile": true,
+	"register": true,
+	"restrict": true,
 	// C11 function specifiers
-	"_Noreturn":  true,
-	"noreturn":   true,
+	"_Noreturn": true,
+	"noreturn":  true,
 	// GCC alternate spellings (appear after __GNUC__=4 cdefs.h expansion)
-	"__restrict__":  true,
-	"__restrict":    true,
-	"__volatile__":  true,
-	"__const__":     true,
-	"__signed__":    true,
-	"__noreturn__":       true,
-	"__noreturn":         true,  // GCC single-underscore form
-	"__always_inline__":  true,  // __attribute__((always_inline)) spelled as keyword
-	"__always_inline":    true,
-	"__noinline__":       true,
-	"__noinline":         true,
-	"__extension__":      true,
+	"__restrict__":      true,
+	"__restrict":        true,
+	"__volatile__":      true,
+	"__const__":         true,
+	"__signed__":        true,
+	"__noreturn__":      true,
+	"__noreturn":        true, // GCC single-underscore form
+	"__always_inline__": true, // __attribute__((always_inline)) spelled as keyword
+	"__always_inline":   true,
+	"__noinline__":      true,
+	"__noinline":        true,
+	"__extension__":     true,
 	// Thread-local storage specifier (GCC __thread / C11 _Thread_local)
-	"__thread":       true,
-	"_Thread_local":  true,
+	"__thread":      true,
+	"_Thread_local": true,
 	// C++ linkage block delimiters — expand to nothing in C mode.
 	"__BEGIN_DECLS": true,
 	"__END_DECLS":   true,
@@ -991,6 +992,9 @@ func (l *lexer) Error(s string) {
 		ctx = fmt.Sprintf(" [before: %q after: %q]", before, after)
 	}
 	fmt.Fprintf(os.Stderr, "%s:%d: %s%s\n", l.file, l.line, s, ctx)
+	if l.firstError == "" {
+		l.firstError = s + ctx
+	}
 	l.errors++
 }
 
