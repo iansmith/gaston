@@ -127,7 +127,7 @@ func sizeofType(ct *CType) int {
 		return 4
 	case TypeLong, TypeUnsignedLong, TypeDouble, TypePtr, TypeFuncPtr:
 		return 8
-	case TypeInt128, TypeUint128:
+	case TypeInt128, TypeUint128, TypeLongDouble:
 		return 16
 	default:
 		return 8 // structs and unknown: opaque 8-byte placeholder
@@ -146,8 +146,10 @@ func alignofType(ct *CType) int {
 		return 2
 	case TypeInt, TypeUnsignedInt, TypeFloat:
 		return 4
+	case TypeLongDouble, TypeInt128, TypeUint128:
+		return 16 // AArch64: binary128 and __int128 are 16-byte aligned
 	default:
-		return 8 // long, double, ptr, int128, struct → 8
+		return 8 // long, double, ptr, struct → 8
 	}
 }
 
