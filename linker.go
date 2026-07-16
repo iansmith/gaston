@@ -42,13 +42,13 @@ const linkerLoadBase = uint64(0x400000)
 // objFile holds parsed data for one input .o file.
 type objFile struct {
 	path       string
-	textData   []byte  // raw .text bytes (pool + code)
-	rodataData []byte  // raw .rodata bytes
-	dataData   []byte  // raw .data bytes
-	bssSize    uint64  // .bss size in bytes (SHT_NOBITS has no data)
+	textData   []byte // raw .text bytes (pool + code)
+	rodataData []byte // raw .rodata bytes
+	dataData   []byte // raw .data bytes
+	bssSize    uint64 // .bss size in bytes (SHT_NOBITS has no data)
 	syms       []lnkSym
-	relas      []lnkRela     // .rela.text entries
-	dataRelas  []lnkRela     // .rela.data entries
+	relas      []lnkRela // .rela.text entries
+	dataRelas  []lnkRela // .rela.data entries
 
 	// Set during layout:
 	textBaseWord int    // word offset of this file's .text in the merged codeBuilder
@@ -173,6 +173,9 @@ func parseObjELF(path string, f *elf.File) (*objFile, error) {
 			secName := ""
 			if shndx == uint16(elf.SHN_UNDEF) {
 				secName = ""
+			} else if shndx == uint16(elf.SHN_COMMON) {
+				// Tentative definition: value = alignment, size = byte size.
+				secName = "COMMON"
 			} else if int(shndx) < len(secNames) {
 				secName = secNames[shndx]
 			}
@@ -376,7 +379,7 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 			w := binary.LittleEndian.Uint32(obj.textData[i:])
 			cb.instrs = append(cb.instrs, w)
 		}
-		obj.textBaseWord = helperWords + int(uint64(obj.textBaseWord) - uint64(helperWords))
+		obj.textBaseWord = helperWords + int(uint64(obj.textBaseWord)-uint64(helperWords))
 	}
 
 	// Recompute: textBaseWord for file k = helperWords + sum of prev file text words.
@@ -403,6 +406,64 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 		totalBss += obj.bssSize
 	}
 
+	// ── merge and allocate COMMON (tentative) symbols ─────────────────────
+	// Classic COMMON semantics: a real section definition wins over any
+	// tentative one regardless of link order; multiple tentative definitions
+	// merge into one BSS slot of the MAX size and MAX alignment. Two real
+	// definitions of the same global are an error.
+	type commonInfo struct{ size, align uint64 }
+	commons := make(map[string]commonInfo)
+	realDef := make(map[string]string) // name → defining object path
+	for _, obj := range objs {
+		for _, sym := range obj.syms {
+			if sym.binding != elf.STB_GLOBAL || sym.name == "" {
+				continue
+			}
+			switch sym.secName {
+			case ".text", ".rodata", ".data", ".bss":
+				if prev, dup := realDef[sym.name]; dup {
+					return fmt.Errorf("linker: duplicate definition of '%s' (in %s and %s)",
+						sym.name, prev, obj.path)
+				}
+				realDef[sym.name] = obj.path
+			case "COMMON":
+				ci := commons[sym.name]
+				if sym.size > ci.size {
+					ci.size = sym.size
+				}
+				al := sym.value // ELF convention: st_value of a COMMON = alignment
+				if al == 0 {
+					al = 8
+				}
+				if al > ci.align {
+					ci.align = al
+				}
+				commons[sym.name] = ci
+			}
+		}
+	}
+	// A real definition anywhere supersedes the tentative ones.
+	for name := range commons {
+		if _, ok := realDef[name]; ok {
+			delete(commons, name)
+		}
+	}
+	// Allocate surviving COMMONs at the end of merged BSS, in sorted order
+	// for determinism. Must happen before sbrkCurBrkVA is computed so the
+	// heap break lands after this storage.
+	commonNames := make([]string, 0, len(commons))
+	for name := range commons {
+		commonNames = append(commonNames, name)
+	}
+	sort.Strings(commonNames)
+	commonOff := make(map[string]uint64, len(commons))
+	for _, name := range commonNames {
+		ci := commons[name]
+		totalBss = (totalBss + ci.align - 1) &^ (ci.align - 1)
+		commonOff[name] = totalBss
+		totalBss += ci.size
+	}
+
 	// ── compute virtual addresses ─────────────────────────────────────────
 	// Header: 64 bytes ELF + 4 × 56 bytes phdrs = 288 = 0x120
 	const lnkPhdrs = 4
@@ -427,7 +488,8 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 		symVA[name] = lnkCodeBase + uint64(wordIdx)*4
 	}
 
-	// User function and variable symbols from all .o files.
+	// User function and variable symbols from all .o files. (Real-definition
+	// duplicates were rejected above, so iteration order cannot matter here.)
 	for _, obj := range objs {
 		for _, sym := range obj.syms {
 			if sym.binding != elf.STB_GLOBAL || sym.name == "" {
@@ -446,15 +508,10 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 		}
 	}
 
-	// DEBUG: dump symbol addresses sorted by VA
-	type symEntry struct{ name string; va uint64 }
-	var sortedSyms []symEntry
-	for name, va := range symVA {
-		sortedSyms = append(sortedSyms, symEntry{name, va})
-	}
-	sort.Slice(sortedSyms, func(i, j int) bool { return sortedSyms[i].va < sortedSyms[j].va })
-	for _, s := range sortedSyms {
-		fmt.Fprintf(os.Stderr, "linker: sym 0x%08x %s\n", s.va, s.name)
+	// Merged COMMON symbols live at the end of BSS. (commonOff only holds
+	// names with no real definition, so this never shadows one.)
+	for name, off := range commonOff {
+		symVA[name] = bssBase + off
 	}
 
 	// Add main and __posix_stdio_init labels to cb.labels so applyFixups() can
@@ -490,6 +547,10 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 				va = dataBase + obj.dataOff + sym.value
 			case ".bss":
 				va = bssBase + obj.bssOff + sym.value
+			case "COMMON":
+				// Tentative definition: resolve to the merged BSS slot (or a
+				// real definition elsewhere) via the global table.
+				va = symVA[sym.name]
 			case "":
 				// Undefined: look up in global table.
 				if sym.binding == elf.STB_GLOBAL && sym.name != "" {
@@ -567,6 +628,8 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 				va = dataBase + obj.dataOff + sym.value
 			case ".bss":
 				va = bssBase + obj.bssOff + sym.value
+			case "COMMON":
+				va = symVA[sym.name]
 			case "":
 				if sym.binding == elf.STB_GLOBAL && sym.name != "" {
 					va = symVA[sym.name]
