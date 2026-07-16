@@ -496,6 +496,8 @@ var featureTests = []dockerTest{
 	{name: "alignas_field", want: "16\n0\n32\n0\n0\n"},
 	// attr_section_data: globals in custom data sections get real storage (GAST-6)
 	{name: "attr_section_data", want: "5\n0\n9\n3\n"},
+	// bitfield_anon: anonymous/zero-width bit-fields with const-expr widths (GAST-14)
+	{name: "bitfield_anon", want: "16\n5\n7\n5\n6\n7\n"},
 	// alignas_enforce: _Alignas(N) must make the variable's address a multiple of N;
 	//   also widens struct layout when applied to a member.
 	{name: "alignas_enforce", want: "0\n0\n0\n16\n8\n0\n"},
