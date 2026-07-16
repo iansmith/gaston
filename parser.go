@@ -2714,7 +2714,7 @@ yydefault:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:304
 		{
-			yyVAL.typ = leafCType(TypeDouble)
+			yyVAL.typ = leafCType(TypeLongDouble)
 		}
 	case 91:
 		yyDollar = yyS[yypt-1 : yypt+1]
@@ -3223,7 +3223,7 @@ yydefault:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line grammar.y:444
 		{
-			yyVAL.node = &Node{Kind: KindParam, Type: TypeDouble, Name: ""}
+			yyVAL.node = &Node{Kind: KindParam, Type: TypeLongDouble, Name: ""}
 		}
 	case 166:
 		yyDollar = yyS[yypt-1 : yypt+1]

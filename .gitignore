@@ -17,3 +17,5 @@ build/
 
 # Scratch markdown notes (not tracked). design/ is for committed docs.
 /docs/
+scratch/
+.slopstop/
