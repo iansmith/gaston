@@ -490,6 +490,8 @@ var featureTests = []dockerTest{
 	{name: "attr_alias", want: "42\n42\n1\n7\n7\n99\n"},
 	// builtin_fpclassify: __builtin_isnan, __builtin_isinf, __builtin_copysign
 	{name: "builtin_fpclassify", want: "1\n0\n0\n1\n1\n0\n0\n-3\n5\n4\n-4\n"},
+	// copysign_typing: __builtin_copysign result is double-typed (GAST-4)
+	{name: "copysign_typing", want: "-3\n-2\n2\n1\n"},
 	// alignas_enforce: _Alignas(N) must make the variable's address a multiple of N;
 	//   also widens struct layout when applied to a member.
 	{name: "alignas_enforce", want: "0\n0\n0\n16\n8\n0\n"},
