@@ -18,7 +18,7 @@ type loopLabels struct {
 // irGen holds state for IR generation from a type-checked AST.
 type irGen struct {
 	prog            *IRProgram
-	fn              *IRFunc   // current function being generated
+	fn              *IRFunc // current function being generated
 	globals         map[string]*IRGlobal
 	locals          map[string]localInfo
 	funcNames       map[string]bool   // names of user-defined functions (for IRFuncAddr detection)
@@ -29,16 +29,16 @@ type irGen struct {
 	loopStack       []loopLabels
 	currentFuncName string
 	staticLocals    map[string]string // local name → mangled global name
-	stmtExprN       int              // counter for unique statement expression scoping
+	stmtExprN       int               // counter for unique statement expression scoping
 }
 
 // localInfo tracks what we know about a local name during IR gen.
 type localInfo struct {
 	isArray  bool
-	isParam  bool   // if true, the stack slot holds a pointer, not inline storage
-	arrSize  int    // >0 for local (non-param) arrays; -1 for array params
-	innerDim int    // inner dimension for 2D arrays (0 for 1D)
-	isStatic bool   // true for static locals (allocated as globals)
+	isParam  bool // if true, the stack slot holds a pointer, not inline storage
+	arrSize  int  // >0 for local (non-param) arrays; -1 for array params
+	innerDim int  // inner dimension for 2D arrays (0 for 1D)
+	isStatic bool // true for static locals (allocated as globals)
 }
 
 func newIRGen() *irGen {
@@ -65,7 +65,7 @@ func (g *irGen) newLabel() string {
 	return l
 }
 
-func (g *irGen) emit(q Quad)      { g.fn.Quads = append(g.fn.Quads, q) }
+func (g *irGen) emit(q Quad)        { g.fn.Quads = append(g.fn.Quads, q) }
 func (g *irGen) emitLabel(l string) { g.emit(Quad{Op: IRLabel, Extra: l}) }
 func (g *irGen) emitJump(l string)  { g.emit(Quad{Op: IRJump, Extra: l}) }
 
@@ -139,21 +139,31 @@ func genIR(prog *Node) *IRProgram {
 				if sd, ok := g.prog.StructDefs[decl.StructTag]; ok {
 					sz = (sd.SizeBytes(g.prog.StructDefs) + 7) / 8
 				}
+			} else if decl.Type == TypeLongDouble || decl.Type == TypeInt128 || decl.Type == TypeUint128 {
+				sz = 2 // 16-byte scalar footprint
+			}
+			// Natural alignment: _Alignas wins; otherwise 16-byte types need
+			// more than the default 8-byte slot alignment.
+			align := decl.Align
+			if align == 0 {
+				if a := alignofType(leafCType(decl.Type)); a > 8 {
+					align = a
+				}
 			}
 			gbl := &IRGlobal{
-				Name:      decl.Name,
-				IsArr:     isArr,
-				IsPtr:     isPtr,
-				IsStruct:  isStruct,
-				Pointee:   decl.Pointee,
-				StructTag: decl.StructTag,
+				Name:        decl.Name,
+				IsArr:       isArr,
+				IsPtr:       isPtr,
+				IsStruct:    isStruct,
+				Pointee:     decl.Pointee,
+				StructTag:   decl.StructTag,
 				IsExtern:    decl.IsExtern,
 				IsStatic:    decl.IsStatic,
 				IsWeak:      decl.IsWeak,
 				SectionName: decl.SectionName,
-				Align:       decl.Align,
+				Align:       align,
 				Size:        sz,
-				InnerDim:  decl.Dim2,
+				InnerDim:    decl.Dim2,
 			}
 			if !decl.IsExtern && len(decl.Children) > 0 {
 				init := decl.Children[0]
@@ -169,10 +179,14 @@ func genIR(prog *Node) *IRProgram {
 					buf := make([]byte, byteSize)
 					if byteSize == 4 {
 						bits := math.Float32bits(float32(init.FVal))
-						for i := 0; i < 4; i++ { buf[i] = byte(bits >> (uint(i) * 8)) }
+						for i := 0; i < 4; i++ {
+							buf[i] = byte(bits >> (uint(i) * 8))
+						}
 					} else {
 						bits := math.Float64bits(init.FVal)
-						for i := 0; i < 8; i++ { buf[i] = byte(bits >> (uint(i) * 8)) }
+						for i := 0; i < 8; i++ {
+							buf[i] = byte(bits >> (uint(i) * 8))
+						}
 					}
 					gbl.InitData = buf
 				} else if v, ok := tryEvalConstInt(init); ok {
@@ -298,9 +312,9 @@ func buildStructDefIR(n *Node, structDefs map[string]*StructDef) *StructDef {
 				offset = (offset + align - 1) &^ (align - 1)
 			}
 			sd.Fields = append(sd.Fields, StructField{
-				Name:      child.Name,
-				Type:      TypeStruct,
-				StructTag: child.StructTag,
+				Name:       child.Name,
+				Type:       TypeStruct,
+				StructTag:  child.StructTag,
 				ByteOffset: offset,
 			})
 			if !sd.IsUnion {
@@ -1691,7 +1705,6 @@ func (g *irGen) genExpr(n *Node) IRAddr {
 			return ptr
 		}
 
-
 	case KindPostInc:
 		return g.genIncDec(n.Children[0], true, true)
 	case KindPostDec:
@@ -2080,9 +2093,10 @@ func (g *irGen) lookupStructField(n *Node) *StructField {
 }
 
 // genIncDec emits a load-modify-store sequence for x++/x--/++x/--x.
-//   lval        — the lvalue node (KindVar, KindArrayVar, KindDeref, KindFieldAccess)
-//   isIncrement — true for ++, false for --
-//   post        — true to return old value (postfix), false to return new value (prefix)
+//
+//	lval        — the lvalue node (KindVar, KindArrayVar, KindDeref, KindFieldAccess)
+//	isIncrement — true for ++, false for --
+//	post        — true to return old value (postfix), false to return new value (prefix)
 func (g *irGen) genIncDec(lval *Node, isIncrement bool, post bool) IRAddr {
 	lvalType := lval.Type
 
@@ -2389,10 +2403,10 @@ func (g *irGen) genStructCallInto(n *Node, dstAddr IRAddr, tag string) {
 // materializeStructArg ensures a TypeStruct argument expression is backed by
 // caller-owned inline frame storage, and returns its IRAddr.
 //
-//   KindVar                    → direct AddrLocal of existing isArrBase storage
-//   KindCall (struct return)   → materialize via genStructCallInto into a new slot
-//   anything else (field accs) → genExpr returns a pointer-valued temp;
-//                                copy into a new slot via IRStructCopy
+//	KindVar                    → direct AddrLocal of existing isArrBase storage
+//	KindCall (struct return)   → materialize via genStructCallInto into a new slot
+//	anything else (field accs) → genExpr returns a pointer-valued temp;
+//	                             copy into a new slot via IRStructCopy
 func (g *irGen) materializeStructArg(arg *Node) IRAddr {
 	if arg.Kind == KindVar {
 		return g.addrOf(arg.Name)
