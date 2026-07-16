@@ -498,6 +498,8 @@ var featureTests = []dockerTest{
 	{name: "attr_section_data", want: "5\n0\n9\n3\n"},
 	// bitfield_anon: anonymous/zero-width bit-fields with const-expr widths (GAST-14)
 	{name: "bitfield_anon", want: "16\n5\n7\n5\n6\n7\n"},
+	// param_static_arr: C99 [static N] array parameters (GAST-16)
+	{name: "param_static_arr", want: "5\n6\n"},
 	// alignas_enforce: _Alignas(N) must make the variable's address a multiple of N;
 	//   also widens struct layout when applied to a member.
 	{name: "alignas_enforce", want: "0\n0\n0\n16\n8\n0\n"},
