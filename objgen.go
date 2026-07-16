@@ -1012,6 +1012,11 @@ func genObjectTo(irp *IRProgram, w io.Writer) error {
 			var symIdx int
 			if i, ok := funcSymIdx[xbl.sym]; ok {
 				symIdx = i
+			} else if i, ok := aliasSymIdx[xbl.sym]; ok {
+				// Calls to alias names must relocate against the defined alias
+				// symbol — aliases are excluded from externSymNames, and the
+				// zero-value fallback silently produced symbol index 0.
+				symIdx = i
 			} else {
 				symIdx = externSymNames[xbl.sym]
 			}
