@@ -410,8 +410,8 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 					pulled.fromArchive = true
 					objs = append(objs, pulled)
 					added = true
-					break
 					fmt.Fprintf(os.Stderr, "linker: pulled %s for %s\n", m.name, sym.name)
+					break
 				}
 			}
 		}
