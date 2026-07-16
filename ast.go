@@ -8,26 +8,26 @@ package main
 type TypeKind int
 
 const (
-	TypeVoid         TypeKind = iota
-	TypeInt                   // int scalar (4-byte LP64)
-	TypeIntArray              // int[] — pointer when a param, inline storage when a local
-	TypeChar                  // char scalar (1-byte integer)
-	TypeCharPtr               // char* — pointer to char (used for string literals; legacy alias for TypePtr+TypeChar pointee)
-	TypeUnsignedInt           // unsigned int (4-byte LP64, unsigned)
-	TypeUnsignedChar          // unsigned char
-	TypeShort                 // short (16-bit signed; stored as 64-bit in frame)
-	TypeUnsignedShort         // unsigned short
-	TypeFloat                 // float (32-bit IEEE 754; stored as 64-bit double internally)
-	TypeDouble                // double (64-bit IEEE 754)
-	TypeStruct                // struct (paired with Node.StructTag for struct name)
-	TypeFuncPtr               // function pointer — void (*fp)(...); all func ptrs share this type
-	TypePtr                   // generic pointer — pointee described by Node.Pointee *CType
-	TypeLong                  // long / long long (8-byte LP64, signed)
-	TypeUnsignedLong          // unsigned long / unsigned long long (8-byte LP64, unsigned)
-	TypeTypeof                // sentinel: typeof(expr) — resolved to real type by semcheck
-	TypeInt128      // __int128 / __int128_t (signed 128-bit integer, 16 bytes)
-	TypeUint128     // __uint128_t / unsigned __int128 (unsigned 128-bit integer, 16 bytes)
-	TypeLongDouble  // long double (16-byte quad, AArch64 binary128; arithmetic uses low 64 bits as double)
+	TypeVoid          TypeKind = iota
+	TypeInt                    // int scalar (4-byte LP64)
+	TypeIntArray               // int[] — pointer when a param, inline storage when a local
+	TypeChar                   // char scalar (1-byte integer)
+	TypeCharPtr                // char* — pointer to char (used for string literals; legacy alias for TypePtr+TypeChar pointee)
+	TypeUnsignedInt            // unsigned int (4-byte LP64, unsigned)
+	TypeUnsignedChar           // unsigned char
+	TypeShort                  // short (16-bit signed; stored as 64-bit in frame)
+	TypeUnsignedShort          // unsigned short
+	TypeFloat                  // float (32-bit IEEE 754; stored as 64-bit double internally)
+	TypeDouble                 // double (64-bit IEEE 754)
+	TypeStruct                 // struct (paired with Node.StructTag for struct name)
+	TypeFuncPtr                // function pointer — void (*fp)(...); all func ptrs share this type
+	TypePtr                    // generic pointer — pointee described by Node.Pointee *CType
+	TypeLong                   // long / long long (8-byte LP64, signed)
+	TypeUnsignedLong           // unsigned long / unsigned long long (8-byte LP64, unsigned)
+	TypeTypeof                 // sentinel: typeof(expr) — resolved to real type by semcheck
+	TypeInt128                 // __int128 / __int128_t (signed 128-bit integer, 16 bytes)
+	TypeUint128                // __uint128_t / unsigned __int128 (unsigned 128-bit integer, 16 bytes)
+	TypeLongDouble             // long double (16-byte quad, AArch64 binary128; arithmetic uses low 64 bits as double)
 )
 
 // CType is the full parameterised representation of a pointer type.
@@ -223,17 +223,17 @@ const (
 	KindFNum    // floating-point literal: FVal = value
 
 	// Statements
-	KindCompound  // { decls... stmts... }
-	KindExprStmt  // expr; or ;
-	KindSelection // if (cond) then [else alt]
-	KindIteration // while (cond) body
-	KindFor       // for (init; cond; post) body — Children: [init|nil, cond|nil, post|nil, body]
-	KindDoWhile   // do body while (cond); — Children: [body, cond]
-	KindSwitch    // switch (expr) { cases } — Children: [expr, case1, case2, ...]
-	KindCase      // case expr: stmts — Val=-1 for default; Children[0]=expr (if not default), rest=stmts
-	KindReturn    // return [expr];
-	KindBreak     // break;
-	KindContinue  // continue;
+	KindCompound     // { decls... stmts... }
+	KindExprStmt     // expr; or ;
+	KindSelection    // if (cond) then [else alt]
+	KindIteration    // while (cond) body
+	KindFor          // for (init; cond; post) body — Children: [init|nil, cond|nil, post|nil, body]
+	KindDoWhile      // do body while (cond); — Children: [body, cond]
+	KindSwitch       // switch (expr) { cases } — Children: [expr, case1, case2, ...]
+	KindCase         // case expr: stmts — Val=-1 for default; Children[0]=expr (if not default), rest=stmts
+	KindReturn       // return [expr];
+	KindBreak        // break;
+	KindContinue     // continue;
 	KindGoto         // goto label;     Name = label name
 	KindIndirectGoto // goto *expr;     Children[0] = pointer expression (computed goto)
 	KindLabel        // label: stmt     Name = label name; Children[0] = statement
@@ -243,43 +243,43 @@ const (
 	KindAssign         // var = expr
 	KindCompoundAssign // var op= expr  (also x++/x--: Children[1]=nil, Val=1)
 	KindBinOp          // expr op expr
-	KindVar      // ID  (scalar or array-base reference)
-	KindArrayVar  // ID[expr]
-	KindIndexExpr // postfix_expr[expr]; Children[0]=base pointer expr, Children[1]=index
-	KindCall     // ID(args...)
-	KindNum      // integer literal
-	KindUnary    // unary operator: Op = "-" or "!"
-	KindCharLit  // character literal: Val = rune value (e.g. 'A' = 65)
-	KindStrLit   // string literal: Name = string content (NUL not included)
-	KindDeref       // *expr  (pointer dereference, as lvalue or rvalue); Children[0] = pointer expr
-	KindAddrOf      // &var   (address-of scalar or array); Children[0] = KindVar
-	KindFieldAccess // expr->field or expr.field; Children[0]=base; Name=field; Op="->" or "."
-	KindStructDef   // struct TAG { fields }; Name=tag; Children=field KindVarDecl nodes; IsUnion=true for unions
-	KindSizeof      // sizeof(type) or sizeof(expr); folded to KindNum during semcheck
-	KindFuncPtrCall  // (*fp)(args) — call through a function pointer; Name=var, Children=args
-	KindIndirectCall // expr(args) — call through arbitrary expression; Children[0]=callee expr, rest=args
+	KindVar            // ID  (scalar or array-base reference)
+	KindArrayVar       // ID[expr]
+	KindIndexExpr      // postfix_expr[expr]; Children[0]=base pointer expr, Children[1]=index
+	KindCall           // ID(args...)
+	KindNum            // integer literal
+	KindUnary          // unary operator: Op = "-" or "!"
+	KindCharLit        // character literal: Val = rune value (e.g. 'A' = 65)
+	KindStrLit         // string literal: Name = string content (NUL not included)
+	KindDeref          // *expr  (pointer dereference, as lvalue or rvalue); Children[0] = pointer expr
+	KindAddrOf         // &var   (address-of scalar or array); Children[0] = KindVar
+	KindFieldAccess    // expr->field or expr.field; Children[0]=base; Name=field; Op="->" or "."
+	KindStructDef      // struct TAG { fields }; Name=tag; Children=field KindVarDecl nodes; IsUnion=true for unions
+	KindSizeof         // sizeof(type) or sizeof(expr); folded to KindNum during semcheck
+	KindFuncPtrCall    // (*fp)(args) — call through a function pointer; Name=var, Children=args
+	KindIndirectCall   // expr(args) — call through arbitrary expression; Children[0]=callee expr, rest=args
 	// KindVAArg: va_arg(ap, type) — read next variadic argument and advance ap.
 	// Children[0] = ap expression (a va_list / long* local).
 	// Type / Pointee / StructTag describe the requested result type (same semantics
 	// as a VarDecl node: TypeInt for integer, TypeDouble for double, TypePtr+Pointee
 	// for pointer types).  Irgen emits a deref-load + raw advance of 8 bytes.
 	KindVAArg
-	KindArray2D     // ID[expr][expr] — 2D array subscript; Children[0]=row, Children[1]=col
-	KindPostInc     // x++: Children[0]=lvalue; evaluates to old value, then increments
-	KindPostDec     // x--: Children[0]=lvalue; evaluates to old value, then decrements
-	KindPreInc      // ++x: Children[0]=lvalue; increments, then evaluates to new value
-	KindPreDec      // --x: Children[0]=lvalue; decrements, then evaluates to new value
-	KindLogAnd      // a && b: short-circuit logical AND; yields 0 or 1 (TypeInt)
-	KindLogOr       // a || b: short-circuit logical OR; yields 0 or 1 (TypeInt)
-	KindCommaExpr   // (expr, expr) — C comma operator; Children[0]=left (side-effect), Children[1]=right (value)
-	KindCast        // (type)expr — explicit type cast; Type/Pointee = target type; Children[0] = source expr
-	KindTernary     // cond ? then : else — Children[0]=cond, [1]=then-expr, [2]=else-expr
+	KindArray2D   // ID[expr][expr] — 2D array subscript; Children[0]=row, Children[1]=col
+	KindPostInc   // x++: Children[0]=lvalue; evaluates to old value, then increments
+	KindPostDec   // x--: Children[0]=lvalue; evaluates to old value, then decrements
+	KindPreInc    // ++x: Children[0]=lvalue; increments, then evaluates to new value
+	KindPreDec    // --x: Children[0]=lvalue; decrements, then evaluates to new value
+	KindLogAnd    // a && b: short-circuit logical AND; yields 0 or 1 (TypeInt)
+	KindLogOr     // a || b: short-circuit logical OR; yields 0 or 1 (TypeInt)
+	KindCommaExpr // (expr, expr) — C comma operator; Children[0]=left (side-effect), Children[1]=right (value)
+	KindCast      // (type)expr — explicit type cast; Type/Pointee = target type; Children[0] = source expr
+	KindTernary   // cond ? then : else — Children[0]=cond, [1]=then-expr, [2]=else-expr
 
 	// Initializer lists (C99 §6.7.8 designated initializers).
 	KindInitList  // { entry, entry, ... } — Children = KindInitEntry nodes in source order
 	KindInitEntry // one initializer entry: Op="" plain, Op="." field designator, Op="[" index designator
-	               // Name = field name when Op=="."; Val = index when Op=="["; Val = byte offset (set by semcheck)
-	               // Children[0] = value expression or nested KindInitList
+	// Name = field name when Op=="."; Val = index when Op=="["; Val = byte offset (set by semcheck)
+	// Children[0] = value expression or nested KindInitList
 
 	// KindCompoundLit: (Type){ init_list } — anonymous temporary with init list (C99 §6.5.2.5).
 	// Type / Pointee / StructTag = the declared type (same semantics as a KindVarDecl node:
@@ -435,32 +435,32 @@ func ctNode(kind NodeKind, ct *CType, name string) *Node {
 //	KindCall:       Name, Children = args
 //	KindNum:        Val
 type Node struct {
-	Kind      NodeKind
-	Type      TypeKind // resolved type (filled by semcheck)
-	Pointee   *CType   // non-nil when Type == TypePtr: describes the pointee type
-	Name      string   // identifier
-	Val       int      // numeric literal or array size
-	FVal      float64  // floating-point literal value (KindFNum)
-	Op        string   // binary operator string: "+", "-", "*", "/", "<", "<=", ">", ">=", "==", "!="
-	StructTag string   // for TypeStruct: the struct type name; for TypePtr-to-struct nodes: propagated from Pointee.Tag
-	Children  []*Node
-	Line      int
-	IsConst        bool     // true for KindVarDecl declared with const
-	IsExtern       bool     // true for extern declarations (var or fun)
-	IsVLA          bool     // true for variable-length array: type ID '[' ID ']'
-	IsUnion        bool     // true for KindStructDef that is a union (all fields at offset 0)
-	IsPacked       bool     // true for KindStructDef with __attribute__((packed))
-	IsConstTarget  bool     // true for pointer declared as const T *p (cannot store through)
-	IsStatic       bool     // true for static storage class (local: persistent, global: internal linkage)
-	IsWeak         bool     // true for __attribute__((weak)) functions/globals
-	AliasTarget    string   // non-empty for __attribute__((alias("target"))): the target symbol name
-	SectionName    string   // non-empty for __attribute__((section("name"))): the target ELF section
-	Align          int      // non-zero for _Alignas(N): required alignment in bytes
-	ElemType       TypeKind // for TypeIntArray: element type; TypePtr when array-of-pointers
-	ElemPointee    *CType   // for TypeIntArray with ElemType==TypePtr: the pointer's pointee CType
-	Dim2           int      // inner dimension for 2D arrays (e.g. for int a[M][N]: Dim2=N)
-	BitWidth       int      // bit width for struct bit-field members (0 for normal fields)
-	TypeofExpr     *Node    // non-nil when Type==TypeTypeof: the expression whose type to infer
+	Kind          NodeKind
+	Type          TypeKind // resolved type (filled by semcheck)
+	Pointee       *CType   // non-nil when Type == TypePtr: describes the pointee type
+	Name          string   // identifier
+	Val           int      // numeric literal or array size
+	FVal          float64  // floating-point literal value (KindFNum)
+	Op            string   // binary operator string: "+", "-", "*", "/", "<", "<=", ">", ">=", "==", "!="
+	StructTag     string   // for TypeStruct: the struct type name; for TypePtr-to-struct nodes: propagated from Pointee.Tag
+	Children      []*Node
+	Line          int
+	IsConst       bool     // true for KindVarDecl declared with const
+	IsExtern      bool     // true for extern declarations (var or fun)
+	IsVLA         bool     // true for variable-length array: type ID '[' ID ']'
+	IsUnion       bool     // true for KindStructDef that is a union (all fields at offset 0)
+	IsPacked      bool     // true for KindStructDef with __attribute__((packed))
+	IsConstTarget bool     // true for pointer declared as const T *p (cannot store through)
+	IsStatic      bool     // true for static storage class (local: persistent, global: internal linkage)
+	IsWeak        bool     // true for __attribute__((weak)) functions/globals
+	AliasTarget   string   // non-empty for __attribute__((alias("target"))): the target symbol name
+	SectionName   string   // non-empty for __attribute__((section("name"))): the target ELF section
+	Align         int      // non-zero for _Alignas(N): required alignment in bytes
+	ElemType      TypeKind // for TypeIntArray: element type; TypePtr when array-of-pointers
+	ElemPointee   *CType   // for TypeIntArray with ElemType==TypePtr: the pointer's pointee CType
+	Dim2          int      // inner dimension for 2D arrays (e.g. for int a[M][N]: Dim2=N)
+	BitWidth      int      // bit width for struct bit-field members (0 for normal fields)
+	TypeofExpr    *Node    // non-nil when Type==TypeTypeof: the expression whose type to infer
 }
 
 // StructField is one field in a struct definition (or union).
@@ -478,6 +478,7 @@ type StructField struct {
 	BitWidth    int      // bit width (0 for normal fields)
 	IsFlexArray bool     // true for flexible array members (last field, no size)
 	Dim2        int      // non-zero for 2D array fields: size of second (inner) dimension
+	Align       int      // explicit _Alignas(N) on the member (0 = natural alignment)
 }
 
 // StructDef describes one named struct or union type and its fields.
@@ -569,6 +570,9 @@ func (sd *StructDef) SizeBytes(structDefs map[string]*StructDef) int {
 			} else {
 				sz, a = fieldSizeAlign(f.Type, f.StructTag, structDefs)
 			}
+			if f.Align > a {
+				a = f.Align // explicit _Alignas(N) widens the member's alignment
+			}
 			if a > maxAlign {
 				maxAlign = a
 			}
@@ -630,13 +634,13 @@ type DeclSpec struct {
 	BaseType      *CType // resolved base type from type keywords
 	IsStatic      bool
 	IsExtern      bool
-	IsInline      bool   // true for inline / __inline__ / __inline function specifier
-	IsConst       bool   // leading const (qualifier on type)
-	IsConstTarget bool   // const T *p pattern (pointer target is const)
+	IsInline      bool // true for inline / __inline__ / __inline function specifier
+	IsConst       bool // leading const (qualifier on type)
+	IsConstTarget bool // const T *p pattern (pointer target is const)
 	IsTypedef     bool
-	IsUnion       bool   // true when BaseType came from UNION
-	StructDef     *Node  // non-nil if inline struct/union definition
-	TypeofExpr    *Node  // non-nil for typeof(expr) — deferred resolution
+	IsUnion       bool  // true when BaseType came from UNION
+	StructDef     *Node // non-nil if inline struct/union definition
+	TypeofExpr    *Node // non-nil for typeof(expr) — deferred resolution
 }
 
 // Declarator describes a single declarator: name, pointer chain, array dims, etc.
@@ -645,8 +649,8 @@ type Declarator struct {
 	PtrChain   *CType // pointer chain (nil=no pointers, ptrCType(nil)=single *, etc.)
 	IsConstPtr bool   // T * const p — the pointer itself is const
 	IsArray    bool
-	ArraySize  int  // dimension; -1 for unsized [], 0 for VLA
-	Dim2       int  // inner dimension for 2D arrays
+	ArraySize  int // dimension; -1 for unsized [], 0 for VLA
+	Dim2       int // inner dimension for 2D arrays
 	IsVLA      bool
 	VLAExpr    *Node // VLA size expression (non-nil when IsVLA)
 	IsFuncPtr  bool  // (*name)(params) function pointer declarator
@@ -656,9 +660,9 @@ type Declarator struct {
 // FunDeclarator describes a function declarator: name, optional pointer return,
 // parameter list, and whether it's variadic.
 type FunDeclarator struct {
-	Name       string   // function name
-	PtrChain   *CType   // pointer chain for return type (nil = non-pointer return)
-	Params     []*Node  // parameter nodes (KindParam)
+	Name        string  // function name
+	PtrChain    *CType  // pointer chain for return type (nil = non-pointer return)
+	Params      []*Node // parameter nodes (KindParam)
 	IsParenName bool    // true for (name)(params) — parenthesized name to prevent macro expansion
 }
 

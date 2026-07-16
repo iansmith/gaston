@@ -530,6 +530,9 @@ func buildStructDef(n *Node, errs *[]string, structDefs map[string]*StructDef) *
 			} else {
 				sz, align = fieldSizeAlign(child.Type, child.StructTag, structDefs)
 			}
+			if child.Align > align {
+				align = child.Align // explicit _Alignas(N) on the member
+			}
 			if !sd.IsUnion && !sd.IsPacked {
 				// Struct: advance offset with natural alignment.
 				offset = (offset + align - 1) &^ (align - 1)
@@ -545,6 +548,7 @@ func buildStructDef(n *Node, errs *[]string, structDefs map[string]*StructDef) *
 				ByteOffset:  offset,
 				IsFlexArray: isFlexArr,
 				Dim2:        child.Dim2,
+				Align:       child.Align,
 			}
 			if child.Type == TypeIntArray && child.Val > 0 {
 				f.ByteSize = sz
