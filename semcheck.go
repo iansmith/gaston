@@ -10,8 +10,8 @@ import (
 type FuncSig struct {
 	Name            string
 	ReturnType      TypeKind
-	ReturnPointee   *CType   // non-nil when ReturnType == TypePtr
-	ReturnStructTag string   // non-empty when ReturnType == TypeStruct: the struct type name
+	ReturnPointee   *CType // non-nil when ReturnType == TypePtr
+	ReturnStructTag string // non-empty when ReturnType == TypeStruct: the struct type name
 	Params          []TypeKind
 	ParamPointees   []*CType // per-param pointee CType (nil for non-pointer params); len == len(Params)
 	IsExtern        bool     // true for extern function declarations (no body)
@@ -32,12 +32,12 @@ type symTable struct {
 type symEntry struct {
 	name          string
 	typ           TypeKind
-	pointee       *CType   // non-nil when typ == TypePtr: full pointee type
-	structTag     string   // for TypeStruct: the struct name
+	pointee       *CType // non-nil when typ == TypePtr: full pointee type
+	structTag     string // for TypeStruct: the struct name
 	isParam       bool
 	isGlobal      bool
-	isExtern      bool     // true for extern forward declarations (may be overridden by a definition)
-	isTentative   bool     // true for non-extern declarations without an initializer (C tentative definitions)
+	isExtern      bool // true for extern forward declarations (may be overridden by a definition)
+	isTentative   bool // true for non-extern declarations without an initializer (C tentative definitions)
 	isConst       bool
 	constVal      int
 	arrSize       int      // for TypeIntArray locals/globals: number of elements (0 for params)
@@ -143,6 +143,25 @@ func newSymTable() *symTable {
 			ParamPointees: []*CType{nil},
 		}
 	}
+	// __builtin_isnan / __builtin_isinf — floating-point classification,
+	// return int. Handled natively by irgen (no libc call).
+	for _, name := range []string{"__builtin_isnan", "__builtin_isinf"} {
+		st.funcs[name] = &FuncSig{
+			Name:          name,
+			ReturnType:    TypeInt,
+			Params:        []TypeKind{TypeDouble},
+			ParamPointees: []*CType{nil},
+		}
+	}
+	// __builtin_copysign(mag, sign) — returns a DOUBLE; without this
+	// registration the call was typed int and no FP conversions were emitted
+	// anywhere downstream (GAST-4).
+	st.funcs["__builtin_copysign"] = &FuncSig{
+		Name:          "__builtin_copysign",
+		ReturnType:    TypeDouble,
+		Params:        []TypeKind{TypeDouble, TypeDouble},
+		ParamPointees: []*CType{nil, nil},
+	}
 	// __builtin_unreachable() — no-op marker; tells compiler a path is never reached.
 	st.funcs["__builtin_unreachable"] = &FuncSig{Name: "__builtin_unreachable", ReturnType: TypeVoid}
 	// __builtin_bswap16/32/64: byte-swap intrinsics.
@@ -155,16 +174,16 @@ func newSymTable() *symTable {
 	// alloca(size_t): allocate bytes on the stack; returns void*.
 	st.funcs["alloca"] = &FuncSig{Name: "alloca", ReturnType: TypePtr,
 		ReturnPointee: leafCType(TypeVoid),
-		Params: []TypeKind{TypeUnsignedLong}, ParamPointees: []*CType{nil}}
+		Params:        []TypeKind{TypeUnsignedLong}, ParamPointees: []*CType{nil}}
 	// __builtin_add_overflow / __builtin_sub_overflow / __builtin_mul_overflow.
 	st.funcs["__builtin_add_overflow"] = &FuncSig{Name: "__builtin_add_overflow", ReturnType: TypeInt,
-		Params: []TypeKind{TypeLong, TypeLong, TypePtr},
+		Params:        []TypeKind{TypeLong, TypeLong, TypePtr},
 		ParamPointees: []*CType{nil, nil, leafCType(TypeLong)}}
 	st.funcs["__builtin_sub_overflow"] = &FuncSig{Name: "__builtin_sub_overflow", ReturnType: TypeInt,
-		Params: []TypeKind{TypeLong, TypeLong, TypePtr},
+		Params:        []TypeKind{TypeLong, TypeLong, TypePtr},
 		ParamPointees: []*CType{nil, nil, leafCType(TypeLong)}}
 	st.funcs["__builtin_mul_overflow"] = &FuncSig{Name: "__builtin_mul_overflow", ReturnType: TypeInt,
-		Params: []TypeKind{TypeLong, TypeLong, TypePtr},
+		Params:        []TypeKind{TypeLong, TypeLong, TypePtr},
 		ParamPointees: []*CType{nil, nil, leafCType(TypeLong)}}
 	// __builtin_frame_address(N) — returns frame pointer of Nth calling frame as void*.
 	// Restrict to N=0 (current frame's FP) for simplicity.
@@ -262,8 +281,8 @@ func (st *symTable) declareGlobalFull(n *Node) error {
 		// Extern forward declaration or tentative definition — allow a definition to override it.
 	}
 	e := &symEntry{name: n.Name, typ: n.Type, isGlobal: true, isExtern: n.IsExtern,
-		isTentative:   !n.IsExtern && !hasInit,
-		structTag: n.StructTag, pointee: n.Pointee, isConstTarget: n.IsConstTarget}
+		isTentative: !n.IsExtern && !hasInit,
+		structTag:   n.StructTag, pointee: n.Pointee, isConstTarget: n.IsConstTarget}
 	st.globals[n.Name] = e
 	return nil
 }
@@ -435,7 +454,7 @@ func semCheck(prog *Node, requireMain bool) error {
 func buildStructDef(n *Node, errs *[]string, structDefs map[string]*StructDef) *StructDef {
 	sd := &StructDef{Name: n.Name, IsUnion: n.IsUnion, IsPacked: n.IsPacked}
 	offset := 0
-	bfWordOffset := -1  // byte offset of current bit-field storage word (-1 = none active)
+	bfWordOffset := -1 // byte offset of current bit-field storage word (-1 = none active)
 	bfBitsUsed := 0
 	const bfWordBits = 64
 	const bfWordSize = 8
@@ -1020,7 +1039,7 @@ func checkExpr(n *Node, st *symTable, errs *[]string) TypeKind {
 				n.Type = TypePtr
 				n.Pointee = e.elemPointee
 			} else if e.elemType != 0 && e.elemType != TypeInt {
-				n.Type = e.elemType // typed array: use the declared element type
+				n.Type = e.elemType       // typed array: use the declared element type
 				n.StructTag = e.structTag // propagate element struct tag
 			} else {
 				n.Type = TypeInt
