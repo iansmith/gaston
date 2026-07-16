@@ -143,6 +143,60 @@ func parseObjELF(path string, f *elf.File) (*objFile, error) {
 		secNames[i] = sec.Name
 	}
 
+	// ── fold custom allocatable sections into .text / .data / .bss ────────
+	// gaston emits __attribute__((section("name"))) code and data into their
+	// own sections. The linker's layout model knows only the four standard
+	// sections, so each custom section is folded into the appropriate one at
+	// parse time: its bytes are appended, and its symbols and relocations are
+	// rebased below. Placement semantics (linker scripts) are out of scope.
+	type foldInfo struct {
+		target string // ".text", ".data", or ".bss"
+		off    uint64 // byte offset of the folded section within the target
+	}
+	folds := make(map[uint16]foldInfo)
+	for i, sec := range f.Sections {
+		switch sec.Name {
+		case "", ".text", ".rodata", ".data", ".bss":
+			continue
+		}
+		if sec.Type != elf.SHT_PROGBITS && sec.Type != elf.SHT_NOBITS {
+			continue
+		}
+		if sec.Flags&elf.SHF_ALLOC == 0 {
+			continue
+		}
+		switch {
+		case sec.Flags&elf.SHF_EXECINSTR != 0:
+			for len(obj.textData)%4 != 0 {
+				obj.textData = append(obj.textData, 0)
+			}
+			off := uint64(len(obj.textData))
+			if sec.Type == elf.SHT_PROGBITS {
+				d, err2 := sec.Data()
+				if err2 != nil {
+					return nil, fmt.Errorf("linker: %s %s: %w", path, sec.Name, err2)
+				}
+				obj.textData = append(obj.textData, d...)
+			}
+			folds[uint16(i)] = foldInfo{".text", off}
+		case sec.Type == elf.SHT_NOBITS:
+			off := (obj.bssSize + 15) &^ 15
+			obj.bssSize = off + sec.Size
+			folds[uint16(i)] = foldInfo{".bss", off}
+		default:
+			for len(obj.dataData)%16 != 0 {
+				obj.dataData = append(obj.dataData, 0)
+			}
+			off := uint64(len(obj.dataData))
+			d, err2 := sec.Data()
+			if err2 != nil {
+				return nil, fmt.Errorf("linker: %s %s: %w", path, sec.Name, err2)
+			}
+			obj.dataData = append(obj.dataData, d...)
+			folds[uint16(i)] = foldInfo{".data", off}
+		}
+	}
+
 	// Parse raw .symtab (to avoid off-by-one issues with f.Symbols()).
 	symtabSec := f.Section(".symtab")
 	strtabSec := f.Section(".strtab")
@@ -183,6 +237,10 @@ func parseObjELF(path string, f *elf.File) (*objFile, error) {
 			} else if shndx == uint16(elf.SHN_COMMON) {
 				// Tentative definition: value = alignment, size = byte size.
 				secName = "COMMON"
+			} else if fi, ok := folds[shndx]; ok {
+				// Symbol in a folded custom section: rebase into the target.
+				secName = fi.target
+				value += fi.off
 			} else if int(shndx) < len(secNames) {
 				secName = secNames[shndx]
 			}
@@ -198,51 +256,59 @@ func parseObjELF(path string, f *elf.File) (*objFile, error) {
 		}
 	}
 
-	// Parse .rela.text.
-	relaSec := f.Section(".rela.text")
-	if relaSec != nil {
+	// Parse relocation sections. Standard .rela.text/.rela.data feed the two
+	// rela lists directly; relas of folded custom sections are rebased by the
+	// fold offset and routed to the list matching the fold target.
+	parseRelas := func(secName string, base uint64) ([]lnkRela, error) {
+		relaSec := f.Section(secName)
+		if relaSec == nil {
+			return nil, nil
+		}
 		relaData, err2 := relaSec.Data()
 		if err2 != nil {
-			return nil, fmt.Errorf("linker: %s .rela.text: %w", path, err2)
+			return nil, fmt.Errorf("linker: %s %s: %w", path, secName, err2)
 		}
+		var out []lnkRela
 		numRelas := len(relaData) / 24
 		for i := 0; i < numRelas; i++ {
 			raw := relaData[i*24 : i*24+24]
 			off := binary.LittleEndian.Uint64(raw[0:8])
 			info := binary.LittleEndian.Uint64(raw[8:16])
 			addend := int64(binary.LittleEndian.Uint64(raw[16:24]))
-			symIdx := uint32(info >> 32)
-			rtype := uint32(info)
-			obj.relas = append(obj.relas, lnkRela{
-				offset: off,
-				symIdx: symIdx,
-				rtype:  rtype,
+			out = append(out, lnkRela{
+				offset: base + off,
+				symIdx: uint32(info >> 32),
+				rtype:  uint32(info),
 				addend: addend,
 			})
 		}
+		return out, nil
 	}
 
-	// Parse .rela.data.
-	relaDataSec := f.Section(".rela.data")
-	if relaDataSec != nil {
-		relaData, err2 := relaDataSec.Data()
-		if err2 != nil {
-			return nil, fmt.Errorf("linker: %s .rela.data: %w", path, err2)
+	if rs, err2 := parseRelas(".rela.text", 0); err2 != nil {
+		return nil, err2
+	} else {
+		obj.relas = append(obj.relas, rs...)
+	}
+	if rs, err2 := parseRelas(".rela.data", 0); err2 != nil {
+		return nil, err2
+	} else {
+		obj.dataRelas = append(obj.dataRelas, rs...)
+	}
+	for i, sec := range f.Sections {
+		fi, ok := folds[uint16(i)]
+		if !ok {
+			continue
 		}
-		numRelas := len(relaData) / 24
-		for i := 0; i < numRelas; i++ {
-			raw := relaData[i*24 : i*24+24]
-			off := binary.LittleEndian.Uint64(raw[0:8])
-			info := binary.LittleEndian.Uint64(raw[8:16])
-			addend := int64(binary.LittleEndian.Uint64(raw[16:24]))
-			symIdx := uint32(info >> 32)
-			rtype := uint32(info)
-			obj.dataRelas = append(obj.dataRelas, lnkRela{
-				offset: off,
-				symIdx: symIdx,
-				rtype:  rtype,
-				addend: addend,
-			})
+		rs, err2 := parseRelas(".rela"+sec.Name, fi.off)
+		if err2 != nil {
+			return nil, err2
+		}
+		switch fi.target {
+		case ".text":
+			obj.relas = append(obj.relas, rs...)
+		case ".data":
+			obj.dataRelas = append(obj.dataRelas, rs...)
 		}
 	}
 

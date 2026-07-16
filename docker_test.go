@@ -494,6 +494,8 @@ var featureTests = []dockerTest{
 	{name: "copysign_typing", want: "-3\n-2\n2\n1\n"},
 	// alignas_field: _Alignas on struct members — offsets, size, stride (GAST-5)
 	{name: "alignas_field", want: "16\n0\n32\n0\n0\n"},
+	// attr_section_data: globals in custom data sections get real storage (GAST-6)
+	{name: "attr_section_data", want: "5\n0\n9\n3\n"},
 	// alignas_enforce: _Alignas(N) must make the variable's address a multiple of N;
 	//   also widens struct layout when applied to a member.
 	{name: "alignas_enforce", want: "0\n0\n0\n16\n8\n0\n"},
