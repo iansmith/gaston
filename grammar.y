@@ -354,6 +354,10 @@ param
 		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $2, ElemType: $1.Kind, StructTag: $1.Tag, Dim2: $7} }
 	| type_specifier ID '[' const_int_expr ']'
 		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $2, ElemType: $1.Kind, StructTag: $1.Tag, Val: $4} }
+	/* C99 static array parameter: T id[static N] — minimum-length promise;
+	   codegen-identical to a pointer parameter, qualifier accepted and ignored. */
+	| type_specifier ID '[' STATIC const_int_expr ']'
+		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $2, ElemType: $1.Kind, StructTag: $1.Tag, Val: $5} }
 	| type_specifier ID '[' ']'
 		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $2, ElemType: $1.Kind, StructTag: $1.Tag} }
 	| type_specifier '*' ID '[' ']'
