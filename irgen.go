@@ -323,6 +323,16 @@ func buildStructDefIR(n *Node, structDefs map[string]*StructDef) *StructDef {
 			continue
 		}
 
+		// Zero-width anonymous bit-field (BitWidth == -1): closes the current
+		// bit-field storage unit; declares nothing.
+		if child.BitWidth == -1 {
+			if bfWordOffset != -1 && !sd.IsUnion {
+				offset = bfWordOffset + bfWordSize
+				bfWordOffset = -1
+				bfBitsUsed = 0
+			}
+			continue
+		}
 		isBF := child.BitWidth > 0
 		isFlexArr := child.Type == TypeIntArray && child.Val == -1
 
@@ -335,14 +345,16 @@ func buildStructDefIR(n *Node, structDefs map[string]*StructDef) *StructDef {
 				bfWordOffset = offset
 				bfBitsUsed = 0
 			}
-			sd.Fields = append(sd.Fields, StructField{
-				Name:       child.Name,
-				Type:       child.Type,
-				ByteOffset: bfWordOffset,
-				IsBitField: true,
-				BitOffset:  bfBitsUsed,
-				BitWidth:   child.BitWidth,
-			})
+			if child.Name != "" {
+				sd.Fields = append(sd.Fields, StructField{
+					Name:       child.Name,
+					Type:       child.Type,
+					ByteOffset: bfWordOffset,
+					IsBitField: true,
+					BitOffset:  bfBitsUsed,
+					BitWidth:   child.BitWidth,
+				})
+			}
 			bfBitsUsed += child.BitWidth
 		} else {
 			if bfWordOffset != -1 && !sd.IsUnion {

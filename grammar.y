@@ -1788,6 +1788,13 @@ field
 		{ $$ = makeMultiDecl($1, $2) }
 	| type_specifier ID ':' const_int_expr ';'
 		{ n := ctNode(KindVarDecl, $1, $2); n.BitWidth = $4; $$ = []*Node{n} }
+	/* Anonymous bit-field: consumes bits (or, zero-width, closes the storage
+	   unit) without declaring a member. Width is a full constant expression —
+	   musl's alltypes.h uses `int :8*(sizeof(T)-sizeof(long))*(A==B);`.
+	   BitWidth == -1 encodes the zero-width form (0 would read as "not a
+	   bit-field" downstream). */
+	| type_specifier ':' const_int_expr ';'
+		{ n := ctNode(KindVarDecl, $1, ""); n.BitWidth = $3; if $3 == 0 { n.BitWidth = -1 }; $$ = []*Node{n} }
 	| type_specifier ID '[' const_int_expr ']' ';'
 		{ $$ = []*Node{&Node{Kind: KindVarDecl, Type: TypeIntArray, Name: $2, Val: $4, ElemType: $1.Kind, ElemPointee: arrayElemPtee($1), StructTag: $1.Tag}} }
 	| type_specifier ID '[' const_int_expr ']' '[' const_int_expr ']' ';'
