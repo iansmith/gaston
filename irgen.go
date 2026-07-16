@@ -356,6 +356,9 @@ func buildStructDefIR(n *Node, structDefs map[string]*StructDef) *StructDef {
 			} else {
 				sz, align = fieldSizeAlign(child.Type, child.StructTag, structDefs)
 			}
+			if child.Align > align {
+				align = child.Align // explicit _Alignas(N) on the member
+			}
 			if !sd.IsUnion {
 				offset = (offset + align - 1) &^ (align - 1)
 			}
@@ -368,6 +371,7 @@ func buildStructDefIR(n *Node, structDefs map[string]*StructDef) *StructDef {
 				StructTag:   child.StructTag,
 				ByteOffset:  offset,
 				IsFlexArray: isFlexArr,
+				Align:       child.Align,
 			}
 			if child.Type == TypeIntArray && child.Val > 0 {
 				f.ByteSize = sz
