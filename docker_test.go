@@ -500,6 +500,8 @@ var featureTests = []dockerTest{
 	{name: "bitfield_anon", want: "16\n5\n7\n5\n6\n7\n"},
 	// param_static_arr: C99 [static N] array parameters (GAST-16)
 	{name: "param_static_arr", want: "5\n6\n"},
+	// param_fnptr_ptr: fn-ptr params with pointer return types (GAST-18)
+	{name: "param_fnptr_ptr", want: "42\n"},
 	// alignas_enforce: _Alignas(N) must make the variable's address a multiple of N;
 	//   also widens struct layout when applied to a member.
 	{name: "alignas_enforce", want: "0\n0\n0\n16\n8\n0\n"},

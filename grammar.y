@@ -472,6 +472,12 @@ param
 		{ $$ = &Node{Kind: KindParam, Type: TypeFuncPtr, Name: $4} }
 	| type_specifier '(' '*' ')' '(' fp_param_types ')'
 		{ $$ = &Node{Kind: KindParam, Type: TypeFuncPtr, Name: ""} }
+	/* Pointer-returning function-pointer params: T *(*id)(...) and T *(*)(...)
+	   — the pthread_create shape, void *(*)(void *). */
+	| type_specifier '*' '(' '*' ID ')' '(' fp_param_types ')'
+		{ $$ = &Node{Kind: KindParam, Type: TypeFuncPtr, Name: $5} }
+	| type_specifier '*' '(' '*' ')' '(' fp_param_types ')'
+		{ $$ = &Node{Kind: KindParam, Type: TypeFuncPtr, Name: ""} }
 	/* Function pointer parameter returning struct pointer: struct T *(*fn)(params) */
 	| STRUCT ID '*' '(' '*' ID ')' '(' fp_param_types ')'
 		{ $$ = &Node{Kind: KindParam, Type: TypeFuncPtr, Name: $6} }
