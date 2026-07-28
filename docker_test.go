@@ -517,6 +517,8 @@ var featureTests = []dockerTest{
 	{name: "anon_union_compound_lit", want: "1\n42\n"},
 	// field_const_multi_ptr: const-qualified multi-pointer struct fields (GAST-grammar-batch)
 	{name: "field_const_multi_ptr", want: "42\n"},
+	// type_char_unsigned_order: reversed type-specifier order, CHAR UNSIGNED (GAST-grammar-batch)
+	{name: "type_char_unsigned_order", want: "200\n200\n"},
 }
 
 // sepTest describes a separate-compilation test: compile multiple .cm files
