@@ -33,14 +33,14 @@ type logLine struct {
 // includeFlags is a flag.Value that accumulates -I paths.
 type includeFlags []string
 
-func (f *includeFlags) String() string        { return strings.Join(*f, ":") }
-func (f *includeFlags) Set(v string) error    { *f = append(*f, v); return nil }
+func (f *includeFlags) String() string     { return strings.Join(*f, ":") }
+func (f *includeFlags) Set(v string) error { *f = append(*f, v); return nil }
 
 // defineFlags is a flag.Value that accumulates -D NAME[=value] defines.
 type defineFlags []string
 
-func (f *defineFlags) String() string        { return strings.Join(*f, " ") }
-func (f *defineFlags) Set(v string) error    { *f = append(*f, v); return nil }
+func (f *defineFlags) String() string     { return strings.Join(*f, " ") }
+func (f *defineFlags) Set(v string) error { *f = append(*f, v); return nil }
 
 // libPathFlags is a flag.Value that accumulates -L <dir> library search paths.
 type libPathFlags []string
@@ -1892,13 +1892,13 @@ func (p *preprocessor) expandLineOnceDisabled(line string, disabled map[string]b
 				//   va_copy(ap, src)  →  ((my_ap.ap)=(src))
 				// from re-expanding the trailing "ap" in "my_ap.ap" during rescan.
 				// Blue-paint rule: if the raw arg is a single identifier that is a
-			// macro and was expanded (result differs), disable that macro during
-			// the rescan ONLY IF the expanded text still contains that identifier
-			// as a scannable word.  This prevents infinite re-expansion of
-			// recursive-ish macros (e.g. #define ap my_ap.ap) while allowing
-			// other macros that appear literally in the body (not from the arg)
-			// to expand normally (e.g. LUA_MULTRET in adjustresults body).
-			if expandedArgs[ai] != arg {
+				// macro and was expanded (result differs), disable that macro during
+				// the rescan ONLY IF the expanded text still contains that identifier
+				// as a scannable word.  This prevents infinite re-expansion of
+				// recursive-ish macros (e.g. #define ap my_ap.ap) while allowing
+				// other macros that appear literally in the body (not from the arg)
+				// to expand normally (e.g. LUA_MULTRET in adjustresults body).
+				if expandedArgs[ai] != arg {
 					trimmed := strings.TrimSpace(arg)
 					if isIdentToken(trimmed) {
 						if _, isMacro := p.defines[trimmed]; isMacro {
@@ -1911,6 +1911,51 @@ func (p *preprocessor) expandLineOnceDisabled(line string, disabled map[string]b
 			}
 			raw := p.applyFuncMacro(def, name, expandedArgs)
 			expanded := p.expandLineDisabled(raw, newDisabled)
+			// Rescan rule (C11 §6.10.3.4): the expansion of a function-like
+			// macro can itself reduce to (or end in, via ##-pasting) the bare
+			// name of another function-like macro, immediately followed by
+			// '(' supplied by the *enclosing* source line (not by the body
+			// itself). musl's __SYSCALL_DISP arity-dispatch relies on exactly
+			// this: __SYSCALL_CONCAT(b,3) pastes to "__syscall3", and that
+			// identifier is followed by "(...)" from __SYSCALL_DISP's own
+			// body — the paste result must be re-looked-up as a macro name
+			// and invoked. Loop to handle multi-level ##-dispatch chains
+			// (a paste producing a name that itself needs another rescan).
+			curDisabled := newDisabled
+			for {
+				trimmedExp := strings.TrimSpace(expanded)
+				if !isIdentToken(trimmedExp) || curDisabled[trimmedExp] {
+					break
+				}
+				innerDef, ok := p.defines[trimmedExp]
+				if !ok || innerDef.params == nil {
+					break
+				}
+				k2 := end
+				for k2 < len(line) && (line[k2] == ' ' || line[k2] == '\t') {
+					k2++
+				}
+				if k2 >= len(line) || line[k2] != '(' {
+					break
+				}
+				args2, end2, ok2 := collectArgs(line, k2+1)
+				if !ok2 {
+					break
+				}
+				expandedArgs2 := make([]string, len(args2))
+				for ai, arg := range args2 {
+					expandedArgs2[ai] = p.expandLineDisabled(arg, disabled)
+				}
+				innerDisabled := make(map[string]bool, len(curDisabled)+1)
+				for kk, v := range curDisabled {
+					innerDisabled[kk] = v
+				}
+				innerDisabled[trimmedExp] = true
+				raw2 := p.applyFuncMacro(innerDef, trimmedExp, expandedArgs2)
+				expanded = p.expandLineDisabled(raw2, innerDisabled)
+				curDisabled = innerDisabled
+				end = end2
+			}
 			out.WriteString(expanded)
 			i = end
 			continue
@@ -3022,7 +3067,6 @@ func joinOpenLines(lines []logLine) []logLine {
 	}
 	return result
 }
-
 
 // lineParenDepth returns the net unbalanced open-paren count in s, ignoring
 // content inside string literals, character literals, and // comments.
