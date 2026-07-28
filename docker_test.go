@@ -522,6 +522,10 @@ var featureTests = []dockerTest{
 	// func_ret_funcptr: function declarator returning a function pointer —
 	// the sigset shape from musl's signal.h (GAST-22)
 	{name: "func_ret_funcptr", want: "5\n10\n"},
+	// func_ret_funcptr_adversary: adversary gap coverage for GAST-22 — bare
+	// prototype (no body), zero-arg outer signature, direct chained call,
+	// and the abstract pointer-to-function-returning-function-pointer form.
+	{name: "func_ret_funcptr_adversary", want: "5\n10\n10\n15\n"},
 }
 
 // sepTest describes a separate-compilation test: compile multiple .cm files
