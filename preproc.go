@@ -1733,6 +1733,57 @@ func (p *preprocessor) expandLineOnce(line string) string {
 	return p.expandLineOnceDisabled(line, nil)
 }
 
+// rescanChainedMacroCall implements the C99 §6.10.3.4 rescan rule: if
+// `expanded` reduces to exactly the bare name of a function-like macro, and
+// the next non-whitespace character in `line` starting at `pos` is '(', that
+// macro is invoked using an argument list collected from `line` at that
+// point. Loops to handle multi-level ##-paste dispatch chains (a paste
+// producing a name that itself needs another rescan) — e.g. musl's
+// __SYSCALL_DISP: __SYSCALL_CONCAT(b,3) pastes to "__syscall3", which is then
+// followed by "(...)" supplied by __SYSCALL_DISP's own body, and must itself
+// be looked up and invoked.
+//
+// hideSet accumulates disabled (blue-painted) macro names across the chain
+// and is mutated in place — callers must pass an already-owned map (not one
+// shared with/read by anything else afterward). argDisabled is the hide-set
+// used to pre-expand each rescanned call's arguments (the outer `disabled`
+// set, not the growing chain hide-set).
+//
+// Returns the final expansion and the source offset consumed — equal to
+// `pos` if no rescan applied.
+func (p *preprocessor) rescanChainedMacroCall(expanded string, line string, pos int, hideSet map[string]bool, argDisabled map[string]bool) (string, int) {
+	for {
+		trimmedExp := strings.TrimSpace(expanded)
+		if !isIdentToken(trimmedExp) || hideSet[trimmedExp] {
+			break
+		}
+		innerDef, ok := p.defines[trimmedExp]
+		if !ok || innerDef.params == nil {
+			break
+		}
+		k := pos
+		for k < len(line) && (line[k] == ' ' || line[k] == '\t') {
+			k++
+		}
+		if k >= len(line) || line[k] != '(' {
+			break
+		}
+		args, end, ok2 := collectArgs(line, k+1)
+		if !ok2 {
+			break
+		}
+		expandedArgs := make([]string, len(args))
+		for ai, arg := range args {
+			expandedArgs[ai] = p.expandLineDisabled(arg, argDisabled)
+		}
+		hideSet[trimmedExp] = true
+		raw := p.applyFuncMacro(innerDef, trimmedExp, expandedArgs)
+		expanded = p.expandLineDisabled(raw, hideSet)
+		pos = end
+	}
+	return expanded, pos
+}
+
 func (p *preprocessor) expandLineOnceDisabled(line string, disabled map[string]bool) string {
 	var out strings.Builder
 	i := 0
@@ -1810,36 +1861,12 @@ func (p *preprocessor) expandLineOnceDisabled(line string, disabled map[string]b
 				// Rescan rule (C11 §6.10.3.4): if the expanded text is exactly a
 				// function-like macro name and the next source token is '(', apply
 				// the function-like macro now (consuming the argument list from the
-				// remaining source).  This handles e.g. OP(5) where #define OP DOUBLE.
-				trimmedExp := strings.TrimSpace(expanded)
-				if isIdentToken(trimmedExp) && !newDisabled[trimmedExp] {
-					if innerDef, ok := p.defines[trimmedExp]; ok && innerDef.params != nil {
-						k2 := j
-						for k2 < len(line) && (line[k2] == ' ' || line[k2] == '\t') {
-							k2++
-						}
-						if k2 < len(line) && line[k2] == '(' {
-							if args, end, ok2 := collectArgs(line, k2+1); ok2 {
-								expandedArgs := make([]string, len(args))
-								for ai, arg := range args {
-									expandedArgs[ai] = p.expandLineDisabled(arg, disabled)
-								}
-								innerDisabled := make(map[string]bool, len(newDisabled)+1)
-								for kk, v := range newDisabled {
-									innerDisabled[kk] = v
-								}
-								innerDisabled[trimmedExp] = true
-								raw := p.applyFuncMacro(innerDef, trimmedExp, expandedArgs)
-								result := p.expandLineDisabled(raw, innerDisabled)
-								out.WriteString(result)
-								i = end
-								continue
-							}
-						}
-					}
-				}
-				out.WriteString(expanded)
-				i = j
+				// remaining source).  This handles e.g. OP(5) where #define OP DOUBLE,
+				// and loops for multi-level ##-paste dispatch chains (see
+				// rescanChainedMacroCall).
+				result, end := p.rescanChainedMacroCall(expanded, line, j, newDisabled, disabled)
+				out.WriteString(result)
+				i = end
 				continue
 			}
 
@@ -1919,45 +1946,11 @@ func (p *preprocessor) expandLineOnceDisabled(line string, disabled map[string]b
 			// this: __SYSCALL_CONCAT(b,3) pastes to "__syscall3", and that
 			// identifier is followed by "(...)" from __SYSCALL_DISP's own
 			// body — the paste result must be re-looked-up as a macro name
-			// and invoked. Loop to handle multi-level ##-dispatch chains
-			// (a paste producing a name that itself needs another rescan).
-			curDisabled := newDisabled
-			for {
-				trimmedExp := strings.TrimSpace(expanded)
-				if !isIdentToken(trimmedExp) || curDisabled[trimmedExp] {
-					break
-				}
-				innerDef, ok := p.defines[trimmedExp]
-				if !ok || innerDef.params == nil {
-					break
-				}
-				k2 := end
-				for k2 < len(line) && (line[k2] == ' ' || line[k2] == '\t') {
-					k2++
-				}
-				if k2 >= len(line) || line[k2] != '(' {
-					break
-				}
-				args2, end2, ok2 := collectArgs(line, k2+1)
-				if !ok2 {
-					break
-				}
-				expandedArgs2 := make([]string, len(args2))
-				for ai, arg := range args2 {
-					expandedArgs2[ai] = p.expandLineDisabled(arg, disabled)
-				}
-				innerDisabled := make(map[string]bool, len(curDisabled)+1)
-				for kk, v := range curDisabled {
-					innerDisabled[kk] = v
-				}
-				innerDisabled[trimmedExp] = true
-				raw2 := p.applyFuncMacro(innerDef, trimmedExp, expandedArgs2)
-				expanded = p.expandLineDisabled(raw2, innerDisabled)
-				curDisabled = innerDisabled
-				end = end2
-			}
-			out.WriteString(expanded)
-			i = end
+			// and invoked; rescanChainedMacroCall loops to handle
+			// multi-level ##-dispatch chains.
+			result, finalEnd := p.rescanChainedMacroCall(expanded, line, end, newDisabled, disabled)
+			out.WriteString(result)
+			i = finalEnd
 			continue
 		}
 
