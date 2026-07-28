@@ -507,6 +507,8 @@ var featureTests = []dockerTest{
 	{name: "alignas_enforce", want: "0\n0\n0\n16\n8\n0\n"},
 	// typedef_paren_functype: parenthesized function-type typedef (GAST-grammar-batch)
 	{name: "typedef_paren_functype", want: "42\n"},
+	// param_triple_ptr: triple-pointer function parameter (GAST-grammar-batch)
+	{name: "param_triple_ptr", want: "65\n"},
 }
 
 // sepTest describes a separate-compilation test: compile multiple .cm files
