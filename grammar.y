@@ -1458,6 +1458,13 @@ typedef_declaration
 			yylex.(*lexer).registerTypedef($5, leafCType(TypeFuncPtr))
 			$$ = nil
 		}
+	/* Parenthesized function-type typedef: typedef T (name)(params); — redundant
+	   parens around the name, no leading star (musl's stdio.h cookie-I/O typedefs). */
+	| TYPEDEF type_specifier '(' ID ')' '(' fp_param_types ')' ';'
+		{
+			yylex.(*lexer).registerTypedef($4, funcTypeCType())
+			$$ = nil
+		}
 	/* typedef of function pointer with pointer return type: typedef T *(*name)(params); */
 	| TYPEDEF type_specifier '*' '(' '*' ID ')' '(' fp_param_types ')' ';'
 		{
