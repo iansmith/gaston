@@ -515,6 +515,8 @@ var featureTests = []dockerTest{
 	{name: "param_struct_arr", want: "42\n30\n"},
 	// anon_union_compound_lit: anonymous union/struct compound literals (GAST-grammar-batch)
 	{name: "anon_union_compound_lit", want: "1\n42\n"},
+	// field_const_multi_ptr: const-qualified multi-pointer struct fields (GAST-grammar-batch)
+	{name: "field_const_multi_ptr", want: "42\n"},
 }
 
 // sepTest describes a separate-compilation test: compile multiple .cm files
