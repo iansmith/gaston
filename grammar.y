@@ -295,6 +295,10 @@ type_specifier
 	| LONG LONG SIGNED   { $$ = leafCType(TypeLong) }
 	| LONG LONG SIGNED INT { $$ = leafCType(TypeLong) }
 	| UNSIGNED CHAR      { $$ = leafCType(TypeUnsignedChar) }
+	/* Reversed type-specifier order: C permits specifier keywords in any
+	   order (musl's __map_file.c uses "char unsigned"). Scoped narrowly to
+	   this one reported case rather than every possible reordering. */
+	| CHAR UNSIGNED      { $$ = leafCType(TypeUnsignedChar) }
 	| UNSIGNED SHORT     { $$ = leafCType(TypeUnsignedShort) }
 	| UNSIGNED SHORT INT { $$ = leafCType(TypeUnsignedShort) }
 	| SHORT UNSIGNED     { $$ = leafCType(TypeUnsignedShort) }
