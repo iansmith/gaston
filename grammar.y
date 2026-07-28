@@ -142,10 +142,14 @@ declaration
 		}
 	/* ── Unified function definition: declaration_specifiers fun_declarator compound_stmt ── */
 	| declaration_specifiers gd_fun_declarator compound_stmt
-		{ $$ = []*Node{applyDeclToFunNode($1, $2.Name, $2.PtrChain, $2.Params, $3)} }
+		{ n := applyDeclToFunNode($1, $2.Name, $2.PtrChain, $2.Params, $3)
+		  if $2.ReturnsFuncPtr { n.Type = TypeFuncPtr; n.StructTag = ""; n.Pointee = nil }
+		  $$ = []*Node{n} }
 	/* ── Unified function prototype: declaration_specifiers fun_declarator ';' ── */
 	| declaration_specifiers gd_fun_declarator ';'
-		{ $$ = []*Node{applyDeclToFunNode($1, $2.Name, $2.PtrChain, $2.Params, nil)} }
+		{ n := applyDeclToFunNode($1, $2.Name, $2.PtrChain, $2.Params, nil)
+		  if $2.ReturnsFuncPtr { n.Type = TypeFuncPtr; n.StructTag = ""; n.Pointee = nil }
+		  $$ = []*Node{n} }
 	/* ── Multi-prototype: "static T f(T), g(T);" ── */
 	| declaration_specifiers gd_fun_declarator ',' gd_fun_declarator ';'
 		{ $$ = []*Node{
@@ -2287,6 +2291,14 @@ gd_declarator
 	/* Double pointer to function: (**p)(void) */
 	| '(' '*' '*' ID ')' '(' fp_param_types ')'
 		{ $$ = &Declarator{Name: $4, IsFuncPtr: true} }
+	/* Pointer to a function returning a function pointer — one level deeper
+	   than the sigset shape itself, e.g. a variable holding &sigset:
+	   void (*(*fp)(int, void(*)(int)))(int). Both the inner function's own
+	   params and the trailing returned-pointer signature are structural only
+	   — gaston represents any such declarator as the same opaque TypeFuncPtr
+	   (IsFuncPtr), matching the double-pointer-to-function case above. */
+	| '(' '*' '(' '*' ID ')' '(' params ')' ')' '(' fp_param_types ')'
+		{ $$ = &Declarator{Name: $5, IsFuncPtr: true} }
 	| '(' '*' ID '[' const_int_expr ']' ')' '(' fp_param_types ')'
 		{ $$ = &Declarator{Name: $3, IsFuncPtr: true} }
 	| '(' '*' '(' ID '[' const_int_expr ']' ')' ')' '(' fp_param_types ')'
@@ -2374,6 +2386,18 @@ gd_fun_declarator
 	| gd_pointer CONST ID '(' param_list ',' ELLIPSIS ')'
 		{ $$ = &FunDeclarator{Name: $3, PtrChain: $1,
 		    Params: append($5, &Node{Kind: KindParam, Type: TypeVoid, Name: "..."})} }
+	/* Function returning a pointer to a function — the "sigset" shape from
+	   musl's signal.h: T (*name(params))(params2). The trailing params2
+	   describes the returned function pointer's own signature; gaston
+	   treats every TypeFuncPtr opaquely (no stored callee signature, same
+	   convention as GAST-18's function-pointer parameters), so params2 is
+	   parsed via fp_param_types and discarded. No separate ELLIPSIS
+	   alternative is needed: params already reduces through param_list,
+	   which already covers a trailing ", ...". A duplicate ELLIPSIS-specific
+	   production here creates an ambiguous second derivation for that same
+	   input, which is why one was tried and reverted (see GAST-22). */
+	| '(' '*' ID '(' params ')' ')' '(' fp_param_types ')'
+		{ $$ = &FunDeclarator{Name: $3, Params: $5, ReturnsFuncPtr: true} }
 	;
 
 %%

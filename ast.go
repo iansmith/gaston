@@ -681,10 +681,13 @@ type Declarator struct {
 // FunDeclarator describes a function declarator: name, optional pointer return,
 // parameter list, and whether it's variadic.
 type FunDeclarator struct {
-	Name        string  // function name
-	PtrChain    *CType  // pointer chain for return type (nil = non-pointer return)
-	Params      []*Node // parameter nodes (KindParam)
-	IsParenName bool    // true for (name)(params) — parenthesized name to prevent macro expansion
+	Name           string  // function name
+	PtrChain       *CType  // pointer chain for return type (nil = non-pointer return)
+	Params         []*Node // parameter nodes (KindParam)
+	IsParenName    bool    // true for (name)(params) — parenthesized name to prevent macro expansion
+	ReturnsFuncPtr bool    // true for (*name(params))(params2) — function returning a function pointer;
+	// the returned pointer's own signature (params2) is discarded, matching how gaston
+	// already treats every TypeFuncPtr as an opaque callable pointer (see GAST-18).
 }
 
 // ptrDepth returns the pointer depth of the declarator's PtrChain.
