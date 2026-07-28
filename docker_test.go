@@ -519,6 +519,9 @@ var featureTests = []dockerTest{
 	{name: "field_const_multi_ptr", want: "42\n"},
 	// type_char_unsigned_order: reversed type-specifier order, CHAR UNSIGNED (GAST-grammar-batch)
 	{name: "type_char_unsigned_order", want: "200\n200\n"},
+	// func_ret_funcptr: function declarator returning a function pointer —
+	// the sigset shape from musl's signal.h (GAST-22)
+	{name: "func_ret_funcptr", want: "5\n10\n"},
 }
 
 // sepTest describes a separate-compilation test: compile multiple .cm files
