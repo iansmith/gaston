@@ -509,6 +509,8 @@ var featureTests = []dockerTest{
 	{name: "typedef_paren_functype", want: "42\n"},
 	// param_triple_ptr: triple-pointer function parameter (GAST-grammar-batch)
 	{name: "param_triple_ptr", want: "65\n"},
+	// param_bare_union: bare (nameless) struct/union value parameters (GAST-grammar-batch)
+	{name: "param_bare_union", want: "8\n35\n"},
 }
 
 // sepTest describes a separate-compilation test: compile multiple .cm files
