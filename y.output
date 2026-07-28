@@ -435,7 +435,7 @@ state 20
 state 21
 	declaration_specifiers:  type_specifier.    (722)
 
-	.  reduce 722 (src line 2113)
+	.  reduce 722 (src line 2079)
 
 
 state 22
@@ -922,7 +922,7 @@ state 54
 	'-'  shift 172
 	'!'  shift 173
 	'~'  shift 174
-	.  reduce 462 (src line 1361)
+	.  reduce 462 (src line 1327)
 
 	postfix_expr  goto 154
 	expression  goto 153
@@ -1061,7 +1061,7 @@ state 62
 state 63
 	declaration_specifiers:  declaration_specifiers INLINE_KW.    (736)
 
-	.  reduce 736 (src line 2147)
+	.  reduce 736 (src line 2113)
 
 
 state 64
@@ -1076,7 +1076,7 @@ state 64
 
 	'('  shift 223
 	'['  shift 222
-	.  reduce 779 (src line 2296)
+	.  reduce 779 (src line 2262)
 
 
 state 65
@@ -1102,7 +1102,7 @@ state 65
 state 66
 	gd_init_declarator_list:  gd_init_declarator.    (800)
 
-	.  reduce 800 (src line 2346)
+	.  reduce 800 (src line 2312)
 
 
 67: shift/reduce conflict (shift 227(0), red'n 775(0)) on CONST
@@ -1114,7 +1114,7 @@ state 67
 
 	CONST  shift 227
 	'*'  shift 67
-	.  reduce 775 (src line 2285)
+	.  reduce 775 (src line 2251)
 
 	gd_pointer  goto 228
 
@@ -1126,7 +1126,7 @@ state 68
 	gd_init_declarator:  gd_declarator.'=' '{' '}' 
 
 	'='  shift 229
-	.  reduce 795 (src line 2333)
+	.  reduce 795 (src line 2299)
 
 
 state 69
@@ -1304,7 +1304,7 @@ state 77
 state 78
 	declaration_specifiers:  STATIC type_specifier.    (723)
 
-	.  reduce 723 (src line 2119)
+	.  reduce 723 (src line 2085)
 
 
 state 79
@@ -1387,7 +1387,7 @@ state 82
 state 83
 	declaration_specifiers:  EXTERN type_specifier.    (724)
 
-	.  reduce 724 (src line 2121)
+	.  reduce 724 (src line 2087)
 
 
 state 84
@@ -1460,7 +1460,7 @@ state 87
 state 88
 	declaration_specifiers:  INLINE_KW type_specifier.    (727)
 
-	.  reduce 727 (src line 2128)
+	.  reduce 727 (src line 2094)
 
 
 state 89
@@ -1541,7 +1541,7 @@ state 92
 state 93
 	declaration_specifiers:  CONST type_specifier.    (737)
 
-	.  reduce 737 (src line 2150)
+	.  reduce 737 (src line 2116)
 
 
 state 94
@@ -1782,7 +1782,7 @@ state 117
 	gd_declarator:  ID.'[' ID ']' 
 
 	'['  shift 222
-	.  reduce 779 (src line 2296)
+	.  reduce 779 (src line 2262)
 
 
 state 118
@@ -1974,7 +1974,7 @@ state 132
 state 133
 	field_list:  field.    (618)
 
-	.  reduce 618 (src line 1840)
+	.  reduce 618 (src line 1806)
 
 
 state 134
@@ -2233,7 +2233,7 @@ state 148
 state 149
 	enum_list:  enum_member.    (479)
 
-	.  reduce 479 (src line 1409)
+	.  reduce 479 (src line 1375)
 
 
 state 150
@@ -2241,7 +2241,7 @@ state 150
 	enum_member:  ID.'=' const_int_expr 
 
 	'='  shift 327
-	.  reduce 480 (src line 1413)
+	.  reduce 480 (src line 1379)
 
 
 state 151
@@ -2256,13 +2256,13 @@ state 152
 	arg_list:  arg_list.',' expression 
 
 	','  shift 329
-	.  reduce 461 (src line 1359)
+	.  reduce 461 (src line 1325)
 
 
 state 153
 	arg_list:  expression.    (464)
 
-	.  reduce 464 (src line 1367)
+	.  reduce 464 (src line 1333)
 
 
 state 154
@@ -2817,7 +2817,7 @@ state 183
 state 184
 	const_int_expr:  const_int_ternary.    (669)
 
-	.  reduce 669 (src line 2016)
+	.  reduce 669 (src line 1982)
 
 
 state 185
@@ -2827,7 +2827,7 @@ state 185
 
 	OROR  shift 405
 	QUESTION  shift 404
-	.  reduce 670 (src line 2020)
+	.  reduce 670 (src line 1986)
 
 
 state 186
@@ -2835,7 +2835,7 @@ state 186
 	const_int_and:  const_int_and.ANDAND const_int_cmp 
 
 	ANDAND  shift 406
-	.  reduce 672 (src line 2025)
+	.  reduce 672 (src line 1991)
 
 
 state 187
@@ -2853,7 +2853,7 @@ state 187
 	NE  shift 408
 	'<'  shift 409
 	'>'  shift 410
-	.  reduce 674 (src line 2030)
+	.  reduce 674 (src line 1996)
 
 
 state 188
@@ -2863,7 +2863,7 @@ state 188
 
 	LSHIFT  shift 413
 	RSHIFT  shift 414
-	.  reduce 676 (src line 2035)
+	.  reduce 676 (src line 2001)
 
 
 state 189
@@ -2873,7 +2873,7 @@ state 189
 
 	'+'  shift 415
 	'-'  shift 416
-	.  reduce 683 (src line 2045)
+	.  reduce 683 (src line 2011)
 
 
 state 190
@@ -2885,19 +2885,19 @@ state 190
 	'*'  shift 417
 	'/'  shift 418
 	'%'  shift 419
-	.  reduce 686 (src line 2051)
+	.  reduce 686 (src line 2017)
 
 
 state 191
 	const_int_mul:  const_int_unary.    (689)
 
-	.  reduce 689 (src line 2057)
+	.  reduce 689 (src line 2023)
 
 
 state 192
 	const_int_unary:  const_int_primary.    (693)
 
-	.  reduce 693 (src line 2064)
+	.  reduce 693 (src line 2030)
 
 
 state 193
@@ -2929,7 +2929,7 @@ state 194
 state 195
 	const_int_primary:  NUM.    (696)
 
-	.  reduce 696 (src line 2070)
+	.  reduce 696 (src line 2036)
 
 
 state 196
@@ -3005,7 +3005,7 @@ state 198
 state 199
 	const_int_primary:  ID.    (717)
 
-	.  reduce 717 (src line 2097)
+	.  reduce 717 (src line 2063)
 
 
 state 200
@@ -3277,7 +3277,7 @@ state 224
 
 	'('  shift 474
 	'['  shift 473
-	.  reduce 780 (src line 2299)
+	.  reduce 780 (src line 2265)
 
 
 state 225
@@ -3304,14 +3304,14 @@ state 227
 	gd_pointer:  '*' CONST.gd_pointer 
 
 	'*'  shift 67
-	.  reduce 776 (src line 2288)
+	.  reduce 776 (src line 2254)
 
 	gd_pointer  goto 477
 
 state 228
 	gd_pointer:  '*' gd_pointer.    (777)
 
-	.  reduce 777 (src line 2290)
+	.  reduce 777 (src line 2256)
 
 
 state 229
@@ -3629,7 +3629,7 @@ state 251
 state 252
 	declaration_specifiers:  STATIC CONST type_specifier.    (725)
 
-	.  reduce 725 (src line 2123)
+	.  reduce 725 (src line 2089)
 
 
 state 253
@@ -3659,7 +3659,7 @@ state 254
 state 255
 	declaration_specifiers:  STATIC INLINE_KW type_specifier.    (728)
 
-	.  reduce 728 (src line 2130)
+	.  reduce 728 (src line 2096)
 
 
 state 256
@@ -3760,7 +3760,7 @@ state 260
 state 261
 	declaration_specifiers:  EXTERN CONST type_specifier.    (726)
 
-	.  reduce 726 (src line 2125)
+	.  reduce 726 (src line 2091)
 
 
 state 262
@@ -3777,7 +3777,7 @@ state 262
 state 263
 	declaration_specifiers:  EXTERN INLINE_KW type_specifier.    (729)
 
-	.  reduce 729 (src line 2132)
+	.  reduce 729 (src line 2098)
 
 
 state 264
@@ -3821,7 +3821,7 @@ state 266
 state 267
 	declaration_specifiers:  INLINE_KW STATIC type_specifier.    (730)
 
-	.  reduce 730 (src line 2134)
+	.  reduce 730 (src line 2100)
 
 
 state 268
@@ -3849,13 +3849,13 @@ state 268
 state 269
 	declaration_specifiers:  INLINE_KW EXTERN type_specifier.    (731)
 
-	.  reduce 731 (src line 2136)
+	.  reduce 731 (src line 2102)
 
 
 state 270
 	declaration_specifiers:  INLINE_KW CONST type_specifier.    (734)
 
-	.  reduce 734 (src line 2142)
+	.  reduce 734 (src line 2108)
 
 
 state 271
@@ -4045,7 +4045,7 @@ state 291
 	gd_declarator:  gd_pointer ID.'[' ']' 
 
 	'['  shift 473
-	.  reduce 780 (src line 2299)
+	.  reduce 780 (src line 2265)
 
 
 state 292
@@ -4287,7 +4287,7 @@ state 302
 state 303
 	field_list:  field_list field.    (617)
 
-	.  reduce 617 (src line 1837)
+	.  reduce 617 (src line 1803)
 
 
 state 304
@@ -4303,7 +4303,7 @@ state 305
 	declaration_specifiers:  STRUCT '{' field_list '}'.ATTR_PACKED 
 
 	ATTR_PACKED  shift 562
-	.  reduce 757 (src line 2211)
+	.  reduce 757 (src line 2177)
 
 
 state 306
@@ -4649,7 +4649,7 @@ state 323
 	declaration_specifiers:  UNION '{' field_list '}'.ATTR_PACKED 
 
 	ATTR_PACKED  shift 592
-	.  reduce 769 (src line 2259)
+	.  reduce 769 (src line 2225)
 
 
 state 324
@@ -4674,7 +4674,7 @@ state 326
 	enum_list:  enum_list ','.    (478)
 
 	ID  shift 150
-	.  reduce 478 (src line 1407)
+	.  reduce 478 (src line 1373)
 
 	enum_member  goto 595
 
@@ -5521,7 +5521,7 @@ state 357
 	'-'  shift 172
 	'!'  shift 173
 	'~'  shift 174
-	.  reduce 462 (src line 1361)
+	.  reduce 462 (src line 1327)
 
 	postfix_expr  goto 154
 	expression  goto 153
@@ -5560,7 +5560,7 @@ state 358
 	'-'  shift 172
 	'!'  shift 173
 	'~'  shift 174
-	.  reduce 462 (src line 1361)
+	.  reduce 462 (src line 1327)
 
 	postfix_expr  goto 154
 	expression  goto 153
@@ -5672,7 +5672,7 @@ state 361
 	'-'  shift 172
 	'!'  shift 173
 	'~'  shift 174
-	.  reduce 462 (src line 1361)
+	.  reduce 462 (src line 1327)
 
 	postfix_expr  goto 154
 	expression  goto 153
@@ -6731,13 +6731,13 @@ state 419
 state 420
 	const_int_unary:  '-' const_int_primary.    (694)
 
-	.  reduce 694 (src line 2066)
+	.  reduce 694 (src line 2032)
 
 
 state 421
 	const_int_unary:  '!' const_int_primary.    (695)
 
-	.  reduce 695 (src line 2067)
+	.  reduce 695 (src line 2033)
 
 
 state 422
@@ -6821,13 +6821,13 @@ state 425
 state 426
 	const_int_primary:  '&' ID.    (718)
 
-	.  reduce 718 (src line 2098)
+	.  reduce 718 (src line 2064)
 
 
 state 427
 	const_int_primary:  '&' TYPENAME.    (719)
 
-	.  reduce 719 (src line 2099)
+	.  reduce 719 (src line 2065)
 
 
 state 428
@@ -7047,7 +7047,7 @@ state 444
 state 445
 	gd_init_declarator_list:  gd_init_declarator_list ',' gd_init_declarator.    (801)
 
-	.  reduce 801 (src line 2349)
+	.  reduce 801 (src line 2315)
 
 
 state 446
@@ -7096,7 +7096,7 @@ state 451
 	gd_declarator:  ID '[' ']'.'[' const_int_expr ']' 
 
 	'['  shift 741
-	.  reduce 783 (src line 2305)
+	.  reduce 783 (src line 2271)
 
 
 452: shift/reduce conflict (shift 742(0), red'n 717(0)) on ']'
@@ -7105,7 +7105,7 @@ state 452
 	gd_declarator:  ID '[' ID.']' 
 
 	']'  shift 742
-	.  reduce 717 (src line 2097)
+	.  reduce 717 (src line 2063)
 
 
 state 453
@@ -7481,7 +7481,7 @@ state 475
 
 	'('  shift 773
 	'['  shift 772
-	.  reduce 781 (src line 2301)
+	.  reduce 781 (src line 2267)
 
 
 state 476
@@ -7495,13 +7495,13 @@ state 476
 state 477
 	gd_pointer:  '*' CONST gd_pointer.    (778)
 
-	.  reduce 778 (src line 2292)
+	.  reduce 778 (src line 2258)
 
 
 state 478
 	gd_init_declarator:  gd_declarator '=' expression.    (796)
 
-	.  reduce 796 (src line 2336)
+	.  reduce 796 (src line 2302)
 
 
 state 479
@@ -7606,7 +7606,7 @@ state 488
 state 489
 	typedef_declaration:  TYPEDEF type_specifier ID ';'.    (482)
 
-	.  reduce 482 (src line 1429)
+	.  reduce 482 (src line 1395)
 
 
 state 490
@@ -7630,7 +7630,7 @@ state 490
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 783
 	fp_param_type_list  goto 784
@@ -7664,7 +7664,7 @@ state 491
 state 492
 	typedef_declaration:  TYPEDEF type_specifier TYPENAME ';'.    (483)
 
-	.  reduce 483 (src line 1435)
+	.  reduce 483 (src line 1401)
 
 
 state 493
@@ -7905,13 +7905,13 @@ state 511
 state 512
 	typedef_declaration:  TYPEDEF ID ID ';'.    (498)
 
-	.  reduce 498 (src line 1511)
+	.  reduce 498 (src line 1477)
 
 
 state 513
 	typedef_declaration:  TYPEDEF ID TYPENAME ';'.    (499)
 
-	.  reduce 499 (src line 1516)
+	.  reduce 499 (src line 1482)
 
 
 state 514
@@ -8120,7 +8120,7 @@ state 525
 state 526
 	declaration_specifiers:  STATIC INLINE_KW CONST type_specifier.    (732)
 
-	.  reduce 732 (src line 2138)
+	.  reduce 732 (src line 2104)
 
 
 state 527
@@ -8265,7 +8265,7 @@ state 533
 state 534
 	declaration_specifiers:  EXTERN INLINE_KW CONST type_specifier.    (733)
 
-	.  reduce 733 (src line 2140)
+	.  reduce 733 (src line 2106)
 
 
 state 535
@@ -8306,7 +8306,7 @@ state 536
 state 537
 	declaration_specifiers:  INLINE_KW STATIC CONST type_specifier.    (735)
 
-	.  reduce 735 (src line 2144)
+	.  reduce 735 (src line 2110)
 
 
 state 538
@@ -8483,7 +8483,7 @@ state 550
 	gd_declarator:  gd_pointer CONST ID.'[' ']' 
 
 	'['  shift 772
-	.  reduce 781 (src line 2301)
+	.  reduce 781 (src line 2267)
 
 
 state 551
@@ -8588,7 +8588,7 @@ state 555
 
 	ATTR_PACKED  shift 851
 	';'  shift 850
-	.  reduce 738 (src line 2153)
+	.  reduce 738 (src line 2119)
 
 
 state 556
@@ -8686,7 +8686,7 @@ state 558
 state 559
 	declaration_specifiers:  STRUCT ATTR_PACKED '{' field_list '}'.    (758)
 
-	.  reduce 758 (src line 2215)
+	.  reduce 758 (src line 2181)
 
 
 state 560
@@ -8747,7 +8747,7 @@ state 561
 state 562
 	declaration_specifiers:  STRUCT '{' field_list '}' ATTR_PACKED.    (759)
 
-	.  reduce 759 (src line 2219)
+	.  reduce 759 (src line 2185)
 
 
 state 563
@@ -8767,7 +8767,7 @@ state 564
 state 565
 	field:  type_specifier ID ';'.    (622)
 
-	.  reduce 622 (src line 1865)
+	.  reduce 622 (src line 1831)
 
 
 state 566
@@ -8833,7 +8833,7 @@ state 568
 state 569
 	field:  type_specifier id_list ';'.    (625)
 
-	.  reduce 625 (src line 1874)
+	.  reduce 625 (src line 1840)
 
 
 state 570
@@ -9153,13 +9153,13 @@ state 590
 state 591
 	declaration_specifiers:  UNION ATTR_PACKED '{' field_list '}'.    (770)
 
-	.  reduce 770 (src line 2263)
+	.  reduce 770 (src line 2229)
 
 
 state 592
 	declaration_specifiers:  UNION '{' field_list '}' ATTR_PACKED.    (771)
 
-	.  reduce 771 (src line 2267)
+	.  reduce 771 (src line 2233)
 
 
 state 593
@@ -9172,19 +9172,19 @@ state 593
 state 594
 	enum_declaration:  ENUM '{' enum_list '}' ';'.    (475)
 
-	.  reduce 475 (src line 1397)
+	.  reduce 475 (src line 1363)
 
 
 state 595
 	enum_list:  enum_list ',' enum_member.    (477)
 
-	.  reduce 477 (src line 1404)
+	.  reduce 477 (src line 1370)
 
 
 state 596
 	enum_member:  ID '=' const_int_expr.    (481)
 
-	.  reduce 481 (src line 1421)
+	.  reduce 481 (src line 1387)
 
 
 state 597
@@ -9196,7 +9196,7 @@ state 597
 state 598
 	arg_list:  arg_list ',' expression.    (463)
 
-	.  reduce 463 (src line 1364)
+	.  reduce 463 (src line 1330)
 
 
 state 599
@@ -10377,7 +10377,7 @@ state 670
 	const_int_and:  const_int_and.ANDAND const_int_cmp 
 
 	ANDAND  shift 406
-	.  reduce 673 (src line 2027)
+	.  reduce 673 (src line 1993)
 
 
 state 671
@@ -10395,7 +10395,7 @@ state 671
 	NE  shift 408
 	'<'  shift 409
 	'>'  shift 410
-	.  reduce 675 (src line 2032)
+	.  reduce 675 (src line 1998)
 
 
 state 672
@@ -10405,7 +10405,7 @@ state 672
 
 	LSHIFT  shift 413
 	RSHIFT  shift 414
-	.  reduce 677 (src line 2037)
+	.  reduce 677 (src line 2003)
 
 
 state 673
@@ -10415,7 +10415,7 @@ state 673
 
 	LSHIFT  shift 413
 	RSHIFT  shift 414
-	.  reduce 678 (src line 2038)
+	.  reduce 678 (src line 2004)
 
 
 state 674
@@ -10425,7 +10425,7 @@ state 674
 
 	LSHIFT  shift 413
 	RSHIFT  shift 414
-	.  reduce 679 (src line 2039)
+	.  reduce 679 (src line 2005)
 
 
 state 675
@@ -10435,7 +10435,7 @@ state 675
 
 	LSHIFT  shift 413
 	RSHIFT  shift 414
-	.  reduce 680 (src line 2040)
+	.  reduce 680 (src line 2006)
 
 
 state 676
@@ -10445,7 +10445,7 @@ state 676
 
 	LSHIFT  shift 413
 	RSHIFT  shift 414
-	.  reduce 681 (src line 2041)
+	.  reduce 681 (src line 2007)
 
 
 state 677
@@ -10455,7 +10455,7 @@ state 677
 
 	LSHIFT  shift 413
 	RSHIFT  shift 414
-	.  reduce 682 (src line 2042)
+	.  reduce 682 (src line 2008)
 
 
 state 678
@@ -10465,7 +10465,7 @@ state 678
 
 	'+'  shift 415
 	'-'  shift 416
-	.  reduce 684 (src line 2047)
+	.  reduce 684 (src line 2013)
 
 
 state 679
@@ -10475,7 +10475,7 @@ state 679
 
 	'+'  shift 415
 	'-'  shift 416
-	.  reduce 685 (src line 2048)
+	.  reduce 685 (src line 2014)
 
 
 state 680
@@ -10487,7 +10487,7 @@ state 680
 	'*'  shift 417
 	'/'  shift 418
 	'%'  shift 419
-	.  reduce 687 (src line 2053)
+	.  reduce 687 (src line 2019)
 
 
 state 681
@@ -10499,31 +10499,31 @@ state 681
 	'*'  shift 417
 	'/'  shift 418
 	'%'  shift 419
-	.  reduce 688 (src line 2054)
+	.  reduce 688 (src line 2020)
 
 
 state 682
 	const_int_mul:  const_int_mul '*' const_int_unary.    (690)
 
-	.  reduce 690 (src line 2059)
+	.  reduce 690 (src line 2025)
 
 
 state 683
 	const_int_mul:  const_int_mul '/' const_int_unary.    (691)
 
-	.  reduce 691 (src line 2060)
+	.  reduce 691 (src line 2026)
 
 
 state 684
 	const_int_mul:  const_int_mul '%' const_int_unary.    (692)
 
-	.  reduce 692 (src line 2061)
+	.  reduce 692 (src line 2027)
 
 
 state 685
 	const_int_primary:  '(' const_int_ternary ')'.    (697)
 
-	.  reduce 697 (src line 2072)
+	.  reduce 697 (src line 2038)
 
 
 state 686
@@ -11186,7 +11186,7 @@ state 740
 	gd_declarator:  ID '[' const_int_expr ']'.'[' const_int_expr ']' 
 
 	'['  shift 1020
-	.  reduce 782 (src line 2303)
+	.  reduce 782 (src line 2269)
 
 
 state 741
@@ -11216,13 +11216,13 @@ state 741
 state 742
 	gd_declarator:  ID '[' ID ']'.    (794)
 
-	.  reduce 794 (src line 2328)
+	.  reduce 794 (src line 2294)
 
 
 state 743
 	gd_fun_declarator:  ID '(' params ')'.    (816)
 
-	.  reduce 816 (src line 2384)
+	.  reduce 816 (src line 2350)
 
 
 state 744
@@ -11560,7 +11560,7 @@ state 768
 state 769
 	gd_declarator:  gd_pointer ID '[' ']'.    (787)
 
-	.  reduce 787 (src line 2313)
+	.  reduce 787 (src line 2279)
 
 
 state 770
@@ -11656,7 +11656,7 @@ state 775
 state 776
 	gd_init_declarator:  gd_declarator '=' '{' '}'.    (799)
 
-	.  reduce 799 (src line 2342)
+	.  reduce 799 (src line 2308)
 
 
 state 777
@@ -11769,13 +11769,13 @@ state 784
 	fp_param_type_list:  fp_param_type_list.',' ELLIPSIS 
 
 	','  shift 1056
-	.  reduce 574 (src line 1778)
+	.  reduce 574 (src line 1744)
 
 
 state 785
 	fp_param_type_list:  fp_param_type.    (578)
 
-	.  reduce 578 (src line 1788)
+	.  reduce 578 (src line 1754)
 
 
 state 786
@@ -11798,7 +11798,7 @@ state 786
 	CONST  shift 1059
 	'*'  shift 1057
 	'['  shift 1060
-	.  reduce 579 (src line 1792)
+	.  reduce 579 (src line 1758)
 
 
 state 787
@@ -11883,13 +11883,13 @@ state 792
 state 793
 	typedef_declaration:  TYPEDEF type_specifier '*' ID ';'.    (484)
 
-	.  reduce 484 (src line 1440)
+	.  reduce 484 (src line 1406)
 
 
 state 794
 	typedef_declaration:  TYPEDEF type_specifier '*' TYPENAME ';'.    (485)
 
-	.  reduce 485 (src line 1445)
+	.  reduce 485 (src line 1411)
 
 
 state 795
@@ -11930,13 +11930,13 @@ state 799
 state 800
 	typedef_declaration:  TYPEDEF CONST type_specifier ID ';'.    (488)
 
-	.  reduce 488 (src line 1460)
+	.  reduce 488 (src line 1426)
 
 
 state 801
 	typedef_declaration:  TYPEDEF CONST type_specifier TYPENAME ';'.    (489)
 
-	.  reduce 489 (src line 1465)
+	.  reduce 489 (src line 1431)
 
 
 state 802
@@ -11979,7 +11979,7 @@ state 806
 state 807
 	typedef_declaration:  TYPEDEF STRUCT ID ID ';'.    (494)
 
-	.  reduce 494 (src line 1490)
+	.  reduce 494 (src line 1456)
 
 
 state 808
@@ -12009,7 +12009,7 @@ state 808
 state 809
 	typedef_declaration:  TYPEDEF STRUCT ID TYPENAME ';'.    (495)
 
-	.  reduce 495 (src line 1495)
+	.  reduce 495 (src line 1461)
 
 
 state 810
@@ -12182,7 +12182,7 @@ state 817
 state 818
 	typedef_declaration:  TYPEDEF ID '*' ID ';'.    (500)
 
-	.  reduce 500 (src line 1521)
+	.  reduce 500 (src line 1487)
 
 
 state 819
@@ -12546,13 +12546,13 @@ state 834
 	declaration_specifiers:  STATIC STRUCT '{' field_list '}'.ATTR_PACKED 
 
 	ATTR_PACKED  shift 1105
-	.  reduce 760 (src line 2223)
+	.  reduce 760 (src line 2189)
 
 
 state 835
 	declaration_specifiers:  STATIC UNION '{' field_list '}'.    (772)
 
-	.  reduce 772 (src line 2271)
+	.  reduce 772 (src line 2237)
 
 
 state 836
@@ -12741,13 +12741,13 @@ state 843
 	declaration_specifiers:  CONST STRUCT '{' field_list '}'.ATTR_PACKED 
 
 	ATTR_PACKED  shift 1113
-	.  reduce 766 (src line 2247)
+	.  reduce 766 (src line 2213)
 
 
 state 844
 	declaration_specifiers:  CONST UNION '{' field_list '}'.    (774)
 
-	.  reduce 774 (src line 2279)
+	.  reduce 774 (src line 2245)
 
 
 state 845
@@ -12785,7 +12785,7 @@ state 847
 	declaration_specifiers:  STRUCT ID '{' field_list '}'.ATTR_PACKED 
 
 	ATTR_PACKED  shift 1114
-	.  reduce 738 (src line 2153)
+	.  reduce 738 (src line 2119)
 
 
 state 848
@@ -12851,7 +12851,7 @@ state 849
 state 850
 	struct_declaration:  STRUCT ID '{' field_list '}' ';'.    (465)
 
-	.  reduce 465 (src line 1371)
+	.  reduce 465 (src line 1337)
 
 
 state 851
@@ -12859,7 +12859,7 @@ state 851
 	declaration_specifiers:  STRUCT ID '{' field_list '}' ATTR_PACKED.    (741)
 
 	';'  shift 1117
-	.  reduce 741 (src line 2162)
+	.  reduce 741 (src line 2128)
 
 
 state 852
@@ -12867,7 +12867,7 @@ state 852
 	declaration_specifiers:  STRUCT ID ATTR_PACKED '{' field_list '}'.    (740)
 
 	';'  shift 1118
-	.  reduce 740 (src line 2159)
+	.  reduce 740 (src line 2125)
 
 
 state 853
@@ -12882,7 +12882,7 @@ state 854
 	declaration_specifiers:  STRUCT ATTR_PACKED ID '{' field_list '}'.    (739)
 
 	';'  shift 1120
-	.  reduce 739 (src line 2156)
+	.  reduce 739 (src line 2122)
 
 
 state 855
@@ -12949,13 +12949,13 @@ state 862
 state 863
 	field:  type_specifier ':' const_int_expr ';'.    (627)
 
-	.  reduce 627 (src line 1883)
+	.  reduce 627 (src line 1849)
 
 
 state 864
 	field:  type_specifier '*' ID ';'.    (631)
 
-	.  reduce 631 (src line 1891)
+	.  reduce 631 (src line 1857)
 
 
 state 865
@@ -13017,7 +13017,7 @@ state 869
 state 870
 	field:  ALIGNAS_SPEC type_specifier ID ';'.    (623)
 
-	.  reduce 623 (src line 1869)
+	.  reduce 623 (src line 1835)
 
 
 state 871
@@ -13072,7 +13072,7 @@ state 874
 state 875
 	field:  STRUCT ID ID ';'.    (652)
 
-	.  reduce 652 (src line 1934)
+	.  reduce 652 (src line 1900)
 
 
 state 876
@@ -13144,7 +13144,7 @@ state 878
 state 879
 	field:  CONST type_specifier ID ';'.    (637)
 
-	.  reduce 637 (src line 1903)
+	.  reduce 637 (src line 1869)
 
 
 state 880
@@ -13234,7 +13234,7 @@ state 885
 state 886
 	field:  UNION ID ID ';'.    (654)
 
-	.  reduce 654 (src line 1938)
+	.  reduce 654 (src line 1904)
 
 
 state 887
@@ -13288,7 +13288,7 @@ state 889
 state 890
 	union_declaration:  UNION ID '{' field_list '}' ';'.    (471)
 
-	.  reduce 471 (src line 1386)
+	.  reduce 471 (src line 1352)
 
 
 state 891
@@ -13315,7 +13315,7 @@ state 893
 state 894
 	enum_declaration:  ENUM ID '{' enum_list '}' ';'.    (476)
 
-	.  reduce 476 (src line 1400)
+	.  reduce 476 (src line 1366)
 
 
 state 895
@@ -13340,7 +13340,7 @@ state 895
 	'-'  shift 172
 	'!'  shift 173
 	'~'  shift 174
-	.  reduce 462 (src line 1361)
+	.  reduce 462 (src line 1327)
 
 	postfix_expr  goto 154
 	expression  goto 153
@@ -13379,7 +13379,7 @@ state 896
 	'-'  shift 172
 	'!'  shift 173
 	'~'  shift 174
-	.  reduce 462 (src line 1361)
+	.  reduce 462 (src line 1327)
 
 	postfix_expr  goto 154
 	expression  goto 153
@@ -13490,7 +13490,7 @@ state 903
 	'-'  shift 172
 	'!'  shift 173
 	'~'  shift 174
-	.  reduce 462 (src line 1361)
+	.  reduce 462 (src line 1327)
 
 	postfix_expr  goto 154
 	expression  goto 153
@@ -13906,7 +13906,7 @@ state 914
 state 915
 	comma_expr_list:  expression ',' expression.    (459)
 
-	.  reduce 459 (src line 1350)
+	.  reduce 459 (src line 1316)
 
 
 state 916
@@ -13926,7 +13926,7 @@ state 917
 state 918
 	comma_expr_list:  comma_expr_list ',' expression.    (458)
 
-	.  reduce 458 (src line 1347)
+	.  reduce 458 (src line 1313)
 
 
 state 919
@@ -14276,7 +14276,7 @@ state 946
 state 947
 	call:  ID '(' args ')'.    (460)
 
-	.  reduce 460 (src line 1354)
+	.  reduce 460 (src line 1320)
 
 
 state 948
@@ -14654,19 +14654,19 @@ state 970
 state 971
 	const_int_primary:  '(' type_specifier ')' const_int_primary.    (698)
 
-	.  reduce 698 (src line 2073)
+	.  reduce 698 (src line 2039)
 
 
 state 972
 	const_int_primary:  SIZEOF '(' STRING_LIT ')'.    (699)
 
-	.  reduce 699 (src line 2074)
+	.  reduce 699 (src line 2040)
 
 
 state 973
 	const_int_primary:  SIZEOF '(' type_specifier ')'.    (700)
 
-	.  reduce 700 (src line 2075)
+	.  reduce 700 (src line 2041)
 
 
 state 974
@@ -14693,7 +14693,7 @@ state 976
 state 977
 	const_int_primary:  SIZEOF '(' ID ')'.    (704)
 
-	.  reduce 704 (src line 2079)
+	.  reduce 704 (src line 2045)
 
 
 state 978
@@ -14733,7 +14733,7 @@ state 981
 state 982
 	const_int_primary:  ALIGNOF '(' type_specifier ')'.    (714)
 
-	.  reduce 714 (src line 2094)
+	.  reduce 714 (src line 2060)
 
 
 state 983
@@ -14796,7 +14796,7 @@ state 989
 
 	'('  shift 1239
 	'['  shift 222
-	.  reduce 779 (src line 2296)
+	.  reduce 779 (src line 2262)
 
 
 state 990
@@ -14898,7 +14898,7 @@ state 996
 	'-'  shift 172
 	'!'  shift 173
 	'~'  shift 174
-	.  reduce 462 (src line 1361)
+	.  reduce 462 (src line 1327)
 
 	postfix_expr  goto 154
 	expression  goto 153
@@ -15309,7 +15309,7 @@ state 1015
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1264
 	fp_param_type_list  goto 784
@@ -15624,13 +15624,13 @@ state 1041
 state 1042
 	gd_declarator:  gd_pointer ID '[' const_int_expr ']'.    (786)
 
-	.  reduce 786 (src line 2311)
+	.  reduce 786 (src line 2277)
 
 
 state 1043
 	gd_fun_declarator:  gd_pointer ID '(' params ')'.    (818)
 
-	.  reduce 818 (src line 2390)
+	.  reduce 818 (src line 2356)
 
 
 state 1044
@@ -15671,7 +15671,7 @@ state 1045
 state 1046
 	gd_declarator:  gd_pointer CONST ID '[' ']'.    (789)
 
-	.  reduce 789 (src line 2317)
+	.  reduce 789 (src line 2283)
 
 
 state 1047
@@ -15766,7 +15766,7 @@ state 1050
 state 1051
 	gd_init_declarator:  gd_declarator '=' '{' init_list '}'.    (797)
 
-	.  reduce 797 (src line 2338)
+	.  reduce 797 (src line 2304)
 
 
 state 1052
@@ -15844,13 +15844,13 @@ state 1057
 	ID  shift 1315
 	CONST  shift 1317
 	'*'  shift 1316
-	.  reduce 580 (src line 1794)
+	.  reduce 580 (src line 1760)
 
 
 state 1058
 	fp_param_type:  type_specifier ID.    (581)
 
-	.  reduce 581 (src line 1795)
+	.  reduce 581 (src line 1761)
 
 
 state 1059
@@ -15915,7 +15915,7 @@ state 1062
 
 	ID  shift 1323
 	'*'  shift 1322
-	.  reduce 596 (src line 1810)
+	.  reduce 596 (src line 1776)
 
 
 state 1063
@@ -15948,7 +15948,7 @@ state 1065
 	fp_param_type:  ID '*'.ID 
 
 	ID  shift 1326
-	.  reduce 615 (src line 1833)
+	.  reduce 615 (src line 1799)
 
 
 state 1066
@@ -15968,13 +15968,13 @@ state 1067
 state 1068
 	typedef_declaration:  TYPEDEF type_specifier '*' '*' ID ';'.    (486)
 
-	.  reduce 486 (src line 1450)
+	.  reduce 486 (src line 1416)
 
 
 state 1069
 	typedef_declaration:  TYPEDEF type_specifier '*' '*' TYPENAME ';'.    (487)
 
-	.  reduce 487 (src line 1455)
+	.  reduce 487 (src line 1421)
 
 
 state 1070
@@ -16012,7 +16012,7 @@ state 1072
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1331
 	fp_param_type_list  goto 784
@@ -16022,13 +16022,13 @@ state 1072
 state 1073
 	typedef_declaration:  TYPEDEF CONST type_specifier '*' ID ';'.    (490)
 
-	.  reduce 490 (src line 1470)
+	.  reduce 490 (src line 1436)
 
 
 state 1074
 	typedef_declaration:  TYPEDEF CONST type_specifier '*' TYPENAME ';'.    (491)
 
-	.  reduce 491 (src line 1475)
+	.  reduce 491 (src line 1441)
 
 
 state 1075
@@ -16076,13 +16076,13 @@ state 1080
 state 1081
 	typedef_declaration:  TYPEDEF STRUCT ID '*' ID ';'.    (496)
 
-	.  reduce 496 (src line 1500)
+	.  reduce 496 (src line 1466)
 
 
 state 1082
 	typedef_declaration:  TYPEDEF STRUCT ID '*' TYPENAME ';'.    (497)
 
-	.  reduce 497 (src line 1505)
+	.  reduce 497 (src line 1471)
 
 
 state 1083
@@ -16384,13 +16384,13 @@ state 1100
 	declaration_specifiers:  STATIC CONST STRUCT '{' field_list '}'.ATTR_PACKED 
 
 	ATTR_PACKED  shift 1360
-	.  reduce 763 (src line 2235)
+	.  reduce 763 (src line 2201)
 
 
 state 1101
 	declaration_specifiers:  STATIC CONST UNION '{' field_list '}'.    (773)
 
-	.  reduce 773 (src line 2275)
+	.  reduce 773 (src line 2241)
 
 
 state 1102
@@ -16398,7 +16398,7 @@ state 1102
 	declaration_specifiers:  STATIC STRUCT ID '{' field_list '}'.ATTR_PACKED 
 
 	ATTR_PACKED  shift 1361
-	.  reduce 742 (src line 2165)
+	.  reduce 742 (src line 2131)
 
 
 state 1103
@@ -16434,13 +16434,13 @@ state 1103
 state 1104
 	declaration_specifiers:  STATIC STRUCT ATTR_PACKED '{' field_list '}'.    (761)
 
-	.  reduce 761 (src line 2227)
+	.  reduce 761 (src line 2193)
 
 
 state 1105
 	declaration_specifiers:  STATIC STRUCT '{' field_list '}' ATTR_PACKED.    (762)
 
-	.  reduce 762 (src line 2231)
+	.  reduce 762 (src line 2197)
 
 
 state 1106
@@ -16506,7 +16506,7 @@ state 1108
 	declaration_specifiers:  EXTERN STRUCT ID '{' field_list '}'.ATTR_PACKED 
 
 	ATTR_PACKED  shift 1365
-	.  reduce 748 (src line 2183)
+	.  reduce 748 (src line 2149)
 
 
 state 1109
@@ -16544,7 +16544,7 @@ state 1110
 	declaration_specifiers:  CONST STRUCT ID '{' field_list '}'.ATTR_PACKED 
 
 	ATTR_PACKED  shift 1367
-	.  reduce 754 (src line 2201)
+	.  reduce 754 (src line 2167)
 
 
 state 1111
@@ -16580,61 +16580,61 @@ state 1111
 state 1112
 	declaration_specifiers:  CONST STRUCT ATTR_PACKED '{' field_list '}'.    (767)
 
-	.  reduce 767 (src line 2251)
+	.  reduce 767 (src line 2217)
 
 
 state 1113
 	declaration_specifiers:  CONST STRUCT '{' field_list '}' ATTR_PACKED.    (768)
 
-	.  reduce 768 (src line 2255)
+	.  reduce 768 (src line 2221)
 
 
 state 1114
 	declaration_specifiers:  STRUCT ID '{' field_list '}' ATTR_PACKED.    (741)
 
-	.  reduce 741 (src line 2162)
+	.  reduce 741 (src line 2128)
 
 
 state 1115
 	declaration_specifiers:  STRUCT ID ATTR_PACKED '{' field_list '}'.    (740)
 
-	.  reduce 740 (src line 2159)
+	.  reduce 740 (src line 2125)
 
 
 state 1116
 	declaration_specifiers:  STRUCT ATTR_PACKED ID '{' field_list '}'.    (739)
 
-	.  reduce 739 (src line 2156)
+	.  reduce 739 (src line 2122)
 
 
 state 1117
 	struct_declaration:  STRUCT ID '{' field_list '}' ATTR_PACKED ';'.    (468)
 
-	.  reduce 468 (src line 1378)
+	.  reduce 468 (src line 1344)
 
 
 state 1118
 	struct_declaration:  STRUCT ID ATTR_PACKED '{' field_list '}' ';'.    (467)
 
-	.  reduce 467 (src line 1376)
+	.  reduce 467 (src line 1342)
 
 
 state 1119
 	struct_declaration:  STRUCT ID ATTR_ALIGNED '{' field_list '}' ';'.    (470)
 
-	.  reduce 470 (src line 1382)
+	.  reduce 470 (src line 1348)
 
 
 state 1120
 	struct_declaration:  STRUCT ATTR_PACKED ID '{' field_list '}' ';'.    (466)
 
-	.  reduce 466 (src line 1374)
+	.  reduce 466 (src line 1340)
 
 
 state 1121
 	struct_declaration:  STRUCT ATTR_ALIGNED ID '{' field_list '}' ';'.    (469)
 
-	.  reduce 469 (src line 1380)
+	.  reduce 469 (src line 1346)
 
 
 state 1122
@@ -16661,7 +16661,7 @@ state 1124
 state 1125
 	field:  type_specifier ID ':' const_int_expr ';'.    (626)
 
-	.  reduce 626 (src line 1876)
+	.  reduce 626 (src line 1842)
 
 
 state 1126
@@ -16676,7 +16676,7 @@ state 1126
 state 1127
 	field:  type_specifier ID '[' ']' ';'.    (630)
 
-	.  reduce 630 (src line 1889)
+	.  reduce 630 (src line 1855)
 
 
 state 1128
@@ -16766,7 +16766,7 @@ state 1132
 state 1133
 	field:  type_specifier '*' '*' ID ';'.    (633)
 
-	.  reduce 633 (src line 1895)
+	.  reduce 633 (src line 1861)
 
 
 state 1134
@@ -16841,7 +16841,7 @@ state 1138
 state 1139
 	field:  STRUCT ID '*' ID ';'.    (648)
 
-	.  reduce 648 (src line 1926)
+	.  reduce 648 (src line 1892)
 
 
 state 1140
@@ -16887,7 +16887,7 @@ state 1144
 state 1145
 	field:  STRUCT '{' field_list '}' ';'.    (656)
 
-	.  reduce 656 (src line 1942)
+	.  reduce 656 (src line 1908)
 
 
 state 1146
@@ -16909,7 +16909,7 @@ state 1147
 state 1148
 	field:  CONST type_specifier '*' ID ';'.    (638)
 
-	.  reduce 638 (src line 1905)
+	.  reduce 638 (src line 1871)
 
 
 state 1149
@@ -17000,7 +17000,7 @@ state 1154
 state 1155
 	field:  UNION ID '*' ID ';'.    (655)
 
-	.  reduce 655 (src line 1940)
+	.  reduce 655 (src line 1906)
 
 
 state 1156
@@ -17015,7 +17015,7 @@ state 1156
 state 1157
 	field:  UNION '{' field_list '}' ';'.    (657)
 
-	.  reduce 657 (src line 1947)
+	.  reduce 657 (src line 1913)
 
 
 state 1158
@@ -17030,19 +17030,19 @@ state 1158
 state 1159
 	union_declaration:  UNION ID '{' field_list '}' ATTR_PACKED ';'.    (474)
 
-	.  reduce 474 (src line 1393)
+	.  reduce 474 (src line 1359)
 
 
 state 1160
 	union_declaration:  UNION ID ATTR_PACKED '{' field_list '}' ';'.    (473)
 
-	.  reduce 473 (src line 1391)
+	.  reduce 473 (src line 1357)
 
 
 state 1161
 	union_declaration:  UNION ATTR_PACKED ID '{' field_list '}' ';'.    (472)
 
-	.  reduce 472 (src line 1389)
+	.  reduce 472 (src line 1355)
 
 
 state 1162
@@ -17081,7 +17081,7 @@ state 1164
 	'-'  shift 172
 	'!'  shift 173
 	'~'  shift 174
-	.  reduce 462 (src line 1361)
+	.  reduce 462 (src line 1327)
 
 	postfix_expr  goto 154
 	expression  goto 153
@@ -17219,7 +17219,7 @@ state 1182
 state 1183
 	factor:  '(' type_specifier ')' '{' '}'.    (439)
 
-	.  reduce 439 (src line 1252)
+	.  reduce 439 (src line 1248)
 
 
 state 1184
@@ -17511,7 +17511,7 @@ state 1198
 state 1199
 	factor:  '(' '{' block_item_list '}' ')'.    (453)
 
-	.  reduce 453 (src line 1331)
+	.  reduce 453 (src line 1297)
 
 
 state 1200
@@ -17756,7 +17756,7 @@ state 1215
 state 1216
 	generic_assoc_list:  generic_assoc.    (454)
 
-	.  reduce 454 (src line 1335)
+	.  reduce 454 (src line 1301)
 
 
 state 1217
@@ -17824,13 +17824,13 @@ state 1223
 	const_int_or:  const_int_or.OROR const_int_and 
 
 	OROR  shift 405
-	.  reduce 671 (src line 2022)
+	.  reduce 671 (src line 1988)
 
 
 state 1224
 	const_int_primary:  SIZEOF '(' type_specifier '*' ')'.    (701)
 
-	.  reduce 701 (src line 2076)
+	.  reduce 701 (src line 2042)
 
 
 state 1225
@@ -17890,13 +17890,13 @@ state 1231
 state 1232
 	const_int_primary:  ALIGNOF '(' type_specifier '*' ')'.    (715)
 
-	.  reduce 715 (src line 2095)
+	.  reduce 715 (src line 2061)
 
 
 state 1233
 	const_int_primary:  ALIGNOF '(' STRUCT ID ')'.    (716)
 
-	.  reduce 716 (src line 2096)
+	.  reduce 716 (src line 2062)
 
 
 state 1234
@@ -17954,7 +17954,7 @@ state 1239
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 542 (src line 1738)
+	.  reduce 542 (src line 1704)
 
 	type_specifier  goto 1460
 	local_params  goto 1457
@@ -17969,7 +17969,7 @@ state 1240
 
 	'('  shift 1463
 	'['  shift 473
-	.  reduce 780 (src line 2299)
+	.  reduce 780 (src line 2265)
 
 
 state 1241
@@ -18210,7 +18210,7 @@ state 1265
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1484
 	fp_param_type_list  goto 784
@@ -18227,7 +18227,7 @@ state 1266
 state 1267
 	gd_fun_declarator:  '(' ID ')' '(' params ')'.    (820)
 
-	.  reduce 820 (src line 2396)
+	.  reduce 820 (src line 2362)
 
 
 state 1268
@@ -18268,13 +18268,13 @@ state 1269
 state 1270
 	gd_declarator:  ID '[' ']' '[' const_int_expr ']'.    (785)
 
-	.  reduce 785 (src line 2309)
+	.  reduce 785 (src line 2275)
 
 
 state 1271
 	gd_fun_declarator:  ID '(' param_list ',' ELLIPSIS ')'.    (817)
 
-	.  reduce 817 (src line 2387)
+	.  reduce 817 (src line 2353)
 
 
 state 1272
@@ -18566,13 +18566,13 @@ state 1299
 state 1300
 	gd_declarator:  gd_pointer CONST ID '[' const_int_expr ']'.    (788)
 
-	.  reduce 788 (src line 2315)
+	.  reduce 788 (src line 2281)
 
 
 state 1301
 	gd_fun_declarator:  gd_pointer CONST ID '(' params ')'.    (824)
 
-	.  reduce 824 (src line 2406)
+	.  reduce 824 (src line 2372)
 
 
 state 1302
@@ -18629,7 +18629,7 @@ state 1305
 state 1306
 	gd_init_declarator:  gd_declarator '=' '{' init_list ',' '}'.    (798)
 
-	.  reduce 798 (src line 2340)
+	.  reduce 798 (src line 2306)
 
 
 state 1307
@@ -18740,25 +18740,25 @@ state 1311
 state 1312
 	typedef_declaration:  TYPEDEF type_specifier ID '(' fp_param_types ')' ';'.    (506)
 
-	.  reduce 506 (src line 1559)
+	.  reduce 506 (src line 1525)
 
 
 state 1313
 	fp_param_type_list:  fp_param_type_list ',' fp_param_type.    (576)
 
-	.  reduce 576 (src line 1783)
+	.  reduce 576 (src line 1749)
 
 
 state 1314
 	fp_param_type_list:  fp_param_type_list ',' ELLIPSIS.    (577)
 
-	.  reduce 577 (src line 1786)
+	.  reduce 577 (src line 1752)
 
 
 state 1315
 	fp_param_type:  type_specifier '*' ID.    (582)
 
-	.  reduce 582 (src line 1796)
+	.  reduce 582 (src line 1762)
 
 
 state 1316
@@ -18766,7 +18766,7 @@ state 1316
 	fp_param_type:  type_specifier '*' '*'.ID 
 
 	ID  shift 1523
-	.  reduce 603 (src line 1818)
+	.  reduce 603 (src line 1784)
 
 
 state 1317
@@ -18785,7 +18785,7 @@ state 1318
 
 	ID  shift 1525
 	'*'  shift 1526
-	.  reduce 591 (src line 1805)
+	.  reduce 591 (src line 1771)
 
 
 state 1319
@@ -18798,7 +18798,7 @@ state 1319
 state 1320
 	fp_param_type:  type_specifier '[' ']'.    (594)
 
-	.  reduce 594 (src line 1808)
+	.  reduce 594 (src line 1774)
 
 
 state 1321
@@ -18811,7 +18811,7 @@ state 1321
 
 	ID  shift 1528
 	'*'  shift 1529
-	.  reduce 583 (src line 1797)
+	.  reduce 583 (src line 1763)
 
 
 state 1322
@@ -18825,13 +18825,13 @@ state 1322
 	ID  shift 1530
 	CONST  shift 1532
 	'*'  shift 1531
-	.  reduce 589 (src line 1803)
+	.  reduce 589 (src line 1769)
 
 
 state 1323
 	fp_param_type:  CONST type_specifier ID.    (595)
 
-	.  reduce 595 (src line 1809)
+	.  reduce 595 (src line 1775)
 
 
 1324: shift/reduce conflict (shift 1533(0), red'n 109(0)) on '*'
@@ -18852,25 +18852,25 @@ state 1324
 state 1325
 	fp_param_type:  ENUM ID ID.    (614)
 
-	.  reduce 614 (src line 1831)
+	.  reduce 614 (src line 1797)
 
 
 state 1326
 	fp_param_type:  ID '*' ID.    (616)
 
-	.  reduce 616 (src line 1834)
+	.  reduce 616 (src line 1800)
 
 
 state 1327
 	typedef_declaration:  TYPEDEF type_specifier ID '[' const_int_expr ']' ';'.    (532)
 
-	.  reduce 532 (src line 1709)
+	.  reduce 532 (src line 1675)
 
 
 state 1328
 	typedef_declaration:  TYPEDEF type_specifier TYPENAME '[' const_int_expr ']' ';'.    (533)
 
-	.  reduce 533 (src line 1711)
+	.  reduce 533 (src line 1677)
 
 
 state 1329
@@ -18901,7 +18901,7 @@ state 1330
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1536
 	fp_param_type_list  goto 784
@@ -18918,13 +18918,13 @@ state 1331
 state 1332
 	typedef_declaration:  TYPEDEF CONST type_specifier '*' '*' ID ';'.    (492)
 
-	.  reduce 492 (src line 1480)
+	.  reduce 492 (src line 1446)
 
 
 state 1333
 	typedef_declaration:  TYPEDEF CONST type_specifier '*' '*' TYPENAME ';'.    (493)
 
-	.  reduce 493 (src line 1485)
+	.  reduce 493 (src line 1451)
 
 
 state 1334
@@ -18974,7 +18974,7 @@ state 1339
 state 1340
 	typedef_declaration:  TYPEDEF STRUCT ID '{' field_list '}' ';'.    (522)
 
-	.  reduce 522 (src line 1664)
+	.  reduce 522 (src line 1630)
 
 
 state 1341
@@ -18989,7 +18989,7 @@ state 1341
 state 1342
 	typedef_declaration:  TYPEDEF STRUCT '{' field_list '}' ID ';'.    (507)
 
-	.  reduce 507 (src line 1565)
+	.  reduce 507 (src line 1531)
 
 
 state 1343
@@ -19058,7 +19058,7 @@ state 1348
 state 1349
 	typedef_declaration:  TYPEDEF UNION ID '{' field_list '}' ';'.    (526)
 
-	.  reduce 526 (src line 1684)
+	.  reduce 526 (src line 1650)
 
 
 state 1350
@@ -19073,7 +19073,7 @@ state 1350
 state 1351
 	typedef_declaration:  TYPEDEF UNION '{' field_list '}' ID ';'.    (511)
 
-	.  reduce 511 (src line 1594)
+	.  reduce 511 (src line 1560)
 
 
 state 1352
@@ -19109,7 +19109,7 @@ state 1355
 state 1356
 	typedef_declaration:  TYPEDEF ENUM '{' enum_list '}' ID ';'.    (531)
 
-	.  reduce 531 (src line 1706)
+	.  reduce 531 (src line 1672)
 
 
 state 1357
@@ -19117,7 +19117,7 @@ state 1357
 	declaration_specifiers:  STATIC CONST STRUCT ID '{' field_list '}'.ATTR_PACKED 
 
 	ATTR_PACKED  shift 1562
-	.  reduce 745 (src line 2174)
+	.  reduce 745 (src line 2140)
 
 
 state 1358
@@ -19153,25 +19153,25 @@ state 1358
 state 1359
 	declaration_specifiers:  STATIC CONST STRUCT ATTR_PACKED '{' field_list '}'.    (764)
 
-	.  reduce 764 (src line 2239)
+	.  reduce 764 (src line 2205)
 
 
 state 1360
 	declaration_specifiers:  STATIC CONST STRUCT '{' field_list '}' ATTR_PACKED.    (765)
 
-	.  reduce 765 (src line 2243)
+	.  reduce 765 (src line 2209)
 
 
 state 1361
 	declaration_specifiers:  STATIC STRUCT ID '{' field_list '}' ATTR_PACKED.    (744)
 
-	.  reduce 744 (src line 2171)
+	.  reduce 744 (src line 2137)
 
 
 state 1362
 	declaration_specifiers:  STATIC STRUCT ATTR_PACKED ID '{' field_list '}'.    (743)
 
-	.  reduce 743 (src line 2168)
+	.  reduce 743 (src line 2134)
 
 
 state 1363
@@ -19179,7 +19179,7 @@ state 1363
 	declaration_specifiers:  EXTERN CONST STRUCT ID '{' field_list '}'.ATTR_PACKED 
 
 	ATTR_PACKED  shift 1564
-	.  reduce 751 (src line 2192)
+	.  reduce 751 (src line 2158)
 
 
 state 1364
@@ -19215,25 +19215,25 @@ state 1364
 state 1365
 	declaration_specifiers:  EXTERN STRUCT ID '{' field_list '}' ATTR_PACKED.    (750)
 
-	.  reduce 750 (src line 2189)
+	.  reduce 750 (src line 2155)
 
 
 state 1366
 	declaration_specifiers:  EXTERN STRUCT ATTR_PACKED ID '{' field_list '}'.    (749)
 
-	.  reduce 749 (src line 2186)
+	.  reduce 749 (src line 2152)
 
 
 state 1367
 	declaration_specifiers:  CONST STRUCT ID '{' field_list '}' ATTR_PACKED.    (756)
 
-	.  reduce 756 (src line 2207)
+	.  reduce 756 (src line 2173)
 
 
 state 1368
 	declaration_specifiers:  CONST STRUCT ATTR_PACKED ID '{' field_list '}'.    (755)
 
-	.  reduce 755 (src line 2204)
+	.  reduce 755 (src line 2170)
 
 
 state 1369
@@ -19246,7 +19246,7 @@ state 1369
 state 1370
 	field_list:  field_list STATIC_ASSERT '(' const_int_expr ')' ';'.    (620)
 
-	.  reduce 620 (src line 1849)
+	.  reduce 620 (src line 1815)
 
 
 state 1371
@@ -19259,7 +19259,7 @@ state 1371
 state 1372
 	field:  type_specifier ID '[' const_int_expr ']' ';'.    (628)
 
-	.  reduce 628 (src line 1885)
+	.  reduce 628 (src line 1851)
 
 
 state 1373
@@ -19309,7 +19309,7 @@ state 1376
 state 1377
 	field:  type_specifier '*' ID ',' ptr_id_list ';'.    (632)
 
-	.  reduce 632 (src line 1893)
+	.  reduce 632 (src line 1859)
 
 
 state 1378
@@ -19355,7 +19355,7 @@ state 1381
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1574
 	fp_param_type_list  goto 784
@@ -19402,7 +19402,7 @@ state 1386
 state 1387
 	field:  STRUCT ID '*' '*' ID ';'.    (651)
 
-	.  reduce 651 (src line 1932)
+	.  reduce 651 (src line 1898)
 
 
 state 1388
@@ -19415,7 +19415,7 @@ state 1388
 state 1389
 	field:  STRUCT ID '{' field_list '}' ';'.    (660)
 
-	.  reduce 660 (src line 1962)
+	.  reduce 660 (src line 1928)
 
 
 state 1390
@@ -19435,7 +19435,7 @@ state 1391
 state 1392
 	field:  STRUCT '{' field_list '}' ID ';'.    (659)
 
-	.  reduce 659 (src line 1957)
+	.  reduce 659 (src line 1923)
 
 
 state 1393
@@ -19495,7 +19495,7 @@ state 1397
 state 1398
 	field:  CONST type_specifier '*' '*' ID ';'.    (640)
 
-	.  reduce 640 (src line 1909)
+	.  reduce 640 (src line 1875)
 
 
 state 1399
@@ -19529,13 +19529,13 @@ state 1402
 state 1403
 	field:  UNION ID '{' field_list '}' ';'.    (665)
 
-	.  reduce 665 (src line 1990)
+	.  reduce 665 (src line 1956)
 
 
 state 1404
 	field:  UNION '{' field_list '}' ID ';'.    (658)
 
-	.  reduce 658 (src line 1952)
+	.  reduce 658 (src line 1918)
 
 
 state 1405
@@ -19603,7 +19603,7 @@ state 1409
 	'-'  shift 172
 	'!'  shift 173
 	'~'  shift 174
-	.  reduce 462 (src line 1361)
+	.  reduce 462 (src line 1327)
 
 	postfix_expr  goto 154
 	expression  goto 153
@@ -19642,7 +19642,7 @@ state 1410
 	'-'  shift 172
 	'!'  shift 173
 	'~'  shift 174
-	.  reduce 462 (src line 1361)
+	.  reduce 462 (src line 1327)
 
 	postfix_expr  goto 154
 	expression  goto 153
@@ -19717,7 +19717,7 @@ state 1413
 state 1414
 	factor:  '(' type_specifier ')' '{' init_list '}'.    (437)
 
-	.  reduce 437 (src line 1244)
+	.  reduce 437 (src line 1240)
 
 
 state 1415
@@ -19764,7 +19764,7 @@ state 1418
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1600
 	fp_param_type_list  goto 784
@@ -19875,7 +19875,7 @@ state 1424
 state 1425
 	factor:  '(' STRUCT ID ')' '{' '}'.    (444)
 
-	.  reduce 444 (src line 1274)
+	.  reduce 444 (src line 1270)
 
 
 state 1426
@@ -20189,7 +20189,7 @@ state 1445
 state 1446
 	const_int_primary:  SIZEOF '(' CONST type_specifier '*' ')'.    (702)
 
-	.  reduce 702 (src line 2077)
+	.  reduce 702 (src line 2043)
 
 
 state 1447
@@ -20202,7 +20202,7 @@ state 1447
 state 1448
 	const_int_primary:  SIZEOF '(' ID '.' ID ')'.    (708)
 
-	.  reduce 708 (src line 2086)
+	.  reduce 708 (src line 2052)
 
 
 state 1449
@@ -20293,13 +20293,13 @@ state 1458
 	local_param_list:  local_param_list.',' local_param 
 
 	','  shift 1635
-	.  reduce 540 (src line 1735)
+	.  reduce 540 (src line 1701)
 
 
 state 1459
 	local_param_list:  local_param.    (544)
 
-	.  reduce 544 (src line 1743)
+	.  reduce 544 (src line 1709)
 
 
 state 1460
@@ -20320,7 +20320,7 @@ state 1460
 	CONST  shift 1638
 	'('  shift 1639
 	'*'  shift 1637
-	.  reduce 545 (src line 1746)
+	.  reduce 545 (src line 1712)
 
 
 state 1461
@@ -20388,7 +20388,7 @@ state 1463
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 542 (src line 1738)
+	.  reduce 542 (src line 1704)
 
 	type_specifier  goto 1460
 	local_params  goto 1643
@@ -20403,7 +20403,7 @@ state 1464
 
 	'('  shift 1644
 	'['  shift 772
-	.  reduce 781 (src line 2301)
+	.  reduce 781 (src line 2267)
 
 
 state 1465
@@ -20797,7 +20797,7 @@ state 1481
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1659
 	fp_param_type_list  goto 784
@@ -20814,7 +20814,7 @@ state 1482
 state 1483
 	gd_declarator:  '(' '*' ID ')' '(' fp_param_types ')'.    (790)
 
-	.  reduce 790 (src line 2319)
+	.  reduce 790 (src line 2285)
 
 
 state 1484
@@ -20843,7 +20843,7 @@ state 1486
 state 1487
 	gd_declarator:  ID '[' const_int_expr ']' '[' const_int_expr ']'.    (784)
 
-	.  reduce 784 (src line 2307)
+	.  reduce 784 (src line 2273)
 
 
 state 1488
@@ -20953,7 +20953,7 @@ state 1498
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1671
 	fp_param_type_list  goto 784
@@ -21106,7 +21106,7 @@ state 1513
 state 1514
 	gd_fun_declarator:  gd_pointer ID '(' param_list ',' ELLIPSIS ')'.    (819)
 
-	.  reduce 819 (src line 2392)
+	.  reduce 819 (src line 2358)
 
 
 1515: shift/reduce conflict (shift 1684(0), red'n 116(0)) on ')'
@@ -21121,7 +21121,7 @@ state 1515
 state 1516
 	gd_fun_declarator:  gd_pointer '(' ID ')' '(' params ')'.    (822)
 
-	.  reduce 822 (src line 2401)
+	.  reduce 822 (src line 2367)
 
 
 state 1517
@@ -21258,7 +21258,7 @@ state 1522
 state 1523
 	fp_param_type:  type_specifier '*' '*' ID.    (604)
 
-	.  reduce 604 (src line 1819)
+	.  reduce 604 (src line 1785)
 
 
 state 1524
@@ -21266,13 +21266,13 @@ state 1524
 	fp_param_type:  type_specifier '*' CONST '*'.ID 
 
 	ID  shift 1691
-	.  reduce 611 (src line 1827)
+	.  reduce 611 (src line 1793)
 
 
 state 1525
 	fp_param_type:  type_specifier CONST '*' ID.    (592)
 
-	.  reduce 592 (src line 1806)
+	.  reduce 592 (src line 1772)
 
 
 state 1526
@@ -21280,19 +21280,19 @@ state 1526
 	fp_param_type:  type_specifier CONST '*' '*'.ID 
 
 	ID  shift 1692
-	.  reduce 607 (src line 1822)
+	.  reduce 607 (src line 1788)
 
 
 state 1527
 	fp_param_type:  type_specifier '[' const_int_expr ']'.    (593)
 
-	.  reduce 593 (src line 1807)
+	.  reduce 593 (src line 1773)
 
 
 state 1528
 	fp_param_type:  STRUCT ID '*' ID.    (584)
 
-	.  reduce 584 (src line 1798)
+	.  reduce 584 (src line 1764)
 
 
 state 1529
@@ -21303,13 +21303,13 @@ state 1529
 
 	ID  shift 1693
 	'*'  shift 1694
-	.  reduce 585 (src line 1799)
+	.  reduce 585 (src line 1765)
 
 
 state 1530
 	fp_param_type:  CONST type_specifier '*' ID.    (590)
 
-	.  reduce 590 (src line 1804)
+	.  reduce 590 (src line 1770)
 
 
 state 1531
@@ -21317,7 +21317,7 @@ state 1531
 	fp_param_type:  CONST type_specifier '*' '*'.ID 
 
 	ID  shift 1695
-	.  reduce 605 (src line 1820)
+	.  reduce 605 (src line 1786)
 
 
 state 1532
@@ -21336,7 +21336,7 @@ state 1533
 
 	ID  shift 1697
 	'*'  shift 1698
-	.  reduce 597 (src line 1811)
+	.  reduce 597 (src line 1777)
 
 
 state 1534
@@ -21386,7 +21386,7 @@ state 1535
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1701
 	fp_param_type_list  goto 784
@@ -21435,7 +21435,7 @@ state 1539
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1705
 	fp_param_type_list  goto 784
@@ -21445,19 +21445,19 @@ state 1539
 state 1540
 	typedef_declaration:  TYPEDEF STRUCT ID ID '[' const_int_expr ']' ';'.    (534)
 
-	.  reduce 534 (src line 1714)
+	.  reduce 534 (src line 1680)
 
 
 state 1541
 	typedef_declaration:  TYPEDEF STRUCT ID TYPENAME '[' const_int_expr ']' ';'.    (535)
 
-	.  reduce 535 (src line 1716)
+	.  reduce 535 (src line 1682)
 
 
 state 1542
 	typedef_declaration:  TYPEDEF STRUCT ID '{' field_list '}' ID ';'.    (514)
 
-	.  reduce 514 (src line 1616)
+	.  reduce 514 (src line 1582)
 
 
 state 1543
@@ -21470,7 +21470,7 @@ state 1543
 state 1544
 	typedef_declaration:  TYPEDEF STRUCT ID '{' field_list '}' ATTR_PACKED ';'.    (525)
 
-	.  reduce 525 (src line 1679)
+	.  reduce 525 (src line 1645)
 
 
 state 1545
@@ -21483,7 +21483,7 @@ state 1545
 state 1546
 	typedef_declaration:  TYPEDEF STRUCT ID ATTR_PACKED '{' field_list '}' ';'.    (524)
 
-	.  reduce 524 (src line 1674)
+	.  reduce 524 (src line 1640)
 
 
 state 1547
@@ -21496,13 +21496,13 @@ state 1547
 state 1548
 	typedef_declaration:  TYPEDEF STRUCT '{' field_list '}' ATTR_PACKED ID ';'.    (510)
 
-	.  reduce 510 (src line 1587)
+	.  reduce 510 (src line 1553)
 
 
 state 1549
 	typedef_declaration:  TYPEDEF STRUCT ATTR_PACKED '{' field_list '}' ID ';'.    (509)
 
-	.  reduce 509 (src line 1580)
+	.  reduce 509 (src line 1546)
 
 
 state 1550
@@ -21515,13 +21515,13 @@ state 1550
 state 1551
 	typedef_declaration:  TYPEDEF STRUCT ATTR_PACKED ID '{' field_list '}' ';'.    (523)
 
-	.  reduce 523 (src line 1669)
+	.  reduce 523 (src line 1635)
 
 
 state 1552
 	typedef_declaration:  TYPEDEF UNION ID '{' field_list '}' ID ';'.    (518)
 
-	.  reduce 518 (src line 1640)
+	.  reduce 518 (src line 1606)
 
 
 state 1553
@@ -21534,7 +21534,7 @@ state 1553
 state 1554
 	typedef_declaration:  TYPEDEF UNION ID '{' field_list '}' ATTR_PACKED ';'.    (529)
 
-	.  reduce 529 (src line 1699)
+	.  reduce 529 (src line 1665)
 
 
 state 1555
@@ -21547,19 +21547,19 @@ state 1555
 state 1556
 	typedef_declaration:  TYPEDEF UNION ID ATTR_PACKED '{' field_list '}' ';'.    (528)
 
-	.  reduce 528 (src line 1694)
+	.  reduce 528 (src line 1660)
 
 
 state 1557
 	typedef_declaration:  TYPEDEF UNION '{' field_list '}' ATTR_PACKED ID ';'.    (513)
 
-	.  reduce 513 (src line 1608)
+	.  reduce 513 (src line 1574)
 
 
 state 1558
 	typedef_declaration:  TYPEDEF UNION ATTR_PACKED '{' field_list '}' ID ';'.    (512)
 
-	.  reduce 512 (src line 1601)
+	.  reduce 512 (src line 1567)
 
 
 state 1559
@@ -21572,37 +21572,37 @@ state 1559
 state 1560
 	typedef_declaration:  TYPEDEF UNION ATTR_PACKED ID '{' field_list '}' ';'.    (527)
 
-	.  reduce 527 (src line 1689)
+	.  reduce 527 (src line 1655)
 
 
 state 1561
 	typedef_declaration:  TYPEDEF ENUM ID '{' enum_list '}' ID ';'.    (530)
 
-	.  reduce 530 (src line 1704)
+	.  reduce 530 (src line 1670)
 
 
 state 1562
 	declaration_specifiers:  STATIC CONST STRUCT ID '{' field_list '}' ATTR_PACKED.    (747)
 
-	.  reduce 747 (src line 2180)
+	.  reduce 747 (src line 2146)
 
 
 state 1563
 	declaration_specifiers:  STATIC CONST STRUCT ATTR_PACKED ID '{' field_list '}'.    (746)
 
-	.  reduce 746 (src line 2177)
+	.  reduce 746 (src line 2143)
 
 
 state 1564
 	declaration_specifiers:  EXTERN CONST STRUCT ID '{' field_list '}' ATTR_PACKED.    (753)
 
-	.  reduce 753 (src line 2198)
+	.  reduce 753 (src line 2164)
 
 
 state 1565
 	declaration_specifiers:  EXTERN CONST STRUCT ATTR_PACKED ID '{' field_list '}'.    (752)
 
-	.  reduce 752 (src line 2195)
+	.  reduce 752 (src line 2161)
 
 
 state 1566
@@ -21615,7 +21615,7 @@ state 1566
 state 1567
 	field_list:  STATIC_ASSERT '(' const_int_expr ',' STRING_LIT ')' ';'.    (621)
 
-	.  reduce 621 (src line 1856)
+	.  reduce 621 (src line 1822)
 
 
 state 1568
@@ -21641,7 +21641,7 @@ state 1570
 state 1571
 	field:  type_specifier '*' ID '[' const_int_expr ']' ';'.    (634)
 
-	.  reduce 634 (src line 1897)
+	.  reduce 634 (src line 1863)
 
 
 state 1572
@@ -21689,7 +21689,7 @@ state 1573
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1717
 	fp_param_type_list  goto 784
@@ -21713,7 +21713,7 @@ state 1575
 state 1576
 	field:  ALIGNAS_SPEC type_specifier ID '[' const_int_expr ']' ';'.    (624)
 
-	.  reduce 624 (src line 1872)
+	.  reduce 624 (src line 1838)
 
 
 state 1577
@@ -21726,25 +21726,25 @@ state 1577
 state 1578
 	field:  STRUCT ID '*' ID ',' ptr_id_list ';'.    (649)
 
-	.  reduce 649 (src line 1928)
+	.  reduce 649 (src line 1894)
 
 
 state 1579
 	field:  STRUCT ID '*' CONST '*' ID ';'.    (650)
 
-	.  reduce 650 (src line 1930)
+	.  reduce 650 (src line 1896)
 
 
 state 1580
 	field:  STRUCT ID ID '[' const_int_expr ']' ';'.    (653)
 
-	.  reduce 653 (src line 1936)
+	.  reduce 653 (src line 1902)
 
 
 state 1581
 	field:  STRUCT ID '{' field_list '}' ID ';'.    (661)
 
-	.  reduce 661 (src line 1968)
+	.  reduce 661 (src line 1934)
 
 
 state 1582
@@ -21764,13 +21764,13 @@ state 1583
 state 1584
 	field:  CONST type_specifier ID '[' const_int_expr ']' ';'.    (643)
 
-	.  reduce 643 (src line 1915)
+	.  reduce 643 (src line 1881)
 
 
 state 1585
 	field:  CONST type_specifier '*' ID ',' ptr_id_list ';'.    (639)
 
-	.  reduce 639 (src line 1907)
+	.  reduce 639 (src line 1873)
 
 
 state 1586
@@ -21783,7 +21783,7 @@ state 1586
 state 1587
 	field:  CONST type_specifier '*' ID '[' ']' ';'.    (642)
 
-	.  reduce 642 (src line 1913)
+	.  reduce 642 (src line 1879)
 
 
 state 1588
@@ -21814,7 +21814,7 @@ state 1589
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1725
 	fp_param_type_list  goto 784
@@ -21831,7 +21831,7 @@ state 1590
 state 1591
 	field:  UNION ID '{' field_list '}' ID ';'.    (664)
 
-	.  reduce 664 (src line 1986)
+	.  reduce 664 (src line 1952)
 
 
 state 1592
@@ -21864,7 +21864,7 @@ state 1595
 state 1596
 	factor:  '(' type_specifier ')' '{' init_list ',' '}'.    (438)
 
-	.  reduce 438 (src line 1248)
+	.  reduce 438 (src line 1244)
 
 
 state 1597
@@ -21913,7 +21913,7 @@ state 1597
 state 1598
 	factor:  '(' type_specifier '*' ')' '{' init_list '}'.    (440)
 
-	.  reduce 440 (src line 1256)
+	.  reduce 440 (src line 1252)
 
 
 state 1599
@@ -21937,7 +21937,7 @@ state 1599
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1731
 	fp_param_type_list  goto 784
@@ -22056,7 +22056,7 @@ state 1604
 state 1605
 	factor:  '(' STRUCT ID ')' '{' init_list '}'.    (442)
 
-	.  reduce 442 (src line 1266)
+	.  reduce 442 (src line 1262)
 
 
 state 1606
@@ -22184,13 +22184,13 @@ state 1609
 state 1610
 	factor:  '(' UNION ID ')' '{' init_list '}'.    (445)
 
-	.  reduce 445 (src line 1278)
+	.  reduce 445 (src line 1274)
 
 
 state 1611
 	factor:  '(' UNION '{' field_list '}' ')' factor.    (427)
 
-	.  reduce 427 (src line 1198)
+	.  reduce 427 (src line 1196)
 
 
 state 1612
@@ -22298,7 +22298,7 @@ state 1615
 state 1616
 	factor:  '&' '(' STRUCT ID ')' '{' '}'.    (432)
 
-	.  reduce 432 (src line 1221)
+	.  reduce 432 (src line 1217)
 
 
 state 1617
@@ -22310,19 +22310,19 @@ state 1617
 state 1618
 	generic_assoc_list:  generic_assoc_list ',' generic_assoc.    (455)
 
-	.  reduce 455 (src line 1337)
+	.  reduce 455 (src line 1303)
 
 
 state 1619
 	generic_assoc:  type_specifier ':' assign_expr.    (456)
 
-	.  reduce 456 (src line 1340)
+	.  reduce 456 (src line 1306)
 
 
 state 1620
 	generic_assoc:  DEFAULT ':' assign_expr.    (457)
 
-	.  reduce 457 (src line 1343)
+	.  reduce 457 (src line 1309)
 
 
 state 1621
@@ -22355,13 +22355,13 @@ state 1624
 state 1625
 	const_int_primary:  SIZEOF '(' type_specifier '[' NUM ']' ')'.    (703)
 
-	.  reduce 703 (src line 2078)
+	.  reduce 703 (src line 2044)
 
 
 state 1626
 	const_int_primary:  SIZEOF '(' ID '[' NUM ']' ')'.    (705)
 
-	.  reduce 705 (src line 2080)
+	.  reduce 705 (src line 2046)
 
 
 state 1627
@@ -22377,7 +22377,7 @@ state 1628
 	const_int_primary:  SIZEOF '(' '(' ID ')' '[' NUM.']' ')' 
 
 	']'  shift 1749
-	.  reduce 696 (src line 2070)
+	.  reduce 696 (src line 2036)
 
 
 state 1629
@@ -22421,7 +22421,7 @@ state 1633
 state 1634
 	local_fun_proto:  ID '(' local_params ')'.    (536)
 
-	.  reduce 536 (src line 1724)
+	.  reduce 536 (src line 1690)
 
 
 state 1635
@@ -22453,7 +22453,7 @@ state 1635
 state 1636
 	local_param:  type_specifier ID.    (546)
 
-	.  reduce 546 (src line 1748)
+	.  reduce 546 (src line 1714)
 
 
 state 1637
@@ -22467,7 +22467,7 @@ state 1637
 	ID  shift 1758
 	CONST  shift 1760
 	'*'  shift 1759
-	.  reduce 547 (src line 1749)
+	.  reduce 547 (src line 1715)
 
 
 state 1638
@@ -22514,7 +22514,7 @@ state 1641
 
 	ID  shift 1765
 	'*'  shift 1766
-	.  reduce 561 (src line 1763)
+	.  reduce 561 (src line 1729)
 
 
 state 1642
@@ -22556,7 +22556,7 @@ state 1644
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 542 (src line 1738)
+	.  reduce 542 (src line 1704)
 
 	type_specifier  goto 1460
 	local_params  goto 1769
@@ -22583,7 +22583,7 @@ state 1645
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 542 (src line 1738)
+	.  reduce 542 (src line 1704)
 
 	type_specifier  goto 1460
 	local_params  goto 1770
@@ -22746,7 +22746,7 @@ state 1660
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1782
 	fp_param_type_list  goto 784
@@ -22756,7 +22756,7 @@ state 1660
 state 1661
 	gd_declarator:  '(' '*' '*' ID ')' '(' fp_param_types ')'.    (791)
 
-	.  reduce 791 (src line 2322)
+	.  reduce 791 (src line 2288)
 
 
 state 1662
@@ -22769,7 +22769,7 @@ state 1662
 state 1663
 	gd_fun_declarator:  '(' ID ')' '(' param_list ',' ELLIPSIS ')'.    (821)
 
-	.  reduce 821 (src line 2398)
+	.  reduce 821 (src line 2364)
 
 
 state 1664
@@ -22843,7 +22843,7 @@ state 1669
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1787
 	fp_param_type_list  goto 784
@@ -22871,7 +22871,7 @@ state 1670
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1788
 	fp_param_type_list  goto 784
@@ -23002,7 +23002,7 @@ state 1683
 state 1684
 	gd_fun_declarator:  gd_pointer CONST ID '(' param_list ',' ELLIPSIS ')'.    (825)
 
-	.  reduce 825 (src line 2408)
+	.  reduce 825 (src line 2374)
 
 
 1685: shift/reduce conflict (shift 1797(0), red'n 116(0)) on ')'
@@ -23119,19 +23119,19 @@ state 1690
 state 1691
 	fp_param_type:  type_specifier '*' CONST '*' ID.    (612)
 
-	.  reduce 612 (src line 1828)
+	.  reduce 612 (src line 1794)
 
 
 state 1692
 	fp_param_type:  type_specifier CONST '*' '*' ID.    (608)
 
-	.  reduce 608 (src line 1823)
+	.  reduce 608 (src line 1789)
 
 
 state 1693
 	fp_param_type:  STRUCT ID '*' '*' ID.    (586)
 
-	.  reduce 586 (src line 1800)
+	.  reduce 586 (src line 1766)
 
 
 state 1694
@@ -23139,13 +23139,13 @@ state 1694
 	fp_param_type:  STRUCT ID '*' '*' '*'.ID 
 
 	ID  shift 1803
-	.  reduce 587 (src line 1801)
+	.  reduce 587 (src line 1767)
 
 
 state 1695
 	fp_param_type:  CONST type_specifier '*' '*' ID.    (606)
 
-	.  reduce 606 (src line 1821)
+	.  reduce 606 (src line 1787)
 
 
 state 1696
@@ -23153,13 +23153,13 @@ state 1696
 	fp_param_type:  CONST type_specifier '*' CONST '*'.ID 
 
 	ID  shift 1804
-	.  reduce 609 (src line 1825)
+	.  reduce 609 (src line 1791)
 
 
 state 1697
 	fp_param_type:  CONST STRUCT ID '*' ID.    (598)
 
-	.  reduce 598 (src line 1812)
+	.  reduce 598 (src line 1778)
 
 
 state 1698
@@ -23167,7 +23167,7 @@ state 1698
 	fp_param_type:  CONST STRUCT ID '*' '*'.ID 
 
 	ID  shift 1805
-	.  reduce 599 (src line 1813)
+	.  reduce 599 (src line 1779)
 
 
 state 1699
@@ -23180,7 +23180,7 @@ state 1699
 state 1700
 	fp_param_type:  CONST STRUCT ID '[' ']'.    (602)
 
-	.  reduce 602 (src line 1816)
+	.  reduce 602 (src line 1782)
 
 
 state 1701
@@ -23200,7 +23200,7 @@ state 1702
 state 1703
 	typedef_declaration:  TYPEDEF type_specifier '(' ID ')' '(' fp_param_types ')' ';'.    (502)
 
-	.  reduce 502 (src line 1533)
+	.  reduce 502 (src line 1499)
 
 
 state 1704
@@ -23224,7 +23224,7 @@ state 1704
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1809
 	fp_param_type_list  goto 784
@@ -23241,13 +23241,13 @@ state 1705
 state 1706
 	typedef_declaration:  TYPEDEF STRUCT ID '{' field_list '}' ATTR_PACKED ID ';'.    (517)
 
-	.  reduce 517 (src line 1634)
+	.  reduce 517 (src line 1600)
 
 
 state 1707
 	typedef_declaration:  TYPEDEF STRUCT ID ATTR_PACKED '{' field_list '}' ID ';'.    (516)
 
-	.  reduce 516 (src line 1628)
+	.  reduce 516 (src line 1594)
 
 
 state 1708
@@ -23260,31 +23260,31 @@ state 1708
 state 1709
 	typedef_declaration:  TYPEDEF STRUCT ATTR_PACKED ID '{' field_list '}' ID ';'.    (515)
 
-	.  reduce 515 (src line 1622)
+	.  reduce 515 (src line 1588)
 
 
 state 1710
 	typedef_declaration:  TYPEDEF UNION ID '{' field_list '}' ATTR_PACKED ID ';'.    (521)
 
-	.  reduce 521 (src line 1658)
+	.  reduce 521 (src line 1624)
 
 
 state 1711
 	typedef_declaration:  TYPEDEF UNION ID ATTR_PACKED '{' field_list '}' ID ';'.    (520)
 
-	.  reduce 520 (src line 1652)
+	.  reduce 520 (src line 1618)
 
 
 state 1712
 	typedef_declaration:  TYPEDEF UNION ATTR_PACKED ID '{' field_list '}' ID ';'.    (519)
 
-	.  reduce 519 (src line 1646)
+	.  reduce 519 (src line 1612)
 
 
 state 1713
 	field_list:  field_list STATIC_ASSERT '(' const_int_expr ',' STRING_LIT ')' ';'.    (619)
 
-	.  reduce 619 (src line 1842)
+	.  reduce 619 (src line 1808)
 
 
 state 1714
@@ -23331,13 +23331,13 @@ state 1719
 state 1720
 	field:  STRUCT ID '*' ID '[' const_int_expr ']' ';'.    (636)
 
-	.  reduce 636 (src line 1901)
+	.  reduce 636 (src line 1867)
 
 
 state 1721
 	field:  STRUCT ID '{' field_list '}' '*' ID ';'.    (662)
 
-	.  reduce 662 (src line 1973)
+	.  reduce 662 (src line 1939)
 
 
 state 1722
@@ -23350,7 +23350,7 @@ state 1722
 state 1723
 	field:  CONST type_specifier '*' ID '[' const_int_expr ']' ';'.    (641)
 
-	.  reduce 641 (src line 1911)
+	.  reduce 641 (src line 1877)
 
 
 state 1724
@@ -23374,7 +23374,7 @@ state 1724
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1818
 	fp_param_type_list  goto 784
@@ -23417,7 +23417,7 @@ state 1729
 state 1730
 	factor:  '(' type_specifier '*' ')' '{' init_list ',' '}'.    (441)
 
-	.  reduce 441 (src line 1261)
+	.  reduce 441 (src line 1257)
 
 
 state 1731
@@ -23480,7 +23480,7 @@ state 1733
 state 1734
 	factor:  '(' type_specifier '[' ']' ')' '{' init_list '}'.    (433)
 
-	.  reduce 433 (src line 1227)
+	.  reduce 433 (src line 1223)
 
 
 state 1735
@@ -23496,7 +23496,7 @@ state 1735
 state 1736
 	factor:  '(' STRUCT ID ')' '{' init_list ',' '}'.    (443)
 
-	.  reduce 443 (src line 1270)
+	.  reduce 443 (src line 1266)
 
 
 state 1737
@@ -23518,13 +23518,13 @@ state 1738
 state 1739
 	factor:  '(' STRUCT '{' field_list '}' ')' '{' '}'.    (449)
 
-	.  reduce 449 (src line 1302)
+	.  reduce 449 (src line 1288)
 
 
 state 1740
 	factor:  '(' UNION ID ')' '{' init_list ',' '}'.    (446)
 
-	.  reduce 446 (src line 1282)
+	.  reduce 446 (src line 1278)
 
 
 state 1741
@@ -23540,7 +23540,7 @@ state 1741
 state 1742
 	factor:  '(' UNION '{' field_list '}' ')' '{' '}'.    (452)
 
-	.  reduce 452 (src line 1323)
+	.  reduce 452 (src line 1294)
 
 
 state 1743
@@ -23589,7 +23589,7 @@ state 1743
 state 1744
 	factor:  '&' '(' STRUCT ID ')' '{' init_list '}'.    (430)
 
-	.  reduce 430 (src line 1211)
+	.  reduce 430 (src line 1207)
 
 
 state 1745
@@ -23613,7 +23613,7 @@ state 1747
 state 1748
 	const_int_primary:  SIZEOF '(' ID '.' ID '.' ID ')'.    (709)
 
-	.  reduce 709 (src line 2087)
+	.  reduce 709 (src line 2053)
 
 
 state 1749
@@ -23640,7 +23640,7 @@ state 1751
 state 1752
 	const_int_primary:  SIZEOF '(' '(' ID '.' ID ')' ')'.    (711)
 
-	.  reduce 711 (src line 2090)
+	.  reduce 711 (src line 2056)
 
 
 state 1753
@@ -23669,19 +23669,19 @@ state 1755
 state 1756
 	local_params:  local_param_list ',' ELLIPSIS.    (541)
 
-	.  reduce 541 (src line 1737)
+	.  reduce 541 (src line 1703)
 
 
 state 1757
 	local_param_list:  local_param_list ',' local_param.    (543)
 
-	.  reduce 543 (src line 1741)
+	.  reduce 543 (src line 1707)
 
 
 state 1758
 	local_param:  type_specifier '*' ID.    (548)
 
-	.  reduce 548 (src line 1750)
+	.  reduce 548 (src line 1716)
 
 
 state 1759
@@ -23689,7 +23689,7 @@ state 1759
 	local_param:  type_specifier '*' '*'.ID 
 
 	ID  shift 1839
-	.  reduce 549 (src line 1751)
+	.  reduce 549 (src line 1717)
 
 
 state 1760
@@ -23697,7 +23697,7 @@ state 1760
 	local_param:  type_specifier '*' CONST.ID 
 
 	ID  shift 1840
-	.  reduce 551 (src line 1753)
+	.  reduce 551 (src line 1719)
 
 
 state 1761
@@ -23705,7 +23705,7 @@ state 1761
 	local_param:  type_specifier CONST '*'.ID 
 
 	ID  shift 1841
-	.  reduce 553 (src line 1755)
+	.  reduce 553 (src line 1721)
 
 
 state 1762
@@ -23720,7 +23720,7 @@ state 1762
 state 1763
 	local_param:  STRUCT ID ID.    (556)
 
-	.  reduce 556 (src line 1758)
+	.  reduce 556 (src line 1724)
 
 
 state 1764
@@ -23731,13 +23731,13 @@ state 1764
 
 	ID  shift 1844
 	'*'  shift 1845
-	.  reduce 557 (src line 1759)
+	.  reduce 557 (src line 1725)
 
 
 state 1765
 	local_param:  CONST type_specifier ID.    (562)
 
-	.  reduce 562 (src line 1764)
+	.  reduce 562 (src line 1730)
 
 
 state 1766
@@ -23748,7 +23748,7 @@ state 1766
 
 	ID  shift 1846
 	CONST  shift 1847
-	.  reduce 563 (src line 1765)
+	.  reduce 563 (src line 1731)
 
 
 1767: shift/reduce conflict (shift 1849(0), red'n 109(0)) on ID
@@ -23769,7 +23769,7 @@ state 1767
 state 1768
 	local_fun_proto:  gd_pointer ID '(' local_params ')'.    (537)
 
-	.  reduce 537 (src line 1727)
+	.  reduce 537 (src line 1693)
 
 
 state 1769
@@ -24066,7 +24066,7 @@ state 1786
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1870
 	fp_param_type_list  goto 784
@@ -24127,7 +24127,7 @@ state 1792
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1874
 	fp_param_type_list  goto 784
@@ -24163,7 +24163,7 @@ state 1796
 state 1797
 	gd_fun_declarator:  gd_pointer '(' ID ')' '(' param_list ',' ELLIPSIS ')'.    (823)
 
-	.  reduce 823 (src line 2403)
+	.  reduce 823 (src line 2369)
 
 
 state 1798
@@ -24240,25 +24240,25 @@ state 1802
 state 1803
 	fp_param_type:  STRUCT ID '*' '*' '*' ID.    (588)
 
-	.  reduce 588 (src line 1802)
+	.  reduce 588 (src line 1768)
 
 
 state 1804
 	fp_param_type:  CONST type_specifier '*' CONST '*' ID.    (610)
 
-	.  reduce 610 (src line 1826)
+	.  reduce 610 (src line 1792)
 
 
 state 1805
 	fp_param_type:  CONST STRUCT ID '*' '*' ID.    (600)
 
-	.  reduce 600 (src line 1814)
+	.  reduce 600 (src line 1780)
 
 
 state 1806
 	fp_param_type:  CONST STRUCT ID '[' const_int_expr ']'.    (601)
 
-	.  reduce 601 (src line 1815)
+	.  reduce 601 (src line 1781)
 
 
 state 1807
@@ -24271,7 +24271,7 @@ state 1807
 state 1808
 	typedef_declaration:  TYPEDEF type_specifier '(' '*' ID ')' '(' fp_param_types ')' ';'.    (501)
 
-	.  reduce 501 (src line 1526)
+	.  reduce 501 (src line 1492)
 
 
 state 1809
@@ -24291,13 +24291,13 @@ state 1810
 state 1811
 	typedef_declaration:  TYPEDEF STRUCT '{' field_list '}' ID '[' const_int_expr ']' ';'.    (508)
 
-	.  reduce 508 (src line 1573)
+	.  reduce 508 (src line 1539)
 
 
 state 1812
 	field:  type_specifier ID '[' const_int_expr ']' '[' const_int_expr ']' ';'.    (629)
 
-	.  reduce 629 (src line 1887)
+	.  reduce 629 (src line 1853)
 
 
 state 1813
@@ -24317,7 +24317,7 @@ state 1814
 state 1815
 	field:  type_specifier '(' '*' ID ')' '(' fp_param_types ')' ';'.    (644)
 
-	.  reduce 644 (src line 1917)
+	.  reduce 644 (src line 1883)
 
 
 state 1816
@@ -24341,7 +24341,7 @@ state 1816
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1886
 	fp_param_type_list  goto 784
@@ -24351,7 +24351,7 @@ state 1816
 state 1817
 	field:  STRUCT '{' field_list '}' ID '[' const_int_expr ']' ';'.    (666)
 
-	.  reduce 666 (src line 1996)
+	.  reduce 666 (src line 1962)
 
 
 state 1818
@@ -24371,13 +24371,13 @@ state 1819
 state 1820
 	field:  CONST STRUCT ID '{' field_list '}' '*' ID ';'.    (663)
 
-	.  reduce 663 (src line 1980)
+	.  reduce 663 (src line 1946)
 
 
 state 1821
 	field:  UNION '{' field_list '}' ID '[' const_int_expr ']' ';'.    (667)
 
-	.  reduce 667 (src line 2004)
+	.  reduce 667 (src line 1970)
 
 
 state 1822
@@ -24418,7 +24418,7 @@ state 1823
 state 1824
 	factor:  '(' type_specifier '[' ']' ')' '{' init_list ',' '}'.    (434)
 
-	.  reduce 434 (src line 1231)
+	.  reduce 434 (src line 1227)
 
 
 state 1825
@@ -24467,7 +24467,7 @@ state 1825
 state 1826
 	factor:  '(' type_specifier '[' const_int_expr ']' ')' '{' init_list '}'.    (435)
 
-	.  reduce 435 (src line 1235)
+	.  reduce 435 (src line 1231)
 
 
 state 1827
@@ -24516,7 +24516,7 @@ state 1827
 state 1828
 	factor:  '(' STRUCT '{' field_list '}' ')' '{' init_list '}'.    (447)
 
-	.  reduce 447 (src line 1288)
+	.  reduce 447 (src line 1284)
 
 
 state 1829
@@ -24565,25 +24565,25 @@ state 1829
 state 1830
 	factor:  '(' UNION '{' field_list '}' ')' '{' init_list '}'.    (450)
 
-	.  reduce 450 (src line 1309)
+	.  reduce 450 (src line 1290)
 
 
 state 1831
 	factor:  '&' '(' STRUCT ID ')' '{' init_list ',' '}'.    (431)
 
-	.  reduce 431 (src line 1216)
+	.  reduce 431 (src line 1212)
 
 
 state 1832
 	const_int_primary:  SIZEOF '(' '(' ID ')' '[' NUM ']' ')'.    (706)
 
-	.  reduce 706 (src line 2082)
+	.  reduce 706 (src line 2048)
 
 
 state 1833
 	const_int_primary:  SIZEOF '(' '(' ID ')' '[' const_int_expr ']' ')'.    (707)
 
-	.  reduce 707 (src line 2084)
+	.  reduce 707 (src line 2050)
 
 
 state 1834
@@ -24624,19 +24624,19 @@ state 1838
 state 1839
 	local_param:  type_specifier '*' '*' ID.    (550)
 
-	.  reduce 550 (src line 1752)
+	.  reduce 550 (src line 1718)
 
 
 state 1840
 	local_param:  type_specifier '*' CONST ID.    (552)
 
-	.  reduce 552 (src line 1754)
+	.  reduce 552 (src line 1720)
 
 
 state 1841
 	local_param:  type_specifier CONST '*' ID.    (554)
 
-	.  reduce 554 (src line 1756)
+	.  reduce 554 (src line 1722)
 
 
 state 1842
@@ -24656,7 +24656,7 @@ state 1843
 state 1844
 	local_param:  STRUCT ID '*' ID.    (558)
 
-	.  reduce 558 (src line 1760)
+	.  reduce 558 (src line 1726)
 
 
 state 1845
@@ -24664,13 +24664,13 @@ state 1845
 	local_param:  STRUCT ID '*' '*'.ID 
 
 	ID  shift 1901
-	.  reduce 559 (src line 1761)
+	.  reduce 559 (src line 1727)
 
 
 state 1846
 	local_param:  CONST type_specifier '*' ID.    (564)
 
-	.  reduce 564 (src line 1766)
+	.  reduce 564 (src line 1732)
 
 
 state 1847
@@ -24678,7 +24678,7 @@ state 1847
 	local_param:  CONST type_specifier '*' CONST.ID 
 
 	ID  shift 1902
-	.  reduce 565 (src line 1767)
+	.  reduce 565 (src line 1733)
 
 
 state 1848
@@ -24689,25 +24689,25 @@ state 1848
 
 	ID  shift 1903
 	'*'  shift 1904
-	.  reduce 567 (src line 1769)
+	.  reduce 567 (src line 1735)
 
 
 state 1849
 	local_param:  CONST STRUCT ID ID.    (571)
 
-	.  reduce 571 (src line 1773)
+	.  reduce 571 (src line 1739)
 
 
 state 1850
 	local_fun_proto:  gd_pointer CONST ID '(' local_params ')'.    (538)
 
-	.  reduce 538 (src line 1729)
+	.  reduce 538 (src line 1695)
 
 
 state 1851
 	local_fun_proto:  '(' ID ')' '(' local_params ')'.    (539)
 
-	.  reduce 539 (src line 1731)
+	.  reduce 539 (src line 1697)
 
 
 state 1852
@@ -24928,7 +24928,7 @@ state 1866
 state 1867
 	gd_declarator:  '(' '*' ID '[' const_int_expr ']' ')' '(' fp_param_types ')'.    (792)
 
-	.  reduce 792 (src line 2324)
+	.  reduce 792 (src line 2290)
 
 
 state 1868
@@ -24952,7 +24952,7 @@ state 1868
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1914
 	fp_param_type_list  goto 784
@@ -25005,7 +25005,7 @@ state 1873
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1916
 	fp_param_type_list  goto 784
@@ -25124,7 +25124,7 @@ state 1880
 state 1881
 	typedef_declaration:  TYPEDEF type_specifier '*' '(' '*' ID ')' '(' fp_param_types ')' ';'.    (503)
 
-	.  reduce 503 (src line 1539)
+	.  reduce 503 (src line 1505)
 
 
 state 1882
@@ -25137,19 +25137,19 @@ state 1882
 state 1883
 	typedef_declaration:  TYPEDEF CONST type_specifier '(' '*' ID ')' '(' fp_param_types ')' ';'.    (505)
 
-	.  reduce 505 (src line 1551)
+	.  reduce 505 (src line 1517)
 
 
 state 1884
 	field:  type_specifier '*' ID '[' const_int_expr ']' '[' const_int_expr ']' ';'.    (635)
 
-	.  reduce 635 (src line 1899)
+	.  reduce 635 (src line 1865)
 
 
 state 1885
 	field:  type_specifier '*' '(' '*' ID ')' '(' fp_param_types ')' ';'.    (645)
 
-	.  reduce 645 (src line 1919)
+	.  reduce 645 (src line 1885)
 
 
 state 1886
@@ -25169,7 +25169,7 @@ state 1887
 state 1888
 	field:  CONST type_specifier '(' '*' ID ')' '(' fp_param_types ')' ';'.    (668)
 
-	.  reduce 668 (src line 2012)
+	.  reduce 668 (src line 1978)
 
 
 state 1889
@@ -25203,31 +25203,31 @@ state 1889
 state 1890
 	factor:  '(' type_specifier '(' '*' ')' '(' fp_param_types ')' ')' factor.    (428)
 
-	.  reduce 428 (src line 1204)
+	.  reduce 428 (src line 1200)
 
 
 state 1891
 	factor:  '(' type_specifier '[' const_int_expr ']' ')' '{' init_list ',' '}'.    (436)
 
-	.  reduce 436 (src line 1239)
+	.  reduce 436 (src line 1235)
 
 
 state 1892
 	factor:  '(' STRUCT '{' field_list '}' ')' '{' init_list ',' '}'.    (448)
 
-	.  reduce 448 (src line 1295)
+	.  reduce 448 (src line 1286)
 
 
 state 1893
 	factor:  '(' UNION '{' field_list '}' ')' '{' init_list ',' '}'.    (451)
 
-	.  reduce 451 (src line 1316)
+	.  reduce 451 (src line 1292)
 
 
 state 1894
 	const_int_primary:  SIZEOF '(' '(' ID '.' ID '.' ID ')' ')'.    (710)
 
-	.  reduce 710 (src line 2089)
+	.  reduce 710 (src line 2055)
 
 
 state 1895
@@ -25264,13 +25264,13 @@ state 1896
 state 1897
 	const_int_primary:  '&' '(' '(' type_specifier '*' ')' NUM ')' ARROW ID.    (720)
 
-	.  reduce 720 (src line 2103)
+	.  reduce 720 (src line 2069)
 
 
 state 1898
 	const_int_primary:  '&' '(' '(' type_specifier '*' ')' NUM ')' '.' ID.    (721)
 
-	.  reduce 721 (src line 2104)
+	.  reduce 721 (src line 2070)
 
 
 state 1899
@@ -25301,7 +25301,7 @@ state 1900
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1926
 	fp_param_type_list  goto 784
@@ -25311,19 +25311,19 @@ state 1900
 state 1901
 	local_param:  STRUCT ID '*' '*' ID.    (560)
 
-	.  reduce 560 (src line 1762)
+	.  reduce 560 (src line 1728)
 
 
 state 1902
 	local_param:  CONST type_specifier '*' CONST ID.    (566)
 
-	.  reduce 566 (src line 1768)
+	.  reduce 566 (src line 1734)
 
 
 state 1903
 	local_param:  CONST STRUCT ID '*' ID.    (568)
 
-	.  reduce 568 (src line 1770)
+	.  reduce 568 (src line 1736)
 
 
 state 1904
@@ -25331,7 +25331,7 @@ state 1904
 	local_param:  CONST STRUCT ID '*' '*'.ID 
 
 	ID  shift 1927
-	.  reduce 569 (src line 1771)
+	.  reduce 569 (src line 1737)
 
 
 state 1905
@@ -25580,7 +25580,7 @@ state 1918
 state 1919
 	typedef_declaration:  TYPEDEF CONST type_specifier '*' '(' '*' ID ')' '(' fp_param_types ')' ';'.    (504)
 
-	.  reduce 504 (src line 1545)
+	.  reduce 504 (src line 1511)
 
 
 state 1920
@@ -25593,13 +25593,13 @@ state 1920
 state 1921
 	field:  CONST type_specifier '*' '(' '*' ID ')' '(' fp_param_types ')' ';'.    (646)
 
-	.  reduce 646 (src line 1922)
+	.  reduce 646 (src line 1888)
 
 
 state 1922
 	factor:  '(' type_specifier '*' '(' '*' ')' '(' fp_param_types ')' ')' factor.    (429)
 
-	.  reduce 429 (src line 1206)
+	.  reduce 429 (src line 1202)
 
 
 state 1923
@@ -25637,7 +25637,7 @@ state 1925
 	INT128  shift 35
 	SIGNED  shift 34
 	TYPENAME  shift 36
-	.  reduce 575 (src line 1780)
+	.  reduce 575 (src line 1746)
 
 	fp_param_types  goto 1942
 	fp_param_type_list  goto 784
@@ -25654,7 +25654,7 @@ state 1926
 state 1927
 	local_param:  CONST STRUCT ID '*' '*' ID.    (570)
 
-	.  reduce 570 (src line 1772)
+	.  reduce 570 (src line 1738)
 
 
 state 1928
@@ -25912,7 +25912,7 @@ state 1936
 state 1937
 	gd_declarator:  '(' '*' '(' ID '[' const_int_expr ']' ')' ')' '(' fp_param_types ')'.    (793)
 
-	.  reduce 793 (src line 2326)
+	.  reduce 793 (src line 2292)
 
 
 state 1938
@@ -25924,7 +25924,7 @@ state 1938
 state 1939
 	field:  type_specifier '(' '*' ID '[' const_int_expr ']' ')' '(' fp_param_types ')' ';'.    (647)
 
-	.  reduce 647 (src line 1924)
+	.  reduce 647 (src line 1890)
 
 
 state 1940
@@ -25968,7 +25968,7 @@ state 1942
 state 1943
 	local_param:  type_specifier '(' '*' ')' '(' fp_param_types ')'.    (573)
 
-	.  reduce 573 (src line 1775)
+	.  reduce 573 (src line 1741)
 
 
 state 1944
@@ -26335,13 +26335,13 @@ state 1952
 state 1953
 	const_int_primary:  SIZEOF '(' '(' '(' ID '.' ID ')' ')' '[' const_int_expr ']' ')'.    (713)
 
-	.  reduce 713 (src line 2093)
+	.  reduce 713 (src line 2059)
 
 
 state 1954
 	local_param:  type_specifier '(' '*' ID ')' '(' fp_param_types ')'.    (572)
 
-	.  reduce 572 (src line 1774)
+	.  reduce 572 (src line 1740)
 
 
 state 1955
@@ -26677,7 +26677,7 @@ state 1967
 state 1968
 	const_int_primary:  SIZEOF '(' '(' '(' ID '.' ID '.' ID ')' ')' '[' const_int_expr ']' ')'.    (712)
 
-	.  reduce 712 (src line 2092)
+	.  reduce 712 (src line 2058)
 
 
 state 1969

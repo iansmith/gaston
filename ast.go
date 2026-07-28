@@ -368,6 +368,27 @@ func castNode(ct *CType, child *Node) *Node {
 	return n
 }
 
+// anonStructTag registers a fresh anonymous struct/union definition with the
+// given fields and returns its generated tag, for use by anonymous
+// struct/union casts and compound literals: (struct{...})expr,
+// ((union{...}){...}), etc. — musl's libm.h bit-twiddling macros rely on the
+// latter, e.g. ((union{double f; uint64_t i;}){x}).i.
+func anonStructTag(l *lexer, fields []*Node, isUnion bool) string {
+	tag := l.nextAnon()
+	sd := &Node{Kind: KindStructDef, Name: tag, Children: fields, IsUnion: isUnion}
+	l.pendingStructDefs = append(l.pendingStructDefs, sd)
+	return tag
+}
+
+// anonCompoundLit builds a KindCompoundLit node for the (possibly anonymous)
+// struct/union type identified by tag. inits is the init-list contents (nil
+// for an empty {}).
+func anonCompoundLit(tag string, inits []*Node) *Node {
+	n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: tag}
+	n.Children = []*Node{{Kind: KindInitList, Children: inits}}
+	return n
+}
+
 // constAddrOf returns a positive integer representing the "address" of a named
 // global in a compile-time constant expression context (e.g. static asserts).
 // Gaston cannot know actual link-time addresses, so this uses a deterministic
