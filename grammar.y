@@ -505,6 +505,14 @@ param
 		{ $$ = &Node{Kind: KindParam, Type: TypeStruct, Name: "", StructTag: $2} }
 	| UNION ID
 		{ $$ = &Node{Kind: KindParam, Type: TypeStruct, Name: "", StructTag: $2} }
+	/* Named struct-typed array parameters, plain and C99 [static N]:
+	   musl's lookup.h __lookup_serv(struct service buf[static MAXSERVS], ...). */
+	| STRUCT ID ID '[' const_int_expr ']'
+		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $3, ElemType: TypeStruct, StructTag: $2, Val: $5} }
+	| STRUCT ID ID '[' STATIC const_int_expr ']'
+		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $3, ElemType: TypeStruct, StructTag: $2, Val: $6} }
+	| CONST STRUCT ID ID '[' STATIC const_int_expr ']'
+		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $4, ElemType: TypeStruct, StructTag: $3, Val: $7} }
 	;
 
 compound_stmt
