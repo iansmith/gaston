@@ -1189,6 +1189,13 @@ factor
 		  sd := &Node{Kind: KindStructDef, Name: tag, Children: $4}
 		  l.pendingStructDefs = append(l.pendingStructDefs, sd)
 		  n := &Node{Kind: KindCast, Type: TypeStruct, StructTag: tag}; n.Children = []*Node{$7}; $$ = n }
+	/* Cast to anonymous union: (union { ... }) expr — mirrors the anonymous-struct
+	   cast above, registering a real (union) struct def. */
+	| '(' UNION '{' field_list '}' ')' factor
+		{ l := yylex.(*lexer); tag := l.nextAnon()
+		  sd := &Node{Kind: KindStructDef, Name: tag, Children: $4, IsUnion: true}
+		  l.pendingStructDefs = append(l.pendingStructDefs, sd)
+		  n := &Node{Kind: KindCast, Type: TypeStruct, StructTag: tag}; n.Children = []*Node{$7}; $$ = n }
 	/* Cast to function pointer: (rettype (*)(params)) expr — treated as TypePtr cast */
 	| '(' type_specifier '(' '*' ')' '(' fp_param_types ')' ')' factor
 		{ n := &Node{Kind: KindCast, Type: TypePtr}; n.Pointee = $2; n.Children = []*Node{$10}; $$ = n }
@@ -1271,6 +1278,50 @@ factor
 	| '(' UNION ID ')' '{' init_list ',' '}'
 		{ n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: $3}
 		  n.Children = []*Node{{Kind: KindInitList, Children: $6}}
+		  $$ = n }
+	/* Anonymous struct/union compound literals: ((struct{...}){...}), ((union{...}){...}) —
+	   musl's libm.h bit-twiddling macros: ((union{double f; uint64_t i;}){x}).i */
+	| '(' STRUCT '{' field_list '}' ')' '{' init_list '}'
+		{ l := yylex.(*lexer); tag := l.nextAnon()
+		  sd := &Node{Kind: KindStructDef, Name: tag, Children: $4}
+		  l.pendingStructDefs = append(l.pendingStructDefs, sd)
+		  n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: tag}
+		  n.Children = []*Node{{Kind: KindInitList, Children: $8}}
+		  $$ = n }
+	| '(' STRUCT '{' field_list '}' ')' '{' init_list ',' '}'
+		{ l := yylex.(*lexer); tag := l.nextAnon()
+		  sd := &Node{Kind: KindStructDef, Name: tag, Children: $4}
+		  l.pendingStructDefs = append(l.pendingStructDefs, sd)
+		  n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: tag}
+		  n.Children = []*Node{{Kind: KindInitList, Children: $8}}
+		  $$ = n }
+	| '(' STRUCT '{' field_list '}' ')' '{' '}'
+		{ l := yylex.(*lexer); tag := l.nextAnon()
+		  sd := &Node{Kind: KindStructDef, Name: tag, Children: $4}
+		  l.pendingStructDefs = append(l.pendingStructDefs, sd)
+		  n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: tag}
+		  n.Children = []*Node{{Kind: KindInitList}}
+		  $$ = n }
+	| '(' UNION '{' field_list '}' ')' '{' init_list '}'
+		{ l := yylex.(*lexer); tag := l.nextAnon()
+		  sd := &Node{Kind: KindStructDef, Name: tag, Children: $4, IsUnion: true}
+		  l.pendingStructDefs = append(l.pendingStructDefs, sd)
+		  n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: tag}
+		  n.Children = []*Node{{Kind: KindInitList, Children: $8}}
+		  $$ = n }
+	| '(' UNION '{' field_list '}' ')' '{' init_list ',' '}'
+		{ l := yylex.(*lexer); tag := l.nextAnon()
+		  sd := &Node{Kind: KindStructDef, Name: tag, Children: $4, IsUnion: true}
+		  l.pendingStructDefs = append(l.pendingStructDefs, sd)
+		  n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: tag}
+		  n.Children = []*Node{{Kind: KindInitList, Children: $8}}
+		  $$ = n }
+	| '(' UNION '{' field_list '}' ')' '{' '}'
+		{ l := yylex.(*lexer); tag := l.nextAnon()
+		  sd := &Node{Kind: KindStructDef, Name: tag, Children: $4, IsUnion: true}
+		  l.pendingStructDefs = append(l.pendingStructDefs, sd)
+		  n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: tag}
+		  n.Children = []*Node{{Kind: KindInitList}}
 		  $$ = n }
 	/* ── Statement expressions (GCC extension) ── */
 	| '(' '{' block_item_list '}' ')'

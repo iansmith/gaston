@@ -2078,6 +2078,13 @@ func (g *irGen) fieldBasePtr(n *Node) IRAddr {
 			Src2: IRAddr{Kind: AddrConst, IVal: innerOffset}})
 		return tmp
 	}
+	if base.Kind == KindCompoundLit {
+		// Field access directly on an rvalue compound literal, e.g.
+		// ((struct T){...}).field or ((union{...}){x}).i — genCompoundLit
+		// already allocates an anonymous local slot and returns a pointer
+		// to it, which is exactly the base pointer we need here.
+		return g.genExpr(base)
+	}
 	// Simple case: base is a plain variable.
 	src := g.addrOf(base.Name)
 	tmp := g.newTemp()
