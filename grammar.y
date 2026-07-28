@@ -500,6 +500,11 @@ param
 		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: TypeStruct, ElemPointee: structCType($3), Val: $5} }
 	| CONST STRUCT ID ID '[' const_int_expr ']'
 		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $4, ElemType: TypeStruct, ElemPointee: structCType($3), Val: $6} }
+	/* Bare (nameless) struct/union value parameters: int f(pid_t, int, union sigval); */
+	| STRUCT ID
+		{ $$ = &Node{Kind: KindParam, Type: TypeStruct, Name: "", StructTag: $2} }
+	| UNION ID
+		{ $$ = &Node{Kind: KindParam, Type: TypeStruct, Name: "", StructTag: $2} }
 	;
 
 compound_stmt
