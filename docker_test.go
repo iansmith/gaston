@@ -513,6 +513,8 @@ var featureTests = []dockerTest{
 	{name: "param_bare_union", want: "8\n35\n"},
 	// param_struct_arr: named struct-typed array parameters, plain and [static N] (GAST-grammar-batch)
 	{name: "param_struct_arr", want: "42\n30\n"},
+	// anon_union_compound_lit: anonymous union/struct compound literals (GAST-grammar-batch)
+	{name: "anon_union_compound_lit", want: "1\n42\n"},
 }
 
 // sepTest describes a separate-compilation test: compile multiple .cm files
