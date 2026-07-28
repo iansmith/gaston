@@ -366,6 +366,8 @@ param
 		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: $3}; n.Pointee = $1; $$ = n }
 	| type_specifier '*' '*' ID
 		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: $4}; n.Pointee = ptrCType($1); $$ = n }
+	| type_specifier '*' '*' '*' ID
+		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: $5}; n.Pointee = ptrCType(ptrCType($1)); $$ = n }
 	| STRUCT ID ID
 		{ $$ = &Node{Kind: KindParam, Type: TypeStruct, Name: $3, StructTag: $2} }
 	| CONST STRUCT ID ID
