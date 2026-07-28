@@ -1900,6 +1900,8 @@ field
 		{ $$ = []*Node{ctNode(KindVarDecl, $2, $3)} }
 	| CONST type_specifier '*' ID ';'
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4}; n.Pointee = $2; $$ = []*Node{n} }
+	| CONST type_specifier '*' ID ',' ptr_id_list ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4}; n.Pointee = $2; $$ = append([]*Node{n}, makePtrFields($2, $6)...) }
 	| CONST type_specifier '*' '*' ID ';'
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $5}; n.Pointee = ptrCType($2); $$ = []*Node{n} }
 	| CONST type_specifier '*' ID '[' const_int_expr ']' ';'
