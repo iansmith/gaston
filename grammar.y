@@ -295,6 +295,10 @@ type_specifier
 	| LONG LONG SIGNED   { $$ = leafCType(TypeLong) }
 	| LONG LONG SIGNED INT { $$ = leafCType(TypeLong) }
 	| UNSIGNED CHAR      { $$ = leafCType(TypeUnsignedChar) }
+	/* Reversed type-specifier order: C permits specifier keywords in any
+	   order (musl's __map_file.c uses "char unsigned"). Scoped narrowly to
+	   this one reported case rather than every possible reordering. */
+	| CHAR UNSIGNED      { $$ = leafCType(TypeUnsignedChar) }
 	| UNSIGNED SHORT     { $$ = leafCType(TypeUnsignedShort) }
 	| UNSIGNED SHORT INT { $$ = leafCType(TypeUnsignedShort) }
 	| SHORT UNSIGNED     { $$ = leafCType(TypeUnsignedShort) }
@@ -366,6 +370,8 @@ param
 		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: $3}; n.Pointee = $1; $$ = n }
 	| type_specifier '*' '*' ID
 		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: $4}; n.Pointee = ptrCType($1); $$ = n }
+	| type_specifier '*' '*' '*' ID
+		{ n := &Node{Kind: KindParam, Type: TypePtr, Name: $5}; n.Pointee = ptrCType(ptrCType($1)); $$ = n }
 	| STRUCT ID ID
 		{ $$ = &Node{Kind: KindParam, Type: TypeStruct, Name: $3, StructTag: $2} }
 	| CONST STRUCT ID ID
@@ -498,6 +504,19 @@ param
 		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: "", ElemType: TypeStruct, ElemPointee: structCType($3), Val: $5} }
 	| CONST STRUCT ID ID '[' const_int_expr ']'
 		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $4, ElemType: TypeStruct, ElemPointee: structCType($3), Val: $6} }
+	/* Bare (nameless) struct/union value parameters: int f(pid_t, int, union sigval); */
+	| STRUCT ID
+		{ $$ = &Node{Kind: KindParam, Type: TypeStruct, Name: "", StructTag: $2} }
+	| UNION ID
+		{ $$ = &Node{Kind: KindParam, Type: TypeStruct, Name: "", StructTag: $2} }
+	/* Named struct-typed array parameters, plain and C99 [static N]:
+	   musl's lookup.h __lookup_serv(struct service buf[static MAXSERVS], ...). */
+	| STRUCT ID ID '[' const_int_expr ']'
+		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $3, ElemType: TypeStruct, StructTag: $2, Val: $5} }
+	| STRUCT ID ID '[' STATIC const_int_expr ']'
+		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $3, ElemType: TypeStruct, StructTag: $2, Val: $6} }
+	| CONST STRUCT ID ID '[' STATIC const_int_expr ']'
+		{ $$ = &Node{Kind: KindParam, Type: TypeIntArray, Name: $4, ElemType: TypeStruct, StructTag: $3, Val: $7} }
 	;
 
 compound_stmt
@@ -1170,9 +1189,12 @@ factor
 		  l.pendingStructDefs = append(l.pendingStructDefs, sd)
 		  n := &Node{Kind: KindCast, Type: TypePtr}; n.Pointee = structCType(tag); n.Children = []*Node{$8}; $$ = n }
 	| '(' STRUCT '{' field_list '}' ')' factor
-		{ l := yylex.(*lexer); tag := l.nextAnon()
-		  sd := &Node{Kind: KindStructDef, Name: tag, Children: $4}
-		  l.pendingStructDefs = append(l.pendingStructDefs, sd)
+		{ tag := anonStructTag(yylex.(*lexer), $4, false)
+		  n := &Node{Kind: KindCast, Type: TypeStruct, StructTag: tag}; n.Children = []*Node{$7}; $$ = n }
+	/* Cast to anonymous union: (union { ... }) expr — mirrors the anonymous-struct
+	   cast above, registering a real (union) struct def. */
+	| '(' UNION '{' field_list '}' ')' factor
+		{ tag := anonStructTag(yylex.(*lexer), $4, true)
 		  n := &Node{Kind: KindCast, Type: TypeStruct, StructTag: tag}; n.Children = []*Node{$7}; $$ = n }
 	/* Cast to function pointer: (rettype (*)(params)) expr — treated as TypePtr cast */
 	| '(' type_specifier '(' '*' ')' '(' fp_param_types ')' ')' factor
@@ -1257,6 +1279,20 @@ factor
 		{ n := &Node{Kind: KindCompoundLit, Type: TypeStruct, StructTag: $3}
 		  n.Children = []*Node{{Kind: KindInitList, Children: $6}}
 		  $$ = n }
+	/* Anonymous struct/union compound literals: ((struct{...}){...}), ((union{...}){...}) —
+	   musl's libm.h bit-twiddling macros: ((union{double f; uint64_t i;}){x}).i */
+	| '(' STRUCT '{' field_list '}' ')' '{' init_list '}'
+		{ tag := anonStructTag(yylex.(*lexer), $4, false); $$ = anonCompoundLit(tag, $8) }
+	| '(' STRUCT '{' field_list '}' ')' '{' init_list ',' '}'
+		{ tag := anonStructTag(yylex.(*lexer), $4, false); $$ = anonCompoundLit(tag, $8) }
+	| '(' STRUCT '{' field_list '}' ')' '{' '}'
+		{ tag := anonStructTag(yylex.(*lexer), $4, false); $$ = anonCompoundLit(tag, nil) }
+	| '(' UNION '{' field_list '}' ')' '{' init_list '}'
+		{ tag := anonStructTag(yylex.(*lexer), $4, true); $$ = anonCompoundLit(tag, $8) }
+	| '(' UNION '{' field_list '}' ')' '{' init_list ',' '}'
+		{ tag := anonStructTag(yylex.(*lexer), $4, true); $$ = anonCompoundLit(tag, $8) }
+	| '(' UNION '{' field_list '}' ')' '{' '}'
+		{ tag := anonStructTag(yylex.(*lexer), $4, true); $$ = anonCompoundLit(tag, nil) }
 	/* ── Statement expressions (GCC extension) ── */
 	| '(' '{' block_item_list '}' ')'
 		{ $$ = &Node{Kind: KindStmtExpr, Children: $3} }
@@ -1456,6 +1492,13 @@ typedef_declaration
 	| TYPEDEF type_specifier '(' '*' ID ')' '(' fp_param_types ')' ';'
 		{
 			yylex.(*lexer).registerTypedef($5, leafCType(TypeFuncPtr))
+			$$ = nil
+		}
+	/* Parenthesized function-type typedef: typedef T (name)(params); — redundant
+	   parens around the name, no leading star (musl's stdio.h cookie-I/O typedefs). */
+	| TYPEDEF type_specifier '(' ID ')' '(' fp_param_types ')' ';'
+		{
+			yylex.(*lexer).registerTypedef($4, funcTypeCType())
 			$$ = nil
 		}
 	/* typedef of function pointer with pointer return type: typedef T *(*name)(params); */
@@ -1827,6 +1870,8 @@ field
 		{ $$ = []*Node{ctNode(KindVarDecl, $2, $3)} }
 	| CONST type_specifier '*' ID ';'
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4}; n.Pointee = $2; $$ = []*Node{n} }
+	| CONST type_specifier '*' ID ',' ptr_id_list ';'
+		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $4}; n.Pointee = $2; $$ = append([]*Node{n}, makePtrFields($2, $6)...) }
 	| CONST type_specifier '*' '*' ID ';'
 		{ n := &Node{Kind: KindVarDecl, Type: TypePtr, Name: $5}; n.Pointee = ptrCType($2); $$ = []*Node{n} }
 	| CONST type_specifier '*' ID '[' const_int_expr ']' ';'
