@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -28,6 +29,60 @@ func TestMuslBucketFixture(t *testing.T) {
 	}
 	if failed != 2 {
 		t.Errorf("bucketed failures = %d, want 2", failed)
+	}
+}
+
+// TestMuslReaddirSyscallDispatch is a standing regression test (always runs,
+// not gated by MUSL_BASELINE) for the __SYSCALL_DISP ##-paste rescan fix.
+// musl/src/dirent/readdir.c calls the variadic __syscall(...) macro, which
+// expands through __SYSCALL_DISP -> __SYSCALL_CONCAT -> __SYSCALL_CONCAT_X's
+// "a##b" paste into "__syscall3", immediately followed by the argument list
+// supplied by __SYSCALL_DISP's own body. Before the preprocessor rescan fix,
+// gaston left "__syscall3(...)" unexpanded, so its arguments (e.g. a raw
+// pointer dir->buf) reached semcheck without the __scc() "(long)" cast that
+// __syscall3's real body applies to every argument, and semcheck correctly
+// (but confusingly) rejected the call as "pointer passed where non-pointer
+// expected". With the rescan fix, __syscall3(...) itself expands and the
+// casts appear, and the file compiles end-to-end.
+func TestMuslReaddirSyscallDispatch(t *testing.T) {
+	if _, err := os.Stat("musl/src"); err != nil {
+		t.Skip("vendored musl/ tree not present")
+	}
+	includes := []string{
+		"musl/arch/aarch64",
+		"musl/arch/generic",
+		"musl/src/include",
+		"musl/src/internal",
+		"third-party/musl/overlay/generated",
+		"musl/include",
+	}
+	src := "musl/src/dirent/readdir.c"
+	if _, err := os.Stat(src); err != nil {
+		t.Skip("readdir.c not present")
+	}
+	if class := compileOneForBucket(src, includes, nil); class != "" {
+		t.Errorf("readdir.c failed to compile: %s", class)
+	}
+
+	// Also confirm, at the preprocessor level, that the __scc() casts are
+	// present around the raw dir->buf pointer argument (the specific defect
+	// this fix addresses), rather than relying solely on semcheck's silence.
+	raw, err := os.ReadFile(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pp := newPreprocessor(includes, nil)
+	out, err := pp.Preprocess(string(raw), src)
+	if err != nil {
+		t.Fatalf("preprocess error: %v", err)
+	}
+	// Note: __syscall3's own macro body is self-referential
+	// ("__syscall3(n,__scc(a),__scc(b),__scc(c))"), so "__syscall3(" is
+	// expected to remain in the output verbatim — the fix is that its
+	// *arguments* now go through the __scc() "(long)" cast, rather than the
+	// whole call site being left completely unexpanded (dropping the casts).
+	if !strings.Contains(out, "(long) (dir->buf)") {
+		t.Errorf("expected __scc() cast '(long) (dir->buf)' in preprocessed output, got:\n%s", out)
 	}
 }
 

@@ -221,11 +221,11 @@ c = VA_THIRD(10, 20, 30);
 // Combines object→function indirection, multi-level argument pre-expansion,
 // __VA_ARGS__, and numeric chaining — all on one line.
 //
-//   BASE=5, BIAS=3
-//   SCALE(x)      = ((x)*BASE)
-//   SCALED_BIAS   = SCALE(BIAS) → SCALE(3) → ((3)*5)
-//   SUM(a,...)    = ((a)+__VA_ARGS__)
-//   SUM(SCALED_BIAS, SCALED_BIAS) → ((((3)*5))+((3)*5))  = 30
+//	BASE=5, BIAS=3
+//	SCALE(x)      = ((x)*BASE)
+//	SCALED_BIAS   = SCALE(BIAS) → SCALE(3) → ((3)*5)
+//	SUM(a,...)    = ((a)+__VA_ARGS__)
+//	SUM(SCALED_BIAS, SCALED_BIAS) → ((((3)*5))+((3)*5))  = 30
 func TestPP_Mega(t *testing.T) {
 	src := `
 #define BASE        5
@@ -584,4 +584,30 @@ func TestPP_VAArgsSuppression(t *testing.T) {
 			checkPP(t, pp(t, tc.src), tc.want)
 		})
 	}
+}
+
+// Test: a function-like macro whose expansion ends in a ## token-paste that
+// produces a fresh function-like macro name must be rescanned per C99
+// §6.10.3.4 — the pasted identifier, now immediately followed by '(' supplied
+// by the enclosing macro's own argument list, is itself invoked.
+//
+// This mirrors musl's __SYSCALL_DISP arity-dispatch pattern:
+//
+//	#define __SYSCALL_CONCAT_X(a,b) a##b
+//	#define __SYSCALL_CONCAT(a,b) __SYSCALL_CONCAT_X(a,b)
+//	#define __SYSCALL_DISP(b,...) __SYSCALL_CONCAT(b,__SYSCALL_NARGS(__VA_ARGS__))(__VA_ARGS__)
+//
+// Before the fix, gaston stops at the pasted identifier ("FOO3") and never
+// re-looks it up as a macro name once combined with the trailing "(1,2,3)"
+// supplied by the enclosing macro body's rescan, yielding `FOO3(1,2,3)`
+// instead of `bar(1,2,3)`.
+func TestPP_FuncMacroPasteRescan(t *testing.T) {
+	src := `
+#define CAT_X(a,b) a##b
+#define CAT(a,b) CAT_X(a,b)
+#define FOO3(x,y,z) bar(x,y,z)
+#define DISP(b,x,y,z) CAT(b,3)(x,y,z)
+r = DISP(FOO,1,2,3);
+`
+	checkPP(t, pp(t, src), `r = bar(1,2,3);`)
 }

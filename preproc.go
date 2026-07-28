@@ -33,14 +33,14 @@ type logLine struct {
 // includeFlags is a flag.Value that accumulates -I paths.
 type includeFlags []string
 
-func (f *includeFlags) String() string        { return strings.Join(*f, ":") }
-func (f *includeFlags) Set(v string) error    { *f = append(*f, v); return nil }
+func (f *includeFlags) String() string     { return strings.Join(*f, ":") }
+func (f *includeFlags) Set(v string) error { *f = append(*f, v); return nil }
 
 // defineFlags is a flag.Value that accumulates -D NAME[=value] defines.
 type defineFlags []string
 
-func (f *defineFlags) String() string        { return strings.Join(*f, " ") }
-func (f *defineFlags) Set(v string) error    { *f = append(*f, v); return nil }
+func (f *defineFlags) String() string     { return strings.Join(*f, " ") }
+func (f *defineFlags) Set(v string) error { *f = append(*f, v); return nil }
 
 // libPathFlags is a flag.Value that accumulates -L <dir> library search paths.
 type libPathFlags []string
@@ -1733,6 +1733,57 @@ func (p *preprocessor) expandLineOnce(line string) string {
 	return p.expandLineOnceDisabled(line, nil)
 }
 
+// rescanChainedMacroCall implements the C99 §6.10.3.4 rescan rule: if
+// `expanded` reduces to exactly the bare name of a function-like macro, and
+// the next non-whitespace character in `line` starting at `pos` is '(', that
+// macro is invoked using an argument list collected from `line` at that
+// point. Loops to handle multi-level ##-paste dispatch chains (a paste
+// producing a name that itself needs another rescan) — e.g. musl's
+// __SYSCALL_DISP: __SYSCALL_CONCAT(b,3) pastes to "__syscall3", which is then
+// followed by "(...)" supplied by __SYSCALL_DISP's own body, and must itself
+// be looked up and invoked.
+//
+// hideSet accumulates disabled (blue-painted) macro names across the chain
+// and is mutated in place — callers must pass an already-owned map (not one
+// shared with/read by anything else afterward). argDisabled is the hide-set
+// used to pre-expand each rescanned call's arguments (the outer `disabled`
+// set, not the growing chain hide-set).
+//
+// Returns the final expansion and the source offset consumed — equal to
+// `pos` if no rescan applied.
+func (p *preprocessor) rescanChainedMacroCall(expanded string, line string, pos int, hideSet map[string]bool, argDisabled map[string]bool) (string, int) {
+	for {
+		trimmedExp := strings.TrimSpace(expanded)
+		if !isIdentToken(trimmedExp) || hideSet[trimmedExp] {
+			break
+		}
+		innerDef, ok := p.defines[trimmedExp]
+		if !ok || innerDef.params == nil {
+			break
+		}
+		k := pos
+		for k < len(line) && (line[k] == ' ' || line[k] == '\t') {
+			k++
+		}
+		if k >= len(line) || line[k] != '(' {
+			break
+		}
+		args, end, ok2 := collectArgs(line, k+1)
+		if !ok2 {
+			break
+		}
+		expandedArgs := make([]string, len(args))
+		for ai, arg := range args {
+			expandedArgs[ai] = p.expandLineDisabled(arg, argDisabled)
+		}
+		hideSet[trimmedExp] = true
+		raw := p.applyFuncMacro(innerDef, trimmedExp, expandedArgs)
+		expanded = p.expandLineDisabled(raw, hideSet)
+		pos = end
+	}
+	return expanded, pos
+}
+
 func (p *preprocessor) expandLineOnceDisabled(line string, disabled map[string]bool) string {
 	var out strings.Builder
 	i := 0
@@ -1810,36 +1861,12 @@ func (p *preprocessor) expandLineOnceDisabled(line string, disabled map[string]b
 				// Rescan rule (C11 §6.10.3.4): if the expanded text is exactly a
 				// function-like macro name and the next source token is '(', apply
 				// the function-like macro now (consuming the argument list from the
-				// remaining source).  This handles e.g. OP(5) where #define OP DOUBLE.
-				trimmedExp := strings.TrimSpace(expanded)
-				if isIdentToken(trimmedExp) && !newDisabled[trimmedExp] {
-					if innerDef, ok := p.defines[trimmedExp]; ok && innerDef.params != nil {
-						k2 := j
-						for k2 < len(line) && (line[k2] == ' ' || line[k2] == '\t') {
-							k2++
-						}
-						if k2 < len(line) && line[k2] == '(' {
-							if args, end, ok2 := collectArgs(line, k2+1); ok2 {
-								expandedArgs := make([]string, len(args))
-								for ai, arg := range args {
-									expandedArgs[ai] = p.expandLineDisabled(arg, disabled)
-								}
-								innerDisabled := make(map[string]bool, len(newDisabled)+1)
-								for kk, v := range newDisabled {
-									innerDisabled[kk] = v
-								}
-								innerDisabled[trimmedExp] = true
-								raw := p.applyFuncMacro(innerDef, trimmedExp, expandedArgs)
-								result := p.expandLineDisabled(raw, innerDisabled)
-								out.WriteString(result)
-								i = end
-								continue
-							}
-						}
-					}
-				}
-				out.WriteString(expanded)
-				i = j
+				// remaining source).  This handles e.g. OP(5) where #define OP DOUBLE,
+				// and loops for multi-level ##-paste dispatch chains (see
+				// rescanChainedMacroCall).
+				result, end := p.rescanChainedMacroCall(expanded, line, j, newDisabled, disabled)
+				out.WriteString(result)
+				i = end
 				continue
 			}
 
@@ -1892,13 +1919,13 @@ func (p *preprocessor) expandLineOnceDisabled(line string, disabled map[string]b
 				//   va_copy(ap, src)  →  ((my_ap.ap)=(src))
 				// from re-expanding the trailing "ap" in "my_ap.ap" during rescan.
 				// Blue-paint rule: if the raw arg is a single identifier that is a
-			// macro and was expanded (result differs), disable that macro during
-			// the rescan ONLY IF the expanded text still contains that identifier
-			// as a scannable word.  This prevents infinite re-expansion of
-			// recursive-ish macros (e.g. #define ap my_ap.ap) while allowing
-			// other macros that appear literally in the body (not from the arg)
-			// to expand normally (e.g. LUA_MULTRET in adjustresults body).
-			if expandedArgs[ai] != arg {
+				// macro and was expanded (result differs), disable that macro during
+				// the rescan ONLY IF the expanded text still contains that identifier
+				// as a scannable word.  This prevents infinite re-expansion of
+				// recursive-ish macros (e.g. #define ap my_ap.ap) while allowing
+				// other macros that appear literally in the body (not from the arg)
+				// to expand normally (e.g. LUA_MULTRET in adjustresults body).
+				if expandedArgs[ai] != arg {
 					trimmed := strings.TrimSpace(arg)
 					if isIdentToken(trimmed) {
 						if _, isMacro := p.defines[trimmed]; isMacro {
@@ -1911,8 +1938,19 @@ func (p *preprocessor) expandLineOnceDisabled(line string, disabled map[string]b
 			}
 			raw := p.applyFuncMacro(def, name, expandedArgs)
 			expanded := p.expandLineDisabled(raw, newDisabled)
-			out.WriteString(expanded)
-			i = end
+			// Rescan rule (C11 §6.10.3.4): the expansion of a function-like
+			// macro can itself reduce to (or end in, via ##-pasting) the bare
+			// name of another function-like macro, immediately followed by
+			// '(' supplied by the *enclosing* source line (not by the body
+			// itself). musl's __SYSCALL_DISP arity-dispatch relies on exactly
+			// this: __SYSCALL_CONCAT(b,3) pastes to "__syscall3", and that
+			// identifier is followed by "(...)" from __SYSCALL_DISP's own
+			// body — the paste result must be re-looked-up as a macro name
+			// and invoked; rescanChainedMacroCall loops to handle
+			// multi-level ##-dispatch chains.
+			result, finalEnd := p.rescanChainedMacroCall(expanded, line, end, newDisabled, disabled)
+			out.WriteString(result)
+			i = finalEnd
 			continue
 		}
 
@@ -3022,7 +3060,6 @@ func joinOpenLines(lines []logLine) []logLine {
 	}
 	return result
 }
-
 
 // lineParenDepth returns the net unbalanced open-paren count in s, ignoring
 // content inside string literals, character literals, and // comments.
