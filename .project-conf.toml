@@ -19,24 +19,24 @@ in_progress = "status:in-progress"
 [pr_review]
 backend = "claude"
 effort  = "high"   # low | medium | high | max | ultra
-fix     = false    # true: commit fixable findings after code-review completes
+# fix     = false    # true: commit fixable findings after code-review completes   # retired v4.0.0
 
 # Point this repo's runs at the local Phase-1 metering router (see
 # ~/ticket-plugin/router). :design health-checks it at run start and :run
 # points each fleet agent at it (ANTHROPIC_BASE_URL + X-Slopstop-Run/
 # X-Slopstop-Ticket headers), so fleet traffic is metered by default. A dead
 # router never blocks a run — agents fall back to direct API.
-[fleet.router]
-enabled = true
-host    = "127.0.0.1"
-port    = 8484
+# [fleet.router]   # retired v4.0.0
+# enabled = true   # retired v4.0.0
+# host    = "127.0.0.1"   # retired v4.0.0
+# port    = 8484   # retired v4.0.0
 
 # Fleet monitoring posture. "kill" terminates any fleet agent that writes
 # outside its ticket's file map — the graduated posture for real runs (as
 # opposed to "warn", the supervised-observation mode used during the
 # meta-test).
-[fleet.monitoring]
-filemap_violation = "kill"
+# [fleet.monitoring]   # retired v4.0.0
+# filemap_violation = "kill"   # retired v4.0.0
 
 # Non-interactive mode.
 #
@@ -45,8 +45,8 @@ filemap_violation = "kill"
 # autonomous :merge is activated by passing --autonomous on the :merge command line.
 # The merge_* / archive_immediately keys below are read only on those --autonomous
 # runs. Interactive :merge still auto-confirms via [workflow] skip_confirm (below).
-[autonomous]
-enabled = true
+# [autonomous]   # retired v4.0.0
+# enabled = true   # retired v4.0.0
 
 # branch_type is deliberately NOT pinned (changed 2026-07-16 — was
 # branch_type = "feat"). We can't know in advance whether a ticket is
@@ -64,28 +64,28 @@ enabled = true
 # All keys below are set so headless fleet agents never stall on an "ask"
 # prompt with no human present to answer it.
 # :plan — Phase 0 red tests unexpectedly pass (possible stale ticket): proceed.
-on_phase0_tests_pass = "continue"
+# on_phase0_tests_pass = "continue"   # retired v4.0.0
 # :plan — ≥2 parallel-safe work items found: launch them.
-on_parallel_agents   = "proceed"
+# on_parallel_agents   = "proceed"   # retired v4.0.0
 # :plan — adversary-found gap tests: add them all.
-on_test_gaps         = "add-all"
+# on_test_gaps         = "add-all"   # retired v4.0.0
 
 # :pr — simplify pass modifies the working tree: accept the changes.
-on_simplify_changes = "accept"
+# on_simplify_changes = "accept"   # retired v4.0.0
 # :pr — pre-commit tests fail: abort (do NOT commit-anyway on a real failure).
-on_test_failure     = "abort"
+# on_test_failure     = "abort"   # retired v4.0.0
 # :pr — auto-fix 🔴 findings and re-review, rather than asking. Paired with
 # [pr_review] fix=false above — see CONFIG.md's double-apply note.
-on_red_findings     = "fix-and-retry"
+# on_red_findings     = "fix-and-retry"   # retired v4.0.0
 # :pr — slop-detection violations: skip the check rather than stall.
-on_slop_findings    = "skip"
+# on_slop_findings    = "skip"   # retired v4.0.0
 
 # :merge — repo rule: ALWAYS a real merge commit, never squash/rebase
-merge_strategy      = "merge"
-merge_target_state  = "auto"    # advance the ticket exactly one state, never force-jump to Done
-archive_immediately = true      # chain into :archive when a merge lands a ticket in a terminal state
+# merge_strategy      = "merge"   # retired v4.0.0
+# merge_target_state  = "auto"    # advance the ticket exactly one state, never force-jump to Done   # retired v4.0.0
+# archive_immediately = true      # chain into :archive when a merge lands a ticket in a terminal state   # retired v4.0.0
 
-metrics_emit_path = ".slopstop/metrics"
+# metrics_emit_path = ".slopstop/metrics"   # retired v4.0.0
 
 # Don't prompt for the branch type on /slopstop-start — use the heuristic
 # suggestion (from ticket labels/title) automatically. Only falls back to
