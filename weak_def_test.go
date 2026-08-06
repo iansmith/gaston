@@ -151,10 +151,37 @@ func TestWeakDefNotSupersededByArchive(t *testing.T) {
 // TestWeakVsCommonSizeMismatch: gap finding 4 (precedence pin — green
 // pre-fix). The weak def is LARGER (long, 8B) than the winning COMMON (int,
 // 4B); the discarded weak def's size must not corrupt COMMON slot sizing or
-// a neighboring COMMON symbol.
+// a neighboring COMMON symbol. The guard is read BEFORE main writes it
+// (round-2 finding 3): the pre-write 0 is the actual corruption detector.
 func TestWeakVsCommonSizeMismatch(t *testing.T) {
 	got := runTentativeProg(t, "weak_common_big", "weak_common_big_a", "weak_common_big_b")
-	want := "0\n9\n"
+	want := "0\n0\n9\n"
+	if got != want {
+		t.Errorf("output mismatch:\n  got  %q\n  want %q", got, want)
+	}
+}
+
+// --- Adversary round-2 gap tests (GAST-8) ---
+
+// TestWeakVsStrongLoserSelfRef: round-2 finding 1. The TU whose weak def
+// loses also READS it. fileSymVA resolves same-TU references section-locally
+// with no precedence check, so a fix that only extends symVA leaves A's
+// internal read seeing its own dead copy — the canonical "library ships weak
+// default, user's strong def overrides internal references" case.
+func TestWeakVsStrongLoserSelfRef(t *testing.T) {
+	got := runTentativeProg(t, "weak_selfref", "weak_selfref_a", "weak_selfref_b")
+	want := "2\n"
+	if got != want {
+		t.Errorf("output mismatch:\n  got  %q\n  want %q", got, want)
+	}
+}
+
+// TestWeakUninitExternRef: round-2 finding 2. An UNINITIALIZED weak def
+// takes objgen's third emission path (STB_WEAK in .bss, not .data and not
+// COMMON). Cross-TU ref must see zeroed storage, not crash at VA 0.
+func TestWeakUninitExternRef(t *testing.T) {
+	got := runTentativeProg(t, "weak_uninit", "weak_uninit_a", "weak_uninit_b")
+	want := "0\n"
 	if got != want {
 		t.Errorf("output mismatch:\n  got  %q\n  want %q", got, want)
 	}
