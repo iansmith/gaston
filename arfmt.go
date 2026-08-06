@@ -14,6 +14,7 @@
 //	member data     padded to even byte boundary
 //
 // The first member (name "/") is the symbol index.  Its data is:
+//
 //	4-byte big-endian symbol count N
 //	N × 4-byte big-endian file offsets (to the ar_hdr of the defining member)
 //	N null-terminated symbol names (concatenated)
@@ -25,7 +26,6 @@
 package main
 
 import (
-	"debug/elf"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -35,8 +35,8 @@ import (
 )
 
 const arFileMagic = "!<arch>\n"
-const arHdrLen    = 60
-const arEndMagic  = "`\n"
+const arHdrLen = 60
+const arEndMagic = "`\n"
 
 // arMember is one member extracted from an ar archive.
 type arMember struct {
@@ -80,7 +80,9 @@ func archiveCreate(outpath string, objpaths []string) error {
 			continue
 		}
 		for _, sym := range obj.syms {
-			if sym.binding == elf.STB_GLOBAL && sym.secName != "" && sym.name != "" {
+			// Weak symbols are indexed too, so members exporting only weak
+			// definitions are pullable (see isLinkableDef).
+			if isLinkableDef(sym) {
 				allSyms = append(allSyms, symEntry{sym.name, i})
 			}
 		}
@@ -130,10 +132,10 @@ func archiveCreate(outpath string, objpaths []string) error {
 	writeHdr := func(name string, size int) {
 		var hdr [arHdrLen]byte
 		copy(hdr[0:16], arPadRight(name, 16))
-		copy(hdr[16:28], arPadRight("0", 12))   // mtime
-		copy(hdr[28:34], arPadRight("0", 6))    // uid
-		copy(hdr[34:40], arPadRight("0", 6))    // gid
-		copy(hdr[40:48], arPadRight("644", 8))  // mode
+		copy(hdr[16:28], arPadRight("0", 12))  // mtime
+		copy(hdr[28:34], arPadRight("0", 6))   // uid
+		copy(hdr[34:40], arPadRight("0", 6))   // gid
+		copy(hdr[40:48], arPadRight("644", 8)) // mode
 		copy(hdr[48:58], arPadRight(strconv.Itoa(size), 10))
 		copy(hdr[58:60], arEndMagic)
 		f.Write(hdr[:])
@@ -179,8 +181,8 @@ func archiveRead(path string) (members []arMember, symMap map[string]int, err er
 	for off+arHdrLen <= len(data) {
 		// Parse ar_hdr.
 		nameField := strings.TrimRight(string(data[off:off+16]), " ")
-		sizeStr   := strings.TrimRight(string(data[off+48:off+58]), " ")
-		size, _   := strconv.Atoi(sizeStr)
+		sizeStr := strings.TrimRight(string(data[off+48:off+58]), " ")
+		size, _ := strconv.Atoi(sizeStr)
 		if size < 0 || off+arHdrLen+size > len(data) {
 			return nil, nil, fmt.Errorf("archive: %s: truncated member at offset %d", path, off)
 		}
@@ -212,7 +214,9 @@ func archiveRead(path string) (members []arMember, symMap map[string]int, err er
 			continue
 		}
 		for _, sym := range obj.syms {
-			if sym.binding == elf.STB_GLOBAL && sym.secName != "" && sym.name != "" {
+			// Weak symbols are indexed too, so members exporting only weak
+			// definitions are pullable (see isLinkableDef).
+			if isLinkableDef(sym) {
 				if _, already := symMap[sym.name]; !already {
 					symMap[sym.name] = i
 				}

@@ -82,6 +82,51 @@ type lnkRela struct {
 	addend int64
 }
 
+// commonInfo carries the merged size/alignment of a COMMON (tentative) symbol.
+type commonInfo struct{ size, align uint64 }
+
+// isLinkableDef reports whether sym is a named definition that satisfies
+// references and belongs in a symbol index. Both strong (STB_GLOBAL) and
+// weak (STB_WEAK) definitions qualify: per ELF gABI a weak def is a real
+// definition — it satisfies references and prevents archive pulls — even
+// though strong defs and COMMONs win at precedence.
+func isLinkableDef(sym lnkSym) bool {
+	return (sym.binding == elf.STB_GLOBAL || sym.binding == elf.STB_WEAK) &&
+		sym.secName != "" && sym.name != ""
+}
+
+// sectionVA computes the linked VA of a symbol defined in one of the four
+// storage sections, from its object's placement in the merged layout.
+// ok=false for any other section (COMMON, undefined).
+func sectionVA(obj *objFile, sym lnkSym, codeBase, rodataBase, dataBase, bssBase uint64) (uint64, bool) {
+	switch sym.secName {
+	case ".text":
+		return codeBase + uint64(obj.textBaseWord)*4 + sym.value, true
+	case ".rodata":
+		return rodataBase + obj.rodataOff + sym.value, true
+	case ".data":
+		return dataBase + obj.dataOff + sym.value, true
+	case ".bss":
+		return bssBase + obj.bssOff + sym.value, true
+	}
+	return 0, false
+}
+
+// weakInterposedVA implements gABI interposition for weak definitions: if
+// sym is a weak def in obj but the chosen winner for its name lives
+// elsewhere (a strong def, a COMMON, or an earlier weak def), the object's
+// own references must resolve to the winner's VA, not the local dead copy.
+// Returns va unchanged when sym is not a weak def or is itself the winner.
+func weakInterposedVA(obj *objFile, sym lnkSym, weakDef map[string]*objFile, symVA map[string]uint64, va uint64) uint64 {
+	if sym.binding != elf.STB_WEAK || sym.secName == "" || sym.name == "" {
+		return va
+	}
+	if w, ok := weakDef[sym.name]; ok && w == obj {
+		return va // this object holds the winning weak def
+	}
+	return symVA[sym.name] // loser (or suppressed by strong/COMMON): use the winner
+}
+
 // loadObjFile reads and parses an ET_REL file from disk.
 func loadObjFile(path string) (*objFile, error) {
 	f, err := elf.Open(path)
@@ -380,7 +425,9 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 		defined := make(map[string]bool)
 		for _, obj := range objs {
 			for _, sym := range obj.syms {
-				if sym.binding == elf.STB_GLOBAL && sym.secName != "" && sym.name != "" {
+				// A weak def in a user object PREVENTS pulling an archive
+				// member with a strong def of the same name (see isLinkableDef).
+				if isLinkableDef(sym) {
 					defined[sym.name] = true
 				}
 			}
@@ -492,48 +539,68 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 	// member is involved. Note: archive members are only loaded on demand —
 	// a tentative def in an earlier member can satisfy a reference so a
 	// later member's real def is never pulled (GNU ld behaves the same).
-	type commonInfo struct{ size, align uint64 }
+	//
+	// WEAK DEFINITIONS (STB_WEAK): Per ELF gABI, precedence is:
+	// strong (STB_GLOBAL def) > COMMON > weak (STB_WEAK def).
+	// Among multiple weak defs with no higher-precedence def: first in link
+	// order wins, no error. Strong+weak same name: no duplicate error, strong
+	// wins. ALL references resolve to the single chosen winner.
 	commons := make(map[string]commonInfo)
 	realDef := make(map[string]*objFile) // name → defining object
+	weakDef := make(map[string]*objFile) // name → first STB_WEAK def in link order
 	for _, obj := range objs {
 		for _, sym := range obj.syms {
-			if sym.binding != elf.STB_GLOBAL || sym.name == "" {
+			if sym.name == "" {
 				continue
 			}
-			switch sym.secName {
-			case ".text", ".rodata", ".data", ".bss":
-				if prev, dup := realDef[sym.name]; dup {
-					if !prev.fromArchive && !obj.fromArchive {
-						return fmt.Errorf("linker: duplicate definition of '%s' (in %s and %s)",
-							sym.name, prev.path, obj.path)
+			// Handle strong (STB_GLOBAL) definitions.
+			if sym.binding == elf.STB_GLOBAL {
+				switch sym.secName {
+				case ".text", ".rodata", ".data", ".bss":
+					if prev, dup := realDef[sym.name]; dup {
+						if !prev.fromArchive && !obj.fromArchive {
+							return fmt.Errorf("linker: duplicate definition of '%s' (in %s and %s)",
+								sym.name, prev.path, obj.path)
+						}
+						// Archive member involved: tolerated (shipped archives contain
+						// duplicates, e.g. __isnand in mathbuiltins and libm). An
+						// explicit user object beats an archive member; between two
+						// archive members the last pulled wins (historical behavior).
+						winner := obj
+						if !prev.fromArchive && obj.fromArchive {
+							winner = prev
+						}
+						fmt.Fprintf(os.Stderr, "linker: warning: duplicate definition of '%s' (%s and %s); using %s\n",
+							sym.name, prev.path, obj.path, winner.path)
+						realDef[sym.name] = winner
+						continue
 					}
-					// Archive member involved: tolerated (shipped archives contain
-					// duplicates, e.g. __isnand in mathbuiltins and libm). An
-					// explicit user object beats an archive member; between two
-					// archive members the last pulled wins (historical behavior).
-					winner := obj
-					if !prev.fromArchive && obj.fromArchive {
-						winner = prev
+					realDef[sym.name] = obj
+				case "COMMON":
+					ci := commons[sym.name]
+					if sym.size > ci.size {
+						ci.size = sym.size
 					}
-					fmt.Fprintf(os.Stderr, "linker: warning: duplicate definition of '%s' (%s and %s); using %s\n",
-						sym.name, prev.path, obj.path, winner.path)
-					realDef[sym.name] = winner
-					continue
+					al := sym.value // ELF convention: st_value of a COMMON = alignment
+					if al == 0 || al&(al-1) != 0 || al > 4096 {
+						al = 8 // zero, non-power-of-two, or absurd alignment: use default
+					}
+					if al > ci.align {
+						ci.align = al
+					}
+					commons[sym.name] = ci
 				}
-				realDef[sym.name] = obj
-			case "COMMON":
-				ci := commons[sym.name]
-				if sym.size > ci.size {
-					ci.size = sym.size
+			} else if sym.binding == elf.STB_WEAK {
+				// Weak defs do NOT enter realDef (no duplicate error involvement),
+				// and they do NOT suppress COMMONs. First weak def per name in
+				// link order is the candidate winner; precedence suppression
+				// happens after the scan.
+				switch sym.secName {
+				case ".text", ".rodata", ".data", ".bss":
+					if _, already := weakDef[sym.name]; !already {
+						weakDef[sym.name] = obj
+					}
 				}
-				al := sym.value // ELF convention: st_value of a COMMON = alignment
-				if al == 0 || al&(al-1) != 0 || al > 4096 {
-					al = 8 // zero, non-power-of-two, or absurd alignment: use default
-				}
-				if al > ci.align {
-					ci.align = al
-				}
-				commons[sym.name] = ci
 			}
 		}
 	}
@@ -541,6 +608,16 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 	for name := range commons {
 		if _, ok := realDef[name]; ok {
 			delete(commons, name)
+		}
+	}
+
+	// Weak definitions are suppressed (lose) when a real definition or a COMMON
+	// of the same name exists. Precedence: strong > COMMON > weak.
+	for name := range weakDef {
+		if _, hasStrong := realDef[name]; hasStrong {
+			delete(weakDef, name)
+		} else if _, hasCommon := commons[name]; hasCommon {
+			delete(weakDef, name)
 		}
 	}
 	// Allocate surviving COMMONs at the end of merged BSS, in sorted order
@@ -586,23 +663,29 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 	// User function and variable symbols from all .o files. For duplicated
 	// names, realDef records the winning object — only its definition enters
 	// symVA, so link order cannot silently change which copy wins.
+	// For weak defs, only the surviving weak defs (those in weakDef after
+	// precedence suppression) enter symVA.
 	for _, obj := range objs {
 		for _, sym := range obj.syms {
-			if sym.binding != elf.STB_GLOBAL || sym.name == "" {
+			if sym.name == "" {
 				continue
 			}
-			if w, ok := realDef[sym.name]; ok && w != obj {
-				continue // a different object owns this name
-			}
-			switch sym.secName {
-			case ".text":
-				symVA[sym.name] = lnkCodeBase + uint64(obj.textBaseWord)*4 + sym.value
-			case ".rodata":
-				symVA[sym.name] = rodataBase + obj.rodataOff + sym.value
-			case ".data":
-				symVA[sym.name] = dataBase + obj.dataOff + sym.value
-			case ".bss":
-				symVA[sym.name] = bssBase + obj.bssOff + sym.value
+			if sym.binding == elf.STB_GLOBAL {
+				if w, ok := realDef[sym.name]; ok && w != obj {
+					continue // a different object owns this name
+				}
+				if va, ok := sectionVA(obj, sym, lnkCodeBase, rodataBase, dataBase, bssBase); ok {
+					symVA[sym.name] = va
+				}
+			} else if sym.binding == elf.STB_WEAK {
+				// Include only the winning weak def: the one recorded in weakDef
+				// with no realDef or common of that name (already deleted above if
+				// either exists).
+				if w, ok := weakDef[sym.name]; ok && w == obj {
+					if va, ok := sectionVA(obj, sym, lnkCodeBase, rodataBase, dataBase, bssBase); ok {
+						symVA[sym.name] = va
+					}
+				}
 			}
 		}
 	}
@@ -659,6 +742,7 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 					va = symVA[sym.name]
 				}
 			}
+			va = weakInterposedVA(obj, sym, weakDef, symVA, va)
 			fileSymVA[uint32(i)] = va
 		}
 
@@ -739,6 +823,7 @@ func linkWithObjs(outpath string, preObjs []*objFile, inputpaths []string) error
 					va = symVA[sym.name]
 				}
 			}
+			va = weakInterposedVA(obj, sym, weakDef, symVA, va)
 			fileSymVA[uint32(i)] = va
 		}
 
