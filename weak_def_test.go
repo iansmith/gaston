@@ -224,3 +224,18 @@ func TestWeakFuncVsStrongReversed(t *testing.T) {
 		t.Errorf("output mismatch:\n  got  %q\n  want %q", got, want)
 	}
 }
+
+// --- Adversary round-4 gap test (GAST-8) ---
+
+// TestWeakVsWeakLoserSelfRef: round-4 finding 1, the final discriminating
+// case. Weak-vs-weak is the precedence TIE, so "redirect a self-reference
+// iff a HIGHER-precedence def exists elsewhere" (wrong) and "all references
+// resolve to the single chosen definition" (gABI, right) diverge only here:
+// B's self-read must see A's winning first-in-link-order def.
+func TestWeakVsWeakLoserSelfRef(t *testing.T) {
+	got := runTentativeProg(t, "weak_wwself", "weak_wwself_a", "weak_wwself_b")
+	want := "11\n"
+	if got != want {
+		t.Errorf("output mismatch:\n  got  %q\n  want %q", got, want)
+	}
+}
