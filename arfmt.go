@@ -26,7 +26,6 @@
 package main
 
 import (
-	"debug/elf"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -81,9 +80,9 @@ func archiveCreate(outpath string, objpaths []string) error {
 			continue
 		}
 		for _, sym := range obj.syms {
-			// Include both STB_GLOBAL (strong) and STB_WEAK (weak) symbols in the
-			// index so members exporting only weak definitions are pullable.
-			if (sym.binding == elf.STB_GLOBAL || sym.binding == elf.STB_WEAK) && sym.secName != "" && sym.name != "" {
+			// Weak symbols are indexed too, so members exporting only weak
+			// definitions are pullable (see isLinkableDef).
+			if isLinkableDef(sym) {
 				allSyms = append(allSyms, symEntry{sym.name, i})
 			}
 		}
@@ -215,9 +214,9 @@ func archiveRead(path string) (members []arMember, symMap map[string]int, err er
 			continue
 		}
 		for _, sym := range obj.syms {
-			// Include both STB_GLOBAL (strong) and STB_WEAK (weak) symbols so
-			// members exporting only weak definitions are pullable.
-			if (sym.binding == elf.STB_GLOBAL || sym.binding == elf.STB_WEAK) && sym.secName != "" && sym.name != "" {
+			// Weak symbols are indexed too, so members exporting only weak
+			// definitions are pullable (see isLinkableDef).
+			if isLinkableDef(sym) {
 				if _, already := symMap[sym.name]; !already {
 					symMap[sym.name] = i
 				}
