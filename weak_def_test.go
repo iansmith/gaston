@@ -186,3 +186,41 @@ func TestWeakUninitExternRef(t *testing.T) {
 		t.Errorf("output mismatch:\n  got  %q\n  want %q", got, want)
 	}
 }
+
+// --- Adversary round-3 gap tests (GAST-8) ---
+
+// TestWeakUninitSharedStorage: round-3 finding 1. Weak .bss storage
+// IDENTITY: the uninitialized weak def is one shared slot, so a write from
+// TU B must be visible through TU A's read. A per-TU-duplicated zeroed slot
+// passes TestWeakUninitExternRef but fails here.
+func TestWeakUninitSharedStorage(t *testing.T) {
+	got := runTentativeProg(t, "weak_uninitshare", "weak_uninitshare_a", "weak_uninitshare_b")
+	want := "6\n"
+	if got != want {
+		t.Errorf("output mismatch:\n  got  %q\n  want %q", got, want)
+	}
+}
+
+// TestWeakVsCommonLoserSelfRef: round-3 finding 2. COMMON beats weak, and
+// the losing TU reads its own weak def — the same fileSymVA interposition
+// mechanism as TestWeakVsStrongLoserSelfRef, for the COMMON-winner case. A
+// strong-only interposition fix leaves A reading its dead .data copy (5).
+func TestWeakVsCommonLoserSelfRef(t *testing.T) {
+	got := runTentativeProg(t, "weak_commonself", "weak_commonself_a", "weak_commonself_b")
+	want := "0\n"
+	if got != want {
+		t.Errorf("output mismatch:\n  got  %q\n  want %q", got, want)
+	}
+}
+
+// TestWeakFuncVsStrongReversed: round-3 finding 3 (precedence pin — green
+// pre-fix). Function strong-vs-weak in the opposite link order (strong
+// first), mirroring the data family's Reversed pin: kills per-section
+// last-def-wins fixes.
+func TestWeakFuncVsStrongReversed(t *testing.T) {
+	got := runTentativeProg(t, "weak_funcstrong_rev", "weak_funcstrong_b", "weak_funcstrong_a")
+	want := "2\n"
+	if got != want {
+		t.Errorf("output mismatch:\n  got  %q\n  want %q", got, want)
+	}
+}
