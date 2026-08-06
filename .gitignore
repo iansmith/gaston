@@ -17,3 +17,9 @@ build/
 /docs/
 scratch/
 .slopstop/
+# Per-developer overrides. The tracked files hold the project's settings;
+# these hold what is yours alone (a fork URL, a local endpoint, sandbox paths).
+CLAUDE.local.md
+.project-conf-local.toml
+.claude/settings.local.json
+*.bak
