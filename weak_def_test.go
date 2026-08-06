@@ -98,3 +98,64 @@ func TestWeakOnlyInArchiveMember(t *testing.T) {
 		t.Errorf("output mismatch:\n  got  %q\n  want %q", got, want)
 	}
 }
+
+// --- Adversary round-1 gap tests (GAST-8) ---
+
+// TestWeakFuncExternRef: gap finding 1. A cross-TU call to a weak FUNCTION
+// definition — the symVA .text case sits behind the same STB_GLOBAL filter,
+// so a data-only fix would leave this branching to VA 0.
+func TestWeakFuncExternRef(t *testing.T) {
+	got := runTentativeProg(t, "weak_func", "weak_func_a", "weak_func_b")
+	want := "7\n"
+	if got != want {
+		t.Errorf("output mismatch:\n  got  %q\n  want %q", got, want)
+	}
+}
+
+// TestWeakFuncVsStrong: gap finding 1 (precedence pin — green pre-fix). A
+// weak function def and a strong function def of the same name: strong wins,
+// no duplicate-definition error.
+func TestWeakFuncVsStrong(t *testing.T) {
+	got := runTentativeProg(t, "weak_funcstrong", "weak_funcstrong_a", "weak_funcstrong_b")
+	want := "2\n"
+	if got != want {
+		t.Errorf("output mismatch:\n  got  %q\n  want %q", got, want)
+	}
+}
+
+// TestWeakVsCommonReversed: gap finding 2 (precedence pin — green pre-fix).
+// Same as TestWeakVsCommon with the objects swapped: in this order the
+// COMMON is processed FIRST, so a wrong "last def overwrites the slot" fix
+// would let the weak def win. COMMON must win in both orders.
+func TestWeakVsCommonReversed(t *testing.T) {
+	got := runTentativeProg(t, "weak_common_rev", "weak_common_b", "weak_common_a")
+	want := "0\n"
+	if got != want {
+		t.Errorf("output mismatch:\n  got  %q\n  want %q", got, want)
+	}
+}
+
+// TestWeakDefNotSupersededByArchive: gap finding 3. A weak def in an
+// already-linked user object satisfies references (gABI) — the archive
+// member holding a strong def of the same name must NOT be auto-pulled.
+func TestWeakDefNotSupersededByArchive(t *testing.T) {
+	arPath := buildTentativeArchive(t, "weak_arsup_lib", "weak_arsup_lib")
+	got := runTentativeProgWithLibs(t, "weak_arsup",
+		[]string{"weak_arsup_a", "weak_arsup_main"}, arPath)
+	want := "5\n"
+	if got != want {
+		t.Errorf("output mismatch:\n  got  %q\n  want %q", got, want)
+	}
+}
+
+// TestWeakVsCommonSizeMismatch: gap finding 4 (precedence pin — green
+// pre-fix). The weak def is LARGER (long, 8B) than the winning COMMON (int,
+// 4B); the discarded weak def's size must not corrupt COMMON slot sizing or
+// a neighboring COMMON symbol.
+func TestWeakVsCommonSizeMismatch(t *testing.T) {
+	got := runTentativeProg(t, "weak_common_big", "weak_common_big_a", "weak_common_big_b")
+	want := "0\n9\n"
+	if got != want {
+		t.Errorf("output mismatch:\n  got  %q\n  want %q", got, want)
+	}
+}
