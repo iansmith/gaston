@@ -84,12 +84,12 @@ than guesses** a missing one.
 | worker | takes | returns |
 |---|---|---|
 | `investigate` | the ticket | findings + a **predicted file map** |
-| `red-tests` | the ticket + its DoD | test files, node-ids, test command, stub paths, observed failure output |
-| `mutation-check` | `--tests` `--node-ids` `--command` `--targets` `--stubs` | per-node-id verdict + `MUTATION CHECK PASS` / `FAIL: n of m` / `BLOCKED` |
+| `red-tests` | the ticket + its DoD, `--backfill` | test files, node-ids, test command, stub paths, observed failure output (or, under `--backfill`, the behaviour each test pins) |
+| `mutation-check` | `--tests` `--node-ids` `--command` `--targets` `--stubs` `--backfill` | per-node-id verdict + `MUTATION CHECK PASS` / `FAIL: n of m` / `BLOCKED`; under `--backfill`, `PINNED: n of n` / `NOT PINNED: n of m` |
 | `adversary` | `--target` `--goals` `--caliber` `--round` `--prior` `--baseline` | numbered findings with severity + `ADVERSARY PASS` / `FAIL: n` / `GOAL DEFECT: n` / `BLOCKED` |
-| `implement` | the ticket, the plan, the failing tests | changes made, tests before/after, findings reported-not-fixed |
+| `implement` | the ticket, the plan, the failing tests, `--refactor` | changes made, tests before/after, findings reported-not-fixed |
 | `review` | `--scope` `--mode` `--frozen` | `REVIEW CLEAN` / `APPLIED: n` / `BLOCKED` |
-| `slop-check` | `--scope` `--ticket` `--frozen` | findings with signal + severity + verdict |
+| `slop-check` | `--scope` `--ticket` `--frozen` `--refactor` `--backfill` | findings with signal + severity + verdict |
 | `vacuity-check` | `--base` `--frozen` `--node-ids` `--test-files` `--stubs` `--command` | per-node-id `vacuous` / `meaningful` / `could-not-determine` + verdict |
 | `complexity-check` | `--base` `--repo` `--warn` `--reject` `--exempt-pre-existing` `--file-nloc-warn` | breaching functions + `CC CLEAN` / `VIOLATIONS: …` / `SKIPPED` / `BLOCKED` |
 | `create-ticket` | `--system` `--prefix` `--draft` `--tracking-dir` `--archive-dir` + backend coords | letter→key map + `CREATE CLEAN` / `PARTIAL` / `BLOCKED` |
@@ -98,6 +98,20 @@ than guesses** a missing one.
 `--baseline` (adversary only) is a **previous version of the target**, required by the
 `scope-subtraction` caliber. It is not `--prior`, which is the previous round's *findings*.
 
+`--refactor` and `--backfill` are the two **invariant-mode** flags, each with one meaning
+everywhere and each the mirror of the other:
+
+- `--refactor` — **the ticket adds no behaviour**, so it has no Phase 0 baseline and the
+  existing suite is its guard. No test file may be modified.
+- `--backfill` — **the ticket adds no production code**, so its tests are green from the
+  start and `mutation-check` is its guard. No production file may be modified.
+
+Both are set by the orchestrator from the ticket's literal `**Mode:**` marker, never
+inferred by a worker from the diff, and **never both at once** — a ticket claiming both
+could change nothing at all. Neither is `--mode`, which is `review`'s
+interactive/autonomous switch. The one definition of all three modes is `:run`'s
+invariant-tickets section; this table only records who takes the flags.
+
 Every worker can return `BLOCKED`. A caller that loops must branch on it explicitly:
 `BLOCKED` means the arguments were wrong, so it does **not** consume a round, and a loop
 that treats it as a `FAIL` will burn its cap without ever running the check.
@@ -105,6 +119,14 @@ that treats it as a `FAIL` will burn its cap without ever running the check.
 **`--base` and `--frozen` mean the same thing everywhere.** `--base` is the commit the
 branch diverged from; `--frozen` is the Phase 0 red-test commit. Two concepts, two names,
 no synonyms.
+
+**`--base` is the *derived* divergence point, not the recorded fork sha**, whenever the two
+differ — i.e. once a branch has carried the integration branch in. The orchestrator derives it
+(`:run`'s `$OWN` section) because doing so needs the integration branch's name from
+`.project-conf.toml`, which no worker reads. A worker cannot repair a stale `--base`: the
+`merge-base` it could run against the value it was given returns that same value. So this one
+is entirely on the caller, and a worker's only defence is to **report which sha it measured
+from**.
 
 ## Data flow — what the orchestrator must thread
 

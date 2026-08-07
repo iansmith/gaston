@@ -3,7 +3,7 @@ description: Stage 2 of the slopstop process — read the PRD + charter from the
 disable-model-invocation: true
 ---
 
-<!-- GENERATED from slopstop df0c3d2 by install-for-project.sh — do not edit.
+<!-- GENERATED from slopstop 5f0a942 by install-for-project.sh — do not edit.
      Edit skills/tickets/ in the slopstop repo and re-run. (universal §5) -->
 
 # /slopstop-tickets
@@ -28,6 +28,9 @@ Two consequences that govern every step below:
 
 - **You are the sole writer of `run.jsonl`**, at `scratch/runs/$RUN_ID/run.jsonl`. No
   worker writes it, no worker resolves a path. A worker returns a result; you stamp it.
+  **Your stages follow the same span-vs-note rule** — a worker launch or a loop round is a
+  span; a single atomic act is a note. Do not re-derive it per stage, and do not invent a
+  `stage` value that is not one of yours.
 - **You are the sole reader of the resolved configuration** — three sets, defaults →
   `.project-conf.toml` → gitignored `.project-conf-local.toml`, merged per leaf key.
   → Read `.claude/skills/slopstop-run/references/config-resolution.md`
@@ -72,8 +75,8 @@ version passes any version of the family.
 
 Open `scratch/runs/$RUN_ID/run.jsonl` (append-only; create if absent). If it already has
 lines, this is a resume: **validate it before continuing**, and write a `session_resume`
-note. A validation failure means you report no timing at all — name the unclosed spans and
-stop.
+note. A validation failure means you report no timing at all — name what broke by invariant
+(unclosed spans, orphan closes, unknown stages) and stop.
 
 Then open the run-level span for this stage.
 
@@ -120,8 +123,11 @@ creates or edits anything. Launch it per `worker-launch.md`:
 - **Round 1 is the draft's first sight of a fresh reader.** Never pass your own narrative,
   your summary of the PRD, or the reasoning that produced the tree — only artifact paths.
 
-Bracket each round: write `started` in the same step that launches, and
-`finished`/`failed` in the same step that receives the result. Persist the returned
+Bracket **each round separately**: `started` in the same step that launches it,
+`finished`/`failed` in the same step that receives its verdict, each line carrying its
+`round` number. **Never one span across the whole loop** — `:run` did that on GAST-8 and
+recorded three rounds as a single 1050-second lump on its most expensive stage, so the
+verdicts survived and the costs did not. Persist the returned
 findings yourself to `adversary-round-<n>.md` — the worker writes nothing.
 
 Branch on the verdict line:
@@ -254,6 +260,170 @@ not the orchestrator's.
 Bracket every step in `run.jsonl` as usual. This is the same anti-weakening rule the
 `implement` worker follows about tests, one level up: you may not shrink the contract to
 make it satisfiable.
+
+## Refactor mode — `/slopstop-tickets --refactor <fn> [<fn>…]`
+
+Cut **one** ticket whose contract is *nothing broke*, from a list of function names. The
+list comes straight out of `complexity-check`'s exempt heading — the violations the CC gate
+declined to block because this branch did not make them worse. That list is a work queue,
+and this mode is what turns it into work.
+
+**This is authoring, so it is yours, and it is not a new worker.** A `refactor-cc` worker
+would duplicate the five-section standard, the adversary loop and `create-ticket`, all of
+which already live here.
+
+### Why the ticket exists at all
+
+A refactor and a feature prove themselves by opposite evidence — the feature by a test that
+changes from red to green, the refactor by a suite that does not change at all. Before
+`cc_exempt_pre_existing` defaulted to `true`, the CC gate forced them together: an
+implementer that hit a pre-existing violation had to decompose the function to get past the
+gate, and a behaviour-preserving refactor landed inside a feature branch with no DoD item
+and no guard. Giving it its own ticket is what gives it a contract.
+
+### Step 1 — Resolve the function names, and block on ambiguity
+
+`name` alone does not identify a function: two classes' `go(self, x)` and a module-level
+`go(a, b, c)` all answer to `go`. Accept either form and prefer the first:
+
+- **`<path>:<fn>`** — unambiguous, and the shape `complexity-check` prints.
+- **`<fn>`** — resolved by searching the repo. **Exactly one** definition must match. Zero
+  → stop, naming it. More than one → stop, listing every candidate with its path and line
+  and asking which. Never pick one, and never cut a ticket naming a function you could not
+  locate — the implementer would resolve the same ambiguity differently and refactor the
+  wrong code with total confidence.
+
+Measure each resolved function's CC now, with `lizard --csv <path>`, and record the number.
+It is the ticket's before-value and the only thing that makes the ticket's own target
+checkable later.
+
+### Step 2 — Draft the five sections
+
+Per `references/ticket-standard.md`, with these mode-specific shapes. Draft to
+`scratch/runs/refactor-<UTC date>/ticket-draft.md`; there is no PRD, so there is no run dir
+handed in.
+
+- **The mode marker is mandatory, on its own line, above the five sections:**
+
+  ```
+  **Mode:** refactor — invariant DoD (nothing broke)
+  ```
+
+  `:run` matches it at intake to take the refactor path — on the **rendered text**, not the
+  asterisks, so any emphasis spelling works. A paraphrase is still not the marker, and a
+  refactor ticket without one is silently run as a feature ticket, which means `red-tests`
+  is asked to describe behaviour that does not change. **Then verify it — see below.**
+- **Observable behaviors** — the CC targets, one per named function, each with its measured
+  before-value: *"`linkWithObjs` in `cmd/link/linker.go` measures CC ≤ 10 (was 139)."* These
+  are observable and mechanically checkable even though no behaviour changes, which is
+  exactly what a refactor ticket needs them to be. Two to five, so **a list longer than five
+  functions is more than one ticket** — split it by file or by subsystem and say so.
+- **File map** — the files holding the named functions. Nothing else.
+- **Definition of done** — the invariant, stated as all three parts, plus the CC targets:
+
+  ```
+  - [ ] Suite fully green BEFORE the first change (baseline; a red baseline stops the ticket)
+  - [ ] The same suite green after — same test count, same node-ids
+  - [ ] No test file modified (`git diff --name-only <base>..HEAD` names none)
+  - [ ] <fn> measures CC <= <reject threshold> (was <n>)
+  ```
+
+  **All three invariant items, never a subset.** A suite green at both ends because a
+  failing test was deleted in the middle is green and proves nothing.
+- **Out of scope** — `Do NOT change any observable behaviour`, `Do NOT edit, add, delete or
+  skip a test`, `Do NOT touch functions outside the file map`. These are the three ways this
+  ticket shape gets abused, so they are written down.
+- **Test expectations** — `**Phase 0:** none — refactor`, the resolved test command, and the
+  statement that the **existing** suite is the guard. Name no new tests. The out-of-root
+  entrypoint requirement is `n/a: this ticket adds no entrypoint and no test`.
+
+Provenance uses the stage-label escape hatch, as retrofit does — there is no run-id and no
+PRD: `> Provenance: <model> · <UTC date> · refactor · source: complexity-check on <branch>`.
+`Parent: none — freestanding leaf.` unless a real umbrella exists; never invent one.
+
+### Step 3 — Adversary, then create
+
+Same loop as Step 5, `--goals <the function list with its measured CCs>` and
+**`--caliber structure,coverage,fidelity,implementability,face-value`** — `provenance` and
+`circularity` need a PRD, as in retrofit mode. Then `create-ticket` per Step 6.
+
+**The adversary's job here is narrower than usual and worth stating in the launch: check
+that the DoD cannot be satisfied by changing a test.** That is the one evasion this ticket
+shape has, and it is the reason the invariant is three items instead of one.
+
+## Backfill mode — `/slopstop-tickets --backfill <what to cover>`
+
+Cut **one** ticket whose deliverable is **tests over behaviour that already works** — a
+wiring assertion, a regression pin under code nobody covered, an enumeration nobody
+enforces. The mirror of `--refactor`: that mode delivers production code and may not touch a
+test; this one delivers tests and may not touch production.
+
+Everything in `--refactor`'s Steps 2 and 3 applies with these differences.
+
+- **The marker is:**
+
+  ```
+  **Mode:** backfill — tests over existing behaviour
+  ```
+
+  On its own line, above the five sections. `:run`'s invariant-tickets section is the one
+  definition of how it is matched. **Then verify it — see below.**
+- **Observable behaviors** are the behaviours the new tests will pin, each named with the
+  production symbol it covers — *"deleting any one wiring line in `SetupServices` fails the
+  test"*. Two to five, as always.
+- **File map** — test files only, plus the production files the tests *read*. A production
+  file listed as **modified** is a contradiction; if the ticket needs one, it is not a
+  backfill ticket.
+- **Definition of done** — the mutation contract, not the invariant one:
+
+  ```
+  - [ ] Every new test passes on current code (PHASE 0: green — backfill)
+  - [ ] Every new test goes RED under a subtractive mutation of <the named target>
+  - [ ] <only if the ticket claims enumeration> Adding an unwired <X> fails the test
+  - [ ] No production file modified (`git diff --name-only <base>..HEAD` names none)
+  ```
+
+  **The mutation items are the DoD.** "The tests pass" is not an achievement here — it is
+  the starting condition. What makes them worth anything is that they stop passing when the
+  behaviour breaks.
+- **Out of scope** — `Do NOT modify any production file`, `Do NOT add a test-only accessor
+  to a production type`, `Do NOT change behaviour`.
+
+**State the enumeration claim explicitly, or do not make it.** If the ticket wants a test
+driven by structure rather than by a hand-maintained list — *"adding a new `Set*` without
+wiring it fails immediately"* — write that as its own observable behavior and its own DoD
+item. It is the most valuable thing a backfill test can offer and the easiest to fake, and
+`mutation-check --backfill` only runs the generative probe that verifies it when the ticket
+says so. An unstated claim is an unverified one.
+
+Adversary caliber: `structure,coverage,fidelity,implementability,face-value`, as in
+retrofit. Tell it its narrow job here: **check that every DoD item would fail if the test
+were replaced by `assert True`.** That is the one evasion this ticket shape has.
+
+## Verify the mode marker after writing it — always
+
+**Applies to `--refactor` and `--backfill`, and to any mode marker you write or edit.**
+
+Having created or updated the ticket, **read the body back from the backend** and run
+`:run`'s detection rule over it. Confirm it resolves to exactly the mode you intended. On a
+mismatch, **stop and report what came back**, quoted — do not retry blindly and do not
+assume the write is what is stored.
+
+This exists because the write can succeed and the marker still not work. The backend decides
+how it stores a body: GitHub Issues keeps raw markdown, JIRA converts to ADF where bold is a
+mark on the text and the asterisks cease to exist. A marker authored as rich text is
+**invisible to the matcher while looking perfect in the browser** — and a mode that fails to
+match does not error, it silently becomes a normal ticket. That is the worst shape available,
+because normal mode always runs; it just runs the wrong contract.
+
+Not hypothetical. Both markers written through this skill on its first real use were broken:
+one stored as ADF bold with the asterisks dropped, one never written at all. Neither was
+caught by anything except a human reading the tickets.
+
+**Prefer plain text over rich text when the backend offers the choice.** Where the API takes
+a structured document, write the marker line as a single unstyled text node rather than a
+bold run. It costs nothing, it round-trips everywhere, and it is one less thing for the
+matcher to normalize away.
 
 ## Rules
 

@@ -67,6 +67,58 @@ what the validation rules below exist to catch.)*
 per-ticket). `stage` is the worker skill's name for worker spans, or a short verb for
 orchestrator-inline work.
 
+## Which stages are spans, and which are notes
+
+**A span measures a duration. A note records that something happened.** Choosing wrongly is
+not cosmetic — it produces a file that fails validation, and a file that fails validation
+reports no timing at all.
+
+| use a **span** when | use a **note** when |
+|---|---|
+| a worker is launched | the act is a single atomic command or API call |
+| a loop round runs (adversary, review) | the duration is noise and varies with nothing |
+| a human is waited on | it is a point-in-time fact (a size, a verdict, a hold) |
+| the work's duration varies with its input | |
+
+**The test is whether the duration varies with the input**, not what it happened to measure
+once. A worker launch that came back fast is still a span.
+
+`:run`'s state-machine table marks every stage with this, so nothing has to be re-derived
+per run. `:design` and `:tickets` have their own stages and the same rule applies to them.
+
+### Why an atomic act must not be a span
+
+`git switch -c` and `git commit` finish instantly. Bracketing one leaves two bad options and
+no good one:
+
+- **a zero-second span** — invariant 5 below calls that suspect, correctly, because it is
+  indistinguishable from a stamp written from memory afterwards; or
+- **a close-only line** — an orphan close, which invariant 2 rejects outright.
+
+Both are wrong, and a run that picks either voids its own timing. Recorded live: a run wrote
+close-only lines for `branch`, `phase0-commit` and the file-map check, its validation caught
+all three, and the whole ticket's timing became unreportable — three instantaneous acts, no
+duration lost, all timing gone. The instinct behind it was right (*these have nothing to
+bracket*) and the schema simply never said a note was the answer.
+
+### A note may fail
+
+A note carries `result` like a span does, and **a note whose result is a failure stops the
+ticket** exactly as a `failed` span would. It just does not need a `started` line to be
+well-formed, so nothing has to be fabricated to make the record valid.
+
+```json
+{"ticket":"BILL-501","event":"note","stage":"branch","at":"…","result":"feat/BILL-501 from a1b2c3d"}
+{"ticket":"BILL-502","event":"note","stage":"branch","at":"…","result":"failed: branch already exists"}
+```
+
+### `stage` comes from the table, never invented
+
+Every `stage` value must be one the writer's own state machine lists. A run recorded a stage
+called `filemap`; there is no such stage — the file-map check lives inside `tamper` — and
+nothing caught it, because only span pairing was validated. One pass over the file is
+supposed to reconstruct the run, and an invented name defeats exactly that. See invariant 6.
+
 ## Human waits are spans too
 
 **This is the whole reason the file can distinguish machine time from a weekend.** Whenever
@@ -93,18 +145,89 @@ diff exists** — after `implement`, before the PR:
 
 ```json
 {"ticket":"BILL-501","event":"note","stage":"size","at":"…",
- "lines_changed":47,"files_changed":3,
- "paths":["skills/run/SKILL.md","CONFIG.md","README.md"],
- "tier":"standard"}
+ "lines_changed":622,"files_changed":33,
+ "production_lines":203,"production_files":2,
+ "test_lines":419,"test_files":31,
+ "test_globs":["*_test.go","**/*_test.*","testdata/**","tests/**","spec/**","__tests__/**"],
+ "files":[
+   {"path":"linker.go","added":131,"removed":46,"kind":"production"},
+   {"path":"arfmt.go","added":15,"removed":11,"kind":"production"},
+   {"path":"weak_def_test.go","added":241,"removed":0,"kind":"test"},
+   {"path":"testdata/weak_armem.c","added":5,"removed":0,"kind":"test"}
+ ],
+ "tier":"standard","tier_basis":"production"}
 ```
 
-`lines_changed` is added + removed from `git diff --stat` against `$BASE`. `paths` is the
-full changed set — keep it, because the useful cut may turn out to be *which* files rather
-than how many.
+### Take the numbers from `--numstat`, per file
+
+```bash
+git diff --numstat "$BASE"..HEAD
+```
+
+Three tab-separated columns per file: **added, removed, path**. Use this, not `--stat` —
+`--stat` is formatted for humans, with aligned bars and abbreviated paths, and parsing it
+back into numbers is a needless step that loses precision on long paths.
+
+**Record one entry per file, not just the aggregates.** The aggregates are what you will
+usually read, but they are a lossy summary of a classification that may turn out wrong:
+if `test_globs` misses a language's convention, per-file data lets you **re-classify a past
+run retroactively**. Aggregates alone cannot be re-asked, and a run cannot be repeated.
+
+This is not theoretical. Reclassifying GAST-8 under two different glob sets:
+
+| `test_globs` | production | tier |
+|---|---|---|
+| `*_test.go` only | 381 lines / 32 files | **`large`** |
+| plus `testdata/**` and the rest | 203 lines / 2 files | **`standard`** |
+
+One run, one diff, two answers — because 31 of its files were per-case C fixtures under
+`testdata/`, which the narrower rule counts as production. Recording the aggregates alone
+would have frozen whichever answer the rule of the day happened to give.
+
+`kind` is `production` or `test`, decided by `test_globs`. The aggregates must equal the
+sum of the per-file entries — if they disagree, the note is wrong and says so twice.
+
+Two shapes `--numstat` emits that a naive parser gets wrong:
+
+- **Binary files** give `-` for added and removed (`-⇥-⇥logo.png`). Count them in
+  `files_changed`, contribute **0** to the line counts, and say how many were binary. A
+  parser that reads `-` as a number crashes; one that skips the row silently undercounts
+  the file.
+- **Renames** appear as `old => new` in the path column when rename detection is on. Record
+  the path as written and do not try to split it — a rename with no edits is 0/0 and should
+  not inflate anything.
+
+### Split production from tests, or the label is wrong every time
+
+**`production_*` and `test_*` must be recorded separately.** The totals alone are actively
+misleading here, and the first real run proved it. GAST-8 changed **33 files / 622 lines**
+(added + removed, from `--numstat`), which the rule below calls **`large`**. Its production code was **2 files
+/ 203 lines** — `standard`. The other 31 files, 419 lines, were tests and
+one-C-fixture-per-case `testdata/` files.
+
+**`lines_changed` is added + removed, not net.** GAST-8's production diff is +146/−57: 203
+by this metric, 89 net. The ticket that specified this work quoted the net figure and
+predicted `trivial`; recomputing it during implementation gave `standard`, and the
+prediction was simply wrong. Two bands still separate the totals from the production
+counts, which is the point — but state the metric you mean, because 89 and 203 fall in
+different bands.
+
+That is not an outlier, it is the design working. **Slopstop deliberately produces far more
+test than implementation**, so a classifier fed the totals will call slopstop's own output
+`large` essentially always, and skip nothing, forever. The mistake is not the thresholds;
+it is counting the wrong thing.
+
+**`test_globs` records the rule you classified by**, in the note itself. A later analysis
+must not have to guess whether `testdata/**` counted as test material — the answer changes
+the numbers, and a past run cannot be re-asked.
+
+A path matching no test glob is production. When a language's convention is not in the list
+above, add it and say so; do not silently classify by intuition.
 
 ### The tier is a label on data, not a decision
 
-Compute it from this provisional rule and **record it. Nothing reads it. Nothing skips.**
+Compute it **from the production counts** — `tier_basis: "production"` records that — and
+**record it. Nothing reads it. Nothing skips.**
 
 | | trivial | standard | large |
 |---|---|---|---|
@@ -119,6 +242,91 @@ classifier that was deleted in the 2026-08-06 reorg precisely so its thresholds 
 being treated as settled. Recording the label next to the real durations is what will
 confirm or move them. When enough runs exist, check whether cost actually clusters at these
 boundaries — and if it does not, move them rather than defending them.
+
+**Changing what is counted and changing where the boundaries sit are two experiments.**
+This is the first; run it alone. Moving the thresholds in the same change makes neither
+interpretable.
+
+## One span per adversary round — never one span per loop
+
+The adversary loop runs up to three rounds, and each round is a separate worker launch.
+**Bracket each launch**: `started` when that round is launched, `finished`/`failed` when
+its verdict comes back, carrying the round number and the verdict.
+
+```json
+{"ticket":"BILL-501","stage":"adversary","event":"span","state":"started","at":"…","round":2}
+{"ticket":"BILL-501","stage":"adversary","event":"span","state":"finished","at":"…","round":2,"result":"FAIL: 3"}
+```
+
+Do **not** open one span at round 1 and close it at round 3 with notes in between. GAST-8
+did exactly that and recorded **1050 seconds as a single lump** for rounds 1–3. The
+adversary was the most expensive stage in that run — about 22 of 78 minutes — and whether
+that is three even rounds or one expensive round and two cheap ones is precisely the
+question a skip decision turns on. The notes recorded the verdicts; nothing recorded the
+cost.
+
+A round that is capped, escalated, or human-authorized past the cap is still its own span.
+
+## Verification verdicts, the blessed SHA, and attempts
+
+The verification stages leave three kinds of line. They are here rather than only in the
+report because **the report is the orchestrator grading its own homework** — the file is the
+external record, and a verdict that exists only in a summary cannot be audited against the
+run that produced it.
+
+**Every verdict is a `result` on the span that produced it, spelled exactly as
+`handoff-verification.md` defines it** — `TAMPER CLEAN`, `TAMPER FAIL: <file>:<line>`,
+`TAMPER BLOCKED: <guard>`, `FILEMAP CLEAN`, `FILEMAP FAIL: <paths>`,
+`HANDOFF BLESSED: <sha>`, `HANDOFF FAIL: <n>`. Do not paraphrase them into prose; a later
+pass over the file classifies on these strings.
+
+```json
+{"ticket":"BILL-501","event":"span","stage":"tamper","state":"started","at":"…"}
+{"ticket":"BILL-501","event":"span","stage":"tamper","state":"failed","at":"…","result":"TAMPER FAIL: tests/test_codec.py:41"}
+```
+
+**The blessing is a `note`, and it carries the SHA it binds to.** A blessing recorded
+without one is a blessing about nothing:
+
+```json
+{"ticket":"BILL-501","event":"note","stage":"handoff","at":"…",
+ "verdict":"BLESSED","blessed_sha":"3f9a1c…"}
+```
+
+It is re-checked at merge. When the tip has advanced past `blessed_sha`, write a fresh
+`handoff` span for the re-verification rather than editing the old note — the file is
+append-only, and *both* blessings are the record of what happened.
+
+**Attempts are counted from the file, not from memory.** An attempt is one `implement` or
+`handoff` span that closed `failed`; nothing stores a counter. Counting them by reading is
+what makes the count survive compaction, and it is why a resume can tell a first attempt
+from a third. Record the diagnosis at the second failure as a `note` — `ticket-defect`,
+`capability-gap`, or `undiagnosed` — because a bad ticket and a weak model look identical
+in a failure count and completely different in a ledger that says which it was.
+
+**A preserved stop gets its own `note`** naming the branch, both SHAs, the worktree path
+where one exists, and the commit count. See `failure-and-salvage.md`; the branch name later
+resolves to a *moved* tip, so the SHA is the truth and both are recorded.
+
+## A hold is a note, not a span
+
+A ticket held by an unsatisfied `Blocked by:` has **not run**, so it must not open a span.
+Record a `note` when the hold is decided, and another when it is released:
+
+```json
+{"ticket":"BILL-502","event":"note","stage":"held","at":"…",
+ "blocked_by":["BILL-501"],"unsatisfied":["BILL-501"],"reason":"not merged"}
+{"ticket":"BILL-502","event":"note","stage":"released","at":"…","after":"BILL-501"}
+```
+
+The ticket's first real span opens **after** the release note. Two things this gets right
+that a span would not: a held ticket contributes nothing to agent-seconds (nothing ran), and
+it is not `waiting_for_user` — no human is being waited on, so folding it into human-idle
+would inflate exactly the number that exists to separate machine time from a weekend.
+
+A ticket held at run end simply has a `held` note and no spans. That is a complete,
+well-formed record of a ticket that never started — **not** an unclosed span, and the
+validation rules below must not read it as one.
 
 ## Computing time
 
@@ -151,9 +359,13 @@ indistinguishable from a short span unless something looks.
 **The invariants:**
 
 1. Every `started` is closed by exactly one `finished` or `failed` with the same
-   `(ticket, stage)`.
+   `(ticket, stage)`. **Spans only** — a note has nothing to close.
 2. No `finished`/`failed` without a preceding `started` for that `(ticket, stage)`.
+   **Spans only.** A stage recorded as a note cannot be an orphan close by construction,
+   which is the point of marking them.
 3. Every line parses as JSON and carries `at`.
+6. Every `stage` value appears in the writer's own state-machine table. An unrecognised
+   value is a failure — name it and the nearest legal value.
 4. A completed run's last line is `{"event":"note","stage":"run_closed",...}`. Its absence
    means the orchestrator died mid-run — which is legitimate state, not corruption, but it
    is **not** a finished run.
@@ -176,8 +388,10 @@ indistinguishable from a short span unless something looks.
 **Validate at two points, without exception:** on resume, before continuing; and at run
 end, before reporting anything.
 
-**When validation fails, report no timing numbers at all.** Name the unclosed spans and
-stop. This is the rule that matters — a broken record must not be able to produce a
+**When validation fails, report no timing numbers at all.** Name what broke, precisely and
+by invariant — **unclosed spans** for invariant 1, **orphan closes** for invariant 2,
+**unknown stages** for invariant 6. They are different defects with different causes and
+"validation failed" alone tells the next reader nothing. Then stop. This is the rule that matters — a broken record must not be able to produce a
 plausible-looking summary. Partial data that flows to a consumer as if whole is the exact
 failure being designed out, and "best effort" here recreates it.
 
