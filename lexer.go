@@ -306,6 +306,12 @@ var skipWords = map[string]bool{
 	// Thread-local storage specifier (GCC __thread / C11 _Thread_local)
 	"__thread":      true,
 	"_Thread_local": true,
+	// C99 complex-type qualifier (GAST-25) — no real complex arithmetic yet;
+	// drop to the base real type, same treatment as the other qualifiers
+	// above. "complex" (the <complex.h> macro alias) needs no separate
+	// entry: the preprocessor expands it to "_Complex" before the lexer
+	// ever sees it.
+	"_Complex": true,
 	// C++ linkage block delimiters — expand to nothing in C mode.
 	"__BEGIN_DECLS": true,
 	"__END_DECLS":   true,
