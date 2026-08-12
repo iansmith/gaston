@@ -540,6 +540,11 @@ var featureTests = []dockerTest{
 	{name: "int_fp_global_init", want: "5\n7\n-9\n"},
 	// int_fp_array_init: FP array with int-literal elements must convert each (GAST-27)
 	{name: "int_fp_array_init", want: "1\n2\n3\n"},
+	// struct_field_array_fp_init: a struct field that is itself a float array
+	// must convert int-literal elements, global and local (GAST-30)
+	{name: "struct_field_array_fp_init", want: "1\n2\n3\n4\n5\n6\n"},
+	// charlit_fp_array_init: float array with char-literal elements must convert (GAST-30)
+	{name: "charlit_fp_array_init", want: "97\n98\n99\n"},
 }
 
 // sepTest describes a separate-compilation test: compile multiple .cm files
