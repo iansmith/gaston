@@ -174,9 +174,12 @@ typedef unsigned char uint8_t;
 /* gaston stub <complex.h> — _Complex is not supported.
    Defining __STDC_NO_COMPLEX__ causes conforming code to skip complex
    declarations; the empty guard here prevents parse errors if this header
-   is included anyway. */
+   is included anyway. "complex" is the standard macro alias for
+   "_Complex" (C99 7.3.1p1) — define it here too, so code spelling it
+   either way gets the same no-panic qualifier treatment (GAST-25). */
 #ifndef _COMPLEX_H
 #define _COMPLEX_H
+#define complex _Complex
 #endif /* _COMPLEX_H */
 `,
 	"stdalign.h": `
