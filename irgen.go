@@ -21,9 +21,10 @@ type irGen struct {
 	fn              *IRFunc // current function being generated
 	globals         map[string]*IRGlobal
 	locals          map[string]localInfo
-	funcNames       map[string]bool   // names of user-defined functions (for IRFuncAddr detection)
-	variadicFuncs   map[string]bool   // names of variadic functions (for FP bitcast at call sites)
-	structRetFuncs  map[string]string // function name → struct tag (for struct-returning functions)
+	funcNames       map[string]bool       // names of user-defined functions (for IRFuncAddr detection)
+	variadicFuncs   map[string]bool       // names of variadic functions (for FP bitcast at call sites)
+	funcParamTypes  map[string][]TypeKind // function name → declared (fixed, pre-"...") param types (GAST-27: call-site int→FP promotion)
+	structRetFuncs  map[string]string     // function name → struct tag (for struct-returning functions)
 	tempN           int
 	labelN          int
 	loopStack       []loopLabels
@@ -47,6 +48,7 @@ func newIRGen() *irGen {
 		globals:        make(map[string]*IRGlobal),
 		funcNames:      make(map[string]bool),
 		variadicFuncs:  make(map[string]bool),
+		funcParamTypes: make(map[string][]TypeKind),
 		structRetFuncs: make(map[string]string),
 	}
 }
@@ -167,28 +169,45 @@ func genIR(prog *Node) *IRProgram {
 			}
 			if !decl.IsExtern && len(decl.Children) > 0 {
 				init := decl.Children[0]
-				if init.Kind == KindNum {
-					gbl.HasInitVal = true
-					gbl.InitVal = init.Val
-				} else if init.Kind == KindFNum {
-					// Float/double global: store IEEE bits.
+				// FP-typed scalar global (GAST-27): an integer-valued initializer
+				// ("float g = 3;", or a negated/const-expr int like "double g = -3;")
+				// must still store the IEEE bit pattern of the converted value, not
+				// the raw integer — the HasInitVal/InitVal path below is for
+				// integer-typed globals only and would store the wrong bits.
+				fval, isFPInit := 0.0, false
+				if isFPType(decl.Type) {
+					if init.Kind == KindFNum {
+						fval, isFPInit = init.FVal, true
+					} else if v, ok := tryEvalConstInt(init); ok {
+						fval, isFPInit = float64(v), true
+					}
+				}
+				if isFPInit {
 					byteSize := 8
 					if decl.Type == TypeFloat {
 						byteSize = 4
 					}
 					buf := make([]byte, byteSize)
 					if byteSize == 4 {
-						bits := math.Float32bits(float32(init.FVal))
+						bits := math.Float32bits(float32(fval))
 						for i := 0; i < 4; i++ {
 							buf[i] = byte(bits >> (uint(i) * 8))
 						}
 					} else {
-						bits := math.Float64bits(init.FVal)
+						bits := math.Float64bits(fval)
 						for i := 0; i < 8; i++ {
 							buf[i] = byte(bits >> (uint(i) * 8))
 						}
 					}
 					gbl.InitData = buf
+				} else if init.Kind == KindNum {
+					gbl.HasInitVal = true
+					gbl.InitVal = init.Val
+				} else if init.Kind == KindFNum {
+					// Non-FP-typed global with a float-literal initializer (e.g.
+					// "int g = 3.5;"): truncate, matching C's implicit conversion.
+					gbl.HasInitVal = true
+					gbl.InitVal = int(init.FVal)
 				} else if v, ok := tryEvalConstInt(init); ok {
 					// Complex constant expression (e.g. (char*)(-1), 128*1024)
 					gbl.HasInitVal = true
@@ -247,12 +266,15 @@ func genIR(prog *Node) *IRProgram {
 	for _, decl := range prog.Children {
 		if decl.Kind == KindFunDecl {
 			g.funcNames[decl.Name] = true
+			var paramTypes []TypeKind
 			for _, p := range decl.Children {
 				if p.Kind == KindParam && p.Name == "..." {
 					g.variadicFuncs[decl.Name] = true
 					break
 				}
+				paramTypes = append(paramTypes, p.Type)
 			}
+			g.funcParamTypes[decl.Name] = paramTypes
 			// Track struct-returning functions (including extern) for call-site codegen.
 			if decl.Type == TypeStruct {
 				g.structRetFuncs[decl.Name] = decl.StructTag
@@ -928,6 +950,17 @@ func buildInitDataBuf(buf []byte, list *Node, decl *Node, structDefs map[string]
 			continue
 		}
 
+		// Destination type for this entry, to decide whether an integer-literal
+		// value must be converted to the destination's IEEE bit pattern
+		// (GAST-27): struct fields carry it on entry.Type (set by
+		// checkStructInitList); array elements don't (checkArrayInitList never
+		// sets entry.Type) — decl.ElemType carries it instead.
+		destType := entry.Type
+		if decl.Type == TypeIntArray {
+			destType = decl.ElemType
+		}
+		destIsFP := isFPType(destType)
+
 		// Extract constant value.
 		var ival int64
 		var fval float64
@@ -935,13 +968,21 @@ func buildInitDataBuf(buf []byte, list *Node, decl *Node, structDefs map[string]
 		isStr := false
 		switch valNode.Kind {
 		case KindNum:
-			ival = int64(valNode.Val)
+			if destIsFP {
+				fval, isFP = float64(valNode.Val), true
+			} else {
+				ival = int64(valNode.Val)
+			}
 		case KindFNum:
 			fval = valNode.FVal
 			isFP = true
 		case KindUnary:
 			if valNode.Op == "-" && valNode.Children[0].Kind == KindNum {
-				ival = -int64(valNode.Children[0].Val)
+				if destIsFP {
+					fval, isFP = -float64(valNode.Children[0].Val), true
+				} else {
+					ival = -int64(valNode.Children[0].Val)
+				}
 			} else if valNode.Op == "-" && valNode.Children[0].Kind == KindFNum {
 				fval = -valNode.Children[0].FVal
 				isFP = true
@@ -963,7 +1004,11 @@ func buildInitDataBuf(buf []byte, list *Node, decl *Node, structDefs map[string]
 			} else {
 				// Also try evaluating as a compile-time integer constant (e.g. (char*)(-1)).
 				if ival2, ok2 := tryEvalConstInt(valNode); ok2 {
-					ival = ival2
+					if destIsFP {
+						fval, isFP = float64(ival2), true
+					} else {
+						ival = ival2
+					}
 				} else {
 					continue // non-constant; semcheck should have caught this
 				}
@@ -2234,9 +2279,18 @@ type callArgSlot struct {
 // collectCallArgs evaluates every argument expression (possibly triggering
 // inner calls that drain pendingParams), then returns a slice of ready slots.
 // IRParam quads must be emitted only AFTER all args are collected.
-func (g *irGen) collectCallArgs(children []*Node, isVariadic bool) []callArgSlot {
+//
+// paramTypes is the callee's declared (fixed, pre-"...") parameter types, or
+// nil when unknown (function pointer calls, builtins). When the argument
+// expression's own type is integer but the callee's declared parameter at
+// that position is floating-point, the value is promoted before being routed
+// through the FP register class (GAST-27) — mirroring what coerceToFP
+// already does for assignment/return/local-init, which this call-argument
+// path previously skipped since it only ever looked at the argument
+// expression's own type.
+func (g *irGen) collectCallArgs(children []*Node, isVariadic bool, paramTypes []TypeKind) []callArgSlot {
 	slots := make([]callArgSlot, 0, len(children))
-	for _, arg := range children {
+	for i, arg := range children {
 		if arg.Type == TypeStruct {
 			srcAddr := g.materializeStructArg(arg)
 			slots = append(slots, callArgSlot{addr: srcAddr, isStruct: true, structTag: arg.StructTag})
@@ -2250,7 +2304,12 @@ func (g *irGen) collectCallArgs(children []*Node, isVariadic bool) []callArgSlot
 		} else {
 			val = g.genExpr(arg)
 		}
-		if isFPType(arg.Type) {
+		argIsFP := isFPType(arg.Type)
+		if !argIsFP && !isPtrType(arg.Type) && i < len(paramTypes) && isFPType(paramTypes[i]) {
+			val = g.coerceToFP(val, arg.Type)
+			argIsFP = true
+		}
+		if argIsFP {
 			if isVariadic {
 				// At a variadic call site, pass FP args through integer registers so
 				// the callee's register-save area (X1-X7) captures the bit pattern.
@@ -2372,7 +2431,7 @@ func (g *irGen) genCall(n *Node) IRAddr {
 	}
 	isVariadic := g.variadicFuncs[n.Name]
 	// Phase 1: materialize all args (inner calls complete here, draining pendingParams).
-	slots := g.collectCallArgs(n.Children, isVariadic)
+	slots := g.collectCallArgs(n.Children, isVariadic, g.funcParamTypes[n.Name])
 	// Phase 2: emit IRParams for THIS call only.
 	g.emitCallArgParams(slots)
 	nargs := IRAddr{Kind: AddrConst, IVal: len(n.Children)}
@@ -2415,7 +2474,7 @@ func (g *irGen) genBuiltinBitop(n *Node) IRAddr {
 func (g *irGen) genStructCallInto(n *Node, dstAddr IRAddr, tag string) {
 	isVariadic := g.variadicFuncs[n.Name]
 	// Phase 1: materialize all args (inner calls complete here, draining pendingParams).
-	slots := g.collectCallArgs(n.Children, isVariadic)
+	slots := g.collectCallArgs(n.Children, isVariadic, g.funcParamTypes[n.Name])
 	// Phase 2: emit IRParams for THIS call only.
 	g.emitCallArgParams(slots)
 	nargs := IRAddr{Kind: AddrConst, IVal: len(n.Children)}
@@ -2744,7 +2803,10 @@ func (g *irGen) genFuncPtrCall(n *Node) IRAddr {
 	g.emit(Quad{Op: IRCopy, Dst: fpVal, Src1: fpAddr})
 
 	// Phase 1: materialize all args (inner calls complete here).
-	slots := g.collectCallArgs(n.Children, false)
+	// paramTypes is nil: the pointed-to signature isn't tracked per-variable
+	// (TypeFuncPtr is opaque), so int→FP promotion isn't attempted here —
+	// out of GAST-27's confirmed scope (direct named calls only).
+	slots := g.collectCallArgs(n.Children, false, nil)
 	// Phase 2: emit IRParams for THIS call only.
 	g.emitCallArgParams(slots)
 
@@ -2781,7 +2843,7 @@ func (g *irGen) genIndirectCall(n *Node) IRAddr {
 	}
 
 	args := n.Children[1:]
-	slots := g.collectCallArgs(args, false)
+	slots := g.collectCallArgs(args, false, nil) // callee signature not tracked here — see genFuncPtrCall
 	g.emitCallArgParams(slots)
 	nargs := IRAddr{Kind: AddrConst, IVal: len(args)}
 	dst := g.newTemp()
