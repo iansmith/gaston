@@ -309,8 +309,9 @@ var skipWords = map[string]bool{
 	// C99 complex-type qualifier (GAST-25) — no real complex arithmetic yet;
 	// drop to the base real type, same treatment as the other qualifiers
 	// above. "complex" (the <complex.h> macro alias) needs no separate
-	// entry: the preprocessor expands it to "_Complex" before the lexer
-	// ever sees it.
+	// entry here: any complex.h that defines "#define complex _Complex"
+	// (real musl/glibc headers, and gaston's own builtin stub in
+	// preproc.go) expands it before the lexer ever sees it.
 	"_Complex": true,
 	// C++ linkage block delimiters — expand to nothing in C mode.
 	"__BEGIN_DECLS": true,

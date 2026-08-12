@@ -529,6 +529,9 @@ var featureTests = []dockerTest{
 	// complex_qualifier: _Complex is a no-panic qualifier — declarations parse
 	// and degrade to the base real type; no complex arithmetic (GAST-25)
 	{name: "complex_qualifier", want: "2\n3\n4\n5\n6\n"},
+	// complex_macro_alias: bare "complex" (the <complex.h> macro alias for
+	// _Complex) via gaston's own builtin complex.h stub (GAST-25 review follow-up)
+	{name: "complex_macro_alias", want: "2\n"},
 }
 
 // sepTest describes a separate-compilation test: compile multiple .cm files
