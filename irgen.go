@@ -179,21 +179,19 @@ func genIR(prog *Node) *IRProgram {
 					fval, isFPInit = evalConstAsFloat64(init)
 				}
 				if isFPInit {
-					byteSize := 8
-					if decl.Type == TypeFloat {
-						byteSize = 4
-					}
-					buf := make([]byte, byteSize)
-					if byteSize == 4 {
-						bits := math.Float32bits(float32(fval))
-						for i := 0; i < 4; i++ {
-							buf[i] = byte(bits >> (uint(i) * 8))
-						}
-					} else {
-						bits := math.Float64bits(fval)
-						for i := 0; i < 8; i++ {
-							buf[i] = byte(bits >> (uint(i) * 8))
-						}
+					// GAST-28: always 8 bytes, even for TypeFloat. Every FP load/
+					// store this compiler emits (fpLoad/fpStore in elfgen.go) is an
+					// 8-byte D-register op regardless of declared width — "float"
+					// is stored as a double internally everywhere else (locals,
+					// params, array elements). A packed 4-byte IEEE754-single
+					// write here was the one inconsistent path: the 8-byte D-load
+					// that later reads this slot back reinterprets those 4 real
+					// bytes plus 4 bytes of zero padding as a double bit pattern,
+					// which is not the value 3.0 (or whatever was assigned).
+					buf := make([]byte, 8)
+					bits := math.Float64bits(fval)
+					for i := 0; i < 8; i++ {
+						buf[i] = byte(bits >> (uint(i) * 8))
 					}
 					gbl.InitData = buf
 				} else if init.Kind == KindNum {
