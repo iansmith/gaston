@@ -526,6 +526,9 @@ var featureTests = []dockerTest{
 	// prototype (no body), zero-arg outer signature, direct chained call,
 	// and the abstract pointer-to-function-returning-function-pointer form.
 	{name: "func_ret_funcptr_adversary", want: "5\n10\n10\n15\n"},
+	// complex_qualifier: _Complex is a no-panic qualifier — declarations parse
+	// and degrade to the base real type; no complex arithmetic (GAST-25)
+	{name: "complex_qualifier", want: "2\n3\n4\n5\n6\n"},
 }
 
 // sepTest describes a separate-compilation test: compile multiple .cm files
