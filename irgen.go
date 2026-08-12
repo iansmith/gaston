@@ -176,11 +176,7 @@ func genIR(prog *Node) *IRProgram {
 				// integer-typed globals only and would store the wrong bits.
 				fval, isFPInit := 0.0, false
 				if isFPType(decl.Type) {
-					if init.Kind == KindFNum {
-						fval, isFPInit = init.FVal, true
-					} else if v, ok := tryEvalConstInt(init); ok {
-						fval, isFPInit = float64(v), true
-					}
+					fval, isFPInit = evalConstAsFloat64(init)
 				}
 				if isFPInit {
 					byteSize := 8
@@ -268,7 +264,13 @@ func genIR(prog *Node) *IRProgram {
 			g.funcNames[decl.Name] = true
 			var paramTypes []TypeKind
 			for _, p := range decl.Children {
-				if p.Kind == KindParam && p.Name == "..." {
+				if p.Kind != KindParam {
+					// Non-extern functions carry the body (a compound-statement
+					// node) as a trailing Children entry alongside the params —
+					// skip it, or paramTypes gets a spurious extra element.
+					continue
+				}
+				if p.Name == "..." {
 					g.variadicFuncs[decl.Name] = true
 					break
 				}
@@ -699,6 +701,29 @@ func (g *irGen) genInitEntry(entry *Node, basePtr IRAddr, decl *Node) {
 	}
 }
 
+// evalConstAsFloat64 attempts to evaluate a constant-expression AST node as a
+// float64, for FP-typed destinations whose initializer may be given as an
+// int-valued literal or expression rather than a float literal (GAST-27):
+// "float g = 3;", "double a[3] = {1,2,3};", "long double g = -9;". Handles
+// KindFNum (and its negation) directly; anything else is delegated to
+// tryEvalConstInt, which already covers plain int literals, negation, "~",
+// casts, and constant binary expressions. Shared by the global-scalar
+// initializer path and buildInitDataBuf's init-list element/field path —
+// keeping this logic in one place so a future constant-expression form only
+// needs to be taught to tryEvalConstInt to work in both.
+func evalConstAsFloat64(n *Node) (float64, bool) {
+	if n.Kind == KindFNum {
+		return n.FVal, true
+	}
+	if n.Kind == KindUnary && n.Op == "-" && len(n.Children) == 1 && n.Children[0].Kind == KindFNum {
+		return -n.Children[0].FVal, true
+	}
+	if v, ok := tryEvalConstInt(n); ok {
+		return float64(v), true
+	}
+	return 0, false
+}
+
 // tryEvalConstInt attempts to evaluate an AST node as a compile-time integer constant.
 func tryEvalConstInt(n *Node) (int64, bool) {
 	if n == nil {
@@ -969,7 +994,7 @@ func buildInitDataBuf(buf []byte, list *Node, decl *Node, structDefs map[string]
 		switch valNode.Kind {
 		case KindNum:
 			if destIsFP {
-				fval, isFP = float64(valNode.Val), true
+				fval, isFP = evalConstAsFloat64(valNode)
 			} else {
 				ival = int64(valNode.Val)
 			}
@@ -979,7 +1004,7 @@ func buildInitDataBuf(buf []byte, list *Node, decl *Node, structDefs map[string]
 		case KindUnary:
 			if valNode.Op == "-" && valNode.Children[0].Kind == KindNum {
 				if destIsFP {
-					fval, isFP = -float64(valNode.Children[0].Val), true
+					fval, isFP = evalConstAsFloat64(valNode)
 				} else {
 					ival = -int64(valNode.Children[0].Val)
 				}
@@ -1001,14 +1026,16 @@ func buildInitDataBuf(buf []byte, list *Node, decl *Node, structDefs map[string]
 			if ok {
 				*relocs = append(*relocs, InitReloc{ByteOff: baseOff + byteOff, Label: sym, Addend: addend})
 				isStr = true // skip byte-buffer write; address stored via reloc
+			} else if destIsFP {
+				if fv, ok2 := evalConstAsFloat64(valNode); ok2 {
+					fval, isFP = fv, true
+				} else {
+					continue // non-constant; semcheck should have caught this
+				}
 			} else {
 				// Also try evaluating as a compile-time integer constant (e.g. (char*)(-1)).
 				if ival2, ok2 := tryEvalConstInt(valNode); ok2 {
-					if destIsFP {
-						fval, isFP = float64(ival2), true
-					} else {
-						ival = ival2
-					}
+					ival = ival2
 				} else {
 					continue // non-constant; semcheck should have caught this
 				}
