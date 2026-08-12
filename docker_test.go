@@ -540,6 +540,8 @@ var featureTests = []dockerTest{
 	{name: "int_fp_global_init", want: "5\n7\n-9\n"},
 	// int_fp_array_init: FP array with int-literal elements must convert each (GAST-27)
 	{name: "int_fp_array_init", want: "1\n2\n3\n"},
+	// float_global_init: global scalar float (4-byte) initializer storage (GAST-28)
+	{name: "float_global_init", want: "3\n5\n7\n3\n"},
 }
 
 // sepTest describes a separate-compilation test: compile multiple .cm files
