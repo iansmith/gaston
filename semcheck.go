@@ -1795,6 +1795,12 @@ func checkStructInitList(list *Node, sd *StructDef, st *symTable, errs *[]string
 				entry.Val = f.ByteOffset
 				entry.Type = f.Type
 				entry.StructTag = f.StructTag
+				// GAST-30: carry the field's element type too, for when the
+				// field is itself an array (f.Type == TypeIntArray) — irgen's
+				// nested-init recursion needs this to know the destination
+				// element type (e.g. to convert an int-literal element to
+				// float for a "float arr[N];" field).
+				entry.ElemType = f.ElemType
 				// advance cursor past this field
 				for i, nf := range nonAnonFields {
 					if nf.Name == f.Name && nf.ByteOffset == f.ByteOffset {
@@ -1809,6 +1815,7 @@ func checkStructInitList(list *Node, sd *StructDef, st *symTable, errs *[]string
 				entry.Val = f.ByteOffset
 				entry.Type = f.Type
 				entry.StructTag = f.StructTag
+				entry.ElemType = f.ElemType // GAST-30: see the "." branch above
 				cursor++
 			} else {
 				*errs = append(*errs, "too many initializer elements for struct")

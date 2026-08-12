@@ -687,7 +687,11 @@ func (g *irGen) genInitEntry(entry *Node, basePtr IRAddr, decl *Node) {
 				nestedSz = 8
 			}
 		}
-		synthDecl := &Node{Kind: KindVarDecl, Type: entry.Type, StructTag: entry.StructTag}
+		// GAST-30: carry ElemType too — needed when the field is itself an
+		// array (entry.Type == TypeIntArray), so the recursive walk below
+		// knows the destination element type (e.g. TypeFloat) rather than
+		// defaulting to the zero value (TypeVoid, never FP).
+		synthDecl := &Node{Kind: KindVarDecl, Type: entry.Type, StructTag: entry.StructTag, ElemType: entry.ElemType}
 		g.genInitList(valNode, innerPtr, nestedSz, synthDecl)
 		return
 	}
@@ -966,7 +970,11 @@ func buildInitDataBuf(buf []byte, list *Node, decl *Node, structDefs map[string]
 
 		if valNode.Kind == KindInitList {
 			// Nested struct: recurse with a synthetic decl.
-			synthDecl := &Node{Kind: KindVarDecl, Type: entry.Type, StructTag: entry.StructTag}
+			// GAST-30: carry ElemType too — needed when the field is itself an
+			// array (entry.Type == TypeIntArray), so the recursive walk below
+			// knows the destination element type (e.g. TypeFloat) rather than
+			// defaulting to the zero value (TypeVoid, never FP).
+			synthDecl := &Node{Kind: KindVarDecl, Type: entry.Type, StructTag: entry.StructTag, ElemType: entry.ElemType}
 			if byteOff < len(buf) {
 				subBuf := buf[byteOff:]
 				buildInitDataBuf(subBuf, valNode, synthDecl, structDefs,
@@ -1013,7 +1021,11 @@ func buildInitDataBuf(buf []byte, list *Node, decl *Node, structDefs map[string]
 				isFP = true
 			}
 		case KindCharLit:
-			ival = int64(valNode.Val)
+			if destIsFP {
+				fval, isFP = float64(valNode.Val), true
+			} else {
+				ival = int64(valNode.Val)
+			}
 		case KindStrLit:
 			// String literal pointer: create a string constant and record a reloc.
 			label := fmt.Sprintf("str%d", len(prog.StrLits))
