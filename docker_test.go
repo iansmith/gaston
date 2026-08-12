@@ -532,6 +532,14 @@ var featureTests = []dockerTest{
 	// complex_macro_alias: bare "complex" (the <complex.h> macro alias for
 	// _Complex) via gaston's own builtin complex.h stub (GAST-25 review follow-up)
 	{name: "complex_macro_alias", want: "2\n"},
+	// int_fp_call_arg: int literal/variable -> float/double/long-double call
+	// argument must promote, not misroute through the int register class (GAST-27)
+	{name: "int_fp_call_arg", want: "2\n3\n4\n3\n"},
+	// int_fp_global_init: FP-typed global with an int-literal initializer must
+	// convert to the IEEE bit pattern, not store raw integer bits (GAST-27)
+	{name: "int_fp_global_init", want: "5\n7\n-9\n"},
+	// int_fp_array_init: FP array with int-literal elements must convert each (GAST-27)
+	{name: "int_fp_array_init", want: "1\n2\n3\n"},
 }
 
 // sepTest describes a separate-compilation test: compile multiple .cm files
