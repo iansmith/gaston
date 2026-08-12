@@ -1,7 +1,7 @@
 <!-- This file is MIRRORED.  Do not edit it here unless this repo is the
      reference (slopstop / ticket-plugin).  Edit the reference copy, then run
-     tools/fleet-sync/migrate-universal-block.py --apply to propagate.
-     Imported by CLAUDE.md via a single `@CLAUDE-universal.md` line. -->
+     tools/fleet-sync/setup-project.py --apply to propagate.
+     Loaded automatically from .claude/rules/ — there is no import line. -->
 
 
 # Universal Project Rules
@@ -90,9 +90,10 @@ These rules apply across all of Ian's projects unless this CLAUDE.md explicitly 
 
 ## 9. Automated PR review
 
-- **Claude `/code-review` is the base review, and the only one that gates a merge.** Every PR gets it; a PR is reviewed once it is clean. Nothing else is required.
-- **Every project must set `[pr_review] backend = "claude"` explicitly.** `coderabbit` is the *default*, so a missing `[pr_review]` block is the bug, not the safe state: it sends `:pr` into Step 6-cr's poll (60s × 20), which under CodeRabbit's rate limiting usually burns 20 minutes and returns nothing. `backend` accepts `claude` | `coderabbit` | `greptile` — it stays per-project config, so never hard-code a tool name into a workflow.
-- **CodeRabbit is opportunistic: read it if it is already there, never wait for it.** It reviews free on public repos but rate-limits hard, so most PRs get nothing. Before merging, look **once**, and sort what you find three ways — a real review (work its findings: verify each against the actual code, apply the real ones, state which you refuted and why); a non-review notice (match `Review limit reached`, or `auto reviews are disabled` when the base is not the default branch — **neither is a clean pass**); or silence. The last two are the same action: merge on the Claude review. Do not post `@coderabbitai review` to force one — it spends rate-limit budget on a review that lands after you have merged.
+- **The gate is a review by a context that did not write the code, and every PR gets one.** In an autonomous run that is two things, both mandatory: the stage-10 `review` loop, running to `REVIEW CLEAN` and capped at 5 rounds; then stage 10b handoff verification — fresh checkers at the tier above, fed artifacts only and never the agent's own claims, producing a blessing bound to the branch tip SHA. **Which checkers is decided by the ticket's mode, not by cost:** a normal ticket gets both a `review` and a requirements adversary; a *refactor* ticket gets the reviewer only (there are no new requirements to check against), and a *backfill* ticket gets the adversary only (there is no new production code to review). One of the two is always wrong for an invariant ticket, and skipping it is the structural argument — never a saving. The rule underneath both is **the session that wrote the code never reviews it, and never decides which criticisms of it are valid.** It has an incident behind it: PR #411 recorded a passing review the authoring session had performed on its own work. The isolation is real and comes from the **launch form**: every worker runs as a subagent via `Agent()` (`worker-launch.md`), which gives it its own context window and no access to the conversation that wrote the code. **Corrected 2026-08-10:** this bullet used to say the worker *"carries `context: fork`, … rather than by a flag anyone can forget."* No slopstop skill declares `context: fork` — `grep -rn "context: *fork" skills/` returns nothing — so that named the wrong mechanism and, worse, offered false reassurance: invoking `Skill(slopstop:review)` **inline** instead of through `Agent()` would run the review in the calling context, which is exactly the PR #411 arrangement. It is enforced by the launch form, and the launch form is a step that can be got wrong. Launch workers per `worker-launch.md`; never invoke a review skill inline.
+- **Claude `/code-review` is the human-at-the-keyboard review, and no agent can invoke it.** It carries `disable-model-invocation`: only a person typing it launches it. A skill, a subagent, or a headless run cannot, so any call site that appears to invoke it is **inert**. Reach for it freely when you are at the keyboard — it is the right tool there — but never write a rule, a stage, or a workflow whose correctness depends on it firing. (Verified against the harness on 2026-08-09, not inherited from documentation; if a future harness lifts the restriction, this bullet is what to revisit.)
+- **`[pr_review] backend` does not choose who reviews.** The forked `review` worker runs on every PR whatever the value is. The key selects only *whose bot comments* the bot-read step goes looking for; it accepts `claude` | `coderabbit` | `greptile`, stays per-project config, and is never hard-coded into a workflow. A project with no `[pr_review]` block still gets the full review gate — the default only changes which bot is read.
+- **Bot reviews are opportunistic: read them if already there, never wait.** CodeRabbit reviews free on public repos but rate-limits hard, so most PRs get nothing. Before merging, look **once**, and sort what you find three ways — a real review (work its findings: verify each against the actual code, apply the real ones, state which you refuted and why); a non-review notice (match `Review limit reached`, or `auto reviews are disabled` when the base is not the default branch — **neither is a clean pass**); or silence. The last two are the same action: proceed on the `review` worker's verdict, which is the gate regardless. Do not post `@coderabbitai review` to force one — it spends rate-limit budget on a review that lands after you have merged.
 - When a project has multiple remotes, **prefer the GitHub remote** for any hosted review bot. Bot reviews do not work on Bitbucket; if Bitbucket is the only remote, factor that into the review plan separately.
 
 ## 10. Adding a new rule — where it lives
@@ -116,12 +117,18 @@ list into every copy of it (universal §5), and a mirrored file naming other
 projects also breaks any repo whose own rules forbid referencing a sibling.
 
 **Propagation is mechanical — do not hand-copy.** The unit is this whole file, so
-propagating is a copy and verifying is a hash compare:
+propagating is a copy and verifying is a byte compare. `setup-project.py` owns both;
+it does more than the rules (skills, `.gitignore`, `.project-conf.toml`), and this
+file is one of the things it brings into line:
 
 ```bash
-python3 ~/ticket-plugin/tools/fleet-sync/migrate-universal-block.py --apply    # propagate
-python3 ~/ticket-plugin/tools/fleet-sync/migrate-universal-block.py --verify   # one hash = in sync
+python3 ~/ticket-plugin/tools/fleet-sync/setup-project.py --repos <repo> --apply   # propagate
+python3 ~/ticket-plugin/tools/fleet-sync/setup-project.py --repos <repo>           # verify — writes nothing
 ```
+
+Omit `--repos` for the whole fleet. **Propagation stays the maintainer's call**: the
+repos sit in different states, several are shared with other contributors, and being
+behind is a normal condition rather than a fault to auto-correct.
 
 A project may deliberately **override** a universal rule — the conventional form is a
 section headed `## <Topic> (overrides universal §N)`. Overrides live in that project's

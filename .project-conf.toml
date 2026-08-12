@@ -99,19 +99,23 @@ skip_confirm = true
 [tiers.huge]
 provider = "anthropic"
 model    = "opus"
+effort   = "high"  # set 2026-08-12 (fleet sync)
 version  = "5"  # set 2026-08-01 (grand synchronization)
 
 [tiers.large]
 provider = "anthropic"
 model    = "opus"
+effort   = "high"  # set 2026-08-12 (fleet sync)
 version  = "5"  # set 2026-08-01 (grand synchronization)
 
 [tiers.medium]
 provider = "anthropic"
 model    = "sonnet"
+effort   = "high"  # set 2026-08-12 (fleet sync)
 version  = "5"  # set 2026-08-01 (grand synchronization)
 
 [tiers.small]
 provider = "anthropic"
 model    = "sonnet"
+effort   = "high"  # set 2026-08-12 (fleet sync)
 version  = "5"  # set 2026-08-01 (grand synchronization)
